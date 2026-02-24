@@ -50,28 +50,22 @@ package_alias = {
     "package":   "vite",
 }
 
+load("@vx//stdlib:http.star", "fetch_json_versions")
+
 # ---------------------------------------------------------------------------
 # fetch_versions — npm registry
 # ---------------------------------------------------------------------------
 
 def fetch_versions(ctx):
-    """Fetch Vite versions from npm registry."""
-    data = ctx.http.get_json(
-        "https://registry.npmjs.org/vite"
-    )
-    versions_map = data.get("versions", {})
-    dist_tags = data.get("dist-tags", {})
-    latest = dist_tags.get("latest", "")
+    """Fetch Vite versions from npm registry.
 
-    versions = []
-    for v in versions_map.keys():
-        prerelease = "-" in v  # alpha/beta/rc contain hyphen
-        versions.append({
-            "version":    v,
-            "lts":        v == latest,
-            "prerelease": prerelease,
-        })
-    return versions
+    Returns a descriptor dict for the Rust runtime to execute.
+    """
+    return fetch_json_versions(
+        ctx,
+        "https://registry.npmjs.org/vite",
+        "npm_registry",
+    )
 
 # ---------------------------------------------------------------------------
 # download_url — not applicable (npm package)

@@ -8,6 +8,7 @@
 # Inheritance pattern: Level 1 (fully custom - uses Microsoft API, not GitHub)
 
 load("@vx//stdlib:env.star", "env_set", "env_prepend")
+load("@vx//stdlib:http.star", "fetch_json_versions")
 
 # ---------------------------------------------------------------------------
 # Provider metadata
@@ -59,38 +60,14 @@ def fetch_versions(ctx):
     - All supported .NET versions (LTS and STS)
     - Direct download URLs per platform
     - No rate limiting
+
+    Returns a descriptor dict for the Rust runtime to execute.
     """
-    index = ctx.http.get_json(
-        "https://dotnetcli.blob.core.windows.net/dotnet/release-metadata/releases-index.json"
+    return fetch_json_versions(
+        ctx,
+        "https://dotnetcli.blob.core.windows.net/dotnet/release-metadata/releases-index.json",
+        "dotnet_releases",
     )
-
-    versions = []
-    for channel in index.get("releases-index", []):
-        channel_version = channel.get("channel-version", "")
-        support_phase = channel.get("support-phase", "")
-        is_lts = channel.get("release-type", "") == "lts"
-
-        # Skip EOL channels
-        if support_phase == "eol":
-            continue
-
-        # Fetch the releases for this channel
-        releases_url = channel.get("releases.json", "")
-        if not releases_url:
-            continue
-
-        channel_releases = ctx.http.get_json(releases_url)
-        for release in channel_releases.get("releases", []):
-            sdk = release.get("sdk", {})
-            sdk_version = sdk.get("version", "")
-            if sdk_version:
-                versions.append({
-                    "version":    sdk_version,
-                    "lts":        is_lts,
-                    "prerelease": "preview" in sdk_version or "rc" in sdk_version,
-                })
-
-    return versions
 
 # ---------------------------------------------------------------------------
 # download_url — Microsoft CDN

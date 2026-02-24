@@ -7,6 +7,7 @@
 #
 # Inheritance pattern: Level 1 (fully custom - uses Google Cloud storage API)
 load("@vx//stdlib:env.star", "env_set", "env_prepend")
+load("@vx//stdlib:http.star", "fetch_json_versions")
 
 # ---------------------------------------------------------------------------
 # Provider metadata
@@ -69,16 +70,15 @@ permissions = {
 # ---------------------------------------------------------------------------
 
 def fetch_versions(ctx):
-    """Fetch gcloud SDK versions from Google's release manifest."""
-    manifest = ctx.http.get_json(
-        "https://dl.google.com/dl/cloudsdk/channels/rapid/components-2.json"
+    """Fetch gcloud SDK versions from Google's release manifest.
+
+    Returns a descriptor dict for the Rust runtime to execute.
+    """
+    return fetch_json_versions(
+        ctx,
+        "https://dl.google.com/dl/cloudsdk/channels/rapid/components-2.json",
+        "gcloud_manifest",
     )
-
-    version = manifest.get("version", "")
-    if not version:
-        return []
-
-    return [{"version": version, "lts": True, "prerelease": False}]
 
 # ---------------------------------------------------------------------------
 # download_url — Google Cloud SDK official download
