@@ -96,7 +96,7 @@ def install_layout(_ctx, _version):
 
 def store_root(ctx, version):
     """Return the vx store root for this nuget version."""
-    return ctx["paths"]["store_dir"] + "/nuget/" + version
+    return ctx.paths.store_dir + "/nuget/" + version
 
 # ---------------------------------------------------------------------------
 # get_execute_path — resolve nuget executable

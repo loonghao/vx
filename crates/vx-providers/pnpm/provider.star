@@ -144,7 +144,7 @@ def install_layout(ctx, _version):
 # ---------------------------------------------------------------------------
 
 def environment(ctx, _version):
-    return [env_prepend("PATH", ctx.ctx.install_dir + "/bin")]
+    return [env_prepend("PATH", ctx.install_dir + "/bin")]
 
 # ---------------------------------------------------------------------------
 # post_extract — rename platform-specific binary to standard name
@@ -197,7 +197,7 @@ def post_extract(ctx, version, install_dir):
 
 def store_root(ctx, version):
     """Return the vx store root for this pnpm version."""
-    return ctx["paths"]["store_dir"] + "/pnpm/" + version
+    return ctx.paths.store_dir + "/pnpm/" + version
 
 # ---------------------------------------------------------------------------
 # get_execute_path — resolve pnpm executable

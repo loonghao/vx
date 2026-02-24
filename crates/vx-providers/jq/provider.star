@@ -61,7 +61,7 @@ def fetch_versions(ctx):
 
     jq uses tag format "jq-1.8.1" (not "v1.8.1"), so we strip the "jq-" prefix.
     """
-    releases = ctx["http"]["get_json"]("https://api.github.com/repos/jqlang/jq/releases?per_page=30")
+    releases = ctx.http.get_json("https://api.github.com/repos/jqlang/jq/releases?per_page=30")
     versions = []
     for release in releases:
         if release.get("draft", False):

@@ -60,7 +60,7 @@ def fetch_versions(ctx):
     - Direct download URLs per platform
     - No rate limiting
     """
-    index = ctx["http"]["get_json"](
+    index = ctx.http.get_json(
         "https://dotnetcli.blob.core.windows.net/dotnet/release-metadata/releases-index.json"
     )
 
@@ -79,7 +79,7 @@ def fetch_versions(ctx):
         if not releases_url:
             continue
 
-        channel_releases = ctx["http"]["get_json"](releases_url)
+        channel_releases = ctx.http.get_json(releases_url)
         for release in channel_releases.get("releases", []):
             sdk = release.get("sdk", {})
             sdk_version = sdk.get("version", "")
