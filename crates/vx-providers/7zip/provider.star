@@ -1,4 +1,4 @@
-# 7-Zip provider for vx
+﻿# 7-Zip provider for vx
 #
 # Replaces the Rust runtime.rs implementation entirely.
 # All logic is pure computation — no real I/O happens here.
@@ -10,29 +10,17 @@
 
 load("@vx//stdlib:github.star", "github_releases", "releases_to_versions")
 load("@vx//stdlib:install.star", "archive_install", "msi_install", "system_find")
-load("@vx//stdlib:platform.star", "is_windows", "is_macos", "is_linux")
+load("@vx//stdlib:env.star", "env_prepend")
 
 # ---------------------------------------------------------------------------
 # Provider metadata
 # ---------------------------------------------------------------------------
-
-def name():
-    return "7zip"
-
-def description():
-    return "7-Zip - High compression ratio file archiver supporting 7z, ZIP, TAR, GZ, XZ and more"
-
-def homepage():
-    return "https://www.7-zip.org"
-
-def repository():
-    return "https://github.com/ip7z/7zip"
-
-def license():
-    return "LGPL-2.1"
-
-def ecosystem():
-    return "system"
+name        = "7zip"
+description = "7-Zip - High compression ratio file archiver supporting 7z, ZIP, TAR, GZ, XZ and more"
+homepage    = "https://www.7-zip.org"
+repository  = "https://github.com/ip7z/7zip"
+license     = "LGPL-2.1"
+ecosystem   = "system"
 
 # ---------------------------------------------------------------------------
 # Runtime definitions
@@ -59,6 +47,9 @@ runtimes = [
             {"manager": "brew",   "package": "sevenzip",   "priority": 70, "platforms": ["linux"]},
             {"manager": "apt",    "package": "p7zip-full", "priority": 70, "platforms": ["linux"]},
         ],
+        "test_commands": [
+            {"command": "{executable} --version", "name": "version_check"},
+        ],
     },
 ]
 
@@ -82,11 +73,12 @@ def fetch_versions(ctx):
     7-Zip uses tags like "24.09", "23.01" (no 'v' prefix).
     """
     releases = github_releases(
+        ctx,
         owner = "ip7z",
         repo = "7zip",
         include_prereleases = False,
     )
-    return releases_to_versions(releases, strip_v_prefix = False)
+    return releases_to_versions(releases)
 
 # ---------------------------------------------------------------------------
 # Download URL
@@ -106,8 +98,8 @@ def download_url(ctx, version):
       Linux x64:    7z{compact}-linux-x64.tar.xz
       Linux arm64:  7z{compact}-linux-arm64.tar.xz
     """
-    os   = ctx["platform"]["os"]
-    arch = ctx["platform"]["arch"]
+    os   = ctx.platform.os
+    arch = ctx.platform.arch
     ver  = _ver_compact(version)
     base = "https://github.com/ip7z/7zip/releases/download/{}".format(version)
 
@@ -136,8 +128,8 @@ def install_layout(ctx, version):
     macOS and Linux use tar.xz archives.
     The 7z executable lives at the root of the extracted archive.
     """
-    os   = ctx["platform"]["os"]
-    arch = ctx["platform"]["arch"]
+    os   = ctx.platform.os
+    arch = ctx.platform.arch
     url  = download_url(ctx, version)
 
     if url == None:
@@ -162,7 +154,7 @@ def install_layout(ctx, version):
 # Prepare execution  (system tool detection)
 # ---------------------------------------------------------------------------
 
-def prepare_execution(ctx, version):
+def prepare_execution(ctx, _version):
     """Find 7z on the system before falling back to vx-managed installation.
 
     Follows the same pattern as Buck2's ctx.actions.run():
@@ -173,7 +165,7 @@ def prepare_execution(ctx, version):
       2. Known Windows system paths
       3. Fall back to vx-managed installation
     """
-    os = ctx["platform"]["os"]
+    os = ctx.platform.os
 
     if os == "windows":
         return system_find(
@@ -201,25 +193,25 @@ def prepare_execution(ctx, version):
 
 def store_root(ctx):
     """Return the vx store root directory for 7zip."""
-    return "{vx_home}/store/7zip"
+    return ctx.vx_home + "/store/7zip"
 
 def get_execute_path(ctx, version):
     """Return the executable path for the given version."""
-    os = ctx["platform"]["os"]
+    os = ctx.platform.os
     if os == "windows":
-        return "{install_dir}/7z.exe"
+        return ctx.ctx.install_dir + "/7z.exe"
     else:
         # macOS and Linux both use 7zz
-        return "{install_dir}/7zz"
+        return ctx.ctx.install_dir + "/7zz"
 
-def post_install(ctx, version, install_dir):
+def post_install(ctx, _version):
     """Post-install: on macOS create a 7z -> 7zz symlink for compatibility."""
-    os = ctx["platform"]["os"]
+    os = ctx.platform.os
     if os == "macos":
         return {
             "type": "symlink",
-            "source": install_dir + "/7zz",
-            "target": install_dir + "/7z",
+            "source": ctx.install_dir + "/7zz",
+            "target": ctx.install_dir + "/7z",
         }
     return None
 
@@ -227,12 +219,12 @@ def post_install(ctx, version, install_dir):
 # environment
 # ---------------------------------------------------------------------------
 
-def environment(ctx, version, install_dir):
-    return {"PATH": install_dir}
+def environment(ctx, _version):
+    return [env_prepend("PATH", ctx.install_dir)]
 
 # ---------------------------------------------------------------------------
 # deps
 # ---------------------------------------------------------------------------
 
-def deps(ctx, version):
+def deps(_ctx, _version):
     return []

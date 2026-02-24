@@ -3,7 +3,9 @@
 use super::constraint::Version;
 use super::request::VersionRequest;
 use super::resolved::ResolvedVersion;
-use super::strategy::{GoVersionStrategy, Pep440Strategy, SemverStrategy, VersionStrategy};
+use super::strategy::{
+    GitVersionStrategy, GoVersionStrategy, Pep440Strategy, SemverStrategy, VersionStrategy,
+};
 use crate::runtime_spec::Ecosystem;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -154,6 +156,7 @@ impl VersionSolver {
         solver.register_strategy(Box::new(SemverStrategy::new(Ecosystem::Node)));
         solver.register_strategy(Box::new(Pep440Strategy::new()));
         solver.register_strategy(Box::new(GoVersionStrategy::new()));
+        solver.register_strategy(Box::new(GitVersionStrategy::new()));
         solver.register_strategy(Box::new(SemverStrategy::new(Ecosystem::Rust)));
         solver.register_strategy(Box::new(SemverStrategy::new(Ecosystem::Generic)));
 

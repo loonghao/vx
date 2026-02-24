@@ -1,4 +1,4 @@
-# provider.star - bun provider
+﻿# provider.star - bun provider
 #
 # Bun: Incredibly fast JavaScript runtime, bundler, test runner, and package manager
 # Inheritance pattern: Level 2 (custom download_url for bun's naming convention)
@@ -9,29 +9,19 @@
 # Asset format: bun-{os}-{arch}.zip
 
 load("@vx//stdlib:github.star", "make_fetch_versions", "github_asset_url")
+load("@vx//stdlib:http.star", "github_releases")
 load("@vx//stdlib:install.star", "create_shim", "ensure_dependencies")
 
+load("@vx//stdlib:env.star", "env_prepend")
 # ---------------------------------------------------------------------------
 # Provider metadata
 # ---------------------------------------------------------------------------
-
-def name():
-    return "bun"
-
-def description():
-    return "Incredibly fast JavaScript runtime, bundler, test runner, and package manager"
-
-def homepage():
-    return "https://bun.sh"
-
-def repository():
-    return "https://github.com/oven-sh/bun"
-
-def license():
-    return "MIT"
-
-def ecosystem():
-    return "nodejs"
+name        = "bun"
+description = "Incredibly fast JavaScript runtime, bundler, test runner, and package manager"
+homepage    = "https://bun.sh"
+repository  = "https://github.com/oven-sh/bun"
+license     = "MIT"
+ecosystem   = "nodejs"
 
 # ---------------------------------------------------------------------------
 # Runtime definitions
@@ -44,6 +34,10 @@ runtimes = [
         "description": "Bun JavaScript runtime",
         "aliases":     [],
         "priority":    100,
+        "test_commands": [
+            {"command": "{executable} --version", "name": "version_check", "expected_output": "^\\d+\\.\\d+\\.\\d+"},
+            {"command": "{executable} -e \"console.log('ok')\"", "name": "eval_check", "expected_output": "ok"},
+        ],
     },
     {
         "name":         "bunx",
@@ -51,6 +45,9 @@ runtimes = [
         "description":  "Bun package runner",
         "bundled_with": "bun",
         "command_prefix": ["x"],
+        "test_commands": [
+            {"command": "{executable} --version", "name": "version_check"},
+        ],
     },
 ]
 
@@ -65,10 +62,25 @@ permissions = {
 }
 
 # ---------------------------------------------------------------------------
-# fetch_versions — inherited
+# fetch_versions — custom (bun uses "bun-v{version}" tag format)
 # ---------------------------------------------------------------------------
 
-fetch_versions = make_fetch_versions("oven-sh", "bun")
+def fetch_versions(ctx):
+    """Fetch bun versions from GitHub releases.
+
+    bun uses non-standard tag format: "bun-v1.2.3" instead of "v1.2.3".
+    We strip the "bun-v" prefix to get clean version numbers.
+    """
+    releases = github_releases(ctx, "oven-sh", "bun", include_prereleases = False)
+    # releases is a github_releases descriptor; wrap it with tag_prefix stripping
+    return {
+        "__type":           "github_versions",
+        "source":           releases,
+        "tag_key":          "tag_name",
+        "strip_v_prefix":   False,
+        "tag_prefix":       "bun-v",
+        "skip_prereleases": True,
+    }
 
 # ---------------------------------------------------------------------------
 # download_url — custom
@@ -81,8 +93,8 @@ fetch_versions = make_fetch_versions("oven-sh", "bun")
 
 def _bun_platform(ctx):
     """Map platform to bun's naming convention."""
-    os   = ctx["platform"]["os"]
-    arch = ctx["platform"]["arch"]
+    os   = ctx.platform.os
+    arch = ctx.platform.arch
 
     platform_map = {
         "windows/x64":   ("windows", "x64"),
@@ -116,9 +128,9 @@ def download_url(ctx, version):
 # install_layout
 # ---------------------------------------------------------------------------
 
-def install_layout(ctx, version):
+def install_layout(ctx, _version):
     platform = _bun_platform(ctx)
-    os = ctx["platform"]["os"]
+    os = ctx.platform.os
     exe = "bun.exe" if os == "windows" else "bun"
 
     if platform:
@@ -137,10 +149,8 @@ def install_layout(ctx, version):
 # environment
 # ---------------------------------------------------------------------------
 
-def environment(ctx, version, install_dir):
-    return {
-        "PATH": install_dir,
-    }
+def environment(ctx, _version):
+    return [env_prepend("PATH", ctx.install_dir)]
 
 # ---------------------------------------------------------------------------
 # post_extract — create bunx shim after installation
@@ -205,33 +215,14 @@ def pre_run(ctx, args, executable):
 
 def store_root(ctx):
     """Return the vx store root directory for bun."""
-    return "{vx_home}/store/bun"
+    return ctx.vx_home + "/store/bun"
 
 def get_execute_path(ctx, version):
     """Return the executable path for the given version."""
-    os = ctx["platform"]["os"]
-    if os == "windows":
-        return "{install_dir}/bun.exe"
-    else:
-        return "{install_dir}/bun"
+    os = ctx.platform.os
+    exe = "bun.exe" if os == "windows" else "bun"
+    return ctx.install_dir + "/" + exe
 
-def post_install(ctx, version, install_dir):
+def post_install(_ctx, _version):
     """Post-install hook (no-op for bun)."""
-    return None
-
-# ---------------------------------------------------------------------------
-# Path queries (RFC 0037)
-# ---------------------------------------------------------------------------
-
-def store_root(ctx):
-    return "{vx_home}/store/bun"
-
-def get_execute_path(ctx, version):
-    os = ctx["platform"]["os"]
-    if os == "windows":
-        return "{install_dir}/bun.exe"
-    else:
-        return "{install_dir}/bun"
-
-def post_install(ctx, version, install_dir):
     return None

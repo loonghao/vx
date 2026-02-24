@@ -1,7 +1,7 @@
 //! bun provider implementation
 
 use std::sync::Arc;
-use vx_runtime::{ManifestDrivenRuntime, ProviderSource, Runtime, provider::Provider};
+use vx_runtime::{Runtime, provider::Provider};
 
 /// bun provider (Starlark-driven)
 #[derive(Debug, Default)]
@@ -19,20 +19,7 @@ impl Provider for BunProvider {
     }
 
     fn runtimes(&self) -> Vec<Arc<dyn Runtime>> {
-        vec![
-            Arc::new(
-                ManifestDrivenRuntime::new("bun", "bun", ProviderSource::BuiltIn)
-                    .with_fetch_versions(vx_starlark::make_fetch_versions_fn(
-                        "bun",
-                        crate::PROVIDER_STAR,
-                    )),
-            ),
-            Arc::new(ManifestDrivenRuntime::new(
-                "bunx",
-                "bunx",
-                ProviderSource::BuiltIn,
-            )),
-        ]
+        vx_starlark::build_runtimes("bun", crate::PROVIDER_STAR, Some("bun"))
     }
 }
 

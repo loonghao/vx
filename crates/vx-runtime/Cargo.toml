@@ -33,7 +33,8 @@ toml = { workspace = true }
 vx-core = { path = "../vx-core" }
 vx-cache = { workspace = true }
 vx-paths = { path = "../vx-paths" }
-vx-manifest = { workspace = true }
+vx-runtime-core = { path = "../vx-runtime-core" }
+vx-manifest = { path = "../vx-manifest" }
 vx-system-pm = { workspace = true }
 
 
@@ -52,3 +53,4 @@ plugin = ["libloading"]
 rstest = { workspace = true }
 tokio-test = { workspace = true }
 tempfile = { workspace = true }
+vx-manifest = { path = "../vx-manifest" }

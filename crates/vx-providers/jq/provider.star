@@ -1,4 +1,4 @@
-# provider.star - jq provider
+﻿# provider.star - jq provider
 #
 # jq: Lightweight and flexible command-line JSON processor
 # Inheritance pattern: Level 3 (custom download_url, non-standard naming)
@@ -9,28 +9,17 @@
 # Asset format: jq-{os}-{arch}[.exe]  (direct binary, no archive)
 
 load("@vx//stdlib:github.star", "make_fetch_versions", "github_asset_url")
+load("@vx//stdlib:env.star", "env_set", "env_prepend")
 
 # ---------------------------------------------------------------------------
 # Provider metadata
 # ---------------------------------------------------------------------------
-
-def name():
-    return "jq"
-
-def description():
-    return "Lightweight and flexible command-line JSON processor"
-
-def homepage():
-    return "https://jqlang.github.io/jq/"
-
-def repository():
-    return "https://github.com/jqlang/jq"
-
-def license():
-    return "MIT"
-
-def ecosystem():
-    return "devtools"
+name        = "jq"
+description = "Lightweight and flexible command-line JSON processor"
+homepage    = "https://jqlang.github.io/jq/"
+repository  = "https://github.com/jqlang/jq"
+license     = "MIT"
+ecosystem   = "devtools"
 
 # ---------------------------------------------------------------------------
 # Runtime definitions
@@ -43,6 +32,10 @@ runtimes = [
         "description": "Command-line JSON processor",
         "aliases":     [],
         "priority":    100,
+        "test_commands": [
+            {"command": "{executable} --version", "name": "version_check", "expected_output": "jq-\\d+"},
+            {"command": "{executable} -n \"1+1\"", "name": "eval_check", "expected_output": "2"},
+        ],
     },
 ]
 
@@ -108,8 +101,8 @@ def download_url(ctx, version):
     Returns:
         Download URL string, or None if platform is unsupported
     """
-    os   = ctx["platform"]["os"]
-    arch = ctx["platform"]["arch"]
+    os   = ctx.platform.os
+    arch = ctx.platform.arch
 
     # Map arch to jq naming
     arch_map = {
@@ -144,8 +137,8 @@ def download_url(ctx, version):
 # install_layout — binary (single file)
 # ---------------------------------------------------------------------------
 
-def install_layout(ctx, version):
-    os = ctx["platform"]["os"]
+def install_layout(ctx, _version):
+    os = ctx.platform.os
     exe = "jq.exe" if os == "windows" else "jq"
     return {
         "type":             "binary",
@@ -160,15 +153,15 @@ def install_layout(ctx, version):
 
 def store_root(ctx):
     """Return the vx store root directory for jq."""
-    return "{vx_home}/store/jq"
+    return ctx.vx_home + "/store/jq"
 
 def get_execute_path(ctx, version):
     """Return the executable path for the given version."""
-    os = ctx["platform"]["os"]
+    os = ctx.platform.os
     exe = "jq.exe" if os == "windows" else "jq"
-    return "{install_dir}/bin/" + exe
+    return ctx.install_dir + "/bin/" + exe
 
-def post_install(ctx, version, install_dir):
+def post_install(_ctx, _version):
     """No post-install steps needed for jq."""
     return None
 
@@ -176,7 +169,5 @@ def post_install(ctx, version, install_dir):
 # environment
 # ---------------------------------------------------------------------------
 
-def environment(ctx, version, install_dir):
-    return {
-        "PATH": install_dir + "/bin",
-    }
+def environment(ctx, _version):
+    return [env_prepend("PATH", ctx.install_dir + "/bin")]

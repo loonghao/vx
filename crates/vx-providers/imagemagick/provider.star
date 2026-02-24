@@ -1,4 +1,4 @@
-# provider.star - ImageMagick provider
+﻿# provider.star - ImageMagick provider
 #
 # Version source: https://github.com/ImageMagick/ImageMagick/releases
 #
@@ -13,30 +13,17 @@
 
 load("@vx//stdlib:github.star", "make_fetch_versions", "github_asset_url")
 
+load("@vx//stdlib:env.star", "env_prepend")
 # ---------------------------------------------------------------------------
 # Provider metadata
 # ---------------------------------------------------------------------------
-
-def name():
-    return "imagemagick"
-
-def description():
-    return "ImageMagick - Powerful image manipulation and conversion tool"
-
-def homepage():
-    return "https://imagemagick.org"
-
-def repository():
-    return "https://github.com/ImageMagick/ImageMagick"
-
-def license():
-    return "ImageMagick"
-
-def ecosystem():
-    return "system"
-
-def aliases():
-    return ["magick"]
+name        = "imagemagick"
+description = "ImageMagick - Powerful image manipulation and conversion tool"
+homepage    = "https://imagemagick.org"
+repository  = "https://github.com/ImageMagick/ImageMagick"
+license     = "ImageMagick"
+ecosystem   = "system"
+aliases     = ["magick"]
 
 # ---------------------------------------------------------------------------
 # Runtime definitions
@@ -49,12 +36,18 @@ runtimes = [
         "description": "ImageMagick unified command-line tool",
         "aliases":     ["imagemagick"],
         "priority":    100,
+        "test_commands": [
+            {"command": "{executable} --version", "name": "version_check", "expected_output": "ImageMagick"},
+        ],
     },
     {
         "name":        "convert",
         "executable":  "convert",
         "description": "ImageMagick convert tool (legacy alias for magick)",
         "bundled_with": "magick",
+        "test_commands": [
+            {"command": "{executable} --version", "name": "version_check", "expected_output": "ImageMagick"},
+        ],
     },
 ]
 
@@ -84,8 +77,8 @@ def download_url(ctx, version):
     Linux x86_64: AppImage binary from GitHub releases
     Windows/macOS: None (use system_install)
     """
-    os   = ctx["platform"]["os"]
-    arch = ctx["platform"]["arch"]
+    os   = ctx.platform.os
+    arch = ctx.platform.arch
 
     if os == "linux" and arch == "x64":
         # e.g. ImageMagick--gcc-x86_64.AppImage
@@ -99,7 +92,7 @@ def download_url(ctx, version):
 # install_layout — Linux AppImage (single binary)
 # ---------------------------------------------------------------------------
 
-def install_layout(ctx, version):
+def install_layout(_ctx, _version):
     return {
         "type":             "binary",
         "executable_paths": ["magick"],
@@ -109,15 +102,15 @@ def install_layout(ctx, version):
 # environment
 # ---------------------------------------------------------------------------
 
-def environment(ctx, version, install_dir):
-    return {"PATH": install_dir}
+def environment(ctx, _version):
+    return [env_prepend("PATH", ctx.install_dir)]
 
 # ---------------------------------------------------------------------------
 # system_install — Windows and macOS
 # ---------------------------------------------------------------------------
 
 def system_install(ctx):
-    os = ctx["platform"]["os"]
+    os = ctx.platform.os
     if os == "windows":
         return {
             "strategies": [
@@ -147,21 +140,52 @@ def system_install(ctx):
 
 def store_root(ctx):
     """Return the vx store root directory for imagemagick."""
-    return "{vx_home}/store/imagemagick"
+    return ctx.vx_home + "/store/imagemagick"
 
 def get_execute_path(ctx, version):
     """Return the executable path for the given version."""
-    os = ctx["platform"]["os"]
+    os = ctx.platform.os
     exe = "magick.exe" if os == "windows" else "magick"
-    return "{install_dir}/" + exe
+    return ctx.install_dir + "/" + exe
 
-def post_install(ctx, version, install_dir):
+def post_install(_ctx, _version):
     """No post-install steps needed for imagemagick."""
     return None
+
+# ---------------------------------------------------------------------------
+# uninstall — delegate to system package manager on Windows/macOS
+# ---------------------------------------------------------------------------
+
+def uninstall(ctx, _version):
+    """Uninstall ImageMagick.
+
+    Linux: return False to let vx remove the AppImage store directory.
+    Windows/macOS: invoke the system package manager that was used to install.
+    """
+    os = ctx.platform.os
+    if os == "windows":
+        # Try winget first, then choco, then scoop
+        return {
+            "type": "system_uninstall",
+            "strategies": [
+                {"manager": "winget", "package": "ImageMagick.ImageMagick", "priority": 95},
+                {"manager": "choco",  "package": "imagemagick",             "priority": 80},
+                {"manager": "scoop",  "package": "imagemagick",             "priority": 60},
+            ],
+        }
+    elif os == "macos":
+        return {
+            "type": "system_uninstall",
+            "strategies": [
+                {"manager": "brew", "package": "imagemagick", "priority": 90},
+            ],
+        }
+    # Linux: AppImage stored in vx store — let default directory removal handle it
+    return False
 
 # ---------------------------------------------------------------------------
 # deps
 # ---------------------------------------------------------------------------
 
-def deps(ctx, version):
+def deps(_ctx, _version):
     return []

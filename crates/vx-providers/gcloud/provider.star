@@ -1,4 +1,4 @@
-# provider.star - Google Cloud CLI provider
+﻿# provider.star - Google Cloud CLI provider
 #
 # Version source: https://cloud.google.com/sdk/docs/release-notes
 #   Download index: https://dl.google.com/dl/cloudsdk/channels/rapid/components-2.json
@@ -6,31 +6,18 @@
 # Bundled runtimes: gsutil, bq (included in every gcloud SDK release)
 #
 # Inheritance pattern: Level 1 (fully custom - uses Google Cloud storage API)
+load("@vx//stdlib:env.star", "env_set", "env_prepend")
 
 # ---------------------------------------------------------------------------
 # Provider metadata
 # ---------------------------------------------------------------------------
-
-def name():
-    return "gcloud"
-
-def description():
-    return "Google Cloud CLI - Command-line interface for Google Cloud Platform"
-
-def homepage():
-    return "https://cloud.google.com/sdk/gcloud"
-
-def repository():
-    return "https://github.com/GoogleCloudPlatform/google-cloud-sdk"
-
-def license():
-    return "Apache-2.0"
-
-def ecosystem():
-    return "cloud"
-
-def aliases():
-    return ["google-cloud-sdk"]
+name        = "gcloud"
+description = "Google Cloud CLI - Command-line interface for Google Cloud Platform"
+homepage    = "https://cloud.google.com/sdk/gcloud"
+repository  = "https://github.com/GoogleCloudPlatform/google-cloud-sdk"
+license     = "Apache-2.0"
+ecosystem   = "cloud"
+aliases     = ["google-cloud-sdk"]
 
 # ---------------------------------------------------------------------------
 # Runtime definitions
@@ -43,18 +30,27 @@ runtimes = [
         "description": "Google Cloud SDK CLI",
         "aliases":     ["google-cloud-sdk"],
         "priority":    100,
+        "test_commands": [
+            {"command": "{executable} --version", "name": "version_check", "expected_output": "Google Cloud SDK"},
+        ],
     },
     {
         "name":        "gsutil",
         "executable":  "gsutil",
         "description": "Google Cloud Storage utility (bundled with gcloud)",
         "bundled_with": "gcloud",
+        "test_commands": [
+            {"command": "{executable} --version", "name": "version_check"},
+        ],
     },
     {
         "name":        "bq",
         "executable":  "bq",
         "description": "BigQuery command-line tool (bundled with gcloud)",
         "bundled_with": "gcloud",
+        "test_commands": [
+            {"command": "{executable} --version", "name": "version_check"},
+        ],
     },
 ]
 
@@ -90,8 +86,8 @@ def fetch_versions(ctx):
 
 def _gcloud_platform(ctx):
     """Map vx platform to gcloud SDK platform string."""
-    os   = ctx["platform"]["os"]
-    arch = ctx["platform"]["arch"]
+    os   = ctx.platform.os
+    arch = ctx.platform.arch
 
     platforms = {
         "windows/x64":   ("windows",  "x86_64",  "zip"),
@@ -128,8 +124,8 @@ def download_url(ctx, version):
 # install_layout
 # ---------------------------------------------------------------------------
 
-def install_layout(ctx, version):
-    os = ctx["platform"]["os"]
+def install_layout(ctx, _version):
+    os = ctx.platform.os
     if os == "windows":
         exe_paths = ["bin/gcloud.cmd", "bin/gsutil.cmd", "bin/bq.cmd"]
     else:
@@ -145,14 +141,14 @@ def install_layout(ctx, version):
 # environment
 # ---------------------------------------------------------------------------
 
-def environment(ctx, version, install_dir):
-    return {"PATH": install_dir + "/bin"}
+def environment(ctx, _version):
+    return [env_prepend("PATH", ctx.install_dir + "/bin")]
 
 # ---------------------------------------------------------------------------
 # deps
 # ---------------------------------------------------------------------------
 
-def deps(ctx, version):
+def deps(_ctx, _version):
     """gcloud bundles its own Python, no external deps needed."""
     return []
 
@@ -162,14 +158,14 @@ def deps(ctx, version):
 # ---------------------------------------------------------------------------
 
 def store_root(ctx):
-    return "{vx_home}/store/gcloud"
+    return ctx.vx_home + "/store/gcloud"
 
-def get_execute_path(ctx, version):
-    os = ctx["platform"]["os"]
+def get_execute_path(ctx, _version):
+    os = ctx.platform.os
     if os == "windows":
-        return "{install_dir}/gcloud.exe"
+        return ctx.install_dir + "/gcloud.exe"
     else:
-        return "{install_dir}/gcloud"
+        return ctx.install_dir + "/gcloud"
 
-def post_install(ctx, version, install_dir):
+def post_install(_ctx, _version):
     return None

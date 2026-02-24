@@ -1,4 +1,4 @@
-# provider.star - bat provider
+﻿# provider.star - bat provider
 #
 # bat: A cat clone with syntax highlighting and Git integration
 # Releases: https://github.com/sharkdp/bat/releases
@@ -11,27 +11,16 @@
 
 load("@vx//stdlib:github.star", "make_fetch_versions", "github_asset_url")
 
+load("@vx//stdlib:env.star", "env_prepend")
 # ---------------------------------------------------------------------------
 # Provider metadata
 # ---------------------------------------------------------------------------
-
-def name():
-    return "bat"
-
-def description():
-    return "A cat clone with syntax highlighting and Git integration"
-
-def homepage():
-    return "https://github.com/sharkdp/bat"
-
-def repository():
-    return "https://github.com/sharkdp/bat"
-
-def license():
-    return "MIT OR Apache-2.0"
-
-def ecosystem():
-    return "devtools"
+name        = "bat"
+description = "A cat clone with syntax highlighting and Git integration"
+homepage    = "https://github.com/sharkdp/bat"
+repository  = "https://github.com/sharkdp/bat"
+license     = "MIT OR Apache-2.0"
+ecosystem   = "devtools"
 
 # ---------------------------------------------------------------------------
 # Runtime definitions
@@ -39,8 +28,8 @@ def ecosystem():
 
 runtimes = [
     {
-        "name":        "bat",
-        "executable":  "bat",
+        "name":        name,
+        "executable":  name,
         "description": "A cat clone with syntax highlighting and Git integration",
         "aliases":     [],
         "priority":    100,
@@ -73,8 +62,8 @@ fetch_versions = make_fetch_versions("sharkdp", "bat")
 
 def _bat_triple(ctx):
     """Map platform to bat's Rust target triple."""
-    os   = ctx["platform"]["os"]
-    arch = ctx["platform"]["arch"]
+    os   = ctx.platform.os
+    arch = ctx.platform.arch
 
     triples = {
         "windows/x64":   "x86_64-pc-windows-msvc",
@@ -99,7 +88,7 @@ def download_url(ctx, version):
     if not triple:
         return None
 
-    os  = ctx["platform"]["os"]
+    os  = ctx.platform.os
     ext = "zip" if os == "windows" else "tar.gz"
 
     # Asset: "bat-v0.24.0-x86_64-unknown-linux-musl.tar.gz"
@@ -118,7 +107,7 @@ def install_layout(ctx, version):
     if not triple:
         return {"type": "archive", "strip_prefix": "", "executable_paths": ["bat"]}
 
-    os = ctx["platform"]["os"]
+    os = ctx.platform.os
     ext = "zip" if os == "windows" else "tar.gz"
     exe = "bat.exe" if os == "windows" else "bat"
 
@@ -135,10 +124,8 @@ def install_layout(ctx, version):
 # environment
 # ---------------------------------------------------------------------------
 
-def environment(ctx, version, install_dir):
-    return {
-        "PATH": install_dir,
-    }
+def environment(ctx, version):
+    return [env_prepend("PATH", ctx.install_dir)]
 
 
 # ---------------------------------------------------------------------------
@@ -147,33 +134,14 @@ def environment(ctx, version, install_dir):
 
 def store_root(ctx):
     """Return the vx store root directory for bat."""
-    return "{vx_home}/store/bat"
+    return ctx.vx_home + "/store/bat"
 
-def get_execute_path(ctx, version):
+def get_execute_path(ctx, _version):
     """Return the executable path for the given version."""
-    os = ctx["platform"]["os"]
-    if os == "windows":
-        return "{install_dir}/bat.exe"
-    else:
-        return "{install_dir}/bat"
+    os = ctx.platform.os
+    exe = "bat.exe" if os == "windows" else "bat"
+    return ctx.install_dir + "/" + exe
 
-def post_install(ctx, version, install_dir):
+def post_install(_ctx, _version, _install_dir):
     """Post-install hook (no-op for bat)."""
-    return None
-
-# ---------------------------------------------------------------------------
-# Path queries (RFC 0037)
-# ---------------------------------------------------------------------------
-
-def store_root(ctx):
-    return "{vx_home}/store/bat"
-
-def get_execute_path(ctx, version):
-    os = ctx["platform"]["os"]
-    if os == "windows":
-        return "{install_dir}/bat.exe"
-    else:
-        return "{install_dir}/bat"
-
-def post_install(ctx, version, install_dir):
     return None

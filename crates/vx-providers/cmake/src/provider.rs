@@ -1,32 +1,26 @@
 //! cmake provider implementation
 
 use std::sync::Arc;
-use vx_runtime::{ManifestDrivenRuntime, ProviderSource, Runtime, provider::Provider};
+use vx_runtime::{Runtime, provider::Provider};
 
 /// cmake provider (Starlark-driven)
 #[derive(Debug, Default)]
-pub struct CMakeProvider;
+pub struct CmakeProvider;
 
-impl Provider for CMakeProvider {
+impl Provider for CmakeProvider {
     fn name(&self) -> &str {
         crate::star_metadata().name_or("cmake")
     }
 
     fn description(&self) -> &str {
-        crate::star_metadata().description_or("Cross-platform build system generator")
+        crate::star_metadata().description_or("CMake - Cross-platform build system")
     }
 
     fn runtimes(&self) -> Vec<Arc<dyn Runtime>> {
-        vec![Arc::new(
-            ManifestDrivenRuntime::new("cmake", "cmake", ProviderSource::BuiltIn)
-                .with_fetch_versions(vx_starlark::make_fetch_versions_fn(
-                    "cmake",
-                    crate::PROVIDER_STAR,
-                )),
-        )]
+        vx_starlark::build_runtimes("cmake", crate::PROVIDER_STAR, None)
     }
 }
 
 pub fn create_provider() -> Arc<dyn Provider> {
-    Arc::new(CMakeProvider)
+    Arc::new(CmakeProvider)
 }

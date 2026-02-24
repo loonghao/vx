@@ -1,7 +1,7 @@
 //! jq provider implementation
 
 use std::sync::Arc;
-use vx_runtime::{ManifestDrivenRuntime, ProviderSource, Runtime, provider::Provider};
+use vx_runtime::{Runtime, provider::Provider};
 
 /// jq provider (Starlark-driven)
 #[derive(Debug, Default)]
@@ -13,16 +13,11 @@ impl Provider for JqProvider {
     }
 
     fn description(&self) -> &str {
-        crate::star_metadata()
-            .description_or("A lightweight and flexible command-line JSON processor")
+        crate::star_metadata().description_or("jq - Command-line JSON processor")
     }
 
     fn runtimes(&self) -> Vec<Arc<dyn Runtime>> {
-        vec![Arc::new(
-            ManifestDrivenRuntime::new("jq", "jq", ProviderSource::BuiltIn).with_fetch_versions(
-                vx_starlark::make_fetch_versions_fn("jq", crate::PROVIDER_STAR),
-            ),
-        )]
+        vx_starlark::build_runtimes("jq", crate::PROVIDER_STAR, None)
     }
 }
 

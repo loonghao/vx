@@ -1,7 +1,7 @@
 //! fd provider implementation
 
 use std::sync::Arc;
-use vx_runtime::{ManifestDrivenRuntime, ProviderSource, Runtime, provider::Provider};
+use vx_runtime::{Runtime, provider::Provider};
 
 /// fd provider (Starlark-driven)
 #[derive(Debug, Default)]
@@ -14,18 +14,11 @@ impl Provider for FdProvider {
 
     fn description(&self) -> &str {
         crate::star_metadata()
-            .description_or("A simple, fast and user-friendly alternative to find")
+            .description_or("fd - A simple, fast and user-friendly alternative to find")
     }
 
     fn runtimes(&self) -> Vec<Arc<dyn Runtime>> {
-        vec![Arc::new(
-            ManifestDrivenRuntime::new("fd", "fd", ProviderSource::BuiltIn)
-                .with_description("A simple, fast and user-friendly alternative to find")
-                .with_fetch_versions(vx_starlark::make_fetch_versions_fn(
-                    "fd",
-                    crate::PROVIDER_STAR,
-                )),
-        )]
+        vx_starlark::build_runtimes("fd", crate::PROVIDER_STAR, None)
     }
 }
 

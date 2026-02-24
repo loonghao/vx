@@ -1,4 +1,4 @@
-# provider.star - fzf provider
+﻿# provider.star - fzf provider
 #
 # fzf: A command-line fuzzy finder
 # Releases: https://github.com/junegunn/fzf/releases
@@ -12,24 +12,12 @@ load("@vx//stdlib:github.star", "make_fetch_versions", "github_asset_url")
 # ---------------------------------------------------------------------------
 # Provider metadata
 # ---------------------------------------------------------------------------
-
-def name():
-    return "fzf"
-
-def description():
-    return "fzf - A command-line fuzzy finder"
-
-def homepage():
-    return "https://github.com/junegunn/fzf"
-
-def repository():
-    return "https://github.com/junegunn/fzf"
-
-def license():
-    return "MIT"
-
-def ecosystem():
-    return "devtools"
+name        = "fzf"
+description = "fzf - A command-line fuzzy finder"
+homepage    = "https://github.com/junegunn/fzf"
+repository  = "https://github.com/junegunn/fzf"
+license     = "MIT"
+ecosystem   = "devtools"
 
 # ---------------------------------------------------------------------------
 # Runtime definitions
@@ -41,6 +29,9 @@ runtimes = [
         "executable":  "fzf",
         "description": "A command-line fuzzy finder",
         "priority":    100,
+        "test_commands": [
+            {"command": "{executable} --version", "name": "version_check", "expected_output": "^\\d+\\.\\d+"},
+        ],
     },
 ]
 
@@ -71,8 +62,8 @@ fetch_versions = make_fetch_versions("junegunn", "fzf")
 
 def _fzf_platform(ctx):
     """Map platform to fzf's Go-style platform suffix."""
-    os   = ctx["platform"]["os"]
-    arch = ctx["platform"]["arch"]
+    os   = ctx.platform.os
+    arch = ctx.platform.arch
 
     platforms = {
         "windows/x64":   "windows_amd64",
@@ -98,7 +89,7 @@ def download_url(ctx, version):
     if not platform:
         return None
 
-    os  = ctx["platform"]["os"]
+    os  = ctx.platform.os
     ext = "zip" if os == "windows" else "tar.gz"
 
     # Asset: "fzf-0.57.0-linux_amd64.tar.gz"
@@ -113,14 +104,14 @@ def download_url(ctx, version):
 # ---------------------------------------------------------------------------
 
 def store_root(ctx):
-    return "{vx_home}/store/fzf"
+    return ctx.vx_home + "/store/fzf"
 
-def get_execute_path(ctx, version):
-    os = ctx["platform"]["os"]
+def get_execute_path(ctx, _version):
+    os = ctx.platform.os
     if os == "windows":
-        return "{install_dir}/fzf.exe"
+        return ctx.install_dir + "/fzf.exe"
     else:
-        return "{install_dir}/fzf"
+        return ctx.install_dir + "/fzf"
 
-def post_install(ctx, version, install_dir):
+def post_install(_ctx, _version):
     return None

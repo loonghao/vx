@@ -1,4 +1,4 @@
-# provider.star - rez provider
+﻿# provider.star - rez provider
 #
 # Rez: Cross-platform package manager for deterministic environments
 # Inheritance pattern: Level 3 (package alias - runs via uvx)
@@ -13,24 +13,12 @@ load("@vx//stdlib:github.star", "make_fetch_versions")
 # ---------------------------------------------------------------------------
 # Provider metadata
 # ---------------------------------------------------------------------------
-
-def name():
-    return "rez"
-
-def description():
-    return "Cross-platform package manager for deterministic environments"
-
-def homepage():
-    return "https://rez.readthedocs.io"
-
-def repository():
-    return "https://github.com/AcademySoftwareFoundation/rez"
-
-def license():
-    return "Apache-2.0"
-
-def ecosystem():
-    return "python"
+name        = "rez"
+description = "Cross-platform package manager for deterministic environments"
+homepage    = "https://rez.readthedocs.io"
+repository  = "https://github.com/AcademySoftwareFoundation/rez"
+license     = "Apache-2.0"
+ecosystem   = "python"
 
 # ---------------------------------------------------------------------------
 # Runtime definitions
@@ -43,18 +31,27 @@ runtimes = [
         "description": "Rez package manager",
         "aliases":     [],
         "priority":    100,
+        "test_commands": [
+            {"command": "{executable} --version", "name": "version_check", "expected_output": "\\d+\\.\\d+"},
+        ],
     },
     {
         "name":         "rez-env",
         "executable":   "rez-env",
         "description":  "Rez environment resolver",
         "bundled_with": "rez",
+        "test_commands": [
+            {"command": "{executable} --version", "name": "version_check"},
+        ],
     },
     {
         "name":         "rez-build",
         "executable":   "rez-build",
         "description":  "Rez package builder",
         "bundled_with": "rez",
+        "test_commands": [
+            {"command": "{executable} --version", "name": "version_check"},
+        ],
     },
 ]
 
@@ -81,7 +78,7 @@ fetch_versions = make_fetch_versions("AcademySoftwareFoundation", "rez")
 # It should be installed via: uvx rez or pip install rez
 # ---------------------------------------------------------------------------
 
-def download_url(ctx, version):
+def download_url(_ctx, _version):
     """Rez is installed via uvx/pip, not direct download."""
     return None
 
@@ -89,7 +86,7 @@ def download_url(ctx, version):
 # deps — requires python
 # ---------------------------------------------------------------------------
 
-def deps(ctx, version):
+def deps(_ctx, version):
     """Rez requires Python 3.8+."""
     return [{"runtime": "python", "version": ">=3.8"}]
 
@@ -99,15 +96,15 @@ def deps(ctx, version):
 
 def store_root(ctx):
     """Return the vx store root directory for rez."""
-    return "{vx_home}/store/rez"
+    return ctx.vx_home + "/store/rez"
 
 def get_execute_path(ctx, version):
     """Return the executable path for the given version."""
-    os = ctx["platform"]["os"]
+    os = ctx.platform.os
     exe = "rez.exe" if os == "windows" else "rez"
-    return "{install_dir}/" + exe
+    return ctx.install_dir + "/" + exe
 
-def post_install(ctx, version, install_dir):
+def post_install(_ctx, _version):
     """No post-install steps needed for rez."""
     return None
 
@@ -115,5 +112,5 @@ def post_install(ctx, version, install_dir):
 # environment
 # ---------------------------------------------------------------------------
 
-def environment(ctx, version, install_dir):
-    return {}
+def environment(_ctx, _version):
+    return []

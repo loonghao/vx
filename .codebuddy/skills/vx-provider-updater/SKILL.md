@@ -1,47 +1,219 @@
 ---
 name: vx-provider-updater
 description: |
-  Update existing VX providers to RFC 0018 + RFC 0019 standards, adding layout configuration
-  for binary and archive downloads, and system package manager fallback for hybrid providers.
-  Use this skill when updating provider.toml files, migrating from custom post_extract hooks
-  to declarative layout configuration, or adding package manager fallback for tools without
-  portable binaries on all platforms.
-  Also covers the latest provider.star-as-single-source-of-truth architecture: every provider
-  crate must embed provider.star via include_str! (PROVIDER_STAR constant), expose a
-  star_metadata() function backed by vx_starlark::StarMetadata, and have a build.rs that
-  triggers recompilation when provider.star changes.
+  Update existing VX providers to RFC 0038 standards (provider.star as single source of truth,
+  replacing provider.toml entirely). Migrate from old function-based metadata (def name():) to
+  top-level variables (name = "..."), from dict-style ctx access (ctx["platform"]["os"]) to
+  object-style (ctx.platform.os), and use new stdlib helpers (github_releases, github_asset,
+  ctx.render(), ctx.env()). Remove redundant functions (store_root, get_execute_path,
+  post_extract). Add package_alias for PyPI/npm tools (RFC 0033: vx meson = vx uvx:meson,
+  vx vite = vx npx:vite). All providers must follow RFC 0038 v5 format.
 ---
 
-# VX Provider Updater
+# VX Provider Updater (RFC 0038)
 
-Update existing VX providers to RFC 0018 + RFC 0019 standards with layout configuration and system package manager integration.
+Migrate all VX providers to RFC 0038 standards: `provider.star` as the **single source of truth**,
+replacing `provider.toml` entirely. This is the v0.16.0 target format.
 
 ## When to Use
 
-- Updating existing provider.toml to add layout configuration
-- Migrating from custom `post_extract` hooks to RFC 0019
-- **Migrating from Rust runtime.rs to Starlark provider.star**
-- **Adding MSI install support for Windows using Starlark**
-- **Adding system package manager fallback for tools without portable binaries**
-- **Adding missing `license` field to provider.toml** (all providers MUST have it)
+- **Migrating from old function-based metadata to top-level variables** (RFC 0038 Phase 1)
+- **Migrating from `ctx["platform"]["os"]` to `ctx.platform.os`** (RFC 0038 Phase 1)
+- **Migrating from `make_github_provider` to `github_releases` + `github_asset`** (RFC 0038)
+- **Removing redundant functions** (`store_root`, `get_execute_path`, `post_extract`)
+- **Adding `ctx.render()` for template strings** (RFC 0038 v5)
+- **Adding `ctx.env()` for environment variable access** (RFC 0038 v5)
+- **Adding `package_alias` for PyPI/npm tools** (RFC 0033: `vx meson` = `vx uvx:meson`)
 - Standardizing provider manifests
 - Fixing download/installation issues
-- Fixing "No download URL" or "Executable not found" errors
 - Batch updating multiple providers
+
+## RFC 0038 Core Changes
+
+### Change 1: Metadata as Top-Level Variables (NOT functions)
+
+**OLD (forbidden):**
+```python
+def name():
+    return "mytool"
+
+def description():
+    return "My awesome tool"
+
+def ecosystem():
+    return "custom"
+```
+
+**NEW (required):**
+```python
+name        = "mytool"
+description = "My awesome tool"
+ecosystem   = "custom"
+```
+
+### Change 2: ctx Object Access (NOT dict access)
+
+**OLD (forbidden):**
+```python
+os   = ctx["platform"]["os"]
+arch = ctx["platform"]["arch"]
+releases = ctx["http"]["get_json"]("https://...")
+```
+
+**NEW (required):**
+```python
+os   = ctx.platform.os
+arch = ctx.platform.arch
+releases = ctx.http.get_json("https://...")
+```
+
+### Change 3: New stdlib Helpers
+
+**OLD (forbidden):**
+```python
+_p = make_github_provider("owner", "repo", "tool-{triple}.{ext}")
+fetch_versions = _p["fetch_versions"]
+download_url   = _p["download_url"]
+```
+
+**NEW (required):**
+```python
+load("@vx//stdlib:github.star", "github_releases", "github_asset")
+
+fetch_versions = github_releases("owner", "repo")
+download_url   = github_asset("owner", "repo", "tool-{triple}.{ext}")
+```
+
+### Change 4: Remove Redundant Functions
+
+**Remove these functions entirely:**
+- `store_root(ctx)` — no longer needed
+- `get_execute_path(ctx, version)` — no longer needed
+- `post_extract(ctx, version, install_dir)` — merge into `post_install`
+
+**Keep only:**
+- `fetch_versions(ctx)` — required
+- `download_url(ctx, version)` — strongly recommended
+- `install_layout(ctx, version)` — optional (has defaults)
+- `environment(ctx, version, install_dir)` — optional
+- `post_install(ctx, version, install_dir)` — optional
+- `pre_run(ctx, args)` — optional (note: no `executable` param)
+- `deps(ctx, version)` — optional
+
+### Change 5: pre_run Signature Change
+
+**OLD:**
+```python
+def pre_run(ctx, args, executable):
+    ...
+```
+
+**NEW:**
+```python
+def pre_run(ctx, args):
+    ...
+```
+
+### Change 6: ctx.render() for Template Strings (RFC 0038 v5)
+
+Use `ctx.render()` to expand built-in variables:
+
+```python
+def download_url(ctx, version):
+    # {triple} → x86_64-pc-windows-msvc, aarch64-apple-darwin, etc.
+    # {ext}    → zip (Windows) or tar.gz (others)
+    # {version}, {os}, {arch}, {name} also available
+    return ctx.render("https://github.com/owner/repo/releases/download/v{version}/tool-{version}-{triple}.{ext}")
+
+def install_layout(ctx, version):
+    return {
+        "type":         "archive",
+        "strip_prefix": ctx.render("tool-{version}-{triple}"),
+    }
+
+def environment(ctx, version, install_dir):
+    return {
+        "TOOL_HOME": ctx.render("{install_dir}"),
+        "PATH":      ctx.render("{install_dir}/bin"),
+    }
+```
+
+### Change 7: ctx.env() for Environment Variables (RFC 0038 v5)
+
+```python
+permissions = {
+    "http": ["api.github.com", "github.com"],
+    "env":  ["GITHUB_TOKEN", "VX_GITHUB_MIRROR", "HTTPS_PROXY"],
+}
+
+def fetch_versions(ctx):
+    token = ctx.env("GITHUB_TOKEN", "")
+    headers = {"Authorization": "Bearer " + token} if token else {}
+    return ctx.http.get_json("https://api.github.com/repos/owner/repo/releases", headers=headers)
+
+def download_url(ctx, version):
+    mirror = ctx.env("VX_GITHUB_MIRROR", "https://github.com")
+    return ctx.render(mirror + "/owner/repo/releases/download/v{version}/tool-{version}-{triple}.{ext}")
+```
+
+### Change 8: system_install as Flat List (NOT nested object)
+
+**OLD (forbidden):**
+```python
+"system_install": {
+    "strategies": [
+        {"type": "package_manager", "manager": "brew", "package": "mytool", "priority": 90},
+    ]
+}
+```
+
+**NEW (required):**
+```python
+"system_install": [
+    {"manager": "brew",   "package": "mytool"},
+    {"manager": "winget", "package": "Example.MyTool"},
+    {"manager": "choco",  "package": "mytool"},
+]
+```
+
+### Change 9: requires for Dependencies (RFC 0038 v3)
+
+```python
+# Static dependencies (top-level variable)
+requires = [
+    "node>=18",
+    "python>=3.10,<4",
+    "~git",              # weak dep: only constrain if already in env
+]
+
+# Dynamic dependencies (function form)
+def requires(ctx, version):
+    deps = ["node>=18"]
+    if ctx.platform.os == "windows":
+        deps.append("msvc")
+    return deps
+```
+
+### Change 10: conflicts Declaration (RFC 0038 v4, Spack-inspired)
+
+```python
+conflicts = [
+    {
+        "when":    {"platform": {"os": "windows"}},
+        "message": "This tool does not support Windows.",
+    },
+]
+```
 
 ## License Field Requirement
 
-When updating any provider.toml, ensure the `license` field exists under `[provider]`:
+All providers MUST have `license` as a top-level variable:
 
-```toml
-[provider]
-name = "example"
+```python
 license = "MIT"          # SPDX identifier (REQUIRED)
-# license_note = "..."   # Optional notes
 ```
 
 **Blocked licenses** (AGPL-3.0, SSPL, CC BY-NC) must NOT be integrated as providers.
-See the vx-provider-creator skill for the full license compatibility guide.
 
 ## Quick Reference
 
@@ -1299,6 +1471,122 @@ registered 53 lazy providers (0 errors, 9 manifest-only, 0 warnings)
 - **errors**: Real configuration problems
 - **manifest-only**: Expected for providers without Rust implementation yet
 
+## Migration: Adding package_alias for Ecosystem-Managed Tools (RFC 0033)
+
+Use `package_alias` when a tool is **distributed as a package** in an ecosystem (PyPI via `uvx`,
+or npm via `npx`) rather than as a standalone binary. This routes `vx <name>` to
+`vx <ecosystem>:<package>`, giving each version its own isolated environment.
+
+### When to Use
+
+| Tool Type | Example | package_alias |
+|-----------|---------|---------------|
+| Python CLI tool (PyPI) | meson, ruff, black, mypy, nox | `{"ecosystem": "uvx", "package": "..."}` |
+| npm CLI tool | vite, eslint, prettier, create-react-app | `{"ecosystem": "npx", "package": "..."}` |
+
+### How It Works
+
+```
+vx meson@1.5.0
+  ↓ RFC 0033: package_alias routing (from provider.star)
+vx uvx:meson@1.5.0
+  ↓ UvxInstaller.install()
+uv tool install meson==1.5.0  (pre-warms uv cache)
++ creates shim: exec uvx meson==1.5.0 "$@"
+  ↓ execution
+uvx meson==1.5.0 [args...]  ← isolated Python env per version
+```
+
+### Step 1: Add package_alias to provider.star
+
+```python
+# provider.star - for a Python/PyPI tool (e.g., meson, ruff, black)
+name        = "meson"
+description = "Meson - An extremely fast and user friendly build system"
+homepage    = "https://mesonbuild.com"
+repository  = "https://github.com/mesonbuild/meson"
+license     = "Apache-2.0"
+ecosystem   = "python"
+aliases     = ["mesonbuild"]
+
+# RFC 0033: route `vx meson` → `vx uvx:meson`
+# Each version runs in its own isolated uv-managed Python environment.
+package_alias = {"ecosystem": "uvx", "package": "meson"}
+
+runtimes = [
+    {
+        "name":        "meson",
+        "executable":  "meson",
+        "description": "Meson build system",
+        "aliases":     ["mesonbuild"],
+        "priority":    100,
+    },
+]
+
+permissions = {
+    "http": ["pypi.org"],
+    "fs":   [],
+    "exec": ["uvx", "uv"],
+}
+
+def download_url(_ctx, _version):
+    return None  # Not applicable; runs via uvx
+
+def deps(_ctx, version):
+    return [
+        {"runtime": "uv", "version": "*",
+         "reason": "Tool is installed and run via uv"},
+    ]
+```
+
+### Step 2: Simplify provider.toml (metadata only)
+
+When using `package_alias`, the `provider.toml` only needs metadata — no layout config needed:
+
+```toml
+[provider]
+name = "meson"
+description = "Meson - An extremely fast and user friendly build system"
+homepage = "https://mesonbuild.com"
+repository = "https://github.com/mesonbuild/meson"
+ecosystem = "python"
+license = "Apache-2.0"
+```
+
+### Step 3: Remove layout configuration
+
+If the provider previously had layout config (binary/archive), remove it — `package_alias`
+tools don't download binaries directly.
+
+### Ecosystem Comparison
+
+| Syntax | Equivalent | Installer | Runtime Dep | Isolation |
+|--------|-----------|-----------|-------------|-----------|
+| `vx meson@1.5.0` | `vx uvx:meson@1.5.0` | `UvxInstaller` | `uv` | Per-version Python env |
+| `vx ruff@0.9.0` | `vx uvx:ruff@0.9.0` | `UvxInstaller` | `uv` | Per-version Python env |
+| `vx vite@5.0` | `vx npx:vite@5.0` | `NpmInstaller` | `node` | npm cache |
+| `vx yarn@1.22` | `vx npm:yarn@1.22` | `NpmInstaller` | `node` | npm cache |
+
+### Troubleshooting: package_alias Not Working
+
+**Issue**: `vx meson` still tries to download a binary instead of routing to `uvx:meson`
+
+**Cause**: `package_alias` field not parsed from `provider.star` into `StarMetadata`
+
+**Check**:
+1. Verify `package_alias = {"ecosystem": "uvx", "package": "meson"}` is a **top-level variable** in `provider.star` (not inside a function)
+2. Verify `StarMetadata::parse()` reads `package_alias` (check `vx-starlark/src/metadata.rs`)
+3. Verify `parse_metadata()` in `vx-starlark/src/provider/mod.rs` maps `star_meta.package_alias` to `ProviderMeta.package_alias`
+
+**Issue**: `vx uvx:ruff@0.9.0` fails with "Unknown runtime 'uvx:ruff'"
+
+**Cause**: `uvx` ecosystem not registered in the installer or runtime dependency maps
+
+**Check** (all three must be present):
+1. `vx-ecosystem-pm/src/lib.rs`: `"uvx" => Ok(Box::new(UvxInstaller::new()))`
+2. `vx-cli/src/lib.rs` → `get_all_required_runtimes_for_ecosystem("uvx")`: returns `vec!["uv"]`
+3. `vx-shim/src/executor.rs` → `infer_all_runtimes_from_ecosystem("uvx")`: returns `vec![RuntimeDependency { runtime: "uv", ... }]`
+
 ## Reference
 
 See also:
@@ -1306,3 +1594,4 @@ See also:
 - `docs/provider-migration-status.md` - Migration status tracker
 - `docs/provider-update-summary.md` - Batch update summary
 - `crates/vx-providers/imagemagick/` - Example hybrid provider with PM fallback
+- `crates/vx-providers/meson/` - Example package_alias provider (uvx ecosystem)

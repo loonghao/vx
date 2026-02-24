@@ -1,9 +1,13 @@
 //! Remove command implementation
+//!
+//! Uses `ProviderHandle` as the primary source for installed version queries
+//! and uninstall operations (RFC-0037). Falls back to the legacy `Runtime`
+//! trait path when no ProviderHandle is registered for the tool.
 
 use crate::ui::UI;
 use anyhow::Result;
-use vx_resolver::{VersionConstraint, VersionRequest};
 use vx_runtime::{ProviderRegistry, RuntimeContext};
+use vx_starlark::handle::global_registry;
 
 pub async fn handle(
     registry: &ProviderRegistry,
@@ -12,27 +16,147 @@ pub async fn handle(
     version: Option<&str>,
     force: bool,
 ) -> Result<()> {
-    // Get the runtime from registry
+    // ── Step 1: Try ProviderHandle (RFC-0037) ─────────────────────────────
+    {
+        let reg = global_registry().await;
+        if let Some(handle) = reg.get(tool_name) {
+            return handle_via_provider_handle(
+                &handle, tool_name, version, force, registry, context,
+            )
+            .await;
+        }
+    }
+
+    // ── Step 2: Fallback to legacy Runtime trait ──────────────────────────
+    handle_via_runtime(registry, context, tool_name, version, force).await
+}
+
+// ---------------------------------------------------------------------------
+// ProviderHandle path (RFC-0037)
+// ---------------------------------------------------------------------------
+
+async fn handle_via_provider_handle(
+    handle: &vx_starlark::handle::ProviderHandle,
+    tool_name: &str,
+    version: Option<&str>,
+    force: bool,
+    registry: &ProviderRegistry,
+    context: &RuntimeContext,
+) -> Result<()> {
+    let installed = handle.installed_versions();
+
+    if installed.is_empty() {
+        UI::warn(&format!("No versions of {} are installed", tool_name));
+        return Ok(());
+    }
+
+    if let Some(requested) = version {
+        // Resolve partial/exact version against installed list
+        let target = handle
+            .resolve_installed_version(requested)
+            .map_err(|e| anyhow::anyhow!("{}", e))?;
+
+        if requested != target {
+            UI::detail(&format!("Resolved {} → {}", requested, target));
+        }
+
+        UI::info(&format!("Removing {} {}...", tool_name, target));
+
+        // Run pre-uninstall hook via legacy runtime (hooks still live there)
+        run_pre_uninstall_hook(registry, context, tool_name, &target).await;
+
+        handle
+            .uninstall(&target)
+            .await
+            .map_err(|e| anyhow::anyhow!("{}", e))?;
+
+        // Invalidate caches
+        invalidate_caches_for_runtime(tool_name, context);
+        handle.invalidate_version_cache().await;
+
+        // Run post-uninstall hook
+        run_post_uninstall_hook(registry, context, tool_name, &target).await;
+
+        UI::success(&format!("Successfully removed {} {}", tool_name, target));
+    } else {
+        // Remove all versions
+        if !force {
+            UI::warn(&format!(
+                "This will remove all {} versions: {}",
+                tool_name,
+                installed.join(", ")
+            ));
+            UI::hint("Use --force to confirm removal of all versions");
+            return Ok(());
+        }
+
+        UI::info(&format!("Removing all {} versions...", tool_name));
+
+        let mut errors = 0usize;
+        for ver in &installed {
+            run_pre_uninstall_hook(registry, context, tool_name, ver).await;
+
+            match handle
+                .uninstall(ver)
+                .await
+                .map_err(|e| anyhow::anyhow!("{}", e))
+            {
+                Ok(()) => {
+                    run_post_uninstall_hook(registry, context, tool_name, ver).await;
+                    UI::detail(&format!("Removed {} {}", tool_name, ver));
+                }
+                Err(e) => {
+                    UI::error(&format!("Failed to remove {} {}: {}", tool_name, ver, e));
+                    errors += 1;
+                }
+            }
+        }
+
+        // Invalidate caches once after all removals
+        invalidate_caches_for_runtime(tool_name, context);
+        handle.invalidate_version_cache().await;
+
+        if errors == 0 {
+            UI::success(&format!("Successfully removed all {} versions", tool_name));
+        } else {
+            UI::warn(&format!(
+                "Removed some versions, but {} error(s) occurred",
+                errors
+            ));
+        }
+    }
+
+    Ok(())
+}
+
+// ---------------------------------------------------------------------------
+// Legacy Runtime trait path (fallback)
+// ---------------------------------------------------------------------------
+
+async fn handle_via_runtime(
+    registry: &ProviderRegistry,
+    context: &RuntimeContext,
+    tool_name: &str,
+    version: Option<&str>,
+    force: bool,
+) -> Result<()> {
     let runtime = match registry.get_runtime(tool_name) {
         Some(r) => r,
         None => {
-            // Show friendly error with suggestions
             let available_tools = registry.runtime_names();
             UI::tool_not_found(tool_name, &available_tools);
             return Err(anyhow::anyhow!("Tool not found: {}", tool_name));
         }
     };
 
+    let installed_versions = runtime.installed_versions(context).await?;
+
+    if installed_versions.is_empty() {
+        UI::warn(&format!("No versions of {} are installed", tool_name));
+        return Ok(());
+    }
+
     if let Some(requested_version) = version {
-        // Get installed versions first
-        let installed_versions = runtime.installed_versions(context).await?;
-
-        if installed_versions.is_empty() {
-            UI::warn(&format!("No versions of {} are installed", tool_name));
-            return Ok(());
-        }
-
-        // Resolve version from installed versions (supports partial versions like "3.7" -> "3.7.13")
         let target_version =
             resolve_version_from_installed(tool_name, requested_version, &installed_versions)?;
 
@@ -43,20 +167,13 @@ pub async fn handle(
             ));
         }
 
-        // Remove specific version
         UI::info(&format!("Removing {} {}...", tool_name, target_version));
-
-        // Run pre-uninstall hook
         runtime.pre_uninstall(&target_version, context).await?;
 
         match runtime.uninstall(&target_version, context).await {
             Ok(()) => {
-                // Run post-uninstall hook
                 runtime.post_uninstall(&target_version, context).await?;
-
-                // Invalidate exec path caches
                 invalidate_caches_for_runtime(tool_name, context);
-
                 UI::success(&format!(
                     "Successfully removed {} {}",
                     tool_name, target_version
@@ -71,14 +188,6 @@ pub async fn handle(
             }
         }
     } else {
-        // Remove all versions
-        let installed_versions = runtime.installed_versions(context).await?;
-
-        if installed_versions.is_empty() {
-            UI::warn(&format!("No versions of {} are installed", tool_name));
-            return Ok(());
-        }
-
         if !force {
             UI::warn(&format!(
                 "This will remove all {} versions: {}",
@@ -92,39 +201,27 @@ pub async fn handle(
         UI::info(&format!("Removing all {} versions...", tool_name));
 
         let mut errors = Vec::new();
-        for version in &installed_versions {
-            // Run pre-uninstall hook
-            if let Err(e) = runtime.pre_uninstall(version, context).await {
+        for ver in &installed_versions {
+            if let Err(e) = runtime.pre_uninstall(ver, context).await {
                 UI::error(&format!(
                     "Pre-uninstall hook failed for {} {}: {}",
-                    tool_name, version, e
+                    tool_name, ver, e
                 ));
                 errors.push(e);
                 continue;
             }
-
-            match runtime.uninstall(version, context).await {
+            match runtime.uninstall(ver, context).await {
                 Ok(()) => {
-                    // Run post-uninstall hook (best effort)
-                    if let Err(e) = runtime.post_uninstall(version, context).await {
-                        UI::warn(&format!(
-                            "Post-uninstall hook failed for {} {}: {}",
-                            tool_name, version, e
-                        ));
-                    }
-                    UI::detail(&format!("Removed {} {}", tool_name, version));
+                    let _ = runtime.post_uninstall(ver, context).await;
+                    UI::detail(&format!("Removed {} {}", tool_name, ver));
                 }
                 Err(e) => {
-                    UI::error(&format!(
-                        "Failed to remove {} {}: {}",
-                        tool_name, version, e
-                    ));
+                    UI::error(&format!("Failed to remove {} {}: {}", tool_name, ver, e));
                     errors.push(e);
                 }
             }
         }
 
-        // Invalidate exec path caches after all removals
         invalidate_caches_for_runtime(tool_name, context);
 
         if errors.is_empty() {
@@ -140,21 +237,55 @@ pub async fn handle(
     Ok(())
 }
 
-/// Resolve a version request against installed versions
-///
-/// Supports:
-/// - Exact version: "3.7.13" -> "3.7.13"
-/// - Partial version: "3.7" -> "3.7.13" (latest matching 3.7.x)
-/// - Major version: "3" -> "3.12.0" (latest matching 3.x.x)
+// ---------------------------------------------------------------------------
+// Hook helpers (best-effort, non-fatal)
+// ---------------------------------------------------------------------------
+
+async fn run_pre_uninstall_hook(
+    registry: &ProviderRegistry,
+    context: &RuntimeContext,
+    tool_name: &str,
+    version: &str,
+) {
+    if let Some(runtime) = registry.get_runtime(tool_name)
+        && let Err(e) = runtime.pre_uninstall(version, context).await
+    {
+        UI::warn(&format!(
+            "Pre-uninstall hook failed for {} {}: {}",
+            tool_name, version, e
+        ));
+    }
+}
+
+async fn run_post_uninstall_hook(
+    registry: &ProviderRegistry,
+    context: &RuntimeContext,
+    tool_name: &str,
+    version: &str,
+) {
+    if let Some(runtime) = registry.get_runtime(tool_name)
+        && let Err(e) = runtime.post_uninstall(version, context).await
+    {
+        UI::warn(&format!(
+            "Post-uninstall hook failed for {} {}: {}",
+            tool_name, version, e
+        ));
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Version resolution for legacy path
+// ---------------------------------------------------------------------------
+
 fn resolve_version_from_installed(
     tool_name: &str,
     requested: &str,
     installed: &[String],
 ) -> Result<String> {
-    // Parse the request to understand what kind of constraint it is
+    use vx_resolver::VersionRequest;
+
     let request = VersionRequest::parse(requested);
 
-    // Convert installed versions to parsed versions for matching
     let mut matching: Vec<_> = installed
         .iter()
         .filter_map(|v| {
@@ -168,30 +299,27 @@ fn resolve_version_from_installed(
         .collect();
 
     if matching.is_empty() {
-        let installed_str = if installed.is_empty() {
-            "none".to_string()
-        } else {
-            installed.join(", ")
-        };
-
         return Err(anyhow::anyhow!(
-            "No installed version matches '{}'. Installed versions: {}\n\nTip: Use 'vx versions {}' to see available versions, or 'vx install {}@{}' to install it.",
+            "No installed version matches '{}'. Installed: {}\n\nTip: Use 'vx versions {}' to see available versions.",
             requested,
-            installed_str,
+            if installed.is_empty() {
+                "none".to_string()
+            } else {
+                installed.join(", ")
+            },
             tool_name,
-            tool_name,
-            requested
         ));
     }
 
-    // Sort by version (descending) and return the highest matching version
     matching.sort_by(|(a, _), (b, _)| b.cmp(a));
-
-    Ok(matching.first().unwrap().1.clone())
+    Ok(matching.remove(0).1)
 }
 
-/// Check if a version matches a constraint
-fn matches_constraint(version: &vx_resolver::Version, constraint: &VersionConstraint) -> bool {
+fn matches_constraint(
+    version: &vx_resolver::Version,
+    constraint: &vx_resolver::VersionConstraint,
+) -> bool {
+    use vx_resolver::VersionConstraint;
     match constraint {
         VersionConstraint::Exact(v) => version == v,
         VersionConstraint::Partial { major, minor } => {
@@ -205,9 +333,6 @@ fn matches_constraint(version: &vx_resolver::Version, constraint: &VersionConstr
             version.major == *major && version.minor == *minor
         }
         VersionConstraint::Caret(v) => {
-            // ^1.2.3 means >=1.2.3, <2.0.0 (for major > 0)
-            // ^0.2.3 means >=0.2.3, <0.3.0 (for major == 0, minor > 0)
-            // ^0.0.3 means >=0.0.3, <0.0.4 (for major == 0, minor == 0)
             if v.major > 0 {
                 version.major == v.major && version >= v
             } else if v.minor > 0 {
@@ -217,14 +342,16 @@ fn matches_constraint(version: &vx_resolver::Version, constraint: &VersionConstr
             }
         }
         VersionConstraint::Tilde(v) => {
-            // ~1.2.3 means >=1.2.3, <1.3.0
             version.major == v.major && version.minor == v.minor && version >= v
         }
         VersionConstraint::Range(constraints) => constraints.iter().all(|c| c.satisfies(version)),
     }
 }
 
-/// Invalidate exec path caches after install/uninstall.
+// ---------------------------------------------------------------------------
+// Cache invalidation
+// ---------------------------------------------------------------------------
+
 fn invalidate_caches_for_runtime(tool_name: &str, context: &RuntimeContext) {
     let runtime_store_dir = context.paths.runtime_store_dir(tool_name);
     let prefix = runtime_store_dir.to_string_lossy().to_string();

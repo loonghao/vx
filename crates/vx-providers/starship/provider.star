@@ -1,4 +1,4 @@
-# provider.star - Starship prompt provider
+﻿# provider.star - Starship prompt provider
 #
 # Inheritance level: 2 (fetch_versions inherited, download_url overridden)
 #
@@ -12,30 +12,16 @@
 
 load("@vx//stdlib:github.star", "make_fetch_versions", "github_asset_url")
 
+load("@vx//stdlib:env.star", "env_prepend")
 # ---------------------------------------------------------------------------
 # Provider metadata
 # ---------------------------------------------------------------------------
-
-def name():
-    return "starship"
-
-def description():
-    return "Starship - The minimal, blazing-fast, and infinitely customizable prompt for any shell"
-
-def homepage():
-    return "https://starship.rs"
-
-def repository():
-    return "https://github.com/starship/starship"
-
-def license():
-    return "ISC"
-
-def ecosystem():
-    return "devtools"
-
-def aliases():
-    return []
+name        = "starship"
+description = "Starship - The minimal, blazing-fast, and infinitely customizable prompt for any shell"
+homepage    = "https://starship.rs"
+repository  = "https://github.com/starship/starship"
+license     = "ISC"
+ecosystem   = "devtools"
 
 # ---------------------------------------------------------------------------
 # Runtime definitions
@@ -48,6 +34,9 @@ runtimes = [
         "description": "The minimal, blazing-fast, and infinitely customizable prompt",
         "aliases":     [],
         "priority":    100,
+        "test_commands": [
+            {"command": "{executable} --version", "name": "version_check", "expected_output": "starship \\d+"},
+        ],
     },
 ]
 
@@ -77,8 +66,8 @@ fetch_versions = make_fetch_versions("starship", "starship")
 
 def _starship_triple(ctx):
     """Map platform to Starship's Rust target triple."""
-    os   = ctx["platform"]["os"]
-    arch = ctx["platform"]["arch"]
+    os   = ctx.platform.os
+    arch = ctx.platform.arch
 
     triples = {
         "windows/x64":   "x86_64-pc-windows-msvc",
@@ -103,7 +92,7 @@ def download_url(ctx, version):
     if not triple:
         return None
 
-    os  = ctx["platform"]["os"]
+    os  = ctx.platform.os
     ext = "zip" if os == "windows" else "tar.gz"
 
     # Asset: "starship-x86_64-pc-windows-msvc.zip"  (no version in name!)
@@ -116,8 +105,8 @@ def download_url(ctx, version):
 # install_layout
 # ---------------------------------------------------------------------------
 
-def install_layout(ctx, version):
-    os  = ctx["platform"]["os"]
+def install_layout(ctx, _version):
+    os  = ctx.platform.os
     exe = "starship.exe" if os == "windows" else "starship"
     return {
         "type":             "archive",
@@ -131,15 +120,15 @@ def install_layout(ctx, version):
 
 def store_root(ctx):
     """Return the vx store root directory for starship."""
-    return "{vx_home}/store/starship"
+    return ctx.vx_home + "/store/starship"
 
 def get_execute_path(ctx, version):
     """Return the executable path for the given version."""
-    os = ctx["platform"]["os"]
+    os = ctx.platform.os
     exe = "starship.exe" if os == "windows" else "starship"
-    return "{install_dir}/" + exe
+    return ctx.install_dir + "/" + exe
 
-def post_install(ctx, version, install_dir):
+def post_install(_ctx, _version):
     """No post-install steps needed for starship."""
     return None
 
@@ -147,7 +136,5 @@ def post_install(ctx, version, install_dir):
 # environment
 # ---------------------------------------------------------------------------
 
-def environment(ctx, version, install_dir):
-    return {
-        "PATH": install_dir,
-    }
+def environment(ctx, _version):
+    return [env_prepend("PATH", ctx.install_dir)]

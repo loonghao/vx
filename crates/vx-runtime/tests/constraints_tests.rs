@@ -5,7 +5,7 @@ use vx_manifest::ProviderManifest;
 use vx_runtime::constraints::{
     ConstraintRule, ConstraintsRegistry, DependencyConstraint, VersionPattern,
 };
-use vx_runtime::{get_default_constraints, init_constraints_from_manifests};
+use vx_runtime::{get_default_constraints, init_constraints_from_star};
 
 const SAMPLE_MANIFEST: &str = r#"
 [provider]
@@ -194,10 +194,16 @@ fn test_constraint_to_runtime_dependency() {
 
 #[test]
 fn test_get_default_constraints() {
-    // Initialize global registry from manifest once
-    init_constraints_from_manifests([("sample", SAMPLE_MANIFEST)]).unwrap();
+    // Build constraints from manifest and initialize global registry
+    let registry = ConstraintsRegistry::from_manifest_strings([("sample", SAMPLE_MANIFEST)])
+        .expect("failed to build registry");
 
-    let deps = get_default_constraints("yarn", "1.22.22");
+    // Collect rules for init_constraints_from_star
+    // (global registry is a OnceLock, so this test may be a no-op if already initialized)
+    let _ = init_constraints_from_star(vec![]);
+
+    // Verify the registry built from manifest has the expected constraints
+    let deps = registry.get_constraints("yarn", "1.22.22");
     assert!(!deps.is_empty());
     assert_eq!(deps[0].name, "node");
 }

@@ -1,4 +1,4 @@
-# provider.star - nuget provider
+﻿# provider.star - nuget provider
 #
 # NuGet: The package manager for .NET
 # Inheritance pattern: Level 3 (custom fetch + download, Windows-only binary)
@@ -9,28 +9,17 @@
 # Download: https://dist.nuget.org/win-x86-commandline/v{version}/nuget.exe
 
 load("@vx//stdlib:github.star", "make_fetch_versions")
+load("@vx//stdlib:env.star", "env_prepend")
 
 # ---------------------------------------------------------------------------
 # Provider metadata
 # ---------------------------------------------------------------------------
-
-def name():
-    return "nuget"
-
-def description():
-    return "NuGet - The package manager for .NET"
-
-def homepage():
-    return "https://www.nuget.org/"
-
-def repository():
-    return "https://github.com/NuGet/NuGet.Client"
-
-def license():
-    return "Apache-2.0"
-
-def ecosystem():
-    return "dotnet"
+name        = "nuget"
+description = "NuGet - The package manager for .NET"
+homepage    = "https://www.nuget.org/"
+repository  = "https://github.com/NuGet/NuGet.Client"
+license     = "Apache-2.0"
+ecosystem   = "dotnet"
 
 # ---------------------------------------------------------------------------
 # Runtime definitions
@@ -43,6 +32,9 @@ runtimes = [
         "description": "NuGet command-line tool",
         "aliases":     ["nuget-cli"],
         "priority":    100,
+        "test_commands": [
+            {"command": "{executable} help", "name": "help_check", "expected_output": "NuGet"},
+        ],
     },
 ]
 
@@ -81,7 +73,7 @@ def download_url(ctx, version):
     Returns:
         Download URL string, or None if not Windows
     """
-    os = ctx["platform"]["os"]
+    os = ctx.platform.os
     if os != "windows":
         return None
 
@@ -91,7 +83,7 @@ def download_url(ctx, version):
 # install_layout — binary (single file)
 # ---------------------------------------------------------------------------
 
-def install_layout(ctx, version):
+def install_layout(_ctx, _version):
     return {
         "type":       "binary",
         "target_name": "nuget.exe",
@@ -110,9 +102,9 @@ def store_root(ctx, version):
 # get_execute_path — resolve nuget executable
 # ---------------------------------------------------------------------------
 
-def get_execute_path(ctx, version, install_dir):
+def get_execute_path(ctx, _version, install_dir):
     """Return the path to the nuget executable (Windows only)."""
-    os = ctx["platform"]["os"]
+    os = ctx.platform.os
     if os != "windows":
         return None
     return install_dir + "/bin/nuget.exe"
@@ -121,7 +113,7 @@ def get_execute_path(ctx, version, install_dir):
 # post_install — nothing to do (single binary)
 # ---------------------------------------------------------------------------
 
-def post_install(ctx, version, install_dir):
+def post_install(_ctx, _version):
     """No post-install steps required for nuget."""
     return []
 
@@ -129,7 +121,5 @@ def post_install(ctx, version, install_dir):
 # environment
 # ---------------------------------------------------------------------------
 
-def environment(ctx, version, install_dir):
-    return {
-        "PATH": install_dir + "/bin",
-    }
+def environment(ctx, _version):
+    return [env_prepend("PATH", ctx.install_dir + "/bin")]

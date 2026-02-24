@@ -1,4 +1,4 @@
-# provider.star - ripgrep (rg) provider
+﻿# provider.star - ripgrep (rg) provider
 #
 # Inheritance pattern: Level 2 (partial override)
 #   - fetch_versions: fully inherited from github.star
@@ -11,30 +11,17 @@
 
 load("@vx//stdlib:github.star", "make_fetch_versions", "github_asset_url")
 
+load("@vx//stdlib:env.star", "env_prepend")
 # ---------------------------------------------------------------------------
 # Provider metadata
 # ---------------------------------------------------------------------------
-
-def name():
-    return "ripgrep"
-
-def description():
-    return "ripgrep (rg) - recursively searches directories for a regex pattern"
-
-def homepage():
-    return "https://github.com/BurntSushi/ripgrep"
-
-def repository():
-    return "https://github.com/BurntSushi/ripgrep"
-
-def license():
-    return "MIT OR Unlicense"
-
-def ecosystem():
-    return "devtools"
-
-def aliases():
-    return ["rg"]
+name        = "ripgrep"
+description = "ripgrep (rg) - recursively searches directories for a regex pattern"
+homepage    = "https://github.com/BurntSushi/ripgrep"
+repository  = "https://github.com/BurntSushi/ripgrep"
+license     = "MIT OR Unlicense"
+ecosystem   = "devtools"
+aliases     = ["rg"]
 
 # ---------------------------------------------------------------------------
 # Runtime definitions
@@ -47,6 +34,9 @@ runtimes = [
         "description": "Fast regex search tool",
         "aliases":     ["rg"],
         "priority":    100,
+        "test_commands": [
+            {"command": "{executable} --version", "name": "version_check", "expected_output": "ripgrep \\d+"},
+        ],
     },
 ]
 
@@ -80,8 +70,8 @@ fetch_versions = make_fetch_versions("BurntSushi", "ripgrep")
 
 def _rg_triple(ctx):
     """Map platform to ripgrep's Rust target triple."""
-    os   = ctx["platform"]["os"]
-    arch = ctx["platform"]["arch"]
+    os   = ctx.platform.os
+    arch = ctx.platform.arch
 
     triples = {
         "windows/x64":   "x86_64-pc-windows-msvc",
@@ -106,7 +96,7 @@ def download_url(ctx, version):
     if not triple:
         return None
 
-    os  = ctx["platform"]["os"]
+    os  = ctx.platform.os
     ext = "zip" if os == "windows" else "tar.gz"
 
     # Asset: "ripgrep-14.1.1-x86_64-unknown-linux-musl.tar.gz"
@@ -123,7 +113,7 @@ def download_url(ctx, version):
 
 def install_layout(ctx, version):
     triple = _rg_triple(ctx)
-    os = ctx["platform"]["os"]
+    os = ctx.platform.os
     exe = "rg.exe" if os == "windows" else "rg"
 
     # ripgrep archives contain a subdirectory: ripgrep-{version}-{triple}/
@@ -141,15 +131,15 @@ def install_layout(ctx, version):
 
 def store_root(ctx):
     """Return the vx store root directory for ripgrep."""
-    return "{vx_home}/store/ripgrep"
+    return ctx.vx_home + "/store/ripgrep"
 
 def get_execute_path(ctx, version):
     """Return the executable path for the given version."""
-    os = ctx["platform"]["os"]
+    os = ctx.platform.os
     exe = "rg.exe" if os == "windows" else "rg"
-    return "{install_dir}/" + exe
+    return ctx.install_dir + "/" + exe
 
-def post_install(ctx, version, install_dir):
+def post_install(_ctx, _version):
     """No post-install steps needed for ripgrep."""
     return None
 
@@ -157,7 +147,5 @@ def post_install(ctx, version, install_dir):
 # environment
 # ---------------------------------------------------------------------------
 
-def environment(ctx, version, install_dir):
-    return {
-        "PATH": install_dir,
-    }
+def environment(ctx, _version):
+    return [env_prepend("PATH", ctx.install_dir)]

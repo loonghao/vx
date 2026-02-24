@@ -1,30 +1,26 @@
 //! jj provider implementation
 
 use std::sync::Arc;
-use vx_runtime::{ManifestDrivenRuntime, ProviderSource, Runtime, provider::Provider};
+use vx_runtime::{Runtime, provider::Provider};
 
 /// jj provider (Starlark-driven)
 #[derive(Debug, Default)]
-pub struct JujutsuProvider;
+pub struct JjProvider;
 
-impl Provider for JujutsuProvider {
+impl Provider for JjProvider {
     fn name(&self) -> &str {
         crate::star_metadata().name_or("jj")
     }
 
     fn description(&self) -> &str {
-        crate::star_metadata().description_or("Jujutsu - a Git-compatible DVCS")
+        crate::star_metadata().description_or("Jujutsu - A Git-compatible VCS")
     }
 
     fn runtimes(&self) -> Vec<Arc<dyn Runtime>> {
-        vec![Arc::new(
-            ManifestDrivenRuntime::new("jj", "jj", ProviderSource::BuiltIn).with_fetch_versions(
-                vx_starlark::make_fetch_versions_fn("jj", crate::PROVIDER_STAR),
-            ),
-        )]
+        vx_starlark::build_runtimes("jj", crate::PROVIDER_STAR, None)
     }
 }
 
 pub fn create_provider() -> Arc<dyn Provider> {
-    Arc::new(JujutsuProvider)
+    Arc::new(JjProvider)
 }

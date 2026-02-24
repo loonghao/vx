@@ -245,6 +245,7 @@ impl<'a> ResolveStage<'a> {
                 status: InstallStatus::NeedsInstall,
                 executable: None,
                 install_dir: None,
+                command_prefix: resolution.command_prefix.clone(),
             }
         } else {
             // Runtime is available
@@ -260,6 +261,7 @@ impl<'a> ResolveStage<'a> {
                 status: InstallStatus::Installed,
                 executable: Some(exe_path),
                 install_dir: None,
+                command_prefix: resolution.command_prefix.clone(),
             }
         }
     }
@@ -278,6 +280,7 @@ impl<'a> ResolveStage<'a> {
                         status: InstallStatus::NeedsInstall,
                         executable: None,
                         install_dir: None,
+                        command_prefix: Vec::new(),
                     }
                 } else {
                     // Dependency is in install_order but not missing — it's available
@@ -287,6 +290,7 @@ impl<'a> ResolveStage<'a> {
                         status: InstallStatus::Installed,
                         executable: None,
                         install_dir: None,
+                        command_prefix: Vec::new(),
                     }
                 }
             })
@@ -307,6 +311,7 @@ impl<'a> ResolveStage<'a> {
                         status: InstallStatus::NeedsInstall,
                         executable: None,
                         install_dir: None,
+                        command_prefix: Vec::new(),
                     }
                 }
             })

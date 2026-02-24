@@ -1,4 +1,4 @@
-# provider.star - Go programming language provider
+﻿# provider.star - Go programming language provider
 #
 # Version source: https://go.dev/dl/?mode=json (official API, no rate limiting)
 # Bundled runtimes: gofmt (included in every Go release)
@@ -11,31 +11,18 @@
 #   pre_run: run `go mod download` before `go run` when go.mod exists
 
 load("@vx//stdlib:install.star", "ensure_dependencies")
+load("@vx//stdlib:env.star", "env_set", "env_prepend")
 
 # ---------------------------------------------------------------------------
 # Provider metadata
 # ---------------------------------------------------------------------------
-
-def name():
-    return "go"
-
-def description():
-    return "Go - An open source programming language that makes it easy to build simple, reliable, and efficient software"
-
-def homepage():
-    return "https://go.dev"
-
-def repository():
-    return "https://github.com/golang/go"
-
-def license():
-    return "BSD-3-Clause"
-
-def ecosystem():
-    return "go"
-
-def aliases():
-    return ["golang"]
+name        = "go"
+description = "Go - An open source programming language that makes it easy to build simple, reliable, and efficient software"
+homepage    = "https://go.dev"
+repository  = "https://github.com/golang/go"
+license     = "BSD-3-Clause"
+ecosystem   = "go"
+aliases     = ["golang"]
 
 # ---------------------------------------------------------------------------
 # Runtime definitions
@@ -48,12 +35,19 @@ runtimes = [
         "description": "Go programming language runtime",
         "aliases":     ["golang"],
         "priority":    100,
+        "test_commands": [
+            {"command": "{executable} version", "name": "version_check", "expected_output": "go\\d+\\.\\d+"},
+            {"command": "{executable} env GOVERSION", "name": "env_check"},
+        ],
     },
     {
         "name":        "gofmt",
         "executable":  "gofmt",
         "description": "Go source code formatter (bundled with Go)",
         "bundled_with": "go",
+        "test_commands": [
+            {"command": "{executable} -l .", "name": "list_check", "expect_success": True},
+        ],
     },
 ]
 
@@ -108,8 +102,8 @@ def fetch_versions(ctx):
 
 def _go_platform(ctx):
     """Map vx platform to Go platform/arch strings."""
-    os   = ctx["platform"]["os"]
-    arch = ctx["platform"]["arch"]
+    os   = ctx.platform.os
+    arch = ctx.platform.arch
 
     platforms = {
         "windows/x64":   ("windows", "amd64"),
@@ -138,7 +132,7 @@ def download_url(ctx, version):
         return None
 
     os_str, arch_str = platform[0], platform[1]
-    os = ctx["platform"]["os"]
+    os = ctx.platform.os
 
     if os == "windows":
         # Windows: zip archive
@@ -155,8 +149,8 @@ def download_url(ctx, version):
 # install_layout
 # ---------------------------------------------------------------------------
 
-def install_layout(ctx, version):
-    os = ctx["platform"]["os"]
+def install_layout(ctx, _version):
+    os = ctx.platform.os
 
     if os == "windows":
         exe_paths = ["bin/go.exe", "bin/gofmt.exe"]
@@ -173,17 +167,17 @@ def install_layout(ctx, version):
 # environment
 # ---------------------------------------------------------------------------
 
-def environment(ctx, version, install_dir):
-    return {
-        "GOROOT": install_dir,
-        "PATH":   install_dir + "/bin",
-    }
+def environment(ctx, _version):
+    return [
+        env_set("GOROOT", ctx.install_dir),
+        env_prepend("PATH", ctx.install_dir + "/bin"),
+    ]
 
 # ---------------------------------------------------------------------------
 # deps
 # ---------------------------------------------------------------------------
 
-def deps(ctx, version):
+def deps(_ctx, version):
     """Go recommends git for module fetching."""
     return [
         {"runtime": "git", "version": "*", "optional": True,
@@ -225,14 +219,14 @@ def pre_run(ctx, args, executable):
 # ---------------------------------------------------------------------------
 
 def store_root(ctx):
-    return "{vx_home}/store/go"
+    return ctx.vx_home + "/store/go"
 
-def get_execute_path(ctx, version):
-    os = ctx["platform"]["os"]
+def get_execute_path(ctx, _version):
+    os = ctx.platform.os
     if os == "windows":
-        return "{install_dir}/go.exe"
+        return ctx.install_dir + "/go.exe"
     else:
-        return "{install_dir}/go"
+        return ctx.install_dir + "/go"
 
-def post_install(ctx, version, install_dir):
+def post_install(_ctx, _version):
     return None

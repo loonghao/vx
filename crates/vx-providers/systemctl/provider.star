@@ -1,4 +1,4 @@
-# provider.star - systemctl provider
+﻿# provider.star - systemctl provider
 #
 # systemd system and service manager (Linux-only, system detection only)
 # Inheritance pattern: Level 1 (fully custom, system-only, not installable)
@@ -9,24 +9,12 @@
 # ---------------------------------------------------------------------------
 # Provider metadata
 # ---------------------------------------------------------------------------
-
-def name():
-    return "systemctl"
-
-def description():
-    return "systemd system and service manager"
-
-def homepage():
-    return "https://systemd.io"
-
-def repository():
-    return "https://github.com/systemd/systemd"
-
-def license():
-    return "LGPL-2.1-or-later"
-
-def ecosystem():
-    return "system"
+name        = "systemctl"
+description = "systemd system and service manager"
+homepage    = "https://systemd.io"
+repository  = "https://github.com/systemd/systemd"
+license     = "LGPL-2.1-or-later"
+ecosystem   = "system"
 
 # ---------------------------------------------------------------------------
 # Platform constraint: Linux-only
@@ -51,6 +39,9 @@ runtimes = [
         "priority":         100,
         "auto_installable": False,
         "system_paths":     ["/usr/bin/systemctl", "/bin/systemctl"],
+        "test_commands": [
+            {"command": "{executable} --version", "name": "version_check", "expected_output": "systemd \\d+"},
+        ],
     },
     {
         "name":             "journalctl",
@@ -59,6 +50,9 @@ runtimes = [
         "bundled_with":     "systemctl",
         "auto_installable": False,
         "system_paths":     ["/usr/bin/journalctl", "/bin/journalctl"],
+        "test_commands": [
+            {"command": "{executable} --version", "name": "version_check"},
+        ],
     },
     {
         "name":             "systemd-analyze",
@@ -67,6 +61,9 @@ runtimes = [
         "bundled_with":     "systemctl",
         "auto_installable": False,
         "system_paths":     ["/usr/bin/systemd-analyze", "/bin/systemd-analyze"],
+        "test_commands": [
+            {"command": "{executable} --version", "name": "version_check"},
+        ],
     },
     {
         "name":             "loginctl",
@@ -75,6 +72,9 @@ runtimes = [
         "bundled_with":     "systemctl",
         "auto_installable": False,
         "system_paths":     ["/usr/bin/loginctl", "/bin/loginctl"],
+        "test_commands": [
+            {"command": "{executable} --version", "name": "version_check"},
+        ],
     },
 ]
 
@@ -94,7 +94,7 @@ permissions = {
 
 def fetch_versions(ctx):
     """Detect systemd version from system installation."""
-    os = ctx["platform"]["os"]
+    os = ctx.platform.os
     if os != "linux":
         return []
 
@@ -106,7 +106,7 @@ def fetch_versions(ctx):
 # download_url — not installable
 # ---------------------------------------------------------------------------
 
-def download_url(ctx, version):
+def download_url(_ctx, _version):
     """systemd cannot be installed by vx — Linux system package only."""
     return None
 
@@ -116,7 +116,7 @@ def download_url(ctx, version):
 
 def detect_system_installation(ctx):
     """Detect systemd from system paths."""
-    os = ctx["platform"]["os"]
+    os = ctx.platform.os
     if os != "linux":
         return []
 
@@ -139,16 +139,16 @@ def store_root(ctx):
 
     systemctl is a system-only tool; it is never installed by vx.
     """
-    return "{vx_home}/store/systemctl"
+    return ctx.vx_home + "/store/systemctl"
 
-def get_execute_path(ctx, version):
+def get_execute_path(_ctx, _version):
     """Return the executable path for systemctl.
 
     Always resolved from system paths on Linux.
     """
     return "/usr/bin/systemctl"
 
-def post_install(ctx, version, install_dir):
+def post_install(_ctx, _version):
     """No post-install actions needed — system-only tool."""
     return None
 
@@ -156,5 +156,5 @@ def post_install(ctx, version, install_dir):
 # environment
 # ---------------------------------------------------------------------------
 
-def environment(ctx, version, install_dir):
-    return {}
+def environment(_ctx, _version):
+    return []

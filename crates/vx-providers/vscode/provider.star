@@ -1,34 +1,22 @@
-# provider.star - Visual Studio Code provider
+﻿# provider.star - Visual Studio Code provider
 #
 # Version source: https://update.code.visualstudio.com/api/releases/stable
 #
 # VS Code provides portable archives for all platforms.
 # Inheritance pattern: Level 1 (fully custom - uses VS Code update API)
 
+load("@vx//stdlib:env.star", "env_prepend")
+
 # ---------------------------------------------------------------------------
 # Provider metadata
 # ---------------------------------------------------------------------------
-
-def name():
-    return "vscode"
-
-def description():
-    return "Visual Studio Code - Code editing. Redefined."
-
-def homepage():
-    return "https://code.visualstudio.com"
-
-def repository():
-    return "https://github.com/microsoft/vscode"
-
-def license():
-    return "MIT"
-
-def ecosystem():
-    return "devtools"
-
-def aliases():
-    return ["code", "vs-code"]
+name        = "vscode"
+description = "Visual Studio Code - Code editing. Redefined."
+homepage    = "https://code.visualstudio.com"
+repository  = "https://github.com/microsoft/vscode"
+license     = "MIT"
+ecosystem   = "devtools"
+aliases     = ["code", "vs-code"]
 
 # ---------------------------------------------------------------------------
 # Runtime definitions
@@ -41,6 +29,9 @@ runtimes = [
         "description": "Visual Studio Code editor",
         "aliases":     ["vscode", "vs-code"],
         "priority":    100,
+        "test_commands": [
+            {"command": "{executable} --version", "name": "version_check", "expected_output": "\\d+\\.\\d+"},
+        ],
     },
 ]
 
@@ -76,8 +67,8 @@ def fetch_versions(ctx):
 
 def _vscode_platform(ctx):
     """Map vx platform to VS Code platform/archive strings."""
-    os   = ctx["platform"]["os"]
-    arch = ctx["platform"]["arch"]
+    os   = ctx.platform.os
+    arch = ctx.platform.arch
 
     # (platform_id, ext)
     platforms = {
@@ -117,8 +108,8 @@ def download_url(ctx, version):
 # install_layout
 # ---------------------------------------------------------------------------
 
-def install_layout(ctx, version):
-    os = ctx["platform"]["os"]
+def install_layout(ctx, _version):
+    os = ctx.platform.os
 
     if os == "windows":
         exe_paths = ["bin/code.cmd", "Code.exe"]
@@ -137,14 +128,14 @@ def install_layout(ctx, version):
 # environment
 # ---------------------------------------------------------------------------
 
-def environment(ctx, version, install_dir):
-    os = ctx["platform"]["os"]
+def environment(ctx, _version):
+    os = ctx.platform.os
     if os == "windows":
-        return {"PATH": install_dir + "/bin"}
+        return [env_prepend("PATH", ctx.install_dir + "/bin")]
     elif os == "macos":
-        return {"PATH": install_dir + "/Visual Studio Code.app/Contents/Resources/app/bin"}
+        return [env_prepend("PATH", ctx.install_dir + "/Visual Studio Code.app/Contents/Resources/app/bin")]
     else:
-        return {"PATH": install_dir + "/bin"}
+        return [env_prepend("PATH", ctx.install_dir + "/bin")]
 
 # ---------------------------------------------------------------------------
 # Path queries (RFC-0037)
@@ -152,19 +143,19 @@ def environment(ctx, version, install_dir):
 
 def store_root(ctx):
     """Return the vx store root directory for vscode."""
-    return "{vx_home}/store/vscode"
+    return ctx.vx_home + "/store/vscode"
 
 def get_execute_path(ctx, version):
     """Return the executable path for the given version."""
-    os = ctx["platform"]["os"]
+    os = ctx.platform.os
     if os == "windows":
-        return "{install_dir}/bin/code.cmd"
+        return ctx.install_dir + "/bin/code.cmd"
     elif os == "macos":
-        return "{install_dir}/Visual Studio Code.app/Contents/Resources/app/bin/code"
+        return ctx.install_dir + "/Visual Studio Code.app/Contents/Resources/app/bin/code"
     else:
-        return "{install_dir}/bin/code"
+        return ctx.install_dir + "/bin/code"
 
-def post_install(ctx, version, install_dir):
+def post_install(_ctx, _version):
     """No post-install actions needed for vscode."""
     return None
 
@@ -172,5 +163,5 @@ def post_install(ctx, version, install_dir):
 # deps
 # ---------------------------------------------------------------------------
 
-def deps(ctx, version):
+def deps(_ctx, _version):
     return []

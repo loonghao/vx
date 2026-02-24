@@ -527,6 +527,11 @@ impl Resolver {
     /// The runtime name is used for store directory lookup, dependency resolution,
     /// and installation, while the executable name is used for finding the actual
     /// binary to execute.
+    ///
+    /// Special case: When the executable is a known shell (cmd, powershell, pwsh,
+    /// bash, zsh, sh), we find it in system PATH but still apply the runtime's
+    /// environment variables. This allows commands like `vx msvc::cmd` to spawn
+    /// a shell with MSVC environment.
     pub fn resolve_with_executable(
         &self,
         runtime_name: &str,
@@ -535,6 +540,29 @@ impl Resolver {
     ) -> Result<ResolutionResult> {
         // First resolve normally to get dependencies etc.
         let mut result = self.resolve_with_version(runtime_name, version)?;
+
+        // Special handling for shell executables
+        // When user runs `vx msvc::cmd`, they want a shell with MSVC environment
+        if Self::is_shell_executable(executable_name) {
+            // Find shell in system PATH
+            let shell_exe = if cfg!(windows) {
+                format!("{}.exe", executable_name)
+            } else {
+                executable_name.to_string()
+            };
+            if let Ok(path) = which::which(&shell_exe) {
+                trace!(
+                    "Found shell '{}' in system PATH for runtime '{}': {}",
+                    executable_name,
+                    runtime_name,
+                    path.display()
+                );
+                result.executable = path;
+                result.runtime_needs_install = false;
+                return Ok(result);
+            }
+            // Shell not found, fall through to normal resolution
+        }
 
         // Re-resolve the executable path using the override name.
         // This applies both when the runtime is already available AND when it was
@@ -589,6 +617,26 @@ impl Resolver {
         }
 
         Ok(result)
+    }
+
+    /// Check if an executable name is a known shell
+    fn is_shell_executable(name: &str) -> bool {
+        let name_lower = name.to_lowercase();
+        // Common shells - check if the name matches any known shell
+        let common_shells = ["cmd", "powershell", "pwsh", "bash", "sh", "zsh", "fish"];
+
+        if common_shells.contains(&name_lower.as_str()) {
+            return true;
+        }
+        // Unix-specific shells
+        #[cfg(not(windows))]
+        {
+            let unix_shells = ["dash", "ksh", "csh", "tcsh"];
+            if unix_shells.contains(&name_lower.as_str()) {
+                return true;
+            }
+        }
+        false
     }
 
     /// Get the version of a system runtime by running `<runtime> --version`

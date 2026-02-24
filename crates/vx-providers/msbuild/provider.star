@@ -1,4 +1,4 @@
-# provider.star - msbuild provider
+﻿# provider.star - msbuild provider
 #
 # Microsoft Build Engine - bundled with .NET SDK
 # Inheritance pattern: Level 1 (fully custom, bundled with dotnet, not directly installable)
@@ -9,24 +9,12 @@
 # ---------------------------------------------------------------------------
 # Provider metadata
 # ---------------------------------------------------------------------------
-
-def name():
-    return "msbuild"
-
-def description():
-    return "Microsoft Build Engine - bundled with .NET SDK"
-
-def homepage():
-    return "https://docs.microsoft.com/visualstudio/msbuild"
-
-def repository():
-    return "https://github.com/dotnet/msbuild"
-
-def license():
-    return "MIT"
-
-def ecosystem():
-    return "dotnet"
+name        = "msbuild"
+description = "Microsoft Build Engine - bundled with .NET SDK"
+homepage    = "https://docs.microsoft.com/visualstudio/msbuild"
+repository  = "https://github.com/dotnet/msbuild"
+license     = "MIT"
+ecosystem   = "dotnet"
 
 # ---------------------------------------------------------------------------
 # Runtime definitions
@@ -53,6 +41,9 @@ runtimes = [
             "C:/Program Files (x86)/Microsoft Visual Studio/2019/Community/MSBuild/Current/Bin/MSBuild.exe",
             "C:/Program Files (x86)/Microsoft Visual Studio/2019/BuildTools/MSBuild/Current/Bin/MSBuild.exe",
         ],
+        "test_commands": [
+            {"command": "{executable} -version", "name": "version_check", "expected_output": "\\d+\\.\\d+"},
+        ],
     },
 ]
 
@@ -73,7 +64,7 @@ permissions = {
 # fetch_versions — system detection only
 # ---------------------------------------------------------------------------
 
-def fetch_versions(ctx):
+def fetch_versions(_ctx):
     """MSBuild version is tied to .NET SDK / Visual Studio."""
     return [{"version": "system", "lts": True, "prerelease": False}]
 
@@ -81,7 +72,7 @@ def fetch_versions(ctx):
 # download_url — not directly installable
 # ---------------------------------------------------------------------------
 
-def download_url(ctx, version):
+def download_url(_ctx, _version):
     """MSBuild is bundled with .NET SDK — install dotnet instead."""
     return None
 
@@ -89,7 +80,7 @@ def download_url(ctx, version):
 # deps — requires dotnet
 # ---------------------------------------------------------------------------
 
-def deps(ctx, version):
+def deps(_ctx, version):
     """MSBuild is bundled with .NET SDK."""
     return [{"runtime": "dotnet", "version": "*"}]
 
@@ -97,7 +88,7 @@ def deps(ctx, version):
 # store_root — not managed by vx (bundled with dotnet / Visual Studio)
 # ---------------------------------------------------------------------------
 
-def store_root(ctx, version):
+def store_root(_ctx, _version):
     """MSBuild is bundled with .NET SDK or Visual Studio — no vx store root."""
     return None
 
@@ -105,7 +96,7 @@ def store_root(ctx, version):
 # get_execute_path — resolve MSBuild executable
 # ---------------------------------------------------------------------------
 
-def get_execute_path(ctx, version, install_dir):
+def get_execute_path(_ctx, _version, _install_dir):
     """Return the path to the MSBuild executable.
 
     MSBuild is not installed by vx directly; it is located via system_paths
@@ -117,7 +108,7 @@ def get_execute_path(ctx, version, install_dir):
 # post_install — nothing to do
 # ---------------------------------------------------------------------------
 
-def post_install(ctx, version, install_dir):
+def post_install(_ctx, _version):
     """No post-install steps required for MSBuild."""
     return []
 
@@ -125,5 +116,5 @@ def post_install(ctx, version, install_dir):
 # environment
 # ---------------------------------------------------------------------------
 
-def environment(ctx, version, install_dir):
-    return {}
+def environment(_ctx, _version):
+    return []

@@ -9,10 +9,12 @@ use crate::commands::common::load_config_view_cwd;
 use crate::commands::setup::ConfigView;
 use crate::ui::UI;
 use anyhow::{Context, Result};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet, VecDeque};
 use std::env;
 use std::process::Command;
 use vx_env::{ToolEnvironment, ToolSpec};
+use vx_starlark::handle::global_registry;
+use vx_starlark::provider::{EnvOp, apply_env_ops};
 
 /// Handle dev command with Args
 pub async fn handle(args: &Args) -> Result<()> {
@@ -87,7 +89,31 @@ pub async fn handle(args: &Args) -> Result<()> {
     Ok(())
 }
 
-/// Build environment variables for the dev shell
+/// Build environment variables for the dev shell.
+///
+/// Implements rez-style dependency resolution:
+///
+/// **Phase 1 — BFS dependency tree expansion**
+///   Start with tools declared in `vx.toml`, then BFS-expand their `deps()`
+///   to build a complete dependency tree. Each node is visited at most once
+///   (cycle/duplicate detection via `visited` set). The result is
+///   `resolved_order`: a list of `(tool_name, version)` pairs with deps
+///   appearing *before* their dependents (topological order).
+///
+/// **Phase 2 — Collect EnvOps in resolution order**
+///   For each tool in `resolved_order`, call `environment_ops(version)` to
+///   get the list of [`EnvOp`]s that describe how to set up the environment
+///   (PATH prepends, variable sets, etc.). Deps' ops come first so their
+///   PATH entries take lower precedence than direct tools.
+///
+/// **Phase 3 — Apply non-PATH EnvOps**
+///   Apply all collected EnvOps. PATH-like vars are handled by `vx-env`'s
+///   `ToolEnvironment` (Phase 4), so we only apply non-PATH vars here
+///   (e.g. GOROOT, JAVA_HOME, GIT_EXEC_PATH).
+///
+/// **Phase 4 — Build final environment via vx-env**
+///   `ToolEnvironment` handles PATH construction with proper isolation,
+///   passenv filtering, and bin-dir resolution for vx-managed tools.
 async fn build_dev_environment(
     config: &ConfigView,
     verbose: bool,
@@ -96,44 +122,211 @@ async fn build_dev_environment(
     let mut env_vars = config.env.clone();
     env_vars.extend(config.setenv.clone());
 
-    // Get registry to query runtime bin directories
+    // ── Phase 1: BFS dependency tree resolution (rez-style) ─────────────────
+    //
+    // Ordered list of (tool_name, resolved_version) — deps appear before
+    // their dependents (topological order).
+    let mut resolved_order: Vec<(String, String)> = Vec::new();
+    // Set of tool names already visited (cycle / duplicate detection)
+    let mut visited: HashSet<String> = HashSet::new();
+    // BFS queue: (tool_name, version_req, is_direct)
+    let mut queue: VecDeque<(String, String, bool)> = VecDeque::new();
+
+    // Seed the queue with tools declared in vx.toml
+    for (tool_name, version) in &config.tools {
+        queue.push_back((tool_name.clone(), version.clone(), true));
+    }
+
+    let reg = global_registry().await;
+
+    while let Some((tool_name, version, is_direct)) = queue.pop_front() {
+        if visited.contains(&tool_name) {
+            continue;
+        }
+        visited.insert(tool_name.clone());
+
+        // Look up the ProviderHandle for this tool
+        if let Some(handle) = reg.get(&tool_name) {
+            // Resolve the version (e.g. "latest" → actual installed version)
+            let resolved_version = handle
+                .resolve_installed_version(&version)
+                .unwrap_or_else(|_| version.clone());
+
+            // Fetch deps from provider.star::deps()
+            match handle.deps(&resolved_version).await {
+                Ok(deps) => {
+                    for dep in &deps {
+                        if dep.optional {
+                            // Optional deps: only include if already installed
+                            if let Some(dep_handle) = reg.get(&dep.runtime) {
+                                if dep_handle.is_installed(&dep.version_req)
+                                    || !dep_handle.installed_versions().is_empty()
+                                {
+                                    if !visited.contains(&dep.runtime) {
+                                        if verbose {
+                                            UI::info(&format!(
+                                                "  [deps] {} → {} (optional, installed)",
+                                                tool_name, dep.runtime
+                                            ));
+                                        }
+                                        queue.push_back((
+                                            dep.runtime.clone(),
+                                            dep.version_req.clone(),
+                                            false,
+                                        ));
+                                    }
+                                } else if verbose {
+                                    UI::info(&format!(
+                                        "  [deps] {} → {} (optional, skipped — not installed)",
+                                        tool_name, dep.runtime
+                                    ));
+                                }
+                            }
+                        } else {
+                            // Required deps: always include
+                            if !visited.contains(&dep.runtime) {
+                                if verbose {
+                                    UI::info(&format!(
+                                        "  [deps] {} → {} (required)",
+                                        tool_name, dep.runtime
+                                    ));
+                                }
+                                queue.push_back((
+                                    dep.runtime.clone(),
+                                    dep.version_req.clone(),
+                                    false,
+                                ));
+                            }
+                        }
+                    }
+                }
+                Err(e) => {
+                    tracing::debug!(
+                        tool = %tool_name,
+                        error = %e,
+                        "Failed to fetch deps, skipping"
+                    );
+                }
+            }
+
+            resolved_order.push((tool_name.clone(), resolved_version));
+        } else if is_direct {
+            // Direct tool not found in registry — still add to order so
+            // vx-env can warn about it
+            resolved_order.push((tool_name.clone(), version.clone()));
+        } else {
+            // Transitive dep not found — check system PATH as fallback
+            if let Ok(path) = which::which(&tool_name) {
+                if verbose {
+                    UI::info(&format!(
+                        "  [deps] {} found on system PATH: {}",
+                        tool_name,
+                        path.display()
+                    ));
+                }
+                // Add the system bin dir to PATH via EnvOp
+                if let Some(bin_dir) = path.parent() {
+                    let bin_dir_str = bin_dir.to_string_lossy().to_string();
+                    env_vars
+                        .entry("_VX_SYSTEM_PATHS".to_string())
+                        .and_modify(|v| {
+                            let sep = if cfg!(windows) { ";" } else { ":" };
+                            v.push_str(sep);
+                            v.push_str(&bin_dir_str);
+                        })
+                        .or_insert(bin_dir_str.clone());
+                }
+            } else if verbose {
+                UI::warn(&format!(
+                    "  [deps] required dependency '{}' not found in vx registry or system PATH",
+                    tool_name
+                ));
+            }
+        }
+    }
+
+    if verbose {
+        let names: Vec<String> = resolved_order
+            .iter()
+            .map(|(n, v)| format!("{}@{}", n, v))
+            .collect();
+        UI::info(&format!(
+            "  [env] resolved order (including deps): {}",
+            names.join(", ")
+        ));
+    }
+
+    // ── Phase 2: Collect EnvOps in resolution order ──────────────────────────
+    //
+    // Deps come first, so their PATH entries appear after direct tools in PATH
+    // (lower precedence). This matches rez semantics.
+    let mut all_env_ops: Vec<EnvOp> = Vec::new();
+
+    for (tool_name, version) in &resolved_order {
+        if let Some(handle) = reg.get(tool_name) {
+            match handle.environment_ops(version).await {
+                Ok(ops) => {
+                    if verbose && !ops.is_empty() {
+                        UI::info(&format!(
+                            "  [env] {}@{}: {} op(s)",
+                            tool_name,
+                            version,
+                            ops.len()
+                        ));
+                    }
+                    all_env_ops.extend(ops);
+                }
+                Err(e) => {
+                    tracing::debug!(
+                        tool = %tool_name,
+                        version = %version,
+                        error = %e,
+                        "Failed to fetch environment ops, skipping"
+                    );
+                }
+            }
+        }
+    }
+
+    // ── Phase 3: Apply non-PATH EnvOps ───────────────────────────────────────
+    //
+    // EnvOps from provider.star::environment() are applied here.
+    // PATH-like vars are handled by vx-env's ToolEnvironment (Phase 4),
+    // so we only apply non-PATH vars (e.g. GOROOT, JAVA_HOME, GIT_EXEC_PATH).
+    let starlark_env = apply_env_ops(&all_env_ops, None);
+    for (key, value) in starlark_env {
+        if key != "PATH" {
+            env_vars.insert(key, value);
+        }
+    }
+
+    // ── Phase 4: Build final environment via vx-env ──────────────────────────
+    //
+    // vx-env's ToolEnvironment handles PATH construction with proper isolation,
+    // passenv filtering, and bin-dir resolution for vx-managed tools.
+    // We also inject system-PATH deps discovered in Phase 1.
     let (registry, context) = get_registry()?;
 
-    // Create ToolSpecs with proper bin directories from runtime providers
+    // Build ToolSpecs for all resolved tools (direct + transitive deps)
     let mut tool_specs = Vec::new();
-    for (tool_name, version) in &config.tools {
+    for (tool_name, version) in &resolved_order {
         // Find the runtime for this tool to get bin directories
         let (bin_dirs, resolved_bin_dir) =
             if let Some(provider) = registry.providers().iter().find(|p| p.supports(tool_name)) {
                 if let Some(runtime) = provider.get_runtime(tool_name) {
-                    // Call prepare_environment to get runtime-specific environment variables
-                    if let Ok(runtime_env) = runtime.prepare_environment(version, &context).await {
-                        // Merge runtime-specific environment variables (e.g., MSVC's INCLUDE, LIB)
-                        for (key, value) in runtime_env {
-                            if verbose {
-                                UI::info(&format!("  Runtime env: {}={}", key, value));
-                            }
-                            env_vars.insert(key, value);
-                        }
-                    }
-
-                    // Try to get the resolved bin directory from the runtime
-                    let resolved = if let Ok(Some(exe_path)) = runtime
+                    if let Ok(Some(exe_path)) = runtime
                         .get_executable_path_for_version(version, &context)
                         .await
                     {
-                        // Get the parent directory of the executable as the bin directory
-                        exe_path.parent().map(|p| p.to_path_buf())
+                        let dirs = runtime
+                            .possible_bin_dirs()
+                            .into_iter()
+                            .map(|s| s.to_string())
+                            .collect();
+                        (dirs, exe_path.parent().map(|p| p.to_path_buf()))
                     } else {
-                        None
-                    };
-
-                    let dirs = runtime
-                        .possible_bin_dirs()
-                        .into_iter()
-                        .map(|s| s.to_string())
-                        .collect();
-                    (dirs, resolved)
+                        (vec!["bin".to_string()], None)
+                    }
                 } else {
                     (vec!["bin".to_string()], None)
                 }
@@ -148,7 +341,10 @@ async fn build_dev_environment(
         tool_specs.push(spec);
     }
 
-    // Use ToolEnvironment from vx-env with isolation settings
+    // Inject system-PATH deps (discovered in Phase 1) into env_vars PATH
+    // so vx-env can include them when building the final PATH.
+    let system_paths = env_vars.remove("_VX_SYSTEM_PATHS");
+
     let mut builder = ToolEnvironment::new()
         .tools_from_specs(tool_specs)
         .env_vars(&env_vars)
@@ -161,6 +357,18 @@ async fn build_dev_environment(
     }
 
     let mut env_result = builder.build()?;
+
+    // Append system-PATH deps to the final PATH
+    if let Some(sys_paths) = system_paths {
+        let sep = if cfg!(windows) { ";" } else { ":" };
+        let current_path = env_result.get("PATH").cloned().unwrap_or_default();
+        let new_path = if current_path.is_empty() {
+            sys_paths
+        } else {
+            format!("{}{}{}", current_path, sep, sys_paths)
+        };
+        env_result.insert("PATH".to_string(), new_path);
+    }
 
     // Set VX_DEV environment variable to indicate we're in a dev shell
     env_result.insert("VX_DEV".to_string(), "1".to_string());
@@ -186,7 +394,7 @@ async fn build_dev_environment(
         }
         if let Some(path) = env_result.get("PATH") {
             let sep = if cfg!(windows) { ";" } else { ":" };
-            for entry in path.split(sep).take(config.tools.len() + 1) {
+            for entry in path.split(sep).take(resolved_order.len() + 5) {
                 UI::info(&format!("  PATH: {}", entry));
             }
         }
@@ -195,28 +403,7 @@ async fn build_dev_environment(
     Ok(env_result)
 }
 
-/// Build environment variables for script execution
-///
-/// Uses vx-env's ToolEnvironment for consistent environment building.
-pub fn build_script_environment(config: &ConfigView) -> Result<HashMap<String, String>> {
-    // Merge env from vx.toml with setenv from settings
-    let mut env_vars = config.env.clone();
-    env_vars.extend(config.setenv.clone());
-
-    let mut builder = ToolEnvironment::new()
-        .tools(&config.tools)
-        .env_vars(&env_vars)
-        .isolation(config.isolation);
-
-    // Add passenv patterns if in isolation mode
-    if config.isolation && !config.passenv.is_empty() {
-        builder = builder.passenv(config.passenv.clone());
-    }
-
-    builder.build()
-}
-
-/// Execute a command in the dev environment
+/// Execute a command inside the dev environment
 fn execute_command_in_env(cmd: &[String], env_vars: &HashMap<String, String>) -> Result<()> {
     if cmd.is_empty() {
         return Err(anyhow::anyhow!("No command specified"));
@@ -244,4 +431,62 @@ fn execute_command_in_env(cmd: &[String], env_vars: &HashMap<String, String>) ->
     }
 
     Ok(())
+}
+
+/// Build environment variables for script execution
+///
+/// Uses vx-env's ToolEnvironment for consistent environment building.
+pub fn build_script_environment(config: &ConfigView) -> Result<HashMap<String, String>> {
+    // Merge env from vx.toml with setenv from settings
+    let mut env_vars = config.env.clone();
+    env_vars.extend(config.setenv.clone());
+
+    // Get registry to query runtime bin directories
+    let (registry, context) = get_registry()?;
+
+    // Create ToolSpecs with proper bin directories from runtime providers
+    let mut tool_specs = Vec::new();
+    for (tool_name, version) in &config.tools {
+        let (bin_dirs, resolved_bin_dir) =
+            if let Some(provider) = registry.providers().iter().find(|p| p.supports(tool_name)) {
+                if let Some(runtime) = provider.get_runtime(tool_name) {
+                    // Use tokio::task::block_in_place for sync context
+                    let exe_path = tokio::task::block_in_place(|| {
+                        tokio::runtime::Handle::current()
+                            .block_on(runtime.get_executable_path_for_version(version, &context))
+                    });
+                    if let Ok(Some(exe_path)) = exe_path {
+                        let dirs = runtime
+                            .possible_bin_dirs()
+                            .into_iter()
+                            .map(|s| s.to_string())
+                            .collect();
+                        (dirs, exe_path.parent().map(|p| p.to_path_buf()))
+                    } else {
+                        (vec!["bin".to_string()], None)
+                    }
+                } else {
+                    (vec!["bin".to_string()], None)
+                }
+            } else {
+                (vec!["bin".to_string()], None)
+            };
+
+        let mut spec = ToolSpec::with_bin_dirs(tool_name.clone(), version.clone(), bin_dirs);
+        if let Some(bin_dir) = resolved_bin_dir {
+            spec = spec.set_resolved_bin_dir(bin_dir);
+        }
+        tool_specs.push(spec);
+    }
+
+    let mut builder = ToolEnvironment::new()
+        .tools_from_specs(tool_specs)
+        .env_vars(&env_vars)
+        .isolation(config.isolation);
+
+    if config.isolation && !config.passenv.is_empty() {
+        builder = builder.passenv(config.passenv.clone());
+    }
+
+    builder.build()
 }
