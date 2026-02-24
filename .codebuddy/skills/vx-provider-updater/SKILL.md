@@ -1,34 +1,33 @@
 ---
 name: vx-provider-updater
 description: |
-  Update existing VX providers to RFC 0038 standards (provider.star as single source of truth,
-  replacing provider.toml entirely). Migrate from old function-based metadata (def name():) to
-  top-level variables (name = "..."), from dict-style ctx access (ctx["platform"]["os"]) to
-  object-style (ctx.platform.os), and use new stdlib helpers (github_releases, github_asset,
-  ctx.render(), ctx.env()). Remove redundant functions (store_root, get_execute_path,
-  post_extract). Add package_alias for PyPI/npm tools (RFC 0033: vx meson = vx uvx:meson,
-  vx vite = vx npx:vite). All providers must follow RFC 0038 v5 format.
+  Update existing VX providers to the latest standards: provider.star as single source of truth,
+  top-level variables for metadata (name = "..."), object-style ctx access (ctx.platform.os),
+  stdlib helpers (make_fetch_versions, github_asset_url, env_prepend), and required path query
+  functions (store_root, get_execute_path, post_install). Add package_alias for PyPI/npm tools
+  (RFC 0033: vx meson = vx uvx:meson, vx vite = vx npx:vite). All providers must follow the
+  current provider.star format with proper system_install {"strategies": [...]} structure.
 ---
 
-# VX Provider Updater (RFC 0038)
+# VX Provider Updater
 
-Migrate all VX providers to RFC 0038 standards: `provider.star` as the **single source of truth**,
-replacing `provider.toml` entirely. This is the v0.16.0 target format.
+Migrate all VX providers to the latest standards: `provider.star` as the **single source of truth**,
+replacing `provider.toml` entirely.
 
 ## When to Use
 
-- **Migrating from old function-based metadata to top-level variables** (RFC 0038 Phase 1)
-- **Migrating from `ctx["platform"]["os"]` to `ctx.platform.os`** (RFC 0038 Phase 1)
-- **Migrating from `make_github_provider` to `github_releases` + `github_asset`** (RFC 0038)
-- **Removing redundant functions** (`store_root`, `get_execute_path`, `post_extract`)
-- **Adding `ctx.render()` for template strings** (RFC 0038 v5)
-- **Adding `ctx.env()` for environment variable access** (RFC 0038 v5)
+- **Migrating from old function-based metadata to top-level variables** (`def name(): return "..."` → `name = "..."`)
+- **Migrating from `ctx["platform"]["os"]` to `ctx.platform.os`** (object-style access)
+- **Migrating from `make_github_provider` to `make_fetch_versions` + `github_asset_url`**
+- **Migrating `environment()` from dict return to list of `env_prepend()`/`env_set()` calls**
+- **Adding required path query functions** (`store_root`, `get_execute_path`, `post_install`)
 - **Adding `package_alias` for PyPI/npm tools** (RFC 0033: `vx meson` = `vx uvx:meson`)
+- **Fixing `system_install` format** to use `{"strategies": [...]}` structure
 - Standardizing provider manifests
 - Fixing download/installation issues
 - Batch updating multiple providers
 
-## RFC 0038 Core Changes
+## Core Changes Summary
 
 ### Change 1: Metadata as Top-Level Variables (NOT functions)
 
@@ -69,36 +68,41 @@ releases = ctx.http.get_json("https://...")
 
 ### Change 3: New stdlib Helpers
 
-**OLD (forbidden):**
+**OLD (less preferred):**
 ```python
 _p = make_github_provider("owner", "repo", "tool-{triple}.{ext}")
 fetch_versions = _p["fetch_versions"]
 download_url   = _p["download_url"]
 ```
 
-**NEW (required):**
+**NEW (preferred):**
 ```python
-load("@vx//stdlib:github.star", "github_releases", "github_asset")
+load("@vx//stdlib:github.star", "make_fetch_versions", "github_asset_url")
 
-fetch_versions = github_releases("owner", "repo")
-download_url   = github_asset("owner", "repo", "tool-{triple}.{ext}")
+fetch_versions = make_fetch_versions("owner", "repo")
+
+def download_url(ctx, version):
+    # Custom per-platform logic using github_asset_url
+    asset = "tool-{}-{}.{}".format(version, triple, ext)
+    return github_asset_url("owner", "repo", "v" + version, asset)
 ```
 
-### Change 4: Remove Redundant Functions
+### Change 4: Remove Redundant Old Functions
 
-**Remove these functions entirely:**
-- `store_root(ctx)` — no longer needed
-- `get_execute_path(ctx, version)` — no longer needed
+**Remove these old functions (replaced by new API):**
 - `post_extract(ctx, version, install_dir)` — merge into `post_install`
 
-**Keep only:**
-- `fetch_versions(ctx)` — required
+**Required / recommended functions in current format:**
+- `fetch_versions(ctx)` — required (or use `make_fetch_versions`)
 - `download_url(ctx, version)` — strongly recommended
 - `install_layout(ctx, version)` — optional (has defaults)
-- `environment(ctx, version, install_dir)` — optional
-- `post_install(ctx, version, install_dir)` — optional
-- `pre_run(ctx, args)` — optional (note: no `executable` param)
-- `deps(ctx, version)` — optional
+- `environment(ctx, version)` — optional, returns list of `env_prepend()`/`env_set()` calls
+- `post_install(ctx, version)` — optional, return `None` if nothing to do
+- `store_root(ctx)` — optional, return path to store root
+- `get_execute_path(ctx, version)` — optional, return path to executable
+- `system_install(ctx)` — optional, return `{"strategies": [...]}` for PM fallback
+- `uninstall(ctx, version)` — optional, return uninstall descriptor or `False`
+- `deps(ctx, version)` — optional, return list of dependency dicts
 
 ### Change 5: pre_run Signature Change
 
@@ -114,95 +118,79 @@ def pre_run(ctx, args):
     ...
 ```
 
-### Change 6: ctx.render() for Template Strings (RFC 0038 v5)
-
-Use `ctx.render()` to expand built-in variables:
-
-```python
-def download_url(ctx, version):
-    # {triple} → x86_64-pc-windows-msvc, aarch64-apple-darwin, etc.
-    # {ext}    → zip (Windows) or tar.gz (others)
-    # {version}, {os}, {arch}, {name} also available
-    return ctx.render("https://github.com/owner/repo/releases/download/v{version}/tool-{version}-{triple}.{ext}")
-
-def install_layout(ctx, version):
-    return {
-        "type":         "archive",
-        "strip_prefix": ctx.render("tool-{version}-{triple}"),
-    }
-
-def environment(ctx, version, install_dir):
-    return {
-        "TOOL_HOME": ctx.render("{install_dir}"),
-        "PATH":      ctx.render("{install_dir}/bin"),
-    }
-```
-
-### Change 7: ctx.env() for Environment Variables (RFC 0038 v5)
-
-```python
-permissions = {
-    "http": ["api.github.com", "github.com"],
-    "env":  ["GITHUB_TOKEN", "VX_GITHUB_MIRROR", "HTTPS_PROXY"],
-}
-
-def fetch_versions(ctx):
-    token = ctx.env("GITHUB_TOKEN", "")
-    headers = {"Authorization": "Bearer " + token} if token else {}
-    return ctx.http.get_json("https://api.github.com/repos/owner/repo/releases", headers=headers)
-
-def download_url(ctx, version):
-    mirror = ctx.env("VX_GITHUB_MIRROR", "https://github.com")
-    return ctx.render(mirror + "/owner/repo/releases/download/v{version}/tool-{version}-{triple}.{ext}")
-```
-
-### Change 8: system_install as Flat List (NOT nested object)
+### Change 6: environment() Returns List (NOT dict)
 
 **OLD (forbidden):**
 ```python
-"system_install": {
-    "strategies": [
-        {"type": "package_manager", "manager": "brew", "package": "mytool", "priority": 90},
-    ]
-}
+def environment(ctx, version, install_dir):
+    return {"PATH": install_dir}  # dict format
 ```
 
 **NEW (required):**
 ```python
+load("@vx//stdlib:env.star", "env_prepend", "env_set")
+
+def environment(ctx, _version):
+    return [
+        env_prepend("PATH", ctx.install_dir),
+        # env_set("TOOL_HOME", ctx.install_dir),  # optional
+    ]
+```
+
+### Change 7: system_install Returns {"strategies": [...]}
+
+**OLD (forbidden):**
+```python
 "system_install": [
-    {"manager": "brew",   "package": "mytool"},
-    {"manager": "winget", "package": "Example.MyTool"},
-    {"manager": "choco",  "package": "mytool"},
+    {"manager": "brew", "package": "mytool"},
 ]
 ```
 
-### Change 9: requires for Dependencies (RFC 0038 v3)
-
+**NEW (required):**
 ```python
-# Static dependencies (top-level variable)
-requires = [
-    "node>=18",
-    "python>=3.10,<4",
-    "~git",              # weak dep: only constrain if already in env
-]
-
-# Dynamic dependencies (function form)
-def requires(ctx, version):
-    deps = ["node>=18"]
-    if ctx.platform.os == "windows":
-        deps.append("msvc")
-    return deps
+def system_install(ctx):
+    os = ctx.platform.os
+    if os == "windows":
+        return {
+            "strategies": [
+                {"manager": "winget", "package": "Publisher.MyTool", "priority": 95},
+                {"manager": "choco",  "package": "mytool",           "priority": 80},
+            ],
+        }
+    elif os == "macos":
+        return {
+            "strategies": [
+                {"manager": "brew", "package": "mytool", "priority": 90},
+            ],
+        }
+    return {}
 ```
 
-### Change 10: conflicts Declaration (RFC 0038 v4, Spack-inspired)
+### Change 8: Add Required Path Query Functions
+
+All providers must implement these functions:
 
 ```python
-conflicts = [
-    {
-        "when":    {"platform": {"os": "windows"}},
-        "message": "This tool does not support Windows.",
-    },
-]
+def store_root(ctx):
+    return ctx.vx_home + "/store/{name}"
+
+def get_execute_path(ctx, version):
+    os = ctx.platform.os
+    exe = "{name}.exe" if os == "windows" else "{name}"
+    return ctx.install_dir + "/" + exe
+
+def post_install(_ctx, _version):
+    return None  # Return None if nothing to do
+```
+
+### Change 9: deps() Returns List of Dicts
+
+```python
+def deps(_ctx, _version):
+    return [
+        {"runtime": "node", "version": ">=18",
+         "reason": "Requires Node.js runtime"},
+    ]
 ```
 
 ## License Field Requirement
@@ -233,352 +221,65 @@ license = "MIT"          # SPDX identifier (REQUIRED)
 
 ## Update Templates
 
-### Template 1: Single File Binary
+All provider logic now lives in `provider.star`. See `references/update-templates.md` for
+complete migration templates covering:
 
-**适用于**: kubectl, ninja, rustup-init 等单文件下载
+- **Standard GitHub Provider** — `make_fetch_versions` + custom `download_url`
+- **Hybrid Provider** — direct download on some platforms + `system_install` fallback
+- **PyPI/npm Package Alias** — `package_alias` for ecosystem-managed tools
+- **MSI on Windows** — `msi_install()` + `archive_install()` per platform
+- **Non-GitHub Version Source** — custom `fetch_versions` with `fetch_json_versions`
 
-```toml
-# RFC 0019: Executable Layout Configuration
-[runtimes.layout]
-download_type = "binary"
-
-[runtimes.layout.binary."windows-x86_64"]
-source_name = "tool.exe"
-target_name = "tool.exe"
-target_dir = "bin"
-
-[runtimes.layout.binary."macos-x86_64"]
-source_name = "tool"
-target_name = "tool"
-target_dir = "bin"
-target_permissions = "755"
-
-[runtimes.layout.binary."macos-aarch64"]
-source_name = "tool"
-target_name = "tool"
-target_dir = "bin"
-target_permissions = "755"
-
-[runtimes.layout.binary."linux-x86_64"]
-source_name = "tool"
-target_name = "tool"
-target_dir = "bin"
-target_permissions = "755"
-
-[runtimes.layout.binary."linux-aarch64"]
-source_name = "tool"
-target_name = "tool"
-target_dir = "bin"
-target_permissions = "755"
-```
-
-**插入位置**: 在 `[runtimes.versions]` 之后，`[runtimes.platforms]` 之前
-
-### Template 2: Standard Archive with bin/
-
-**适用于**: node, go, python, cmake 等标准压缩包
-
-```toml
-# RFC 0019: Executable Layout Configuration
-[runtimes.layout]
-download_type = "archive"
-
-[runtimes.layout.archive]
-strip_prefix = "{name}-{version}"  # 或其他模式
-executable_paths = [
-    "bin/{name}.exe",  # Windows
-    "bin/{name}"       # Unix
-]
-```
-
-**常见 strip_prefix 模式**:
-- Node.js: `node-v{version}-{os}-{arch}`
-- Go: `go`
-- CMake: `cmake-{version}-{os}-{arch}`
-- Python: `python`
-
-### Template 3: Root Directory Executable
-
-**适用于**: terraform, just, task, deno 等根目录可执行文件
-
-```toml
-# RFC 0019: Executable Layout Configuration
-[runtimes.layout]
-download_type = "archive"
-
-[runtimes.layout.archive]
-strip_prefix = ""  # 无前缀
-executable_paths = [
-    "{name}.exe",  # Windows (root directory)
-    "{name}"       # Unix (root directory)
-]
-```
-
-### Template 4: Platform-Specific Directory
-
-**适用于**: helm, bun 等按平台分目录的压缩包
-
-```toml
-# RFC 0019: Executable Layout Configuration
-[runtimes.layout]
-download_type = "archive"
-
-[runtimes.layout.archive]
-strip_prefix = "{os}-{arch}"  # 或 "bun-{os}-{arch}"
-executable_paths = [
-    "{name}.exe",  # Windows
-    "{name}"       # Unix
-]
-```
-
-### Template 5: Complex Nested Structure
-
-**适用于**: java, ffmpeg 等复杂结构
-
-```toml
-# RFC 0019: Executable Layout Configuration
-[runtimes.layout]
-download_type = "archive"
-
-[runtimes.layout.archive]
-strip_prefix = "jdk-{version}+{build}"  # 根据实际情况调整
-executable_paths = [
-    "bin/java.exe",  # Windows
-    "bin/java"       # Unix
-]
-```
-
-### Template 6: npm/pip Packages
-
-**适用于**: vite, pre-commit, release-please 等包管理器安装
-
-```toml
-[runtimes.versions]
-source = "npm"  # 或 "pypi"
-package = "{package-name}"
-
-# Note: npm/pip packages don't need layout configuration
-# They are installed via package manager and have standard locations
-```
-
-### Template 7: System Tools (Detection Only)
-
-**适用于**: git, docker, curl, openssl 等系统工具
-
-```toml
-# Note: System tools typically installed by OS package manager
-# Use detection to find system-installed versions
-
-[runtimes.detection]
-command = "{executable} --version"
-pattern = "{name} version ([\\d.]+)"
-system_paths = [
-    "/usr/bin/{name}",
-    "/usr/local/bin/{name}",
-    "C:\\Program Files\\{Name}\\bin\\{name}.exe"
-]
-env_hints = ["{NAME}_HOME"]
-```
-
-### Template 8: Hybrid Provider (Direct Download + Package Manager Fallback)
-
-**适用于**: imagemagick, ffmpeg, docker 等部分平台有二进制、部分平台需要包管理器的工具
-
-```toml
-# Direct download for platforms with portable binaries (e.g., Linux AppImage)
-[runtimes.layout]
-download_type = "binary"
-
-[runtimes.layout.binary."linux-x86_64"]
-source_name = "tool-{version}-linux-x64.AppImage"
-target_name = "tool"
-target_dir = "bin"
-target_permissions = "755"
-
-# No Windows/macOS configs = download_url returns None, triggers PM fallback
-
-# System dependencies (package managers required for installation)
-# macOS requires Homebrew
-[[runtimes.system_deps.pre_depends]]
-type = "runtime"
-id = "brew"
-platforms = ["macos"]
-reason = "Required to install tool on macOS (no portable binary available)"
-optional = false
-
-# Windows: winget (preferred), choco, or scoop (any one is sufficient)
-[[runtimes.system_deps.pre_depends]]
-type = "runtime"
-id = "winget"
-platforms = ["windows"]
-reason = "Preferred package manager for Windows (built-in on Windows 11)"
-optional = true
-
-[[runtimes.system_deps.pre_depends]]
-type = "runtime"
-id = "choco"
-platforms = ["windows"]
-reason = "Alternative to winget for Windows installation"
-optional = true
-
-# System installation strategies
-[[runtimes.system_install.strategies]]
-type = "package_manager"
-manager = "brew"
-package = "tool"
-platforms = ["macos"]
-priority = 90
-
-[[runtimes.system_install.strategies]]
-type = "package_manager"
-manager = "winget"
-package = "Publisher.Tool"  # winget uses Publisher.Package format
-platforms = ["windows"]
-priority = 95  # Highest on Windows (built-in on Win11)
-
-[[runtimes.system_install.strategies]]
-type = "package_manager"
-manager = "choco"
-package = "tool"
-platforms = ["windows"]
-priority = 80
-
-[[runtimes.system_install.strategies]]
-type = "package_manager"
-manager = "scoop"
-package = "tool"
-platforms = ["windows"]
-priority = 60
-```
-
-### Template 9: System Package Manager Only
-
-**适用于**: make, curl 等所有平台都没有可移植二进制的工具
-
-```toml
-[[runtimes]]
-name = "tool"
-description = "Tool description"
-executable = "tool"
-
-# No layout configuration (no direct download)
-
-# All platforms need package managers
-[[runtimes.system_deps.pre_depends]]
-type = "runtime"
-id = "brew"
-platforms = ["macos"]
-reason = "Required to install tool on macOS"
-optional = false
-
-[[runtimes.system_deps.pre_depends]]
-type = "runtime"
-id = "winget"
-platforms = ["windows"]
-reason = "Preferred package manager for Windows"
-optional = true
-
-[[runtimes.system_deps.pre_depends]]
-type = "runtime"
-id = "choco"
-platforms = ["windows"]
-optional = true
-
-# System installation strategies for all platforms
-[[runtimes.system_install.strategies]]
-type = "package_manager"
-manager = "brew"
-package = "tool"
-platforms = ["macos", "linux"]
-priority = 90
-
-[[runtimes.system_install.strategies]]
-type = "package_manager"
-manager = "apt"
-package = "tool"
-platforms = ["linux"]
-priority = 90
-
-[[runtimes.system_install.strategies]]
-type = "package_manager"
-manager = "dnf"
-package = "tool"
-platforms = ["linux"]
-priority = 85
-
-[[runtimes.system_install.strategies]]
-type = "package_manager"
-manager = "winget"
-package = "Publisher.Tool"
-platforms = ["windows"]
-priority = 95
-
-[[runtimes.system_install.strategies]]
-type = "package_manager"
-manager = "choco"
-package = "tool"
-platforms = ["windows"]
-priority = 80
-```
+The `provider.toml` now only contains metadata (name, description, ecosystem, license).
+All install logic (download URLs, archive layout, system_install, environment) belongs in `provider.star`.
 
 ## Update Workflow
 
 ### Step 1: Identify Tool Type
 
 ```bash
-# Check current provider.toml
-cat crates/vx-providers/{name}/provider.toml
+# Check current provider.star
+cat crates/vx-providers/{name}/provider.star
 ```
 
 Questions to answer:
-1. Is it a single binary or archive?
-2. What's the download URL format?
-3. What's the internal structure after extraction?
-4. Are there platform-specific differences?
+1. Does it use old function-based metadata (`def name(): return "..."`)?
+2. Does it use old dict-style ctx access (`ctx["platform"]["os"]`)?
+3. Does `environment()` return a dict instead of a list?
+4. Are `store_root`, `get_execute_path`, `post_install` missing?
+5. Does `system_install` return a flat list instead of `{"strategies": [...]}`?
 
-### Step 2: Choose Template
-
-Use decision tree:
+### Step 2: Choose Migration Path
 
 ```
-Does the tool provide portable binaries for ALL platforms?
-├─ Yes → Is it a binary download (single file)?
-│   ├─ Yes → Template 1 (Binary)
-│   └─ No → Is it an archive?
-│       ├─ Has bin/ directory? → Template 2 (Standard Archive)
-│       ├─ Executable in root? → Template 3 (Root Directory)
-│       ├─ Platform subdirs? → Template 4 (Platform Directory)
-│       └─ Complex? → Template 5 (Complex)
-├─ Partial (some platforms have binaries) → Template 8 (Hybrid)
-│   └─ Examples: imagemagick (Linux AppImage, macOS/Windows via PM)
-│   └─ Examples: ffmpeg (Windows binary, macOS/Linux via brew/apt)
-└─ No (no portable binaries) → Check installation method
-    ├─ npm/pip package? → Template 6 (Package Manager)
-    ├─ System tool (curl, openssl)? → Template 7 (Detection Only)
-    └─ Can be installed via PM? → Template 9 (System PM Only)
-```
-        ├─ Yes → Template 6 (Package Manager)
-        └─ No → Template 7 (System Tool)
+Is provider.star using old format?
+├─ Old function metadata → Change 1: top-level variables
+├─ ctx["platform"]["os"] → Change 2: ctx.platform.os
+├─ make_github_provider → Change 3: make_fetch_versions + github_asset_url
+├─ environment() returns dict → Change 6: return list with env_prepend()
+├─ system_install flat list → Change 7: {"strategies": [...]}
+└─ Missing store_root/get_execute_path/post_install → Change 8: add them
 ```
 
-### Step 3: Add Configuration
+See `references/update-templates.md` for complete before/after examples.
 
-1. Open `crates/vx-providers/{name}/provider.toml`
-2. Locate `[runtimes.versions]` section
-3. Add layout configuration after versions, before platforms
-4. Save file
+### Step 3: Apply Changes
+
+1. Open `crates/vx-providers/{name}/provider.star`
+2. Apply the relevant changes from the Core Changes Summary above
+3. Ensure `provider.toml` only contains metadata (no layout fields)
+4. Save files
 
 ### Step 4: Verify Format
 
 Checklist:
-- [ ] `download_type` is `"binary"`, `"archive"`, or `"git_clone"`
-- [ ] **Important**: Use `snake_case` for values (e.g., `git_clone` NOT `git-clone`)
-- [ ] For binary: All platforms have configuration
-- [ ] For binary: Unix platforms have `target_permissions = "755"`
-- [ ] For archive: `strip_prefix` matches actual structure
-- [ ] For archive: `executable_paths` includes Windows and Unix
-- [ ] Paths use forward slashes `/`, not backslashes
-- [ ] Variables like `{version}`, `{os}`, `{arch}` are correct
+- [ ] All metadata as top-level variables (no `def name():` functions)
+- [ ] All `ctx["..."]["..."]` replaced with `ctx.platform.os` / `ctx.platform.arch`
+- [ ] `environment()` returns list: `[env_prepend("PATH", ctx.install_dir)]`
+- [ ] `store_root()`, `get_execute_path()`, `post_install()` all present
+- [ ] `runtimes` includes `test_commands`
+- [ ] `system_install()` returns `{"strategies": [...]}` (not flat list)
+- [ ] `license` field present (SPDX identifier)
 
 ### Step 5: Test
 
@@ -592,76 +293,6 @@ vx install {name}@{version}
 # Verify
 vx which {name}
 vx {name} --version
-```
-
-## Batch Update Script
-
-For updating multiple providers at once:
-
-```rust
-// Create a batch update plan
-let providers_to_update = vec![
-    ("kubectl", LayoutType::Binary),
-    ("terraform", LayoutType::ArchiveRoot),
-    ("helm", LayoutType::ArchivePlatform),
-    ("just", LayoutType::ArchiveRoot),
-    ("task", LayoutType::ArchiveRoot),
-];
-
-for (name, layout_type) in providers_to_update {
-    update_provider(name, layout_type)?;
-}
-```
-
-## Common Patterns
-
-### Pattern: Version in Binary Name
-
-```toml
-[runtimes.layout.binary."windows-x86_64"]
-source_name = "yasm-{version}-win64.exe"  # {version} auto-replaced
-target_name = "yasm.exe"
-target_dir = "bin"
-```
-
-### Pattern: Platform Variations
-
-```toml
-[runtimes.layout.archive]
-strip_prefix = "node-v{version}-{os}-{arch}"  # All replaced
-# {os} → windows, linux, darwin
-# {arch} → x86_64, aarch64
-```
-
-### Pattern: JavaScript Executables
-
-```toml
-[runtimes.layout.archive]
-strip_prefix = "yarn-v{version}"
-executable_paths = [
-    "bin/yarn.js"  # JavaScript file, not native binary
-]
-```
-
-### Pattern: Windows Only
-
-```toml
-[[runtimes]]
-name = "rcedit"
-description = "Windows resource editor"
-executable = "rcedit"
-
-[runtimes.layout]
-download_type = "binary"
-
-# Only Windows platform
-[runtimes.layout.binary."windows-x86_64"]
-source_name = "rcedit-x64.exe"
-target_name = "rcedit.exe"
-target_dir = "bin"
-
-[runtimes.platforms.windows]
-executable_extensions = [".exe"]
 ```
 
 ## Migration: From Rust runtime.rs to Starlark provider.star
@@ -844,14 +475,14 @@ pub fn download_url(version: &str, platform: &Platform) -> Option<String> {
 
 **After (Starlark provider.star):**
 ```python
-load("@vx//stdlib:github.star",   "make_fetch_versions", "github_asset_url")
-load("@vx//stdlib:platform.star", "is_windows")
+load("@vx//stdlib:github.star", "make_fetch_versions", "github_asset_url")
+load("@vx//stdlib:env.star",    "env_prepend")
 
 fetch_versions = make_fetch_versions("owner", "repo")
 
 def _triple(ctx):
-    os   = ctx["platform"]["os"]
-    arch = ctx["platform"]["arch"]
+    os   = ctx.platform.os
+    arch = ctx.platform.arch
     return {
         "windows/x64":  "x86_64-pc-windows-msvc",
         "macos/arm64":  "aarch64-apple-darwin",
@@ -862,13 +493,13 @@ def download_url(ctx, version):
     triple = _triple(ctx)
     if not triple:
         return None
-    os  = ctx["platform"]["os"]
+    os  = ctx.platform.os
     ext = "zip" if os == "windows" else "tar.gz"
     asset = "tool-v{}-{}.{}".format(version, triple, ext)
     return github_asset_url("owner", "repo", "v" + version, asset)
 
 def install_layout(ctx, version):
-    os  = ctx["platform"]["os"]
+    os  = ctx.platform.os
     exe = "tool.exe" if os == "windows" else "tool"
     return {
         "type":             "archive",
@@ -876,10 +507,21 @@ def install_layout(ctx, version):
         "executable_paths": [exe, "tool"],
     }
 
-def environment(ctx, version, install_dir):
-    return {"PATH": install_dir}
+def environment(ctx, _version):
+    return [env_prepend("PATH", ctx.install_dir)]
 
-def deps(ctx, version):
+def store_root(ctx):
+    return ctx.vx_home + "/store/tool"
+
+def get_execute_path(ctx, version):
+    os = ctx.platform.os
+    exe = "tool.exe" if os == "windows" else "tool"
+    return ctx.install_dir + "/" + exe
+
+def post_install(_ctx, _version):
+    return None
+
+def deps(_ctx, _version):
     return []
 ```
 
@@ -924,26 +566,20 @@ shown in Step 0c above.
 | GitHub | `@vx//stdlib:github.star` | `make_fetch_versions(owner, repo)`, `make_download_url(owner, repo, template)`, `make_github_provider(owner, repo, template)`, `github_asset_url(owner, repo, tag, asset)` |
 | Platform | `@vx//stdlib:platform.star` | `is_windows(ctx)`, `is_macos(ctx)`, `is_linux(ctx)`, `is_x64(ctx)`, `is_arm64(ctx)`, `platform_triple(ctx)`, `platform_ext(ctx)`, `exe_ext(ctx)`, `arch_to_gnu(arch)`, `arch_to_go(arch)`, `os_to_go(os)` |
 | Install | `@vx//stdlib:install.star` | `msi_install(url, ...)`, `archive_install(url, ...)`, `binary_install(url, ...)`, `platform_install(ctx, ...)` |
-| HTTP | `@vx//stdlib:http.star` | `github_releases(ctx, owner, repo)`, `releases_to_versions(releases)`, `parse_github_tag(tag)` |
+| Env | `@vx//stdlib:env.star` | `env_set(key, value)`, `env_prepend(key, value)`, `env_append(key, value)`, `env_unset(key)` |
+| HTTP | `@vx//stdlib:http.star` | `github_releases(ctx, owner, repo)`, `fetch_json_versions(ctx, url, transform)`, `releases_to_versions(releases)` |
 | Semver | `@vx//stdlib:semver.star` | `semver_compare(a, b)`, `semver_gt/lt/gte/lte/eq(a, b)`, `semver_sort(versions)`, `semver_strip_v(v)` |
 
 ### ctx Object Reference
 
 ```python
-ctx = {
-    "platform": {
-        "os":     "windows" | "macos" | "linux",
-        "arch":   "x64" | "arm64" | "x86",
-        "target": "x86_64-pc-windows-msvc" | ...,
-    },
-    "http": {
-        "get_json": lambda url: ...,  # returns parsed JSON
-    },
-    "paths": {
-        "install_dir": "/path/to/install",
-        "cache_dir":   "/path/to/cache",
-    },
-}
+# ctx is a struct injected by the vx runtime (object-style access)
+ctx.platform.os      # "windows" | "macos" | "linux"
+ctx.platform.arch    # "x64" | "arm64" | "x86"
+ctx.platform.target  # "x86_64-pc-windows-msvc" | "aarch64-apple-darwin" | ...
+ctx.install_dir      # "/path/to/install/dir"
+ctx.vx_home          # "~/.vx" (VX_HOME)
+ctx.version          # current version being installed
 ```
 
 ### install_layout Return Values
@@ -976,7 +612,7 @@ load("@vx//stdlib:github.star",   "make_fetch_versions", "github_asset_url")
 fetch_versions = make_fetch_versions("owner", "repo")
 
 def download_url(ctx, version):
-    os = ctx["platform"]["os"]
+    os = ctx.platform.os
     if os == "windows":
         return "https://github.com/owner/repo/releases/download/v{}/tool-{}-x64.msi".format(version, version)
     elif os == "macos":
@@ -986,7 +622,7 @@ def download_url(ctx, version):
     return None
 
 def install_layout(ctx, version):
-    os  = ctx["platform"]["os"]
+    os  = ctx.platform.os
     url = download_url(ctx, version)
     if os == "windows":
         return msi_install(
@@ -1001,10 +637,21 @@ def install_layout(ctx, version):
             executable_paths = ["bin/tool"],
         )
 
-def environment(ctx, version, install_dir):
-    return {"PATH": install_dir}
+def environment(ctx, _version):
+    return [env_prepend("PATH", ctx.install_dir)]
 
-def deps(ctx, version):
+def store_root(ctx):
+    return ctx.vx_home + "/store/tool"
+
+def get_execute_path(ctx, version):
+    os = ctx.platform.os
+    exe = "tool.exe" if os == "windows" else "tool"
+    return ctx.install_dir + "/" + exe
+
+def post_install(_ctx, _version):
+    return None
+
+def deps(_ctx, _version):
     return []
 ```
 
@@ -1025,62 +672,6 @@ def install_layout(ctx, version):
     )
 ```
 
-## Migration: From post_extract to Layout
-
-### Before (Custom Rust Code)
-
-```rust
-// In runtime.rs
-fn post_extract(&self, version: &str, install_path: &PathBuf) -> Result<()> {
-    use std::fs;
-    
-    let platform = Platform::current();
-    let original_name = format!("tool-{}-{}.exe", version, platform.arch);
-    let original_path = install_path.join(&original_name);
-    
-    let bin_dir = install_path.join("bin");
-    fs::create_dir_all(&bin_dir)?;
-    
-    let target_path = bin_dir.join("tool.exe");
-    fs::rename(&original_path, &target_path)?;
-    
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::PermissionsExt;
-        let mut perms = fs::metadata(&target_path)?.permissions();
-        perms.set_mode(0o755);
-        fs::set_permissions(&target_path, perms)?;
-    }
-    
-    Ok(())
-}
-```
-
-### After (RFC 0019 TOML)
-
-```toml
-# In provider.toml
-[runtimes.layout]
-download_type = "binary"
-
-[runtimes.layout.binary."windows-x86_64"]
-source_name = "tool-{version}-x86_64.exe"
-target_name = "tool.exe"
-target_dir = "bin"
-
-[runtimes.layout.binary."linux-x86_64"]
-source_name = "tool-{version}-x86_64"
-target_name = "tool"
-target_dir = "bin"
-target_permissions = "755"
-```
-
-**Benefits**:
-- ✅ No Rust code needed
-- ✅ Declarative configuration
-- ✅ Easy to update
-- ✅ Cross-platform handling built-in
-
 ## Migration: Adding System Package Manager Fallback
 
 When a tool has "No download URL" errors on certain platforms, add package manager fallback.
@@ -1095,82 +686,43 @@ Error messages indicating need for package manager fallback:
 ### Step 1: Check Platform Coverage
 
 ```bash
-# Check which platforms have binary downloads
-grep -A 20 "layout.binary" crates/vx-providers/{name}/provider.toml
+# Check which platforms have binary downloads in provider.star
+grep -A 5 "download_url" crates/vx-providers/{name}/provider.star
 
-# If missing platforms (e.g., macos, windows), need package manager fallback
+# If download_url returns None for macos/windows, need system_install fallback
 ```
 
-### Step 2: Add system_deps.pre_depends
+### Step 2: Add system_install() to provider.star
 
-```toml
-# Add after [runtimes.versions] or [runtimes.layout]
-
-# macOS requires Homebrew
-[[runtimes.system_deps.pre_depends]]
-type = "runtime"
-id = "brew"
-platforms = ["macos"]
-reason = "Required to install {tool} on macOS (no portable binary available)"
-optional = false
-
-# Windows: any one of winget/choco/scoop
-[[runtimes.system_deps.pre_depends]]
-type = "runtime"
-id = "winget"
-platforms = ["windows"]
-reason = "Preferred package manager for Windows (built-in on Windows 11)"
-optional = true
-
-[[runtimes.system_deps.pre_depends]]
-type = "runtime"
-id = "choco"
-platforms = ["windows"]
-reason = "Alternative to winget for Windows installation"
-optional = true
-
-[[runtimes.system_deps.pre_depends]]
-type = "runtime"
-id = "scoop"
-platforms = ["windows"]
-reason = "Alternative to winget for Windows installation"
-optional = true
+```python
+# In provider.star — add or update system_install function
+def system_install(ctx):
+    os = ctx.platform.os
+    if os == "windows":
+        return {
+            "strategies": [
+                {"manager": "winget", "package": "Publisher.Package", "priority": 95},
+                {"manager": "choco",  "package": "{tool}",            "priority": 80},
+                {"manager": "scoop",  "package": "{tool}",            "priority": 60},
+            ],
+        }
+    elif os == "macos":
+        return {
+            "strategies": [
+                {"manager": "brew", "package": "{tool}", "priority": 90},
+            ],
+        }
+    elif os == "linux":
+        return {
+            "strategies": [
+                {"manager": "apt", "package": "{tool}", "priority": 80},
+                {"manager": "dnf", "package": "{tool}", "priority": 80},
+            ],
+        }
+    return {}
 ```
 
-### Step 3: Add system_install.strategies
-
-```toml
-# System installation strategies
-[[runtimes.system_install.strategies]]
-type = "package_manager"
-manager = "brew"
-package = "{brew_package_name}"
-platforms = ["macos"]
-priority = 90
-
-[[runtimes.system_install.strategies]]
-type = "package_manager"
-manager = "winget"
-package = "Publisher.Package"  # Find via: winget search {tool}
-platforms = ["windows"]
-priority = 95
-
-[[runtimes.system_install.strategies]]
-type = "package_manager"
-manager = "choco"
-package = "{choco_package_name}"  # Find via: choco search {tool}
-platforms = ["windows"]
-priority = 80
-
-[[runtimes.system_install.strategies]]
-type = "package_manager"
-manager = "scoop"
-package = "{scoop_package_name}"  # Find via: scoop search {tool}
-platforms = ["windows"]
-priority = 60
-```
-
-### Step 4: Update runtime.rs (for custom Runtime implementations)
+### Step 3: Update runtime.rs (for custom Runtime implementations)
 
 If the provider has a custom `runtime.rs` (not manifest-driven), add:
 
@@ -1590,7 +1142,6 @@ tools don't download binaries directly.
 ## Reference
 
 See also:
-- `references/rfc-0019-layout.md` - Complete RFC 0019 specification
 - `docs/provider-migration-status.md` - Migration status tracker
 - `docs/provider-update-summary.md` - Batch update summary
 - `crates/vx-providers/imagemagick/` - Example hybrid provider with PM fallback

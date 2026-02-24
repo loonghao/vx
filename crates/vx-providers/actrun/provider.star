@@ -1,16 +1,15 @@
 # provider.star - actrun provider
 #
 # actrun: Actionforge workflow runner CLI
-# Inheritance pattern: Level 2 (custom download_url for actrun's naming)
-#   - fetch_versions: inherited from github.star
-#   - download_url:   custom (actrun-v{version}.cli-{arch}-{os}.{ext})
+# Asset: actrun-v{version}.cli-{arch}-{os}.{ext}
+# macOS uses .pkg (not supported) — Windows/Linux only
 #
-# actrun releases: https://github.com/actionforge/actrun-cli/releases
-# Asset format: actrun-v{version}.cli-{arch}-{os}.{ext}
-# Note: macOS uses .pkg which is not supported, skip macOS
+# Uses stdlib templates from @vx//stdlib:provider.star
 
+load("@vx//stdlib:provider.star",
+     "runtime_def", "github_permissions")
 load("@vx//stdlib:github.star", "make_fetch_versions", "github_asset_url")
-load("@vx//stdlib:env.star", "env_prepend")
+load("@vx//stdlib:env.star",    "env_prepend")
 
 # ---------------------------------------------------------------------------
 # Provider metadata
@@ -27,90 +26,52 @@ ecosystem   = "devtools"
 # ---------------------------------------------------------------------------
 
 runtimes = [
-    {
-        "name":        "actrun",
-        "executable":  "actrun",
-        "description": "Actionforge workflow runner CLI",
-        "aliases":     [],
-        "priority":    100,
-        "test_commands": [
+    runtime_def("actrun",
+        test_commands = [
             {"command": "{executable} --version", "name": "version_check"},
         ],
-    },
+    ),
 ]
 
 # ---------------------------------------------------------------------------
 # Permissions
 # ---------------------------------------------------------------------------
 
-permissions = {
-    "http": ["api.github.com", "github.com"],
-    "fs":   [],
-    "exec": [],
-}
+permissions = github_permissions()
 
 # ---------------------------------------------------------------------------
-# fetch_versions — inherited
+# fetch_versions
 # ---------------------------------------------------------------------------
 
 fetch_versions = make_fetch_versions("actionforge", "actrun-cli")
 
 # ---------------------------------------------------------------------------
-# download_url — custom
-#
-# actrun asset naming: actrun-v{version}.cli-{arch}-{os}.{ext}
-#   actrun-v0.1.0.cli-x64-windows.zip
-#   actrun-v0.1.0.cli-arm64-windows.zip
-#   actrun-v0.1.0.cli-x64-linux.tar.gz
-#   actrun-v0.1.0.cli-arm64-linux.tar.gz
-#   actrun-v0.1.0.cli-x64-macos.pkg  (NOT supported)
-#   actrun-v0.1.0.cli-arm64-macos.pkg (NOT supported)
+# Platform helpers
+# Asset: actrun-v{version}.cli-{arch}-{os}.{ext}
+# macOS uses .pkg — not supported
 # ---------------------------------------------------------------------------
 
-def _actrun_platform(ctx):
-    """Map platform to actrun's naming convention.
-
-    Returns (arch, os, ext) tuple, or None if unsupported.
-    Note: macOS uses .pkg which is not supported by vx-installer.
-    """
-    os   = ctx.platform.os
-    arch = ctx.platform.arch
-
-    platform_map = {
-        "windows/x64":   ("x64",   "windows", "zip"),
-        "windows/arm64": ("arm64", "windows", "zip"),
-        "linux/x64":     ("x64",   "linux",   "tar.gz"),
-        "linux/arm64":   ("arm64", "linux",   "tar.gz"),
-        # macOS uses .pkg - not supported
-    }
-    return platform_map.get("{}/{}".format(os, arch))
+_ACTRUN_PLATFORMS = {
+    "windows/x64":   ("x64",   "windows", "zip"),
+    "windows/arm64": ("arm64", "windows", "zip"),
+    "linux/x64":     ("x64",   "linux",   "tar.gz"),
+    "linux/arm64":   ("arm64", "linux",   "tar.gz"),
+}
 
 def download_url(ctx, version):
-    """Build the actrun download URL.
-
-    Args:
-        ctx:     Provider context
-        version: Version string, e.g. "0.1.0"
-
-    Returns:
-        Download URL string, or None if platform is unsupported
-    """
-    platform = _actrun_platform(ctx)
+    platform = _ACTRUN_PLATFORMS.get("{}/{}".format(ctx.platform.os, ctx.platform.arch))
     if not platform:
         return None
-
-    act_arch, act_os, ext = platform
+    act_arch, act_os, ext = platform[0], platform[1], platform[2]
     asset = "actrun-v{}.cli-{}-{}.{}".format(version, act_arch, act_os, ext)
-    tag = "v{}".format(version)
-    return github_asset_url("actionforge", "actrun-cli", tag, asset)
+    return github_asset_url("actionforge", "actrun-cli", "v" + version, asset)
 
 # ---------------------------------------------------------------------------
 # install_layout
 # ---------------------------------------------------------------------------
 
 def install_layout(ctx, _version):
-    os = ctx.platform.os
-    exe = "actrun.exe" if os == "windows" else "actrun"
+    exe = "actrun.exe" if ctx.platform.os == "windows" else "actrun"
     return {
         "type":             "archive",
         "strip_prefix":     "",
@@ -118,29 +79,21 @@ def install_layout(ctx, _version):
     }
 
 # ---------------------------------------------------------------------------
-# environment
+# Path queries + environment
 # ---------------------------------------------------------------------------
+
+def store_root(ctx):
+    return ctx.vx_home + "/store/actrun"
+
+def get_execute_path(ctx, _version):
+    exe = "actrun.exe" if ctx.platform.os == "windows" else "actrun"
+    return ctx.install_dir + "/" + exe
+
+def post_install(_ctx, _version):
+    return None
 
 def environment(ctx, _version):
     return [env_prepend("PATH", ctx.install_dir)]
 
-
-# ---------------------------------------------------------------------------
-# Path queries (RFC 0037)
-# ---------------------------------------------------------------------------
-
-def store_root(ctx):
-    """Return the vx store root directory for actrun."""
-    return ctx.vx_home + "/store/actrun"
-
-def get_execute_path(ctx, version):
-    """Return the executable path for the given version."""
-    os = ctx.platform.os
-    if os == "windows":
-        return ctx.install_dir + "/actrun.exe"
-    else:
-        return ctx.install_dir + "/actrun"
-
-def post_install(_ctx, _version):
-    """Post-install hook (no-op for actrun)."""
-    return None
+def deps(_ctx, _version):
+    return []

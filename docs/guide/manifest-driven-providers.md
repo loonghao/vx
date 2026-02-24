@@ -1,20 +1,22 @@
 # Manifest-Driven Providers
 
-vx uses a **declarative manifest system** to define tools and their behaviors. Instead of writing Rust code for each tool, you can simply create a `provider.toml` file that describes everything vx needs to know about a tool.
+vx uses **`provider.star`** (Starlark) as the single source of truth for all provider logic.
+Instead of writing Rust code for each tool, you create a `provider.star` file that describes
+everything vx needs: metadata, version fetching, download URLs, install layout, environment
+variables, and system package manager fallback.
 
 ## Overview
 
-A manifest-driven provider is defined by a single `provider.toml` file that contains:
+A manifest-driven provider consists of two files:
 
-- **Provider metadata**: Name, description, homepage, ecosystem
-- **Runtime definitions**: Executables, aliases, version sources
-- **Platform configurations**: OS-specific settings, download URLs
-- **Dependencies**: What other tools are required or recommended
-- **Detection rules**: How to find existing installations
+| File | Purpose |
+|------|---------|
+| `provider.star` | **All logic** — metadata, download URLs, install layout, environment, system_install |
+| `provider.toml` | **Metadata only** — name, description, ecosystem, license (no layout fields) |
 
 This approach makes it easy to:
-- Add new tools without writing code
-- Customize tool behavior through configuration
+- Add new tools without writing Rust code
+- Customize tool behavior through Starlark scripting
 - Share tool definitions across teams
 - Maintain consistent tool management
 
@@ -22,475 +24,664 @@ This approach makes it easy to:
 
 ### Using Built-in Providers
 
-vx comes with 40+ built-in providers for popular tools. Just use them directly:
+vx comes with 60+ built-in providers for popular tools:
 
 ```bash
-# These tools are already defined in vx
 vx node --version      # Node.js
 vx go version          # Go
 vx jq --help           # jq JSON processor
 vx ffmpeg -version     # FFmpeg media toolkit
+vx rg --version        # ripgrep
 ```
 
 ### Creating a Custom Provider
 
-To add a new tool, create a `provider.toml` file:
+Create a `provider.star` file in `~/.vx/providers/mytool/`:
 
 ```bash
-# Create provider directory
 mkdir -p ~/.vx/providers/mytool
+```
 
-# Create the manifest
-cat > ~/.vx/providers/mytool/provider.toml << 'EOF'
-[provider]
-name = "mytool"
+```python
+# ~/.vx/providers/mytool/provider.star
+load("@vx//stdlib:github.star", "make_fetch_versions", "github_asset_url")
+load("@vx//stdlib:env.star",    "env_prepend")
+
+# ---------------------------------------------------------------------------
+# Metadata
+# ---------------------------------------------------------------------------
+name        = "mytool"
 description = "My awesome tool"
-homepage = "https://mytool.example.com"
-ecosystem = "devtools"
+homepage    = "https://github.com/myorg/mytool"
+repository  = "https://github.com/myorg/mytool"
+license     = "MIT"
+ecosystem   = "devtools"
 
-[[runtimes]]
-name = "mytool"
-description = "My tool runtime"
-executable = "mytool"
+runtimes = [
+    {
+        "name":        "mytool",
+        "executable":  "mytool",
+        "description": "My tool runtime",
+        "priority":    100,
+        "test_commands": [
+            {"command": "{executable} --version", "name": "version_check"},
+        ],
+    },
+]
 
-[runtimes.versions]
-source = "github-releases"
-owner = "myorg"
-repo = "mytool"
+permissions = {
+    "http": ["api.github.com", "github.com"],
+    "fs":   [],
+    "exec": [],
+}
 
-[runtimes.platforms.windows]
-executable_extensions = [".exe"]
+# ---------------------------------------------------------------------------
+# Version fetching
+# ---------------------------------------------------------------------------
+fetch_versions = make_fetch_versions("myorg", "mytool")
 
-[runtimes.platforms.unix]
-executable_extensions = []
-EOF
+# ---------------------------------------------------------------------------
+# Download URL
+# ---------------------------------------------------------------------------
+def download_url(ctx, version):
+    os   = ctx.platform.os
+    arch = ctx.platform.arch
+    triples = {
+        "windows/x64":  "x86_64-pc-windows-msvc",
+        "macos/x64":    "x86_64-apple-darwin",
+        "macos/arm64":  "aarch64-apple-darwin",
+        "linux/x64":    "x86_64-unknown-linux-musl",
+        "linux/arm64":  "aarch64-unknown-linux-gnu",
+    }
+    triple = triples.get("{}/{}".format(os, arch))
+    if not triple:
+        return None
+    ext   = "zip" if os == "windows" else "tar.gz"
+    asset = "mytool-{}-{}.{}".format(version, triple, ext)
+    return github_asset_url("myorg", "mytool", "v" + version, asset)
 
-# Now use it!
+# ---------------------------------------------------------------------------
+# Install layout
+# ---------------------------------------------------------------------------
+def install_layout(ctx, version):
+    os  = ctx.platform.os
+    exe = "mytool.exe" if os == "windows" else "mytool"
+    return {
+        "type":             "archive",
+        "strip_prefix":     "mytool-{}".format(version),
+        "executable_paths": [exe, "mytool"],
+    }
+
+# ---------------------------------------------------------------------------
+# Path queries
+# ---------------------------------------------------------------------------
+def store_root(ctx):
+    return ctx.vx_home + "/store/mytool"
+
+def get_execute_path(ctx, version):
+    os  = ctx.platform.os
+    exe = "mytool.exe" if os == "windows" else "mytool"
+    return ctx.install_dir + "/" + exe
+
+def post_install(_ctx, _version):
+    return None
+
+# ---------------------------------------------------------------------------
+# Environment
+# ---------------------------------------------------------------------------
+def environment(ctx, _version):
+    return [env_prepend("PATH", ctx.install_dir)]
+```
+
+Now use it:
+
+```bash
 vx mytool --version
 ```
 
-## Provider Manifest Schema
+## provider.star Structure
 
-### Provider Section
+### Metadata Variables (Top-Level)
 
-The `[provider]` section defines basic metadata:
+All metadata is declared as **top-level variables** (not functions):
 
-```toml
-[provider]
-name = "jq"                                          # Required: Provider name
-description = "Lightweight command-line JSON processor"  # Required: Description
-homepage = "https://jqlang.github.io/jq/"            # Optional: Homepage URL
-repository = "https://github.com/jqlang/jq"          # Optional: Source repository
-ecosystem = "devtools"                               # Optional: Ecosystem category
+```python
+name        = "ripgrep"                              # Required
+description = "Fast regex search tool"               # Required
+homepage    = "https://github.com/BurntSushi/ripgrep"
+repository  = "https://github.com/BurntSushi/ripgrep"
+license     = "MIT OR Unlicense"                     # Required (SPDX identifier)
+ecosystem   = "devtools"                             # Required
+aliases     = ["rg"]                                 # Optional
 ```
 
 **Ecosystem values:**
-- `nodejs` - Node.js ecosystem (npm, yarn, etc.)
-- `python` - Python ecosystem (pip, uv, etc.)
-- `rust` - Rust ecosystem (cargo, etc.)
-- `go` - Go ecosystem
-- `system` - System tools (ffmpeg, git, etc.)
-- `devtools` - Development tools (jq, fzf, etc.)
-- `cloud` - Cloud CLI tools (aws, gcloud, etc.)
+`nodejs`, `python`, `rust`, `go`, `ruby`, `java`, `dotnet`, `devtools`,
+`container`, `cloud`, `ai`, `cpp`, `zig`, `system`
 
-### Runtime Section
+### runtimes List
 
-Each `[[runtimes]]` entry defines an executable:
+Define executables provided by this provider:
 
-```toml
-[[runtimes]]
-name = "jq"                              # Required: Runtime name
-description = "jq JSON processor"        # Required: Description
-executable = "jq"                        # Required: Executable name
-aliases = ["jqp"]                        # Optional: Alternative names
-priority = 100                           # Optional: Priority (higher = preferred)
-auto_installable = true                  # Optional: Can be auto-installed (default: true)
-bundled_with = "node"                    # Optional: Bundled with another runtime
-```
-
-### Version Sources
-
-The `[runtimes.versions]` section defines where to get version information:
-
-#### GitHub Releases
-
-```toml
-[runtimes.versions]
-source = "github-releases"
-owner = "jqlang"
-repo = "jq"
-strip_v_prefix = true                    # Remove 'v' from version tags
-```
-
-#### Node.js Official
-
-```toml
-[runtimes.versions]
-source = "nodejs-org"
-lts_pattern = "lts/*"
-```
-
-#### System Detection
-
-```toml
-[runtimes.versions]
-source = "system"                        # Detect from system installation
-```
-
-### Platform Configuration
-
-Define platform-specific settings:
-
-```toml
-[runtimes.platforms.windows]
-executable_extensions = [".exe", ".cmd"]
-search_paths = ["C:\\Program Files\\tool\\bin"]
-
-[runtimes.platforms.unix]
-executable_extensions = []
-search_paths = ["/usr/bin", "/usr/local/bin"]
-
-[runtimes.platforms.linux]
-executable_extensions = []
-
-[runtimes.platforms.macos]
-executable_extensions = []
-```
-
-### Download Layout
-
-Configure how downloads are structured:
-
-#### Binary Downloads
-
-For single-file executables:
-
-```toml
-[runtimes.layout]
-download_type = "binary"
-
-[runtimes.layout.binary."windows-x86_64"]
-source_name = "jq-windows-amd64.exe"
-target_name = "jq.exe"
-target_dir = "bin"
-
-[runtimes.layout.binary."linux-x86_64"]
-source_name = "jq-linux-amd64"
-target_name = "jq"
-target_dir = "bin"
-target_permissions = "755"
-```
-
-#### Archive Downloads
-
-For tools distributed as archives:
-
-```toml
-[runtimes.layout]
-download_type = "archive"
-
-[runtimes.layout.archive]
-strip_prefix = "node-v{version}-{platform}-{arch}"
-executable_paths = [
-    "bin/node.exe",   # Windows
-    "bin/node"        # Unix
+```python
+runtimes = [
+    {
+        "name":        "ripgrep",      # Runtime name
+        "executable":  "rg",           # Actual executable filename
+        "description": "Fast regex search tool",
+        "aliases":     ["rg"],         # Alternative names
+        "priority":    100,
+        "test_commands": [
+            {
+                "command":         "{executable} --version",
+                "name":            "version_check",
+                "expected_output": "ripgrep \\d+",
+            },
+        ],
+    },
 ]
 ```
 
-### Detection Configuration
+### permissions
 
-Define how to detect existing installations:
+Declare what the provider is allowed to access:
 
-```toml
-[runtimes.detection]
-command = "{executable} --version"
-pattern = "v?(\\d+\\.\\d+\\.\\d+)"
-system_paths = [
-    "/usr/bin/node",
-    "/usr/local/bin/node",
-    "C:\\Program Files\\nodejs\\node.exe"
-]
-env_hints = ["NODE_HOME", "NVM_DIR"]
+```python
+permissions = {
+    "http": ["api.github.com", "github.com"],  # Allowed HTTP hosts
+    "fs":   [],                                 # Allowed filesystem paths
+    "exec": [],                                 # Allowed executables to spawn
+}
 ```
 
-### Dependencies and Constraints
+### ctx Object Reference
 
-Define relationships between tools:
+The `ctx` object is injected by the vx runtime (object-style access):
 
-```toml
-# Recommend npm when using node
-[[runtimes.constraints]]
-when = "*"
-recommends = [
-    { runtime = "npm", version = "*", reason = "Default package manager" }
-]
-
-# Require node for npm
-[[runtimes.constraints]]
-when = "*"
-requires = [
-    { runtime = "node", version = ">=14", recommended = "20", reason = "npm requires Node.js" }
-]
-
-# Version-specific constraints
-[[runtimes.constraints]]
-when = ">=9"
-requires = [
-    { runtime = "node", version = ">=14", reason = "npm 9.x+ requires Node.js 14+" }
-]
+```python
+ctx.platform.os      # "windows" | "macos" | "linux"
+ctx.platform.arch    # "x64" | "arm64" | "x86"
+ctx.platform.target  # "x86_64-pc-windows-msvc" | "aarch64-apple-darwin" | ...
+ctx.install_dir      # "/path/to/install/dir"
+ctx.vx_home          # "~/.vx" (VX_HOME)
+ctx.version          # current version being installed
 ```
 
-### Environment Variables
+## Standard Library
 
-Configure environment variables:
+Load helpers from the vx stdlib:
 
-```toml
-[runtimes.env]
-vars = { PATH = "{install_dir}/bin" }
-
-# Version-conditional environment
-[runtimes.env.conditional]
-">=18" = { NODE_OPTIONS = "--experimental-vm-modules" }
+```python
+load("@vx//stdlib:github.star",   "make_fetch_versions", "github_asset_url")
+load("@vx//stdlib:platform.star", "is_windows", "is_macos", "platform_triple", "exe_ext")
+load("@vx//stdlib:install.star",  "msi_install", "archive_install", "binary_install")
+load("@vx//stdlib:env.star",      "env_prepend", "env_set", "env_append")
+load("@vx//stdlib:http.star",     "fetch_json_versions")
+load("@vx//stdlib:semver.star",   "semver_sort")
 ```
 
-**Template Variables:**
+### github.star
 
-The following template variables are supported in environment variable values:
+| Function | Description |
+|----------|-------------|
+| `make_fetch_versions(owner, repo)` | Returns a `fetch_versions` function for GitHub releases |
+| `github_asset_url(owner, repo, tag, asset)` | Build a GitHub release asset URL |
+| `make_download_url(owner, repo, template)` | Returns a `download_url` function from a URL template |
 
-| Variable | Description | Example |
-|----------|-------------|---------|
-| `{install_dir}` | Installation directory of the runtime | `~/.vx/store/python/3.11.0` |
-| `{version}` | Version of the runtime | `3.11.0` |
-| `{executable}` | Path to the executable | `~/.vx/store/python/3.11.0/bin/python` |
+### platform.star
 
-These variables are automatically expanded when the runtime is executed.
+| Function | Description |
+|----------|-------------|
+| `is_windows(ctx)` | `True` if running on Windows |
+| `is_macos(ctx)` | `True` if running on macOS |
+| `is_linux(ctx)` | `True` if running on Linux |
+| `platform_triple(ctx)` | Returns Rust target triple string |
+| `exe_ext(ctx)` | Returns `".exe"` on Windows, `""` elsewhere |
+| `arch_to_gnu(arch)` | Converts arch to GNU triple component |
 
-### Mirror Configuration
+### install.star
 
-Define download mirrors for different regions:
+| Function | Description |
+|----------|-------------|
+| `archive_install(url, strip_prefix, executable_paths)` | Archive install descriptor |
+| `binary_install(url, executable_name)` | Single binary install descriptor |
+| `msi_install(url, executable_paths)` | MSI install descriptor (Windows) |
+| `platform_install(ctx, windows_url, macos_url, linux_url, ...)` | Per-platform install |
 
-```toml
-[[runtimes.mirrors]]
-name = "taobao"
-region = "cn"
-url = "https://npmmirror.com/mirrors/node"
-priority = 100
+### env.star
 
-[[runtimes.mirrors]]
-name = "ustc"
-region = "cn"
-url = "https://mirrors.ustc.edu.cn/node"
-priority = 90
+| Function | Description |
+|----------|-------------|
+| `env_prepend(key, value)` | Prepend value to PATH-like variable |
+| `env_set(key, value)` | Set environment variable |
+| `env_append(key, value)` | Append value to variable |
+| `env_unset(key)` | Unset environment variable |
+
+## Provider Functions Reference
+
+### fetch_versions(ctx)
+
+Returns a list of available versions. Usually inherited from `make_fetch_versions`:
+
+```python
+# Simplest: fully inherited
+fetch_versions = make_fetch_versions("owner", "repo")
+
+# Custom: non-GitHub source
+load("@vx//stdlib:http.star", "fetch_json_versions")
+
+def fetch_versions(ctx):
+    return fetch_json_versions(
+        ctx,
+        "https://go.dev/dl/?mode=json",
+        lambda releases: [r["version"].lstrip("go") for r in releases],
+    )
 ```
 
-### Health Checks
+### download_url(ctx, version)
 
-Define health check commands:
+Returns the download URL for a given version and platform:
 
-```toml
-[runtimes.health]
-check_command = "{executable} --version"
-expected_pattern = "v\\d+\\.\\d+\\.\\d+"
-exit_code = 0
-timeout_ms = 5000
-check_on = ["install", "activate"]
+```python
+def download_url(ctx, version):
+    os   = ctx.platform.os
+    arch = ctx.platform.arch
+    triples = {
+        "windows/x64":  "x86_64-pc-windows-msvc",
+        "macos/x64":    "x86_64-apple-darwin",
+        "macos/arm64":  "aarch64-apple-darwin",
+        "linux/x64":    "x86_64-unknown-linux-musl",
+        "linux/arm64":  "aarch64-unknown-linux-gnu",
+    }
+    triple = triples.get("{}/{}".format(os, arch))
+    if not triple:
+        return None
+    ext   = "zip" if os == "windows" else "tar.gz"
+    asset = "tool-{}-{}.{}".format(version, triple, ext)
+    return github_asset_url("owner", "repo", "v" + version, asset)
 ```
 
-### Download Configuration
+### install_layout(ctx, version)
 
-Configure download behavior:
+Returns an install descriptor dict:
 
-```toml
-[runtimes.download]
-timeout_ms = 900000           # 15 minutes for large files
-max_retries = 5
-resume_enabled = true
-execution_timeout_ms = 60000  # 1 minute execution timeout
+```python
+# Archive layout
+def install_layout(ctx, version):
+    return {
+        "type":             "archive",
+        "strip_prefix":     "tool-{}".format(version),
+        "executable_paths": ["bin/tool.exe", "bin/tool"],
+    }
+
+# Binary layout
+def install_layout(ctx, version):
+    os  = ctx.platform.os
+    exe = "tool.exe" if os == "windows" else "tool"
+    return {
+        "type":            "binary",
+        "executable_name": exe,
+    }
 ```
 
-### Test Configuration
+| Layout Type | Required Fields | Optional Fields |
+|-------------|----------------|-----------------|
+| `"archive"` | `type` | `strip_prefix`, `executable_paths` |
+| `"binary"` | `type` | `executable_name`, `source_name`, `permissions` |
+| `"msi"` | `type`, `url` | `executable_paths`, `strip_prefix` |
 
-Define automated tests for the provider:
+### environment(ctx, version)
 
-```toml
-[runtimes.test]
-timeout_ms = 30000
-functional_commands = [
-    { command = "{executable} --version", expect_success = true, expected_output = "v\\d+", name = "version_check" },
-    { command = "{executable} -e \"console.log('test')\"", expect_success = true, expected_output = "test", name = "eval_test" }
-]
-install_verification = [
-    { command = "{executable} --version", expect_success = true }
-]
+Returns a **list** of env operations (not a dict):
+
+```python
+load("@vx//stdlib:env.star", "env_prepend", "env_set")
+
+def environment(ctx, _version):
+    return [
+        env_prepend("PATH", ctx.install_dir),
+        env_set("TOOL_HOME", ctx.install_dir),  # optional
+    ]
+```
+
+### store_root(ctx) / get_execute_path(ctx, version) / post_install(ctx, version)
+
+Path query functions required by all providers:
+
+```python
+def store_root(ctx):
+    return ctx.vx_home + "/store/mytool"
+
+def get_execute_path(ctx, version):
+    os  = ctx.platform.os
+    exe = "mytool.exe" if os == "windows" else "mytool"
+    return ctx.install_dir + "/" + exe
+
+def post_install(_ctx, _version):
+    return None  # Return None if nothing to do
+```
+
+### system_install(ctx)
+
+Returns package manager fallback strategies:
+
+```python
+def system_install(ctx):
+    os = ctx.platform.os
+    if os == "windows":
+        return {
+            "strategies": [
+                {"manager": "winget", "package": "Publisher.MyTool", "priority": 95},
+                {"manager": "choco",  "package": "mytool",           "priority": 80},
+            ],
+        }
+    elif os == "macos":
+        return {
+            "strategies": [
+                {"manager": "brew", "package": "mytool", "priority": 90},
+            ],
+        }
+    return {}
+```
+
+### deps(ctx, version)
+
+Returns runtime dependencies:
+
+```python
+def deps(_ctx, _version):
+    return [
+        {"runtime": "node", "version": ">=18",
+         "reason": "Requires Node.js runtime"},
+    ]
 ```
 
 ## Real-World Examples
 
-### Simple Binary Tool (jq)
+### Standard GitHub Binary Tool (ripgrep)
+
+```python
+# provider.star
+load("@vx//stdlib:github.star", "make_fetch_versions", "github_asset_url")
+load("@vx//stdlib:env.star",    "env_prepend")
+
+name        = "ripgrep"
+description = "ripgrep (rg) - recursively searches directories for a regex pattern"
+homepage    = "https://github.com/BurntSushi/ripgrep"
+repository  = "https://github.com/BurntSushi/ripgrep"
+license     = "MIT OR Unlicense"
+ecosystem   = "devtools"
+aliases     = ["rg"]
+
+runtimes = [
+    {
+        "name":        "ripgrep",
+        "executable":  "rg",
+        "description": "Fast regex search tool",
+        "aliases":     ["rg"],
+        "priority":    100,
+        "test_commands": [
+            {"command": "{executable} --version", "name": "version_check",
+             "expected_output": "ripgrep \\d+"},
+        ],
+    },
+]
+
+permissions = {
+    "http": ["api.github.com", "github.com"],
+    "fs":   [],
+    "exec": [],
+}
+
+fetch_versions = make_fetch_versions("BurntSushi", "ripgrep")
+
+def _triple(ctx):
+    os   = ctx.platform.os
+    arch = ctx.platform.arch
+    return {
+        "windows/x64":  "x86_64-pc-windows-msvc",
+        "macos/x64":    "x86_64-apple-darwin",
+        "macos/arm64":  "aarch64-apple-darwin",
+        "linux/x64":    "x86_64-unknown-linux-musl",
+        "linux/arm64":  "aarch64-unknown-linux-gnu",
+    }.get("{}/{}".format(os, arch))
+
+def download_url(ctx, version):
+    triple = _triple(ctx)
+    if not triple:
+        return None
+    os    = ctx.platform.os
+    ext   = "zip" if os == "windows" else "tar.gz"
+    asset = "ripgrep-{}-{}.{}".format(version, triple, ext)
+    return github_asset_url("BurntSushi", "ripgrep", version, asset)  # no 'v' prefix
+
+def install_layout(ctx, version):
+    triple = _triple(ctx)
+    os  = ctx.platform.os
+    exe = "rg.exe" if os == "windows" else "rg"
+    return {
+        "type":             "archive",
+        "strip_prefix":     "ripgrep-{}-{}".format(version, triple) if triple else "",
+        "executable_paths": [exe, "rg"],
+    }
+
+def store_root(ctx):
+    return ctx.vx_home + "/store/ripgrep"
+
+def get_execute_path(ctx, version):
+    os  = ctx.platform.os
+    exe = "rg.exe" if os == "windows" else "rg"
+    return ctx.install_dir + "/" + exe
+
+def post_install(_ctx, _version):
+    return None
+
+def environment(ctx, _version):
+    return [env_prepend("PATH", ctx.install_dir)]
+```
+
+### PyPI Package Alias (meson)
+
+For tools distributed via PyPI, use `package_alias` to route through `uvx`:
+
+```python
+# provider.star
+name        = "meson"
+description = "Meson - An extremely fast and user friendly build system"
+homepage    = "https://mesonbuild.com"
+repository  = "https://github.com/mesonbuild/meson"
+license     = "Apache-2.0"
+ecosystem   = "python"
+aliases     = ["mesonbuild"]
+
+# RFC 0033: route `vx meson` → `vx uvx:meson`
+package_alias = {"ecosystem": "uvx", "package": "meson"}
+
+runtimes = [
+    {
+        "name":        "meson",
+        "executable":  "meson",
+        "description": "Meson build system",
+        "aliases":     ["mesonbuild"],
+        "priority":    100,
+    },
+]
+
+permissions = {
+    "http": ["pypi.org"],
+    "fs":   [],
+    "exec": ["uvx", "uv"],
+}
+
+def download_url(_ctx, _version):
+    return None  # Runs via uvx, no direct download
+
+def deps(_ctx, _version):
+    return [
+        {"runtime": "uv", "version": "*",
+         "reason": "Tool is installed and run via uv"},
+    ]
+```
+
+### Hybrid Provider (imagemagick)
+
+Direct download on Linux, system package manager on Windows/macOS:
+
+```python
+# provider.star
+load("@vx//stdlib:github.star", "make_fetch_versions", "github_asset_url")
+load("@vx//stdlib:env.star",    "env_prepend")
+
+name        = "imagemagick"
+description = "ImageMagick - image manipulation software"
+homepage    = "https://imagemagick.org"
+repository  = "https://github.com/ImageMagick/ImageMagick"
+license     = "ImageMagick"
+ecosystem   = "devtools"
+aliases     = ["magick", "convert", "mogrify"]
+
+runtimes = [
+    {
+        "name":        "imagemagick",
+        "executable":  "magick",
+        "description": "ImageMagick image manipulation",
+        "aliases":     ["magick", "convert", "mogrify"],
+        "priority":    100,
+        "test_commands": [
+            {"command": "{executable} --version", "name": "version_check"},
+        ],
+    },
+]
+
+permissions = {
+    "http": ["api.github.com", "github.com", "imagemagick.org"],
+    "fs":   [],
+    "exec": [],
+}
+
+fetch_versions = make_fetch_versions("ImageMagick", "ImageMagick")
+
+def download_url(ctx, version):
+    os = ctx.platform.os
+    if os == "linux":
+        arch = ctx.platform.arch
+        suffix = "x86_64" if arch == "x64" else "aarch64"
+        asset = "ImageMagick--gcc-{}.AppImage".format(suffix)
+        return github_asset_url("ImageMagick", "ImageMagick",
+                                "refs/tags/" + version, asset)
+    return None  # Windows/macOS use system_install
+
+def install_layout(ctx, version):
+    os = ctx.platform.os
+    if os == "linux":
+        return {
+            "type":            "binary",
+            "executable_name": "magick",
+            "permissions":     "755",
+        }
+    return None
+
+def system_install(ctx):
+    os = ctx.platform.os
+    if os == "windows":
+        return {
+            "strategies": [
+                {"manager": "winget", "package": "ImageMagick.ImageMagick", "priority": 95},
+                {"manager": "choco",  "package": "imagemagick",             "priority": 80},
+            ],
+        }
+    elif os == "macos":
+        return {
+            "strategies": [
+                {"manager": "brew", "package": "imagemagick", "priority": 90},
+            ],
+        }
+    return {}
+
+def store_root(ctx):
+    return ctx.vx_home + "/store/imagemagick"
+
+def get_execute_path(ctx, version):
+    os  = ctx.platform.os
+    exe = "magick.exe" if os == "windows" else "magick"
+    return ctx.install_dir + "/" + exe
+
+def post_install(_ctx, _version):
+    return None
+
+def environment(ctx, _version):
+    return [env_prepend("PATH", ctx.install_dir)]
+```
+
+### MSI on Windows (Windows-specific tool)
+
+```python
+# provider.star
+load("@vx//stdlib:install.star", "msi_install", "archive_install")
+load("@vx//stdlib:github.star",  "make_fetch_versions", "github_asset_url")
+load("@vx//stdlib:env.star",     "env_prepend")
+
+name        = "mytool"
+description = "My tool with MSI installer on Windows"
+license     = "MIT"
+ecosystem   = "devtools"
+
+fetch_versions = make_fetch_versions("owner", "repo")
+
+def download_url(ctx, version):
+    os = ctx.platform.os
+    if os == "windows":
+        return "https://github.com/owner/repo/releases/download/v{}/mytool-{}-x64.msi".format(
+            version, version)
+    elif os == "macos":
+        return github_asset_url("owner", "repo", "v" + version,
+                                "mytool-{}-macos.tar.gz".format(version))
+    elif os == "linux":
+        return github_asset_url("owner", "repo", "v" + version,
+                                "mytool-{}-linux.tar.gz".format(version))
+    return None
+
+def install_layout(ctx, version):
+    os  = ctx.platform.os
+    url = download_url(ctx, version)
+    if os == "windows":
+        return msi_install(url, executable_paths=["bin/mytool.exe", "mytool.exe"])
+    else:
+        return archive_install(url,
+                               strip_prefix="mytool-{}".format(version),
+                               executable_paths=["bin/mytool"])
+
+def store_root(ctx):
+    return ctx.vx_home + "/store/mytool"
+
+def get_execute_path(ctx, version):
+    os  = ctx.platform.os
+    exe = "mytool.exe" if os == "windows" else "mytool"
+    return ctx.install_dir + "/" + exe
+
+def post_install(_ctx, _version):
+    return None
+
+def environment(ctx, _version):
+    return [env_prepend("PATH", ctx.install_dir)]
+```
+
+## provider.toml (Metadata Only)
+
+After creating `provider.star`, the `provider.toml` only needs metadata — **no layout fields**:
 
 ```toml
 [provider]
-name = "jq"
-description = "Lightweight and flexible command-line JSON processor"
-homepage = "https://jqlang.github.io/jq/"
-repository = "https://github.com/jqlang/jq"
-ecosystem = "devtools"
-
-[[runtimes]]
-name = "jq"
-description = "jq - command-line JSON processor"
-executable = "jq"
-
-[runtimes.versions]
-source = "github-releases"
-owner = "jqlang"
-repo = "jq"
-strip_v_prefix = true
-
-[runtimes.layout]
-download_type = "binary"
-
-[runtimes.layout.binary."windows-x86_64"]
-source_name = "jq-windows-amd64.exe"
-target_name = "jq.exe"
-target_dir = "bin"
-
-[runtimes.layout.binary."linux-x86_64"]
-source_name = "jq-linux-amd64"
-target_name = "jq"
-target_dir = "bin"
-target_permissions = "755"
-
-[runtimes.layout.binary."macos-x86_64"]
-source_name = "jq-macos-amd64"
-target_name = "jq"
-target_dir = "bin"
-target_permissions = "755"
-
-[runtimes.platforms.windows]
-executable_extensions = [".exe"]
-
-[runtimes.platforms.unix]
-executable_extensions = []
-
-[[runtimes.constraints]]
-when = "*"
-recommends = []
+name        = "mytool"
+description = "My awesome tool"
+homepage    = "https://example.com"
+repository  = "https://github.com/myorg/mytool"
+ecosystem   = "devtools"
+license     = "MIT"
 ```
 
-### Multi-Runtime Provider (Node.js)
-
-```toml
-[provider]
-name = "node"
-description = "JavaScript runtime built on Chrome's V8 engine"
-homepage = "https://nodejs.org"
-ecosystem = "nodejs"
-
-# Main runtime
-[[runtimes]]
-name = "node"
-description = "Node.js runtime"
-executable = "node"
-aliases = ["nodejs"]
-priority = 100
-auto_installable = true
-
-[runtimes.versions]
-source = "nodejs-org"
-lts_pattern = "lts/*"
-
-[runtimes.layout]
-download_type = "archive"
-
-[runtimes.layout.archive]
-strip_prefix = "node-v{version}-{platform}-{arch}"
-executable_paths = ["bin/node.exe", "bin/node"]
-
-[[runtimes.constraints]]
-when = "*"
-recommends = [
-    { runtime = "npm", version = "*", reason = "Default package manager" }
-]
-
-# Bundled npm
-[[runtimes]]
-name = "npm"
-description = "Node Package Manager"
-executable = "npm"
-bundled_with = "node"
-
-[runtimes.platforms.windows]
-executable_extensions = [".cmd", ".exe"]
-
-[runtimes.platforms.unix]
-executable_extensions = []
-
-[[runtimes.constraints]]
-when = ">=9"
-requires = [
-    { runtime = "node", version = ">=14", reason = "npm 9.x+ requires Node.js 14+" }
-]
-
-# Bundled npx
-[[runtimes]]
-name = "npx"
-description = "Node Package Execute"
-executable = "npx"
-bundled_with = "node"
-
-[runtimes.platforms.windows]
-executable_extensions = [".cmd", ".exe"]
-
-[runtimes.platforms.unix]
-executable_extensions = []
-```
-
-### System Tool (systemctl)
-
-```toml
-[provider]
-name = "systemctl"
-description = "systemd system and service manager"
-homepage = "https://systemd.io"
-ecosystem = "system"
-
-# Platform restriction
-[provider.platforms]
-os = ["linux"]
-
-[[runtimes]]
-name = "systemctl"
-description = "Control systemd services and units"
-executable = "systemctl"
-auto_installable = false  # Cannot be auto-installed
-
-[runtimes.versions]
-source = "system"
-
-[runtimes.detection]
-command = "{executable} --version"
-pattern = "systemd ([\\d.]+)"
-system_paths = ["/usr/bin/systemctl", "/bin/systemctl"]
-
-[runtimes.platforms.linux]
-executable_extensions = []
-search_paths = ["/usr/bin", "/bin"]
-
-# Bundled tools
-[[runtimes]]
-name = "journalctl"
-description = "View systemd journal logs"
-executable = "journalctl"
-bundled_with = "systemctl"
-auto_installable = false
-
-[[runtimes.constraints]]
-when = "*"
-requires = [
-    { runtime = "systemctl", version = "*", reason = "journalctl is part of systemd" }
-]
-```
+No `[runtimes.layout]`, no `download_type`, no `strip_prefix` — all install logic lives in
+`provider.star`.
 
 ## Provider Directory Structure
 
@@ -499,89 +690,105 @@ vx loads providers from multiple locations:
 ```
 ~/.vx/providers/          # User-defined providers (highest priority)
 ├── mytool/
-│   └── provider.toml
+│   ├── provider.star     # All logic (required)
+│   └── provider.toml     # Metadata only (optional)
 └── custom-node/
+    ├── provider.star
     └── provider.toml
 
 $VX_PROVIDERS_PATH/       # Environment variable path
 └── team-tools/
+    ├── provider.star
     └── provider.toml
 
-Built-in providers        # Lowest priority
+Built-in providers        # Lowest priority (crates/vx-providers/*)
 ```
 
 **Loading Priority:**
-1. `~/.vx/providers/*/provider.toml` (user local, highest)
-2. `$VX_PROVIDERS_PATH/*/provider.toml` (environment variable)
+1. `~/.vx/providers/*/provider.star` (user local, highest)
+2. `$VX_PROVIDERS_PATH/*/provider.star` (environment variable)
 3. Built-in providers (lowest)
+
+## Package Alias (npm/PyPI Tools)
+
+For tools distributed as npm or PyPI packages, use `package_alias` to route through the
+ecosystem's package runner:
+
+| Syntax | Routes to | Installer | Requires |
+|--------|-----------|-----------|---------|
+| `vx meson@1.5.0` | `vx uvx:meson@1.5.0` | `UvxInstaller` | `uv` |
+| `vx ruff@0.9.0` | `vx uvx:ruff@0.9.0` | `UvxInstaller` | `uv` |
+| `vx vite@5.0` | `vx npx:vite@5.0` | `NpmInstaller` | `node` |
+
+```python
+# PyPI tool
+package_alias = {"ecosystem": "uvx", "package": "ruff"}
+
+# npm tool
+package_alias = {"ecosystem": "npx", "package": "vite"}
+```
 
 ## Best Practices
 
-### 1. Use Descriptive Names
+### 1. Always Declare license
 
-```toml
+```python
+license = "MIT"          # SPDX identifier — REQUIRED
+```
+
+Blocked licenses (AGPL-3.0, SSPL, CC BY-NC) must NOT be integrated.
+
+### 2. Cover All Major Platforms
+
+```python
+triples = {
+    "windows/x64":  "x86_64-pc-windows-msvc",
+    "macos/x64":    "x86_64-apple-darwin",
+    "macos/arm64":  "aarch64-apple-darwin",
+    "linux/x64":    "x86_64-unknown-linux-musl",
+    "linux/arm64":  "aarch64-unknown-linux-gnu",
+}
+```
+
+### 3. Add test_commands
+
+```python
+runtimes = [
+    {
+        "name": "mytool",
+        "executable": "mytool",
+        "test_commands": [
+            {"command": "{executable} --version", "name": "version_check",
+             "expected_output": "\\d+\\.\\d+"},
+        ],
+    },
+]
+```
+
+### 4. Use system_install for System Tools
+
+For tools that are better installed via system package managers:
+
+```python
+def system_install(ctx):
+    os = ctx.platform.os
+    if os == "macos":
+        return {"strategies": [{"manager": "brew", "package": "mytool", "priority": 90}]}
+    elif os == "windows":
+        return {"strategies": [{"manager": "winget", "package": "Org.MyTool", "priority": 95}]}
+    return {}
+```
+
+### 5. Use Descriptive Names
+
+```python
 # Good
-name = "ripgrep"
+name        = "ripgrep"
 description = "Fast line-oriented search tool, recursively searches directories"
 
 # Avoid
-name = "rg"
+name        = "rg"
 description = "Search tool"
-```
-
-### 2. Define All Platforms
-
-```toml
-# Support all major platforms
-[runtimes.layout.binary."windows-x86_64"]
-source_name = "tool-windows-amd64.exe"
-
-[runtimes.layout.binary."linux-x86_64"]
-source_name = "tool-linux-amd64"
-
-[runtimes.layout.binary."linux-aarch64"]
-source_name = "tool-linux-arm64"
-
-[runtimes.layout.binary."macos-x86_64"]
-source_name = "tool-darwin-amd64"
-
-[runtimes.layout.binary."macos-aarch64"]
-source_name = "tool-darwin-arm64"
-```
-
-### 3. Set Appropriate Timeouts
-
-```toml
-# Small tools (< 10MB)
-[runtimes.download]
-timeout_ms = 60000  # 1 minute
-
-# Large tools (> 100MB like FFmpeg)
-[runtimes.download]
-timeout_ms = 900000  # 15 minutes
-resume_enabled = true
-```
-
-### 4. Document Dependencies
-
-```toml
-[[runtimes.constraints]]
-when = "*"
-requires = [
-    { runtime = "node", version = ">=14", reason = "Requires Node.js 14+ for ES modules support" }
-]
-recommends = [
-    { runtime = "npm", version = "*", reason = "Recommended for package management" }
-]
-```
-
-### 5. Add Health Checks
-
-```toml
-[runtimes.health]
-check_command = "{executable} --version"
-expected_pattern = "\\d+\\.\\d+\\.\\d+"
-timeout_ms = 5000
 ```
 
 ## Troubleshooting
@@ -592,33 +799,49 @@ timeout_ms = 5000
 # Check if provider is loaded
 vx list
 
-# Verify provider.toml location
-ls ~/.vx/providers/mytool/provider.toml
+# Verify provider.star location
+ls ~/.vx/providers/mytool/provider.star
 ```
 
 ### Version Detection Fails
 
 ```bash
-# Test detection pattern manually
+# Test manually
 mytool --version
 
-# Check detection configuration
-cat ~/.vx/providers/mytool/provider.toml | grep -A5 "\[runtimes.detection\]"
+# Check fetch_versions in provider.star
+grep -A5 "fetch_versions" ~/.vx/providers/mytool/provider.star
 ```
 
 ### Download Fails
 
 1. Check network connectivity
-2. Verify download URL format in manifest
-3. Try increasing timeout:
-   ```toml
-   [runtimes.download]
-   timeout_ms = 300000
-   max_retries = 5
-   ```
+2. Verify `download_url()` returns the correct URL for your platform
+3. Test the URL manually: `curl -I <url>`
+
+### "No download URL" on macOS/Windows
+
+Add `system_install()` with package manager fallback:
+
+```python
+def system_install(ctx):
+    os = ctx.platform.os
+    if os == "macos":
+        return {"strategies": [{"manager": "brew", "package": "mytool", "priority": 90}]}
+    return {}
+```
+
+### Executable Not Found After Install
+
+Check `install_layout()` — verify `strip_prefix` and `executable_paths` match the actual
+archive structure. Download the archive manually and inspect it:
+
+```bash
+tar -tzf tool-1.0.0-linux.tar.gz | head -20
+```
 
 ## See Also
 
-- [Provider Development Guide](../advanced/extension-development.md) - For Rust-based providers
-- [Configuration Reference](../config/vx-toml.md) - Project configuration
-- [CLI Commands](../cli/overview.md) - Command reference
+- [Provider Development Guide](../advanced/plugin-development.md) — For providers with custom Rust code
+- [Configuration Reference](../config/vx-toml.md) — Project configuration
+- [CLI Commands](../cli/overview.md) — Command reference

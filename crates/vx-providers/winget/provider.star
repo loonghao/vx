@@ -9,6 +9,7 @@
 # App Installer on Windows 10.
 
 load("@vx//stdlib:github.star", "make_fetch_versions", "github_asset_url")
+load("@vx//stdlib:provider.star", "github_permissions", "irm_install")
 
 # ---------------------------------------------------------------------------
 # Provider metadata
@@ -54,11 +55,7 @@ runtimes = [
 # Permissions
 # ---------------------------------------------------------------------------
 
-permissions = {
-    "http": ["api.github.com", "github.com"],
-    "fs":   [],
-    "exec": ["powershell", "pwsh"],
-}
+permissions = github_permissions(exec_cmds = ["powershell", "pwsh"])
 
 # ---------------------------------------------------------------------------
 # fetch_versions — inherited from GitHub releases
@@ -92,21 +89,11 @@ def download_url(ctx, version):
     return github_asset_url("microsoft", "winget-cli", "v" + version, asset)
 
 # ---------------------------------------------------------------------------
-# script_install — PowerShell installation
+# script_install — PowerShell irm | iex (modern winget install)
 # ---------------------------------------------------------------------------
 
-def script_install(_ctx):
-    """Return the PowerShell install command for winget."""
-    return {
-        "command": """
-$progressPreference = 'silentlyContinue'
-$latestWingetMsixBundleUri = $(Invoke-RestMethod https://api.github.com/repos/microsoft/winget-cli/releases/latest).assets.browser_download_url | Where-Object {$_.EndsWith(".msixbundle")}
-$latestWingetMsixBundle = $latestWingetMsixBundleUri.Split("/")[-1]
-Invoke-WebRequest -Uri $latestWingetMsixBundleUri -OutFile "./$latestWingetMsixBundle"
-Add-AppxPackage -Path "./$latestWingetMsixBundle"
-""",
-        "shell": "powershell",
-    }
+# winget is pre-installed on Windows 11; this handles Windows 10 installs.
+script_install = irm_install("https://aka.ms/getwinget")
 
 # ---------------------------------------------------------------------------
 # Path queries (RFC-0037)

@@ -1,17 +1,16 @@
 # provider.star - Helm provider
 #
 # Helm releases are hosted on get.helm.sh (not GitHub releases).
-# URL pattern: https://get.helm.sh/helm-v{version}-{os}-{arch}.{ext}
+# URL: https://get.helm.sh/helm-v{version}-{os}-{arch}.{ext}
+# Archive layout: {os}-{arch}/helm[.exe]
 #
-# Platform naming: Go-style (linux/darwin/windows + amd64/arm64/386/arm)
-# Archive layout:  contains a subdirectory "{os}-{arch}/helm[.exe]"
-#
-# fetch_versions: inherited from github.star (helm/helm on GitHub)
-# download_url:   custom — uses get.helm.sh domain
+# Uses runtime_def + github_permissions from @vx//stdlib:provider.star
 
-load("@vx//stdlib:github.star", "make_fetch_versions", "github_asset_url")
+load("@vx//stdlib:provider.star",
+     "runtime_def", "github_permissions")
+load("@vx//stdlib:github.star", "make_fetch_versions")
+load("@vx//stdlib:env.star",    "env_prepend")
 
-load("@vx//stdlib:env.star", "env_prepend")
 # ---------------------------------------------------------------------------
 # Provider metadata
 # ---------------------------------------------------------------------------
@@ -27,98 +26,50 @@ ecosystem   = "devtools"
 # ---------------------------------------------------------------------------
 
 runtimes = [
-    {
-        "name":        "helm",
-        "executable":  "helm",
-        "description": "Helm - The Kubernetes Package Manager",
-        "aliases":     [],
-        "priority":    100,
-        "test_commands": [
-            {"command": "{executable} version", "name": "version_check", "expected_output": "version\\.BuildInfo"},
-        ],
-    },
+    runtime_def("helm",
+        version_cmd     = "{executable} version",
+        version_pattern = "version\\.BuildInfo",
+    ),
 ]
 
 # ---------------------------------------------------------------------------
 # Permissions
 # ---------------------------------------------------------------------------
 
-permissions = {
-    "http": ["api.github.com", "github.com", "get.helm.sh"],
-    "fs":   [],
-    "exec": [],
-}
+permissions = github_permissions(extra_hosts = ["get.helm.sh"])
 
 # ---------------------------------------------------------------------------
-# fetch_versions — inherited from github.star
+# fetch_versions — GitHub releases
 # ---------------------------------------------------------------------------
 
 fetch_versions = make_fetch_versions("helm", "helm")
 
 # ---------------------------------------------------------------------------
-# download_url — custom: uses get.helm.sh, not GitHub releases
-#
-# URL: https://get.helm.sh/helm-v{version}-{os}-{arch}.{ext}
-# Examples:
-#   https://get.helm.sh/helm-v3.17.0-linux-amd64.tar.gz
-#   https://get.helm.sh/helm-v3.17.0-windows-amd64.zip
-#   https://get.helm.sh/helm-v3.17.0-darwin-arm64.tar.gz
+# Platform helpers
 # ---------------------------------------------------------------------------
 
 def _helm_platform(ctx):
-    """Map platform to Helm's Go-style os/arch strings."""
-    os   = ctx.platform.os
-    arch = ctx.platform.arch
-
-    os_map = {
-        "windows": "windows",
-        "macos":   "darwin",
-        "linux":   "linux",
-    }
-    arch_map = {
-        "x64":   "amd64",
-        "arm64": "arm64",
-        "x86":   "386",
-        "arm":   "arm",
-    }
-
-    os_str   = os_map.get(os, "linux")
-    arch_str = arch_map.get(arch, "amd64")
-    return os_str, arch_str
-
-def download_url(ctx, version):
-    """Build the Helm download URL from get.helm.sh.
-
-    Args:
-        ctx:     Provider context
-        version: Version string WITHOUT 'v' prefix, e.g. "3.17.0"
-
-    Returns:
-        Download URL string, or None if platform is unsupported
-    """
-    os_str, arch_str = _helm_platform(ctx)
-    os = ctx.platform.os
-    ext = "zip" if os == "windows" else "tar.gz"
-
-    # https://get.helm.sh/helm-v3.17.0-linux-amd64.tar.gz
-    return "https://get.helm.sh/helm-v{}-{}-{}.{}".format(
-        version, os_str, arch_str, ext
-    )
+    os_map   = {"windows": "windows", "macos": "darwin", "linux": "linux"}
+    arch_map = {"x64": "amd64", "arm64": "arm64", "x86": "386", "arm": "arm"}
+    return os_map.get(ctx.platform.os, "linux"), arch_map.get(ctx.platform.arch, "amd64")
 
 # ---------------------------------------------------------------------------
-# install_layout — archive contains a subdirectory "{os}-{arch}/helm[.exe]"
+# download_url — get.helm.sh
+# URL: https://get.helm.sh/helm-v{version}-{os}-{arch}.{ext}
+# ---------------------------------------------------------------------------
+
+def download_url(ctx, version):
+    os_str, arch_str = _helm_platform(ctx)
+    ext = "zip" if ctx.platform.os == "windows" else "tar.gz"
+    return "https://get.helm.sh/helm-v{}-{}-{}.{}".format(version, os_str, arch_str, ext)
+
+# ---------------------------------------------------------------------------
+# install_layout — archive contains {os}-{arch}/helm[.exe]
 # ---------------------------------------------------------------------------
 
 def install_layout(ctx, _version):
-    """Describe how to extract the Helm archive.
-
-    Helm archives contain: {os}-{arch}/helm[.exe]
-    We need to strip the subdirectory prefix.
-    """
     os_str, arch_str = _helm_platform(ctx)
-    os = ctx.platform.os
-    exe = "helm.exe" if os == "windows" else "helm"
-
+    exe = "helm.exe" if ctx.platform.os == "windows" else "helm"
     return {
         "type":             "archive",
         "strip_prefix":     "{}-{}".format(os_str, arch_str),
@@ -126,26 +77,21 @@ def install_layout(ctx, _version):
     }
 
 # ---------------------------------------------------------------------------
-# Path queries (RFC 0037)
+# Path queries + environment
 # ---------------------------------------------------------------------------
 
 def store_root(ctx):
-    """Return the vx store root directory for helm."""
     return ctx.vx_home + "/store/helm"
 
-def get_execute_path(ctx, version):
-    """Return the executable path for the given version."""
-    os = ctx.platform.os
-    exe = "helm.exe" if os == "windows" else "helm"
+def get_execute_path(ctx, _version):
+    exe = "helm.exe" if ctx.platform.os == "windows" else "helm"
     return ctx.install_dir + "/" + exe
 
 def post_install(_ctx, _version):
-    """No post-install steps needed for helm."""
     return None
-
-# ---------------------------------------------------------------------------
-# environment
-# ---------------------------------------------------------------------------
 
 def environment(ctx, _version):
     return [env_prepend("PATH", ctx.install_dir)]
+
+def deps(_ctx, _version):
+    return []

@@ -7,6 +7,7 @@
 # vx only detects the system installation.
 
 load("@vx//stdlib:env.star", "env_set")
+load("@vx//stdlib:provider.star", "system_permissions")
 
 # ---------------------------------------------------------------------------
 # Provider metadata
@@ -103,14 +104,9 @@ runtimes = [
 # Permissions
 # ---------------------------------------------------------------------------
 
-permissions = {
-    "http": [],
-    "fs":   [
-        "/usr/bin",
-        "/Applications/Xcode.app",
-    ],
-    "exec": ["xcodebuild", "xcrun", "xcode-select"],
-}
+permissions = system_permissions(
+    exec_cmds = ["xcodebuild", "xcrun", "xcode-select"],
+)
 
 # ---------------------------------------------------------------------------
 # fetch_versions — system detection only
