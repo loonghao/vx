@@ -20,6 +20,14 @@ const HTTP_STAR: &str = include_str!("../stdlib/http.star");
 const GITHUB_STAR: &str = include_str!("../stdlib/github.star");
 const INSTALL_STAR: &str = include_str!("../stdlib/install.star");
 const ENV_STAR: &str = include_str!("../stdlib/env.star");
+const LAYOUT_STAR: &str = include_str!("../stdlib/layout.star");
+const PERMISSIONS_STAR: &str = include_str!("../stdlib/permissions.star");
+const PROVIDER_STAR: &str = include_str!("../stdlib/provider.star");
+const PROVIDER_TEMPLATES_STAR: &str = include_str!("../stdlib/provider_templates.star");
+const RUNTIME_STAR: &str = include_str!("../stdlib/runtime.star");
+const SCRIPT_INSTALL_STAR: &str = include_str!("../stdlib/script_install.star");
+const SYSTEM_INSTALL_STAR: &str = include_str!("../stdlib/system_install.star");
+const TEST_STAR: &str = include_str!("../stdlib/test.star");
 
 /// Module loader for `@vx//stdlib:*.star` virtual modules
 ///
@@ -40,6 +48,23 @@ impl VxModuleLoader {
         modules.insert("@vx//stdlib:github.star".to_string(), GITHUB_STAR);
         modules.insert("@vx//stdlib:install.star".to_string(), INSTALL_STAR);
         modules.insert("@vx//stdlib:env.star".to_string(), ENV_STAR);
+        modules.insert("@vx//stdlib:layout.star".to_string(), LAYOUT_STAR);
+        modules.insert("@vx//stdlib:permissions.star".to_string(), PERMISSIONS_STAR);
+        modules.insert("@vx//stdlib:provider.star".to_string(), PROVIDER_STAR);
+        modules.insert(
+            "@vx//stdlib:provider_templates.star".to_string(),
+            PROVIDER_TEMPLATES_STAR,
+        );
+        modules.insert("@vx//stdlib:runtime.star".to_string(), RUNTIME_STAR);
+        modules.insert(
+            "@vx//stdlib:script_install.star".to_string(),
+            SCRIPT_INSTALL_STAR,
+        );
+        modules.insert(
+            "@vx//stdlib:system_install.star".to_string(),
+            SYSTEM_INSTALL_STAR,
+        );
+        modules.insert("@vx//stdlib:test.star".to_string(), TEST_STAR);
         Self { modules }
     }
 
