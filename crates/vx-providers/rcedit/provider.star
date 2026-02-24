@@ -1,4 +1,4 @@
-﻿# provider.star - rcedit provider (Windows-only)
+# provider.star - rcedit provider (Windows-only)
 #
 # Reuse pattern: Level 2 (partial override)
 #   - fetch_versions: fully inherited from github.star

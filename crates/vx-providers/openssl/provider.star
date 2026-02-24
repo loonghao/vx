@@ -1,4 +1,4 @@
-﻿# provider.star - openssl provider
+# provider.star - openssl provider
 #
 # OpenSSL - Cryptography and SSL/TLS toolkit
 # Inheritance pattern: Level 1 (fully custom, system detection only)

@@ -1,4 +1,4 @@
-﻿# provider.star - choco provider
+# provider.star - choco provider
 #
 # Chocolatey - The package manager for Windows
 # Inheritance pattern: Level 2 (custom download_url + script install)

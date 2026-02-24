@@ -1,4 +1,4 @@
-﻿# provider.star - Terraform provider
+# provider.star - Terraform provider
 #
 # Terraform releases are hosted on releases.hashicorp.com (NOT GitHub).
 # URL pattern: https://releases.hashicorp.com/terraform/{version}/terraform_{version}_{os}_{arch}.zip

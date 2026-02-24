@@ -1,4 +1,4 @@
-﻿# provider.star - Node.js provider
+# provider.star - Node.js provider
 #
 # Version source: https://nodejs.org/dist/index.json (official API, no rate limiting)
 # Bundled runtimes: npm, npx (included in every Node.js release)

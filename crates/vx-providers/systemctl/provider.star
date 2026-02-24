@@ -1,4 +1,4 @@
-﻿# provider.star - systemctl provider
+# provider.star - systemctl provider
 #
 # systemd system and service manager (Linux-only, system detection only)
 # Inheritance pattern: Level 1 (fully custom, system-only, not installable)

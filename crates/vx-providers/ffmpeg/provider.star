@@ -1,4 +1,4 @@
-﻿# provider.star - FFmpeg provider
+# provider.star - FFmpeg provider
 #
 # Version source: https://github.com/GyanD/codexffmpeg/releases (pre-built Windows binaries)
 #                 https://github.com/FFmpeg/FFmpeg/releases (official, Unix)

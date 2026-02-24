@@ -1,4 +1,4 @@
-﻿# provider.star - Java (Adoptium Temurin) provider
+# provider.star - Java (Adoptium Temurin) provider
 #
 # Version source: Adoptium API
 #   https://api.adoptium.net/v3/info/available_releases

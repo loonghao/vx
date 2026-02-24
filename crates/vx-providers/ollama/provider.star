@@ -1,4 +1,4 @@
-﻿# provider.star - Ollama provider
+# provider.star - Ollama provider
 #
 # Ollama uses simple platform names (not Rust triples):
 #   - darwin          (macOS universal binary)

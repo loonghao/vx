@@ -1,4 +1,4 @@
-﻿# 7-Zip provider for vx
+# 7-Zip provider for vx
 #
 # Replaces the Rust runtime.rs implementation entirely.
 # All logic is pure computation — no real I/O happens here.
@@ -199,10 +199,10 @@ def get_execute_path(ctx, version):
     """Return the executable path for the given version."""
     os = ctx.platform.os
     if os == "windows":
-        return ctx.ctx.install_dir + "/7z.exe"
+        return ctx.install_dir + "/7z.exe"
     else:
         # macOS and Linux both use 7zz
-        return ctx.ctx.install_dir + "/7zz"
+        return ctx.install_dir + "/7zz"
 
 def post_install(ctx, _version):
     """Post-install: on macOS create a 7z -> 7zz symlink for compatibility."""

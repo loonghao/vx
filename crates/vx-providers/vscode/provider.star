@@ -1,4 +1,4 @@
-﻿# provider.star - Visual Studio Code provider
+# provider.star - Visual Studio Code provider
 #
 # Version source: https://update.code.visualstudio.com/api/releases/stable
 #

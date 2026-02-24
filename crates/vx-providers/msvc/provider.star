@@ -1,4 +1,4 @@
-﻿# provider.star - MSVC Build Tools provider
+# provider.star - MSVC Build Tools provider
 #
 # Microsoft Visual C++ Build Tools - Windows only
 # Provides: cl (compiler), nmake, link, ml64, lib

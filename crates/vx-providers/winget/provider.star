@@ -1,4 +1,4 @@
-﻿# provider.star - winget provider
+# provider.star - winget provider
 #
 # Windows Package Manager - Official package manager for Windows
 # Inheritance pattern: Level 2 (custom download_url for msixbundle)

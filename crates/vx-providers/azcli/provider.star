@@ -1,4 +1,4 @@
-﻿# provider.star - Azure CLI provider
+# provider.star - Azure CLI provider
 #
 # Version source: https://github.com/Azure/azure-cli/releases
 #

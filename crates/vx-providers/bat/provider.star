@@ -1,4 +1,4 @@
-﻿# provider.star - bat provider
+# provider.star - bat provider
 #
 # bat: A cat clone with syntax highlighting and Git integration
 # Releases: https://github.com/sharkdp/bat/releases

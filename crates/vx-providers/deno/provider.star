@@ -1,4 +1,4 @@
-﻿# provider.star - Deno provider
+# provider.star - Deno provider
 #
 # Inheritance level: 2 (fetch_versions inherited, download_url overridden)
 #

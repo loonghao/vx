@@ -1,4 +1,4 @@
-﻿# provider.star - pwsh (PowerShell) provider
+# provider.star - pwsh (PowerShell) provider
 #
 # PowerShell: Cross-platform command-line shell and scripting language
 # Inheritance pattern: Level 2 (custom download_url for PowerShell's naming)

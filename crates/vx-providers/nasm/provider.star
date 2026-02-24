@@ -1,4 +1,4 @@
-﻿# provider.star - NASM provider
+# provider.star - NASM provider
 #
 # Version source: https://www.nasm.us/pub/nasm/releasebuilds/
 # NASM (Netwide Assembler) - portable 80x86 and x86-64 assembler

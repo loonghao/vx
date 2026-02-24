@@ -1,4 +1,4 @@
-﻿# provider.star - Ninja build system provider
+# provider.star - Ninja build system provider
 #
 # Ninja uses a non-standard platform naming scheme (win/mac/linux/linux-aarch64)
 # instead of Rust target triples, so download_url is fully custom.

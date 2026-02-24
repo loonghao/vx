@@ -1,4 +1,4 @@
-﻿# provider.star - Starship prompt provider
+# provider.star - Starship prompt provider
 #
 # Inheritance level: 2 (fetch_versions inherited, download_url overridden)
 #

@@ -1,4 +1,4 @@
-﻿# provider.star - nuget provider
+# provider.star - nuget provider
 #
 # NuGet: The package manager for .NET
 # Inheritance pattern: Level 3 (custom fetch + download, Windows-only binary)
