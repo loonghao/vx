@@ -1,4 +1,4 @@
-# provider.star - yarn provider
+﻿# provider.star - yarn provider
 #
 # Yarn: Fast, reliable, and secure dependency management
 # Inheritance pattern: Level 2 (custom download_url for yarn's archive naming)
@@ -11,28 +11,18 @@
 
 load("@vx//stdlib:github.star", "make_fetch_versions", "github_asset_url")
 load("@vx//stdlib:install.star", "ensure_dependencies")
+load("@vx//stdlib:env.star", "env_set", "env_prepend")
+load("@vx//stdlib:test.star", "cmd", "check_path")
 
 # ---------------------------------------------------------------------------
 # Provider metadata
 # ---------------------------------------------------------------------------
-
-def name():
-    return "yarn"
-
-def description():
-    return "Fast, reliable, and secure dependency management"
-
-def homepage():
-    return "https://yarnpkg.com"
-
-def repository():
-    return "https://github.com/yarnpkg/yarn"
-
-def license():
-    return "BSD-2-Clause"
-
-def ecosystem():
-    return "nodejs"
+name        = "yarn"
+description = "Fast, reliable, and secure dependency management"
+homepage    = "https://yarnpkg.com"
+repository  = "https://github.com/yarnpkg/yarn"
+license     = "BSD-2-Clause"
+ecosystem   = "nodejs"
 
 # ---------------------------------------------------------------------------
 # Runtime definitions
@@ -45,6 +35,13 @@ runtimes = [
         "description": "Yarn package manager",
         "aliases":     ["yarnpkg"],
         "priority":    80,
+        "test_commands": [
+            cmd("{executable} --version",
+                name="version_check",
+                expected_output="^\\d+\\.\\d+"),
+            check_path("{install_dir}/bin/yarn",
+                       name="binary_exists"),
+        ],
     },
 ]
 
@@ -90,7 +87,7 @@ def download_url(ctx, version):
 # deps — version-based Node.js dependency
 # ---------------------------------------------------------------------------
 
-def deps(ctx, version):
+def deps(_ctx, version):
     """Declare Node.js dependency based on yarn version.
 
     Yarn 1.x requires Node.js 12+
@@ -111,7 +108,7 @@ def deps(ctx, version):
 # install_layout
 # ---------------------------------------------------------------------------
 
-def install_layout(ctx, version):
+def install_layout(_ctx, version):
     return {
         "type":             "archive",
         "strip_prefix":     "yarn-v{}".format(version),
@@ -122,10 +119,8 @@ def install_layout(ctx, version):
 # environment
 # ---------------------------------------------------------------------------
 
-def environment(ctx, version, install_dir):
-    return {
-        "PATH": install_dir + "/bin",
-    }
+def environment(ctx, _version):
+    return [env_prepend("PATH", ctx.install_dir + "/bin")]
 
 # ---------------------------------------------------------------------------
 # Path queries (RFC-0037)
@@ -133,15 +128,15 @@ def environment(ctx, version, install_dir):
 
 def store_root(ctx):
     """Return the vx store root directory for yarn."""
-    return "{vx_home}/store/yarn"
+    return ctx.vx_home + "/store/yarn"
 
 def get_execute_path(ctx, version):
     """Return the executable path for the given version."""
-    os = ctx["platform"]["os"]
+    os = ctx.platform.os
     exe = "yarn.cmd" if os == "windows" else "yarn"
-    return "{install_dir}/bin/" + exe
+    return ctx.install_dir + "/bin/" + exe
 
-def post_install(ctx, version, install_dir):
+def post_install(_ctx, _version):
     """No post-install actions needed for yarn."""
     return None
 

@@ -1,4 +1,4 @@
-# provider.star - Vite provider
+﻿# provider.star - Vite provider
 #
 # Vite is a frontend build tool distributed as an npm package.
 # `vx vite` is routed to `vx npx vite` (npm package alias pattern).
@@ -8,24 +8,12 @@
 # ---------------------------------------------------------------------------
 # Provider metadata
 # ---------------------------------------------------------------------------
-
-def name():
-    return "vite"
-
-def description():
-    return "Vite - Next generation frontend build tool"
-
-def homepage():
-    return "https://vitejs.dev"
-
-def repository():
-    return "https://github.com/vitejs/vite"
-
-def license():
-    return "MIT"
-
-def ecosystem():
-    return "nodejs"
+name        = "vite"
+description = "Vite - Next generation frontend build tool"
+homepage    = "https://vitejs.dev"
+repository  = "https://github.com/vitejs/vite"
+license     = "MIT"
+ecosystem   = "nodejs"
 
 # ---------------------------------------------------------------------------
 # Runtime definitions
@@ -37,6 +25,9 @@ runtimes = [
         "executable":  "vite",
         "description": "Vite frontend build tool",
         "priority":    100,
+        "test_commands": [
+            {"command": "{executable} --version", "name": "version_check", "expected_output": "vite/\\d+"},
+        ],
     },
 ]
 
@@ -86,7 +77,7 @@ def fetch_versions(ctx):
 # download_url — not applicable (npm package)
 # ---------------------------------------------------------------------------
 
-def download_url(ctx, version):
+def download_url(_ctx, _version):
     return None
 
 # ---------------------------------------------------------------------------
@@ -98,15 +89,15 @@ def store_root(ctx):
 
     vite is an npm package alias; it is not directly installed by vx.
     """
-    return "{vx_home}/store/vite"
+    return ctx.vx_home + "/store/vite"
 
-def get_execute_path(ctx, version):
+def get_execute_path(ctx, _version):
     """Return the executable path for vite (resolved via npx)."""
-    os = ctx["platform"]["os"]
+    os = ctx.platform.os
     exe = "vite.cmd" if os == "windows" else "vite"
-    return "{install_dir}/" + exe
+    return ctx.install_dir + "/" + exe
 
-def post_install(ctx, version, install_dir):
+def post_install(_ctx, version):
     """No post-install actions needed — npm package alias."""
     return None
 
@@ -114,7 +105,7 @@ def post_install(ctx, version, install_dir):
 # deps — requires node (with version constraints per vite version)
 # ---------------------------------------------------------------------------
 
-def deps(ctx, version):
+def deps(_ctx, version):
     """Vite requires Node.js with version-specific constraints."""
     parts = version.split(".")
     major = int(parts[0]) if parts else 0

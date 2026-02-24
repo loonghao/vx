@@ -537,7 +537,187 @@ pub fn mock_execution_context() -> ExecutionContext {
 use regex::Regex;
 use std::process::Command;
 use std::time::{Duration, Instant};
-use vx_manifest::{TestCommand, TestConfig};
+
+// ============================================================================
+// Test configuration types (previously in vx-manifest)
+// ============================================================================
+
+fn default_test_timeout() -> u64 {
+    30_000
+}
+fn default_true() -> bool {
+    true
+}
+
+/// Check type for a test command entry
+///
+/// Determines how the test framework interprets the `command` field:
+///
+/// - `Command` (default) — run a shell command and check exit code / output
+/// - `CheckPath`         — assert that a file or directory exists at the given path
+/// - `CheckEnv`          — assert that an environment variable is set (and optionally matches)
+/// - `CheckFile`         — assert that a file exists and optionally contains a pattern
+/// - `CheckNotPath`      — assert that a path does NOT exist
+/// - `CheckNotEnv`       — assert that an environment variable is NOT set
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, Default, PartialEq)]
+#[serde(rename_all = "snake_case")]
+pub enum TestCheckType {
+    /// Run a shell command (default)
+    #[default]
+    Command,
+    /// Assert a path (file or directory) exists
+    CheckPath,
+    /// Assert an environment variable is set
+    CheckEnv,
+    /// Assert a file exists and optionally contains a pattern
+    CheckFile,
+    /// Assert a path does NOT exist
+    CheckNotPath,
+    /// Assert an environment variable is NOT set
+    CheckNotEnv,
+}
+
+/// Test command definition
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+pub struct TestCommand {
+    /// Command template (supports {executable}, {version}, {install_dir})
+    ///
+    /// For `check_type = "command"`: the shell command to run.
+    /// For `check_type = "check_path"` / `"check_not_path"`: the path to check.
+    /// For `check_type = "check_env"` / `"check_not_env"`: the env var name.
+    /// For `check_type = "check_file"`: the file path to check.
+    pub command: String,
+    /// Check type — determines how `command` is interpreted
+    #[serde(default)]
+    pub check_type: TestCheckType,
+    /// Expect the command to succeed (exit code 0) — only for `command` type
+    #[serde(default = "default_true")]
+    pub expect_success: bool,
+    /// Expected output pattern (regex) — for `command` type: matches stdout/stderr;
+    /// for `check_env`: the env var value must match; for `check_file`: file content must match
+    #[serde(default)]
+    pub expected_output: Option<String>,
+    /// Expected exit code (overrides expect_success) — only for `command` type
+    #[serde(default)]
+    pub expected_exit_code: Option<i32>,
+    /// Test name/description
+    #[serde(default)]
+    pub name: Option<String>,
+    /// Timeout for this specific command (ms) — only for `command` type
+    #[serde(default)]
+    pub timeout_ms: Option<u64>,
+}
+
+impl TestCommand {
+    pub fn new(command: impl Into<String>) -> Self {
+        Self {
+            command: command.into(),
+            check_type: TestCheckType::Command,
+            expect_success: true,
+            expected_output: None,
+            expected_exit_code: None,
+            name: None,
+            timeout_ms: None,
+        }
+    }
+
+    pub fn display_name(&self) -> &str {
+        self.name.as_deref().unwrap_or(&self.command)
+    }
+}
+
+/// Test commands for a specific platform
+#[derive(Debug, Clone, Default, serde::Deserialize, serde::Serialize)]
+pub struct PlatformTestCommands {
+    #[serde(default)]
+    pub functional_commands: Vec<TestCommand>,
+}
+
+/// Platform-specific test configuration
+#[derive(Debug, Clone, Default, serde::Deserialize, serde::Serialize)]
+pub struct TestPlatformConfig {
+    #[serde(default)]
+    pub windows: Option<PlatformTestCommands>,
+    #[serde(default)]
+    pub unix: Option<PlatformTestCommands>,
+    #[serde(default)]
+    pub macos: Option<PlatformTestCommands>,
+    #[serde(default)]
+    pub linux: Option<PlatformTestCommands>,
+}
+
+/// Inline test scripts for different platforms
+#[derive(Debug, Clone, Default, serde::Deserialize, serde::Serialize)]
+pub struct InlineTestScripts {
+    #[serde(default)]
+    pub windows: Option<String>,
+    #[serde(default)]
+    pub unix: Option<String>,
+    #[serde(default)]
+    pub macos: Option<String>,
+    #[serde(default)]
+    pub linux: Option<String>,
+}
+
+impl InlineTestScripts {
+    pub fn for_current_platform(&self) -> Option<&str> {
+        #[cfg(target_os = "windows")]
+        {
+            self.windows.as_deref()
+        }
+        #[cfg(target_os = "macos")]
+        {
+            self.macos.as_deref().or(self.unix.as_deref())
+        }
+        #[cfg(target_os = "linux")]
+        {
+            self.linux.as_deref().or(self.unix.as_deref())
+        }
+        #[cfg(not(any(target_os = "windows", target_os = "macos", target_os = "linux")))]
+        {
+            self.unix.as_deref()
+        }
+    }
+}
+
+/// Test configuration for a runtime
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+pub struct TestConfig {
+    #[serde(default)]
+    pub functional_commands: Vec<TestCommand>,
+    #[serde(default)]
+    pub install_verification: Vec<TestCommand>,
+    #[serde(default = "default_test_timeout")]
+    pub timeout_ms: u64,
+    #[serde(default)]
+    pub skip_on: Vec<String>,
+    #[serde(default)]
+    pub platforms: Option<TestPlatformConfig>,
+    #[serde(default)]
+    pub inline_scripts: Option<InlineTestScripts>,
+}
+
+impl Default for TestConfig {
+    fn default() -> Self {
+        Self {
+            functional_commands: Vec::new(),
+            install_verification: Vec::new(),
+            timeout_ms: default_test_timeout(),
+            skip_on: Vec::new(),
+            platforms: None,
+            inline_scripts: None,
+        }
+    }
+}
+
+impl TestConfig {
+    pub fn has_tests(&self) -> bool {
+        !self.functional_commands.is_empty()
+            || !self.install_verification.is_empty()
+            || self.platforms.is_some()
+            || self.inline_scripts.is_some()
+    }
+}
 
 /// Result of testing a runtime
 #[derive(Debug, Clone)]
@@ -714,7 +894,12 @@ impl RuntimeTester {
 
     /// Set the test configuration
     pub fn with_config(mut self, config: TestConfig) -> Self {
-        self.timeout = Duration::from_millis(config.timeout_ms);
+        // Ensure timeout is not zero (use default if it is)
+        if config.timeout_ms == 0 {
+            self.timeout = Duration::from_secs(30);
+        } else {
+            self.timeout = Duration::from_millis(config.timeout_ms);
+        }
         self.test_config = Some(config);
         self
     }
@@ -819,6 +1004,18 @@ impl RuntimeTester {
         let start = Instant::now();
         let test_name = cmd.display_name().to_string();
 
+        // Dispatch to the appropriate check handler based on check_type
+        match cmd.check_type {
+            TestCheckType::CheckPath => return self.run_check_path(cmd, executable, false, start),
+            TestCheckType::CheckNotPath => {
+                return self.run_check_path(cmd, executable, true, start);
+            }
+            TestCheckType::CheckEnv => return self.run_check_env(cmd, executable, false, start),
+            TestCheckType::CheckNotEnv => return self.run_check_env(cmd, executable, true, start),
+            TestCheckType::CheckFile => return self.run_check_file(cmd, executable, start),
+            TestCheckType::Command => {}
+        }
+
         // Substitute variables in command
         let command_str = cmd.command.replace("{executable}", executable);
 
@@ -904,6 +1101,231 @@ impl RuntimeTester {
             error: error_msg,
             duration,
         }
+    }
+
+    // ── Non-command check helpers ─────────────────────────────────────────────
+
+    /// `check_path` / `check_not_path` — assert a filesystem path exists (or not)
+    ///
+    /// The `command` field is treated as a path template.
+    /// Supports `{executable}`, `{install_dir}`, `{vx_home}` substitutions.
+    fn run_check_path(
+        &self,
+        cmd: &TestCommand,
+        executable: &str,
+        negate: bool,
+        start: Instant,
+    ) -> TestCaseResult {
+        let test_name = cmd.display_name().to_string();
+        let path_str = self.substitute_vars(&cmd.command, executable);
+        let path = std::path::Path::new(&path_str);
+        let exists = path.exists();
+
+        let passed = if negate { !exists } else { exists };
+        let error_msg = if !passed {
+            Some(if negate {
+                format!("Path should NOT exist but does: {}", path_str)
+            } else {
+                format!("Path does not exist: {}", path_str)
+            })
+        } else {
+            None
+        };
+
+        TestCaseResult {
+            name: test_name,
+            passed,
+            stdout: Some(path_str),
+            stderr: None,
+            exit_code: None,
+            error: error_msg,
+            duration: start.elapsed(),
+        }
+    }
+
+    /// `check_env` / `check_not_env` — assert an environment variable is set (or not)
+    ///
+    /// The `command` field is the env var name.
+    /// If `expected_output` is set, the value must match the regex pattern.
+    fn run_check_env(
+        &self,
+        cmd: &TestCommand,
+        executable: &str,
+        negate: bool,
+        start: Instant,
+    ) -> TestCaseResult {
+        let test_name = cmd.display_name().to_string();
+        let var_name = self.substitute_vars(&cmd.command, executable);
+        let value = std::env::var(&var_name).ok();
+        let is_set = value.is_some();
+
+        let mut passed = if negate { !is_set } else { is_set };
+        let mut error_msg = None;
+
+        if !passed {
+            error_msg = Some(if negate {
+                format!(
+                    "Env var '{}' should NOT be set but is: {:?}",
+                    var_name, value
+                )
+            } else {
+                format!("Env var '{}' is not set", var_name)
+            });
+        }
+
+        // If set and not negated, optionally check the value pattern
+        if passed
+            && !negate
+            && let (Some(val), Some(pattern)) = (value.as_deref(), cmd.expected_output.as_deref())
+        {
+            match Regex::new(pattern) {
+                Ok(re) => {
+                    if !re.is_match(val) {
+                        passed = false;
+                        error_msg = Some(format!(
+                            "Env var '{}' = {:?} did not match pattern '{}'",
+                            var_name, val, pattern
+                        ));
+                    }
+                }
+                Err(e) => {
+                    passed = false;
+                    error_msg = Some(format!("Invalid regex pattern '{}': {}", pattern, e));
+                }
+            }
+        }
+
+        TestCaseResult {
+            name: test_name,
+            passed,
+            stdout: value,
+            stderr: None,
+            exit_code: None,
+            error: error_msg,
+            duration: start.elapsed(),
+        }
+    }
+
+    /// `check_file` — assert a file exists and optionally its content matches a pattern
+    ///
+    /// The `command` field is the file path template.
+    /// If `expected_output` is set, the file content must match the regex pattern.
+    fn run_check_file(
+        &self,
+        cmd: &TestCommand,
+        executable: &str,
+        start: Instant,
+    ) -> TestCaseResult {
+        let test_name = cmd.display_name().to_string();
+        let path_str = self.substitute_vars(&cmd.command, executable);
+        let path = std::path::Path::new(&path_str);
+
+        if !path.exists() {
+            return TestCaseResult {
+                name: test_name,
+                passed: false,
+                stdout: None,
+                stderr: None,
+                exit_code: None,
+                error: Some(format!("File does not exist: {}", path_str)),
+                duration: start.elapsed(),
+            };
+        }
+
+        if !path.is_file() {
+            return TestCaseResult {
+                name: test_name,
+                passed: false,
+                stdout: None,
+                stderr: None,
+                exit_code: None,
+                error: Some(format!("Path exists but is not a file: {}", path_str)),
+                duration: start.elapsed(),
+            };
+        }
+
+        // If no content pattern required, just existence is enough
+        let Some(ref pattern) = cmd.expected_output else {
+            return TestCaseResult {
+                name: test_name,
+                passed: true,
+                stdout: Some(path_str),
+                stderr: None,
+                exit_code: None,
+                error: None,
+                duration: start.elapsed(),
+            };
+        };
+
+        // Read file and check content
+        let content = match std::fs::read_to_string(path) {
+            Ok(c) => c,
+            Err(e) => {
+                return TestCaseResult {
+                    name: test_name,
+                    passed: false,
+                    stdout: None,
+                    stderr: None,
+                    exit_code: None,
+                    error: Some(format!("Failed to read file '{}': {}", path_str, e)),
+                    duration: start.elapsed(),
+                };
+            }
+        };
+
+        let (passed, error_msg) = match Regex::new(pattern) {
+            Ok(re) => {
+                if re.is_match(&content) {
+                    (true, None)
+                } else {
+                    (
+                        false,
+                        Some(format!(
+                            "File '{}' content did not match pattern '{}'",
+                            path_str, pattern
+                        )),
+                    )
+                }
+            }
+            Err(e) => (
+                false,
+                Some(format!("Invalid regex pattern '{}': {}", pattern, e)),
+            ),
+        };
+
+        TestCaseResult {
+            name: test_name,
+            passed,
+            stdout: Some(content),
+            stderr: None,
+            exit_code: None,
+            error: error_msg,
+            duration: start.elapsed(),
+        }
+    }
+
+    /// Substitute template variables in a string
+    ///
+    /// Supported variables:
+    /// - `{executable}` — the runtime executable name
+    /// - `{install_dir}` — the vx-managed install directory for this runtime
+    /// - `{vx_home}` — the vx home directory (~/.vx)
+    fn substitute_vars(&self, template: &str, executable: &str) -> String {
+        let mut result = template.replace("{executable}", executable);
+
+        // {install_dir} — use executable_path parent if available
+        if let Some(ref path) = self.executable_path
+            && let Some(parent) = path.parent()
+        {
+            result = result.replace("{install_dir}", &parent.to_string_lossy());
+        }
+
+        // {vx_home}
+        if let Ok(paths) = vx_paths::VxPaths::new() {
+            result = result.replace("{vx_home}", &paths.base_dir.to_string_lossy());
+        }
+
+        result
     }
 
     /// Run inline script if configured

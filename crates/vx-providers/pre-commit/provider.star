@@ -1,4 +1,4 @@
-# provider.star - pre-commit provider
+﻿# provider.star - pre-commit provider
 #
 # pre-commit: A framework for managing and maintaining multi-language pre-commit hooks
 # Inheritance pattern: Level 3 (package alias - runs via uvx)
@@ -13,24 +13,12 @@ load("@vx//stdlib:github.star", "make_fetch_versions")
 # ---------------------------------------------------------------------------
 # Provider metadata
 # ---------------------------------------------------------------------------
-
-def name():
-    return "pre-commit"
-
-def description():
-    return "A framework for managing and maintaining multi-language pre-commit hooks"
-
-def homepage():
-    return "https://pre-commit.com"
-
-def repository():
-    return "https://github.com/pre-commit/pre-commit"
-
-def license():
-    return "MIT"
-
-def ecosystem():
-    return "python"
+name        = "pre-commit"
+description = "A framework for managing and maintaining multi-language pre-commit hooks"
+homepage    = "https://pre-commit.com"
+repository  = "https://github.com/pre-commit/pre-commit"
+license     = "MIT"
+ecosystem   = "python"
 
 # ---------------------------------------------------------------------------
 # Runtime definitions
@@ -43,6 +31,9 @@ runtimes = [
         "description": "Pre-commit hook framework",
         "aliases":     [],
         "priority":    100,
+        "test_commands": [
+            {"command": "{executable} --version", "name": "version_check", "expected_output": "pre-commit \\d+"},
+        ],
     },
 ]
 
@@ -69,7 +60,7 @@ fetch_versions = make_fetch_versions("pre-commit", "pre-commit")
 # It should be installed via: uvx pre-commit
 # ---------------------------------------------------------------------------
 
-def download_url(ctx, version):
+def download_url(_ctx, _version):
     """pre-commit is installed via uvx, not direct download."""
     return None
 
@@ -77,7 +68,7 @@ def download_url(ctx, version):
 # deps — requires uv
 # ---------------------------------------------------------------------------
 
-def deps(ctx, version):
+def deps(_ctx, version):
     """pre-commit requires uv for installation."""
     return [{"runtime": "uv", "version": "*"}]
 
@@ -85,7 +76,7 @@ def deps(ctx, version):
 # store_root — not managed by vx (installed via uvx)
 # ---------------------------------------------------------------------------
 
-def store_root(ctx, version):
+def store_root(_ctx, _version):
     """pre-commit is installed via uvx — no vx store root."""
     return None
 
@@ -93,7 +84,7 @@ def store_root(ctx, version):
 # get_execute_path — resolve pre-commit executable
 # ---------------------------------------------------------------------------
 
-def get_execute_path(ctx, version, install_dir):
+def get_execute_path(_ctx, _version, install_dir):
     """pre-commit is run via uvx; no vx-managed install_dir."""
     return None
 
@@ -101,7 +92,7 @@ def get_execute_path(ctx, version, install_dir):
 # post_install — nothing to do
 # ---------------------------------------------------------------------------
 
-def post_install(ctx, version, install_dir):
+def post_install(_ctx, _version):
     """No post-install steps required for pre-commit."""
     return []
 
@@ -109,5 +100,5 @@ def post_install(ctx, version, install_dir):
 # environment
 # ---------------------------------------------------------------------------
 
-def environment(ctx, version, install_dir):
-    return {}
+def environment(_ctx, _version):
+    return []

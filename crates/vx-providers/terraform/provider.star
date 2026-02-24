@@ -1,4 +1,4 @@
-# provider.star - Terraform provider
+﻿# provider.star - Terraform provider
 #
 # Terraform releases are hosted on releases.hashicorp.com (NOT GitHub).
 # URL pattern: https://releases.hashicorp.com/terraform/{version}/terraform_{version}_{os}_{arch}.zip
@@ -14,27 +14,13 @@ load("@vx//stdlib:platform.star", "exe_ext")
 # ---------------------------------------------------------------------------
 # Provider metadata
 # ---------------------------------------------------------------------------
-
-def name():
-    return "terraform"
-
-def description():
-    return "Terraform - Infrastructure as Code tool by HashiCorp"
-
-def homepage():
-    return "https://www.terraform.io"
-
-def repository():
-    return "https://github.com/hashicorp/terraform"
-
-def license():
-    return "BUSL-1.1"
-
-def ecosystem():
-    return "devtools"
-
-def aliases():
-    return ["tf"]
+name        = "terraform"
+description = "Terraform - Infrastructure as Code tool by HashiCorp"
+homepage    = "https://www.terraform.io"
+repository  = "https://github.com/hashicorp/terraform"
+license     = "BUSL-1.1"
+ecosystem   = "devtools"
+aliases     = ["tf"]
 
 # ---------------------------------------------------------------------------
 # Runtime definitions
@@ -42,11 +28,14 @@ def aliases():
 
 runtimes = [
     {
-        "name":        "terraform",
-        "executable":  "terraform",
+        "name":        name,
+        "executable":  name,
         "description": "Terraform - Infrastructure as Code",
         "aliases":     ["tf"],
         "priority":    100,
+        "test_commands": [
+            {"command": "{executable} version", "name": "version_check", "expected_output": "Terraform v\\d+"},
+        ],
     },
 ]
 
@@ -71,7 +60,7 @@ def _terraform_os(ctx):
         "macos":   "darwin",
         "linux":   "linux",
     }
-    return os_map.get(ctx["platform"]["os"], "linux")
+    return os_map.get(ctx.platform.os, "linux")
 
 def _terraform_arch(ctx):
     """Map vx arch name to Terraform arch string (go-style)."""
@@ -81,7 +70,7 @@ def _terraform_arch(ctx):
         "x86":   "386",
         "arm":   "arm",
     }
-    return arch_map.get(ctx["platform"]["arch"], "amd64")
+    return arch_map.get(ctx.platform.arch, "amd64")
 
 # ---------------------------------------------------------------------------
 # fetch_versions — HashiCorp Checkpoint API
@@ -150,9 +139,9 @@ def download_url(ctx, version):
 # install_layout
 # ---------------------------------------------------------------------------
 
-def install_layout(ctx, version):
+def install_layout(ctx, _version):
     """Terraform archives contain a single binary at the root."""
-    os  = ctx["platform"]["os"]
+    os  = ctx.platform.os
     exe = "terraform.exe" if os == "windows" else "terraform"
 
     return {
@@ -167,15 +156,15 @@ def install_layout(ctx, version):
 
 def store_root(ctx):
     """Return the vx store root directory for terraform."""
-    return "{vx_home}/store/terraform"
+    return ctx.vx_home + "/store/terraform"
 
 def get_execute_path(ctx, version):
     """Return the executable path for the given version."""
-    os = ctx["platform"]["os"]
+    os = ctx.platform.os
     exe = "terraform.exe" if os == "windows" else "terraform"
-    return "{install_dir}/" + exe
+    return ctx.install_dir + "/" + exe
 
-def post_install(ctx, version, install_dir):
+def post_install(_ctx, _version):
     """No post-install actions needed for terraform."""
     return None
 
@@ -183,7 +172,7 @@ def post_install(ctx, version, install_dir):
 # environment
 # ---------------------------------------------------------------------------
 
-def environment(ctx, version, install_dir):
-    return {
-        "PATH": install_dir,
-    }
+def environment(ctx):
+    ctx.env.PATH.set(ctx.install_dir)
+    ctx.env.PATH.append(ctx.install_dir + "/" + ctx.platform.os)
+    ctx.env.PATH.prepend(ctx.install_dir + "/" + ctx.version + "/" + ctx.name)

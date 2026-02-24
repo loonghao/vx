@@ -1,4 +1,4 @@
-# provider.star - Task (go-task) provider
+﻿# provider.star - Task (go-task) provider
 #
 # Reuse level: Level 2 — fetch_versions inherited, download_url overridden
 #
@@ -11,30 +11,17 @@
 
 load("@vx//stdlib:github.star", "make_fetch_versions", "github_asset_url")
 
+load("@vx//stdlib:env.star", "env_prepend")
 # ---------------------------------------------------------------------------
 # Provider metadata
 # ---------------------------------------------------------------------------
-
-def name():
-    return "task"
-
-def description():
-    return "Task - A task runner / simpler Make alternative written in Go"
-
-def homepage():
-    return "https://taskfile.dev"
-
-def repository():
-    return "https://github.com/go-task/task"
-
-def license():
-    return "MIT"
-
-def ecosystem():
-    return "devtools"
-
-def aliases():
-    return ["go-task", "taskfile"]
+name        = "task"
+description = "Task - A task runner / simpler Make alternative written in Go"
+homepage    = "https://taskfile.dev"
+repository  = "https://github.com/go-task/task"
+license     = "MIT"
+ecosystem   = "devtools"
+aliases     = ["go-task", "taskfile"]
 
 # ---------------------------------------------------------------------------
 # Runtime definitions
@@ -47,6 +34,9 @@ runtimes = [
         "description": "Task runner / simpler Make alternative",
         "aliases":     ["go-task"],
         "priority":    100,
+        "test_commands": [
+            {"command": "{executable} --version", "name": "version_check", "expected_output": "Task version"},
+        ],
     },
 ]
 
@@ -76,8 +66,8 @@ fetch_versions = make_fetch_versions("go-task", "task", include_prereleases = Fa
 
 def _task_platform(ctx):
     """Map vx platform to task's Go-style os/arch pair."""
-    os   = ctx["platform"]["os"]
-    arch = ctx["platform"]["arch"]
+    os   = ctx.platform.os
+    arch = ctx.platform.arch
 
     os_map = {
         "windows": "windows",
@@ -112,7 +102,7 @@ def download_url(ctx, version):
     if not go_os:
         return None
 
-    os  = ctx["platform"]["os"]
+    os  = ctx.platform.os
     ext = "zip" if os == "windows" else "tar.gz"
 
     # Asset: "task_linux_amd64.tar.gz"
@@ -125,8 +115,8 @@ def download_url(ctx, version):
 # install_layout
 # ---------------------------------------------------------------------------
 
-def install_layout(ctx, version):
-    os  = ctx["platform"]["os"]
+def install_layout(ctx, _version):
+    os  = ctx.platform.os
     exe = "task.exe" if os == "windows" else "task"
     return {
         "type":             "archive",
@@ -140,15 +130,15 @@ def install_layout(ctx, version):
 
 def store_root(ctx):
     """Return the vx store root directory for task."""
-    return "{vx_home}/store/task"
+    return ctx.vx_home + "/store/task"
 
 def get_execute_path(ctx, version):
     """Return the executable path for the given version."""
-    os = ctx["platform"]["os"]
+    os = ctx.platform.os
     exe = "task.exe" if os == "windows" else "task"
-    return "{install_dir}/" + exe
+    return ctx.install_dir + "/" + exe
 
-def post_install(ctx, version, install_dir):
+def post_install(_ctx, _version):
     """No post-install actions needed for task."""
     return None
 
@@ -156,7 +146,5 @@ def post_install(ctx, version, install_dir):
 # environment
 # ---------------------------------------------------------------------------
 
-def environment(ctx, version, install_dir):
-    return {
-        "PATH": install_dir,
-    }
+def environment(ctx, _version):
+    return [env_prepend("PATH", ctx.install_dir)]

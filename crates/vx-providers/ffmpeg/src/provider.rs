@@ -1,7 +1,7 @@
 //! ffmpeg provider implementation
 
 use std::sync::Arc;
-use vx_runtime::{ManifestDrivenRuntime, ProviderSource, Runtime, provider::Provider};
+use vx_runtime::{Runtime, provider::Provider};
 
 /// ffmpeg provider (Starlark-driven)
 #[derive(Debug, Default)]
@@ -13,17 +13,13 @@ impl Provider for FfmpegProvider {
     }
 
     fn description(&self) -> &str {
-        crate::star_metadata().description_or("FFmpeg - A complete, cross-platform solution to record, convert and stream audio and video")
+        crate::star_metadata().description_or(
+            "A complete, cross-platform solution to record, convert and stream audio and video",
+        )
     }
 
     fn runtimes(&self) -> Vec<Arc<dyn Runtime>> {
-        vec![Arc::new(
-            ManifestDrivenRuntime::new("ffmpeg", "ffmpeg", ProviderSource::BuiltIn)
-                .with_fetch_versions(vx_starlark::make_fetch_versions_fn(
-                    "ffmpeg",
-                    crate::PROVIDER_STAR,
-                )),
-        )]
+        vx_starlark::build_runtimes("ffmpeg", crate::PROVIDER_STAR, None)
     }
 }
 

@@ -1,7 +1,7 @@
 //! spack provider implementation
 
 use std::sync::Arc;
-use vx_runtime::{ManifestDrivenRuntime, ProviderSource, Runtime, provider::Provider};
+use vx_runtime::{Runtime, provider::Provider};
 
 /// spack provider (Starlark-driven)
 #[derive(Debug, Default)]
@@ -13,18 +13,11 @@ impl Provider for SpackProvider {
     }
 
     fn description(&self) -> &str {
-        crate::star_metadata().description_or("A flexible package manager for HPC")
+        crate::star_metadata().description_or("Spack - A flexible package manager")
     }
 
     fn runtimes(&self) -> Vec<Arc<dyn Runtime>> {
-        vec![Arc::new(
-            ManifestDrivenRuntime::new("spack", "spack", ProviderSource::BuiltIn)
-                .with_description("A flexible package manager for HPC")
-                .with_fetch_versions(vx_starlark::make_fetch_versions_fn(
-                    "spack",
-                    crate::PROVIDER_STAR,
-                )),
-        )]
+        vx_starlark::build_runtimes("spack", crate::PROVIDER_STAR, None)
     }
 }
 

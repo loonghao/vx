@@ -1,4 +1,4 @@
-# provider.star - FFmpeg provider
+﻿# provider.star - FFmpeg provider
 #
 # Version source: https://github.com/GyanD/codexffmpeg/releases (pre-built Windows binaries)
 #                 https://github.com/FFmpeg/FFmpeg/releases (official, Unix)
@@ -9,28 +9,17 @@
 
 load("@vx//stdlib:github.star", "make_fetch_versions", "github_asset_url")
 load("@vx//stdlib:install.star", "flatten_dir")
+load("@vx//stdlib:env.star", "env_prepend")
 
 # ---------------------------------------------------------------------------
 # Provider metadata
 # ---------------------------------------------------------------------------
-
-def name():
-    return "ffmpeg"
-
-def description():
-    return "FFmpeg - Complete solution for recording, converting and streaming audio and video"
-
-def homepage():
-    return "https://ffmpeg.org"
-
-def repository():
-    return "https://github.com/FFmpeg/FFmpeg"
-
-def license():
-    return "LGPL-2.1-or-later"
-
-def ecosystem():
-    return "system"
+name        = "ffmpeg"
+description = "FFmpeg - Complete solution for recording, converting and streaming audio and video"
+homepage    = "https://ffmpeg.org"
+repository  = "https://github.com/FFmpeg/FFmpeg"
+license     = "LGPL-2.1-or-later"
+ecosystem   = "system"
 
 # ---------------------------------------------------------------------------
 # Runtime definitions
@@ -42,18 +31,27 @@ runtimes = [
         "executable":  "ffmpeg",
         "description": "FFmpeg multimedia framework",
         "priority":    100,
+        "test_commands": [
+            {"command": "{executable} -version", "name": "version_check", "expected_output": "ffmpeg version"},
+        ],
     },
     {
         "name":        "ffprobe",
         "executable":  "ffprobe",
         "description": "FFprobe multimedia stream analyzer (bundled with FFmpeg)",
         "bundled_with": "ffmpeg",
+        "test_commands": [
+            {"command": "{executable} -version", "name": "version_check", "expected_output": "ffprobe version"},
+        ],
     },
     {
         "name":        "ffplay",
         "executable":  "ffplay",
         "description": "FFplay simple media player (bundled with FFmpeg)",
         "bundled_with": "ffmpeg",
+        "test_commands": [
+            {"command": "{executable} --version", "name": "version_check"},
+        ],
     },
 ]
 
@@ -84,8 +82,8 @@ def download_url(ctx, version):
     Linux:   Static builds from johnvansickle.com
     macOS:   evermeet.cx static builds
     """
-    os   = ctx["platform"]["os"]
-    arch = ctx["platform"]["arch"]
+    os   = ctx.platform.os
+    arch = ctx.platform.arch
 
     if os == "windows":
         # GyanD Windows builds: ffmpeg-7.1-essentials_build.zip
@@ -110,7 +108,7 @@ def download_url(ctx, version):
 # ---------------------------------------------------------------------------
 
 def install_layout(ctx, version):
-    os = ctx["platform"]["os"]
+    os = ctx.platform.os
 
     if os == "windows":
         # GyanD: ffmpeg-{version}-essentials_build/bin/ffmpeg.exe
@@ -136,11 +134,11 @@ def install_layout(ctx, version):
 # environment
 # ---------------------------------------------------------------------------
 
-def environment(ctx, version, install_dir):
-    os = ctx["platform"]["os"]
+def environment(ctx, _version):
+    os = ctx.platform.os
     if os == "windows":
-        return {"PATH": install_dir + "/bin"}
-    return {"PATH": install_dir}
+        return [env_prepend("PATH", ctx.install_dir + "/bin")]
+    return [env_prepend("PATH", ctx.install_dir)]
 
 # ---------------------------------------------------------------------------
 # post_extract — flatten nested directory on Linux
@@ -168,7 +166,7 @@ def post_extract(ctx, version, install_dir):
     Returns:
         List of post-extract actions, or empty list if not Linux
     """
-    os = ctx["platform"]["os"]
+    os = ctx.platform.os
 
     # Only Linux static builds need flattening;
     # Windows uses strip_prefix in install_layout, macOS zip is already flat.
@@ -181,7 +179,7 @@ def post_extract(ctx, version, install_dir):
 # deps
 # ---------------------------------------------------------------------------
 
-def deps(ctx, version):
+def deps(_ctx, _version):
     return []
 
 
@@ -190,14 +188,14 @@ def deps(ctx, version):
 # ---------------------------------------------------------------------------
 
 def store_root(ctx):
-    return "{vx_home}/store/ffmpeg"
+    return ctx.vx_home + "/store/ffmpeg"
 
-def get_execute_path(ctx, version):
-    os = ctx["platform"]["os"]
+def get_execute_path(ctx, _version):
+    os = ctx.platform.os
     if os == "windows":
-        return "{install_dir}/ffmpeg.exe"
+        return ctx.install_dir + "/ffmpeg.exe"
     else:
-        return "{install_dir}/ffmpeg"
+        return ctx.install_dir + "/ffmpeg"
 
-def post_install(ctx, version, install_dir):
+def post_install(_ctx, _version):
     return None

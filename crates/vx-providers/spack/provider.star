@@ -1,4 +1,4 @@
-# provider.star - Spack provider
+﻿# provider.star - Spack provider
 #
 # Version source: https://github.com/spack/spack/releases
 #
@@ -9,28 +9,18 @@
 # Inheritance pattern: Level 2 (custom fetch_versions + download_url)
 
 load("@vx//stdlib:github.star", "make_fetch_versions", "github_asset_url")
+load("@vx//stdlib:env.star", "env_set", "env_prepend")
+load("@vx//stdlib:env.star", "env_set", "env_prepend")
 
 # ---------------------------------------------------------------------------
 # Provider metadata
 # ---------------------------------------------------------------------------
-
-def name():
-    return "spack"
-
-def description():
-    return "Spack - Flexible package manager for supercomputers, Linux, and macOS"
-
-def homepage():
-    return "https://spack.io"
-
-def repository():
-    return "https://github.com/spack/spack"
-
-def license():
-    return "Apache-2.0 OR MIT"
-
-def ecosystem():
-    return "python"
+name        = "spack"
+description = "Spack - Flexible package manager for supercomputers, Linux, and macOS"
+homepage    = "https://spack.io"
+repository  = "https://github.com/spack/spack"
+license     = "Apache-2.0 OR MIT"
+ecosystem   = "python"
 
 # ---------------------------------------------------------------------------
 # Platform constraint — Linux and macOS only
@@ -50,6 +40,9 @@ runtimes = [
         "executable":  "spack",
         "description": "Spack package manager",
         "priority":    100,
+        "test_commands": [
+            {"command": "{executable} --version", "name": "version_check", "expected_output": "^\\d+\\.\\d+"},
+        ],
     },
 ]
 
@@ -78,7 +71,7 @@ def download_url(ctx, version):
 
     Spack releases are source archives (tar.gz).
     """
-    os = ctx["platform"]["os"]
+    os = ctx.platform.os
     if os == "windows":
         return None
 
@@ -90,7 +83,7 @@ def download_url(ctx, version):
 # install_layout
 # ---------------------------------------------------------------------------
 
-def install_layout(ctx, version):
+def install_layout(_ctx, version):
     return {
         "type":             "archive",
         "strip_prefix":     "spack-{}".format(version),
@@ -101,11 +94,11 @@ def install_layout(ctx, version):
 # environment
 # ---------------------------------------------------------------------------
 
-def environment(ctx, version, install_dir):
-    return {
-        "SPACK_ROOT": install_dir,
-        "PATH":       install_dir + "/bin",
-    }
+def environment(ctx, _version):
+    return [
+        env_set("SPACK_ROOT", ctx.install_dir),
+        env_prepend("PATH", ctx.install_dir + "/bin"),
+    ]
 
 # ---------------------------------------------------------------------------
 # Path queries (RFC-0037)
@@ -113,13 +106,13 @@ def environment(ctx, version, install_dir):
 
 def store_root(ctx):
     """Return the vx store root directory for spack."""
-    return "{vx_home}/store/spack"
+    return ctx.vx_home + "/store/spack"
 
 def get_execute_path(ctx, version):
     """Return the executable path for the given version."""
-    return "{install_dir}/bin/spack"
+    return ctx.install_dir + "/bin/spack"
 
-def post_install(ctx, version, install_dir):
+def post_install(_ctx, _version):
     """No post-install steps needed for spack."""
     return None
 
@@ -127,7 +120,7 @@ def post_install(ctx, version, install_dir):
 # deps — requires python 3.6+ and git
 # ---------------------------------------------------------------------------
 
-def deps(ctx, version):
+def deps(_ctx, version):
     return [
         {"runtime": "python", "version": ">=3.6",
          "reason": "Spack requires Python 3.6+"},

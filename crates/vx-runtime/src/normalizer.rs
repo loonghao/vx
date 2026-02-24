@@ -8,7 +8,7 @@ use anyhow::{Context, Result};
 use glob::glob;
 use std::path::{Path, PathBuf};
 use tracing::{debug, trace, warn};
-use vx_manifest::{
+use vx_runtime_core::{
     AliasNormalize, DirectoryNormalize, EffectiveNormalizeConfig, ExecutableNormalize,
     NormalizeAction, NormalizeConfig,
 };

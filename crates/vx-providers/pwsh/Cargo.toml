@@ -8,11 +8,10 @@ license.workspace = true
 [dependencies]
 vx-runtime = { workspace = true }
 vx-starlark = { workspace = true }
-vx-manifest = { workspace = true }
 async-trait = { workspace = true }
 anyhow = { workspace = true }
 tracing = { workspace = true }
-serde = { workspace = true, features = ["derive"] }
+chrono = { workspace = true }
 workspace-hack = { version = "0.1", path = "../../workspace-hack" }
 
 [lib]
@@ -21,3 +20,4 @@ path = "src/lib.rs"
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["test-util"] }
+rstest = { workspace = true }

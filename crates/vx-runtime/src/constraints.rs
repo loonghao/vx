@@ -23,6 +23,7 @@ use crate::RuntimeDependency;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::OnceLock;
+use vx_runtime_core::{RangeOp, VersionConstraint, VersionRequest};
 
 /// Version range pattern for matching runtime versions
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
@@ -115,8 +116,6 @@ impl ManifestVersionPattern {
 
     /// Check if a version matches this pattern using semver semantics
     pub fn matches(&self, version: &str) -> bool {
-        use vx_manifest::VersionRequest;
-
         let req = VersionRequest::parse(&self.pattern);
         req.satisfies(version)
     }
@@ -263,20 +262,6 @@ impl ConstraintsRegistry {
         }
     }
 
-    /// Create registry from provider manifest contents
-    pub fn from_manifest_strings<'a, I>(manifests: I) -> Result<Self, String>
-    where
-        I: IntoIterator<Item = (&'a str, &'a str)>,
-    {
-        let mut registry = Self::new();
-        for (name, content) in manifests {
-            let manifest = vx_manifest::ProviderManifest::parse(content)
-                .map_err(|e| format!("Failed to parse manifest {}: {}", name, e))?;
-            registry.load_from_manifest(&manifest);
-        }
-        Ok(registry)
-    }
-
     /// Register constraint rules for a runtime
     pub fn register(&mut self, runtime: impl Into<String>, rules: Vec<ConstraintRule>) {
         self.rules.insert(runtime.into(), rules);
@@ -306,117 +291,157 @@ impl ConstraintsRegistry {
         self.rules.contains_key(runtime)
     }
 
-    /// Load constraints from a provider manifest
+    /// Load constraints from a `ProviderManifest`.
+    ///
+    /// Iterates over all runtimes in the manifest and registers their
+    /// `[[runtimes.constraints]]` entries into this registry.
     pub fn load_from_manifest(&mut self, manifest: &vx_manifest::ProviderManifest) {
         for runtime_def in &manifest.runtimes {
-            let rules = self.convert_manifest_constraints(&runtime_def.constraints);
-            if !rules.is_empty() {
-                self.register(&runtime_def.name, rules);
+            if runtime_def.constraints.is_empty() {
+                continue;
             }
+            let rules: Vec<ConstraintRule> = runtime_def
+                .constraints
+                .iter()
+                .map(|c: &vx_manifest::ConstraintRule| {
+                    let mut rule = ConstraintRule::with_manifest_pattern(
+                        ManifestVersionPattern::new(c.when.clone()),
+                    );
+                    for dep in &c.requires {
+                        let mut constraint = DependencyConstraint::required(&dep.runtime);
+                        let req = VersionRequest::parse(&dep.version);
+                        let (min, max) = extract_min_max_from_constraint(&req);
+                        if let Some(min_ver) = min {
+                            constraint = constraint.min(min_ver);
+                        }
+                        if let Some(max_ver) = max {
+                            constraint = constraint.max(max_ver);
+                        }
+                        if let Some(ref rec) = dep.recommended {
+                            constraint = constraint.recommended(rec);
+                        }
+                        if let Some(ref rsn) = dep.reason {
+                            constraint = constraint.reason(rsn);
+                        }
+                        if dep.optional {
+                            constraint.optional = true;
+                        }
+                        rule = rule.with_constraint(constraint);
+                    }
+                    rule
+                })
+                .collect();
+            self.register(runtime_def.name.clone(), rules);
         }
     }
 
-    /// Convert manifest constraints to internal constraint rules
-    fn convert_manifest_constraints(
-        &self,
-        manifest_constraints: &[vx_manifest::ConstraintRule],
-    ) -> Vec<ConstraintRule> {
-        use vx_manifest::VersionRequest;
-
-        manifest_constraints
-            .iter()
-            .map(|mc| {
-                let mut rule = ConstraintRule::with_manifest_pattern(ManifestVersionPattern::new(
-                    mc.when.clone(),
-                ));
-
-                for dep in &mc.requires {
-                    let mut constraint = DependencyConstraint::required(&dep.runtime);
-
-                    // Parse version constraint to extract min/max
-                    let req = VersionRequest::parse(&dep.version);
-                    let (min, max) = Self::extract_min_max_from_constraint(&req);
-
-                    if let Some(min_ver) = min {
-                        constraint = constraint.min(min_ver);
-                    }
-                    if let Some(max_ver) = max {
-                        constraint = constraint.max(max_ver);
-                    }
-                    if let Some(ref rec) = dep.recommended {
-                        constraint = constraint.recommended(rec);
-                    }
-                    if let Some(ref reason) = dep.reason {
-                        constraint = constraint.reason(reason);
-                    }
-                    if dep.optional {
-                        constraint.optional = true;
-                    }
-
-                    rule = rule.with_constraint(constraint);
-                }
-
-                rule
-            })
-            .collect()
-    }
-
-    /// Extract min and max versions from a VersionRequest
-    fn extract_min_max_from_constraint(
-        req: &vx_manifest::VersionRequest,
-    ) -> (Option<String>, Option<String>) {
-        use vx_manifest::{RangeOp, VersionConstraint};
-
-        match &req.constraint {
-            VersionConstraint::Range(constraints) => {
-                let mut min = None;
-                let mut max = None;
-
-                for c in constraints {
-                    match c.op {
-                        RangeOp::Ge | RangeOp::Gt => {
-                            min = Some(c.version.to_string());
-                        }
-                        RangeOp::Le | RangeOp::Lt => {
-                            max = Some(c.version.to_string());
-                        }
-                        _ => {}
-                    }
-                }
-
-                (min, max)
-            }
-            VersionConstraint::Caret(v) => {
-                // ^1.2.3 means >=1.2.3, <2.0.0
-                let min = v.to_string();
-                let max = if v.major > 0 {
-                    format!("{}.0.0", v.major + 1)
-                } else if v.minor > 0 {
-                    format!("0.{}.0", v.minor + 1)
-                } else {
-                    format!("0.0.{}", v.patch + 1)
-                };
-                (Some(min), Some(max))
-            }
-            VersionConstraint::Tilde(v) => {
-                // ~1.2.3 means >=1.2.3, <1.3.0
-                let min = v.to_string();
-                let max = format!("{}.{}.0", v.major, v.minor + 1);
-                (Some(min), Some(max))
-            }
-            VersionConstraint::Exact(v) => {
-                let ver = v.to_string();
-                (Some(ver.clone()), Some(ver))
-            }
-            _ => (None, None),
+    /// Build a `ConstraintsRegistry` from an iterable of `(name, toml_str)` pairs.
+    ///
+    /// Each TOML string is parsed as a `ProviderManifest` and its constraints
+    /// are loaded into the registry.
+    pub fn from_manifest_strings<'a, I>(manifests: I) -> Result<Self, String>
+    where
+        I: IntoIterator<Item = (&'a str, &'a str)>,
+    {
+        let mut registry = Self::new();
+        for (_name, toml_str) in manifests {
+            let manifest = vx_manifest::ProviderManifest::parse(toml_str)
+                .map_err(|e| format!("failed to parse manifest: {e}"))?;
+            registry.load_from_manifest(&manifest);
         }
+        Ok(registry)
     }
+}
+
+/// Extract min and max versions from a VersionRequest (local types)
+fn extract_min_max_from_constraint(req: &VersionRequest) -> (Option<String>, Option<String>) {
+    match &req.constraint {
+        VersionConstraint::Range(constraints) => {
+            let mut min = None;
+            let mut max = None;
+            for c in constraints {
+                match c.op {
+                    RangeOp::Ge | RangeOp::Gt => {
+                        min = Some(c.version.to_string());
+                    }
+                    RangeOp::Le | RangeOp::Lt => {
+                        max = Some(c.version.to_string());
+                    }
+                    _ => {}
+                }
+            }
+            (min, max)
+        }
+        VersionConstraint::Caret(v) => {
+            let min = v.to_string();
+            let max = if v.major > 0 {
+                format!("{}.0.0", v.major + 1)
+            } else if v.minor > 0 {
+                format!("0.{}.0", v.minor + 1)
+            } else {
+                format!("0.0.{}", v.patch + 1)
+            };
+            (Some(min), Some(max))
+        }
+        VersionConstraint::Tilde(v) => {
+            let min = v.to_string();
+            let max = format!("{}.{}.0", v.major, v.minor + 1);
+            (Some(min), Some(max))
+        }
+        VersionConstraint::Exact(v) => {
+            let ver = v.to_string();
+            (Some(ver.clone()), Some(ver))
+        }
+        _ => (None, None),
+    }
+}
+
+/// A single dependency entry: (runtime, version, recommended, reason, optional)
+type DepEntry = (String, String, Option<String>, Option<String>, bool);
+
+/// A single constraint rule entry: (when_pattern, deps)
+type ConstraintRuleEntry = (String, Vec<DepEntry>);
+
+/// Build constraint rules from a list of (when, requires) tuples.
+///
+/// This is the `provider.star`-friendly API: the Starlark layer calls this
+/// after evaluating a provider script to register its constraints.
+pub fn build_constraint_rules(rules: &[ConstraintRuleEntry]) -> Vec<ConstraintRule> {
+    rules
+        .iter()
+        .map(|(when, deps)| {
+            let mut rule =
+                ConstraintRule::with_manifest_pattern(ManifestVersionPattern::new(when.clone()));
+            for (runtime, version, recommended, reason, optional) in deps {
+                let mut constraint = DependencyConstraint::required(runtime);
+                let req = VersionRequest::parse(version);
+                let (min, max) = extract_min_max_from_constraint(&req);
+                if let Some(min_ver) = min {
+                    constraint = constraint.min(min_ver);
+                }
+                if let Some(max_ver) = max {
+                    constraint = constraint.max(max_ver);
+                }
+                if let Some(rec) = recommended {
+                    constraint = constraint.recommended(rec);
+                }
+                if let Some(rsn) = reason {
+                    constraint = constraint.reason(rsn);
+                }
+                if *optional {
+                    constraint.optional = true;
+                }
+                rule = rule.with_constraint(constraint);
+            }
+            rule
+        })
+        .collect()
 }
 
 /// Global default constraints registry
 ///
-/// This registry is initialized once (typically at CLI startup) using embedded
-/// provider manifests. If not initialized, it will remain empty.
+/// Populated at startup by `init_constraints_from_star()` using embedded
+/// `provider.star` files. If not initialized, it will remain empty.
 pub static DEFAULT_CONSTRAINTS: OnceLock<ConstraintsRegistry> = OnceLock::new();
 
 fn default_registry() -> &'static ConstraintsRegistry {
@@ -428,30 +453,33 @@ pub fn get_default_constraints(runtime: &str, version: &str) -> Vec<RuntimeDepen
     default_registry().get_constraints(runtime, version)
 }
 
-/// Load constraints from embedded manifest content into a registry
-pub fn load_constraints_from_manifest_content(
-    registry: &mut ConstraintsRegistry,
-    manifest_content: &str,
-) -> Result<(), String> {
-    let manifest = vx_manifest::ProviderManifest::parse(manifest_content)
-        .map_err(|e| format!("Failed to parse manifest: {}", e))?;
-    registry.load_from_manifest(&manifest);
+/// Initialize the global constraints registry from provider.star constraint data.
+///
+/// `rules` is a list of `(runtime_name, constraint_rules)` pairs produced by
+/// evaluating all embedded `provider.star` files.
+///
+/// If already initialized, this is a no-op (idempotent).
+pub fn init_constraints_from_star(rules: Vec<(String, Vec<ConstraintRule>)>) -> Result<(), String> {
+    let mut registry = ConstraintsRegistry::new();
+    for (runtime, constraint_rules) in rules {
+        registry.register(runtime, constraint_rules);
+    }
+    if DEFAULT_CONSTRAINTS.set(registry).is_err() {
+        // Already initialized; treat as success for idempotency
+    }
     Ok(())
 }
 
 /// Initialize the global constraints registry with embedded manifests
 ///
-/// This should be called once at startup by vx-cli with the embedded manifests.
-/// If already initialized, it becomes a no-op for idempotency.
-pub fn init_constraints_from_manifests<'a, I>(manifests: I) -> Result<(), String>
+/// **Deprecated**: use `init_constraints_from_star` instead.
+/// Kept temporarily for backward compatibility during the provider.toml → provider.star migration.
+#[deprecated(note = "Use init_constraints_from_star instead")]
+pub fn init_constraints_from_manifests<'a, I>(_manifests: I) -> Result<(), String>
 where
     I: IntoIterator<Item = (&'a str, &'a str)>,
 {
-    let registry = ConstraintsRegistry::from_manifest_strings(manifests)?;
-    if DEFAULT_CONSTRAINTS.set(registry).is_err() {
-        // Already initialized; treat as success for idempotency
-        return Ok(());
-    }
+    // No-op: constraints are now loaded from provider.star
     Ok(())
 }
 
@@ -488,32 +516,6 @@ fn version_lt(a: &[u32], b: &[u32]) -> bool {
 mod tests {
     use super::*;
 
-    const SAMPLE_MANIFEST: &str = r#"
-[provider]
-name = "test-provider"
-
-[[runtimes]]
-name = "yarn"
-executable = "yarn"
-
-[[runtimes.constraints]]
-when = "^1"
-requires = [
-  { runtime = "node", version = ">=12, <23", recommended = "20" }
-]
-
-[[runtimes.constraints]]
-when = "^4"
-requires = [
-  { runtime = "node", version = ">=18", recommended = "22" }
-]
-"#;
-
-    fn manifest_registry() -> ConstraintsRegistry {
-        ConstraintsRegistry::from_manifest_strings([("sample", SAMPLE_MANIFEST)])
-            .expect("should load manifest constraints")
-    }
-
     #[test]
     fn test_version_pattern_major() {
         let pattern = VersionPattern::major(1);
@@ -534,30 +536,30 @@ requires = [
     }
 
     #[test]
-    fn test_manifest_constraints() {
-        let registry = manifest_registry();
-        let deps = registry.get_constraints("yarn", "1.22.22");
-
-        assert_eq!(deps.len(), 1);
-        assert_eq!(deps[0].name, "node");
-        assert_eq!(deps[0].min_version, Some("12.0.0".to_string()));
-        assert_eq!(deps[0].max_version, Some("23.0.0".to_string()));
+    fn test_manifest_version_pattern() {
+        let pattern = ManifestVersionPattern::new("^1");
+        assert!(pattern.matches("1.0.0"));
+        assert!(pattern.matches("1.22.22"));
+        assert!(!pattern.matches("2.0.0"));
     }
 
     #[test]
-    fn test_manifest_constraints_yarn4() {
-        let registry = manifest_registry();
-        let deps = registry.get_constraints("yarn", "4.0.0");
-
-        assert_eq!(deps.len(), 1);
-        assert_eq!(deps[0].name, "node");
-        assert_eq!(deps[0].min_version, Some("18.0.0".to_string()));
-        assert!(deps[0].max_version.is_none());
+    fn test_constraint_rule_matches() {
+        let rule = ConstraintRule::with_manifest_pattern(ManifestVersionPattern::new(">=12, <23"))
+            .with_constraint(
+                DependencyConstraint::required("node")
+                    .min("12.0.0")
+                    .max("23.0.0"),
+            );
+        assert!(rule.matches("12.0.0"));
+        assert!(rule.matches("20.0.0"));
+        assert!(!rule.matches("11.0.0"));
+        assert!(!rule.matches("23.0.0"));
     }
 
     #[test]
     fn test_no_constraints() {
-        let registry = manifest_registry();
+        let registry = ConstraintsRegistry::new();
         let deps = registry.get_constraints("unknown-runtime", "1.0.0");
         assert!(deps.is_empty());
     }

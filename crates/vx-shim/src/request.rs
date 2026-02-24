@@ -1,6 +1,6 @@
 //! Package request parser for RFC 0027 implicit package execution
 //!
-//! Syntax: `<ecosystem>[@runtime_version]:<package>[@version][::executable]`
+//! Syntax: `<ecosystem>[@runtime_version]:<package>[@version][::executable_or_shell]`
 //!
 //! Examples:
 //! - `npm:typescript` - npm package typescript, default executable
@@ -10,8 +10,33 @@
 //! - `npm@20:typescript::tsc` - with runtime version (node 20)
 //! - `pip:httpie::http` - pip package httpie, executable http
 //! - `pip@3.11:ruff` - pip with Python 3.11
+//! - `npm:codex::cmd` - npm package codex, launch cmd shell with package environment
+//! - `npm:codex::powershell` - npm package codex, launch powershell with package environment
 
 use crate::error::{ShimError, ShimResult};
+
+/// Parsed package part: (package, version, executable, shell)
+type ParsedPackagePart = (String, Option<String>, Option<String>, Option<String>);
+
+/// Known shell executables that can be launched with package environment
+const KNOWN_SHELLS: &[&str] = &[
+    "cmd",
+    "powershell",
+    "pwsh",
+    "bash",
+    "sh",
+    "zsh",
+    "fish",
+    "dash",
+    "ksh",
+    "csh",
+    "tcsh",
+];
+
+/// Check if a name is a known shell executable
+fn is_known_shell(name: &str) -> bool {
+    KNOWN_SHELLS.contains(&name.to_lowercase().as_str())
+}
 
 /// Parsed package request
 #[derive(Debug, Clone, PartialEq)]
@@ -23,7 +48,12 @@ pub struct PackageRequest {
     /// Optional package version
     pub version: Option<String>,
     /// Optional explicit executable name (default: package name)
+    /// This is None when `shell` is set.
     pub executable: Option<String>,
+    /// Optional shell to launch with package environment
+    /// When set, instead of running an executable, we launch a shell
+    /// with the package's runtime environment configured.
+    pub shell: Option<String>,
     /// Optional runtime version specification
     pub runtime_spec: Option<RuntimeSpec>,
 }
@@ -40,7 +70,7 @@ pub struct RuntimeSpec {
 impl PackageRequest {
     /// Parse a package request string
     ///
-    /// Format: `<ecosystem>[@runtime_version]:<package>[@version][::executable]`
+    /// Format: `<ecosystem>[@runtime_version]:<package>[@version][::executable_or_shell]`
     pub fn parse(input: &str) -> ShimResult<Self> {
         // Must contain a colon to be a package request
         let colon_pos = input.find(':').ok_or_else(|| {
@@ -53,14 +83,15 @@ impl PackageRequest {
         // Parse ecosystem[@runtime_version]
         let (ecosystem, runtime_spec) = Self::parse_ecosystem_part(ecosystem_part)?;
 
-        // Parse package[@version][::executable]
-        let (package, version, executable) = Self::parse_package_part(rest)?;
+        // Parse package[@version][::executable_or_shell]
+        let (package, version, executable, shell) = Self::parse_package_part(rest)?;
 
         Ok(Self {
             ecosystem,
             package,
             version,
             executable,
+            shell,
             runtime_spec,
         })
     }
@@ -75,7 +106,7 @@ impl PackageRequest {
             // Check if it's a known ecosystem
             matches!(
                 ecosystem.to_lowercase().as_str(),
-                "npm" | "pip" | "cargo" | "go" | "gem" | "uv" | "bun" | "yarn" | "pnpm"
+                "npm" | "pip" | "cargo" | "go" | "gem" | "uv" | "uvx" | "bun" | "yarn" | "pnpm"
             )
         } else {
             false
@@ -83,8 +114,19 @@ impl PackageRequest {
     }
 
     /// Get the executable name (explicit or default to package name)
+    /// Returns None if this is a shell request (check `is_shell_request()` first)
     pub fn executable_name(&self) -> &str {
         self.executable.as_deref().unwrap_or(&self.package)
+    }
+
+    /// Check if this request wants to launch a shell with package environment
+    pub fn is_shell_request(&self) -> bool {
+        self.shell.is_some()
+    }
+
+    /// Get the shell name if this is a shell request
+    pub fn shell_name(&self) -> Option<&str> {
+        self.shell.as_deref()
     }
 
     /// Parse the ecosystem part: `ecosystem[@runtime_version]`
@@ -124,10 +166,10 @@ impl PackageRequest {
         }
     }
 
-    /// Parse the package part: `package[@version][::executable]`
-    fn parse_package_part(part: &str) -> ShimResult<(String, Option<String>, Option<String>)> {
-        // First, split by :: to get executable
-        let (package_version_part, executable) = if let Some(pos) = part.find("::") {
+    /// Parse the package part: `package[@version][::executable_or_shell]`
+    fn parse_package_part(part: &str) -> ShimResult<ParsedPackagePart> {
+        // First, split by :: to get executable or shell
+        let (package_version_part, executable_or_shell) = if let Some(pos) = part.find("::") {
             let exe = part[pos + 2..].to_string();
             if exe.is_empty() {
                 return Err(ShimError::InvalidRequest(
@@ -147,7 +189,20 @@ impl PackageRequest {
             return Err(ShimError::InvalidRequest("Empty package name".to_string()));
         }
 
-        Ok((package, version, executable))
+        // Determine if the :: part is a shell or an executable
+        let (executable, shell) = if let Some(exe_or_shell) = executable_or_shell {
+            if is_known_shell(&exe_or_shell) {
+                // It's a shell - we'll launch this shell with package environment
+                (None, Some(exe_or_shell))
+            } else {
+                // It's an executable
+                (Some(exe_or_shell), None)
+            }
+        } else {
+            (None, None)
+        };
+
+        Ok((package, version, executable, shell))
     }
 
     /// Parse package[@version], handling scoped packages
@@ -187,7 +242,7 @@ impl PackageRequest {
     fn infer_runtime(ecosystem: &str) -> ShimResult<String> {
         let runtime = match ecosystem.to_lowercase().as_str() {
             "npm" | "yarn" | "pnpm" | "bun" => "node",
-            "pip" | "uv" => "python",
+            "pip" | "uv" | "uvx" => "python",
             "cargo" => "rust",
             "go" => "go",
             "gem" => "ruby",
@@ -406,5 +461,84 @@ mod tests {
         assert!(PackageRequest::is_package_request(
             "npm@20:@openai/codex::codex"
         ));
+    }
+
+    // Tests for shell syntax (ecosystem:package::shell)
+
+    #[test]
+    fn test_package_with_cmd_shell() {
+        // npm:codex::cmd - launch cmd shell with codex environment
+        let req = PackageRequest::parse("npm:codex::cmd").unwrap();
+        assert_eq!(req.ecosystem, "npm");
+        assert_eq!(req.package, "codex");
+        assert_eq!(req.executable, None);
+        assert_eq!(req.shell, Some("cmd".to_string()));
+        assert!(req.is_shell_request());
+        assert_eq!(req.shell_name(), Some("cmd"));
+    }
+
+    #[test]
+    fn test_package_with_powershell_shell() {
+        // npm:codex::powershell - launch powershell with codex environment
+        let req = PackageRequest::parse("npm:codex::powershell").unwrap();
+        assert_eq!(req.ecosystem, "npm");
+        assert_eq!(req.package, "codex");
+        assert_eq!(req.shell, Some("powershell".to_string()));
+        assert!(req.is_shell_request());
+    }
+
+    #[test]
+    fn test_package_with_bash_shell() {
+        // pip:httpie::bash - launch bash with httpie environment
+        let req = PackageRequest::parse("pip:httpie::bash").unwrap();
+        assert_eq!(req.ecosystem, "pip");
+        assert_eq!(req.package, "httpie");
+        assert_eq!(req.shell, Some("bash".to_string()));
+        assert!(req.is_shell_request());
+    }
+
+    #[test]
+    fn test_package_with_version_and_shell() {
+        // npm:codex@1.0::cmd - specific version with shell
+        let req = PackageRequest::parse("npm:codex@1.0::cmd").unwrap();
+        assert_eq!(req.package, "codex");
+        assert_eq!(req.version, Some("1.0".to_string()));
+        assert_eq!(req.shell, Some("cmd".to_string()));
+        assert!(req.is_shell_request());
+    }
+
+    #[test]
+    fn test_package_with_runtime_version_and_shell() {
+        // npm@20:codex::cmd - node 20 with codex, launch cmd
+        let req = PackageRequest::parse("npm@20:codex::cmd").unwrap();
+        assert_eq!(req.package, "codex");
+        assert_eq!(req.shell, Some("cmd".to_string()));
+        let spec = req.runtime_spec.unwrap();
+        assert_eq!(spec.runtime, "node");
+        assert_eq!(spec.version, "20");
+    }
+
+    #[test]
+    fn test_executable_vs_shell_distinction() {
+        // tsc is NOT a known shell, so it should be treated as executable
+        let req = PackageRequest::parse("npm:typescript::tsc").unwrap();
+        assert_eq!(req.executable, Some("tsc".to_string()));
+        assert_eq!(req.shell, None);
+        assert!(!req.is_shell_request());
+
+        // cmd IS a known shell
+        let req = PackageRequest::parse("npm:typescript::cmd").unwrap();
+        assert_eq!(req.executable, None);
+        assert_eq!(req.shell, Some("cmd".to_string()));
+        assert!(req.is_shell_request());
+    }
+
+    #[test]
+    fn test_all_known_shells() {
+        for shell in KNOWN_SHELLS {
+            let req = PackageRequest::parse(&format!("npm:test::{}", shell)).unwrap();
+            assert_eq!(req.shell, Some(shell.to_string()));
+            assert!(req.is_shell_request());
+        }
     }
 }

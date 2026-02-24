@@ -1,4 +1,4 @@
-# provider.star - make provider
+﻿# provider.star - make provider
 #
 # GNU Make - build automation tool (Unix-only, system detection + package manager install)
 # Inheritance pattern: Level 1 (fully custom, system tool, Unix-only)
@@ -9,21 +9,11 @@
 # ---------------------------------------------------------------------------
 # Provider metadata
 # ---------------------------------------------------------------------------
-
-def name():
-    return "make"
-
-def description():
-    return "GNU Make - A build automation tool (Unix only, use 'just' on Windows)"
-
-def homepage():
-    return "https://www.gnu.org/software/make/"
-
-def license():
-    return "GPL-3.0"
-
-def ecosystem():
-    return "system"
+name        = "make"
+description = "GNU Make - A build automation tool (Unix only, use 'just' on Windows)"
+homepage    = "https://www.gnu.org/software/make/"
+license     = "GPL-3.0"
+ecosystem   = "system"
 
 # ---------------------------------------------------------------------------
 # Platform constraint: Unix-only
@@ -53,6 +43,9 @@ runtimes = [
             "/usr/local/bin/make",
             "/opt/homebrew/bin/make",
         ],
+        "test_commands": [
+            {"command": "{executable} --version", "name": "version_check", "expected_output": "GNU Make"},
+        ],
     },
 ]
 
@@ -72,7 +65,7 @@ permissions = {
 
 def fetch_versions(ctx):
     """Return known make versions (installed via system package manager)."""
-    os = ctx["platform"]["os"]
+    os = ctx.platform.os
     if os == "windows":
         return []
     return [
@@ -91,7 +84,7 @@ def fetch_versions(ctx):
 # download_url — not directly downloadable (use system package manager)
 # ---------------------------------------------------------------------------
 
-def download_url(ctx, version):
+def download_url(_ctx, _version):
     """make is installed via system package manager, not direct download."""
     return None
 
@@ -101,7 +94,7 @@ def download_url(ctx, version):
 
 def system_install(ctx):
     """Return system install strategies for make."""
-    os = ctx["platform"]["os"]
+    os = ctx.platform.os
     if os == "windows":
         return []
     return [
@@ -117,19 +110,50 @@ def system_install(ctx):
 
 def store_root(ctx):
     """Return the vx store root directory for make."""
-    return "{vx_home}/store/make"
+    return ctx.vx_home + "/store/make"
 
 def get_execute_path(ctx, version):
     """Return the executable path for the given version (system tool)."""
-    return "{install_dir}/make"
+    return ctx.install_dir + "/make"
 
-def post_install(ctx, version, install_dir):
+def post_install(_ctx, _version):
     """No post-install steps needed for make."""
     return None
+
+# ---------------------------------------------------------------------------
+# uninstall — delegate to system package manager
+# ---------------------------------------------------------------------------
+
+def uninstall(ctx, _version):
+    """Uninstall make via the system package manager.
+
+    make is always installed via a system package manager (brew/apt/dnf/pacman),
+    so we delegate to the appropriate manager.
+    Returns False on Windows (not supported).
+    """
+    os = ctx.platform.os
+    if os == "macos":
+        return {
+            "type": "system_uninstall",
+            "strategies": [
+                {"manager": "brew", "package": "make", "priority": 90},
+            ],
+        }
+    elif os == "linux":
+        return {
+            "type": "system_uninstall",
+            "strategies": [
+                {"manager": "apt",    "package": "make", "priority": 90},
+                {"manager": "dnf",    "package": "make", "priority": 90},
+                {"manager": "pacman", "package": "make", "priority": 90},
+            ],
+        }
+    # Windows: not supported
+    return False
 
 # ---------------------------------------------------------------------------
 # environment
 # ---------------------------------------------------------------------------
 
-def environment(ctx, version, install_dir):
-    return {}
+def environment(_ctx, _version):
+    return []

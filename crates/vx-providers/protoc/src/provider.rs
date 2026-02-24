@@ -1,7 +1,7 @@
 //! protoc provider implementation
 
 use std::sync::Arc;
-use vx_runtime::{ManifestDrivenRuntime, ProviderSource, Runtime, provider::Provider};
+use vx_runtime::{Runtime, provider::Provider};
 
 /// protoc provider (Starlark-driven)
 #[derive(Debug, Default)]
@@ -13,18 +13,11 @@ impl Provider for ProtocProvider {
     }
 
     fn description(&self) -> &str {
-        crate::star_metadata().description_or("Protocol Buffers compiler")
+        crate::star_metadata().description_or("protoc - Protocol Buffers compiler")
     }
 
     fn runtimes(&self) -> Vec<Arc<dyn Runtime>> {
-        vec![Arc::new(
-            ManifestDrivenRuntime::new("protoc", "protoc", ProviderSource::BuiltIn)
-                .with_description("Protocol Buffers compiler")
-                .with_fetch_versions(vx_starlark::make_fetch_versions_fn(
-                    "protoc",
-                    crate::PROVIDER_STAR,
-                )),
-        )]
+        vx_starlark::build_runtimes("protoc", crate::PROVIDER_STAR, None)
     }
 }
 

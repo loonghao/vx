@@ -377,7 +377,15 @@ pub async fn add_tool(tool: &str, version: Option<&str>) -> Result<()> {
     let current_dir = env::current_dir().context("Failed to get current directory")?;
     let config_path = find_config_in_current_dir(&current_dir)?;
 
-    let version = version.unwrap_or("latest");
+    // Parse "tool@version" format from the tool argument
+    let (tool, version) = if let Some(at_pos) = tool.find('@') {
+        let name = &tool[..at_pos];
+        let ver = &tool[at_pos + 1..];
+        (name, version.unwrap_or(ver))
+    } else {
+        (tool, version.unwrap_or("latest"))
+    };
+
     let mut config = parse_vx_config(&config_path)?;
 
     if config.tools.contains_key(tool) {

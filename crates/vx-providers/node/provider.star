@@ -1,4 +1,4 @@
-# provider.star - Node.js provider
+﻿# provider.star - Node.js provider
 #
 # Version source: https://nodejs.org/dist/index.json (official API, no rate limiting)
 # Bundled runtimes: npm, npx (included in every Node.js release)
@@ -12,31 +12,18 @@
 #   pre_run:      ensure node_modules installed before `npm run` / `npm run-script`
 
 load("@vx//stdlib:install.star", "set_permissions", "ensure_dependencies")
+load("@vx//stdlib:env.star", "env_prepend")
 
 # ---------------------------------------------------------------------------
 # Provider metadata
 # ---------------------------------------------------------------------------
-
-def name():
-    return "node"
-
-def description():
-    return "Node.js - JavaScript runtime built on Chrome's V8 engine"
-
-def homepage():
-    return "https://nodejs.org"
-
-def repository():
-    return "https://github.com/nodejs/node"
-
-def license():
-    return "MIT"
-
-def ecosystem():
-    return "nodejs"
-
-def aliases():
-    return ["nodejs"]
+name        = "node"
+description = "Node.js - JavaScript runtime built on Chrome's V8 engine"
+homepage    = "https://nodejs.org"
+repository  = "https://github.com/nodejs/node"
+license     = "MIT"
+ecosystem   = "nodejs"
+aliases     = ["nodejs"]
 
 # ---------------------------------------------------------------------------
 # Runtime definitions
@@ -49,18 +36,28 @@ runtimes = [
         "description": "Node.js JavaScript runtime",
         "aliases":     ["nodejs"],
         "priority":    100,
+        "test_commands": [
+            {"command": "{executable} --version", "name": "version_check", "expected_output": "^v?\\d+\\.\\d+\\.\\d+"},
+            {"command": "{executable} -e \"console.log('ok')\"", "name": "eval_check", "expected_output": "ok"},
+        ],
     },
     {
         "name":        "npm",
         "executable":  "npm",
         "description": "Node Package Manager (bundled with Node.js)",
         "bundled_with": "node",
+        "test_commands": [
+            {"command": "{executable} --version", "name": "version_check", "expected_output": "^\\d+\\.\\d+\\.\\d+"},
+        ],
     },
     {
         "name":        "npx",
         "executable":  "npx",
         "description": "Node Package Execute (bundled with Node.js)",
         "bundled_with": "node",
+        "test_commands": [
+            {"command": "{executable} --version", "name": "version_check", "expected_output": "^\\d+\\.\\d+\\.\\d+"},
+        ],
     },
 ]
 
@@ -113,8 +110,8 @@ def fetch_versions(ctx):
 
 def _node_platform(ctx):
     """Map vx platform to Node.js platform string."""
-    os   = ctx["platform"]["os"]
-    arch = ctx["platform"]["arch"]
+    os   = ctx.platform.os
+    arch = ctx.platform.arch
 
     platforms = {
         "windows/x64":   ("win",    "x64"),
@@ -143,7 +140,7 @@ def download_url(ctx, version):
         return None
 
     os_str, arch_str = platform[0], platform[1]
-    os = ctx["platform"]["os"]
+    os = ctx.platform.os
 
     if os == "windows":
         # Windows: zip archive
@@ -162,7 +159,7 @@ def download_url(ctx, version):
 
 def install_layout(ctx, version):
     platform = _node_platform(ctx)
-    os = ctx["platform"]["os"]
+    os = ctx.platform.os
 
     if not platform:
         return {"type": "archive", "strip_prefix": "", "executable_paths": ["node"]}
@@ -188,14 +185,14 @@ def install_layout(ctx, version):
 # environment
 # ---------------------------------------------------------------------------
 
-def environment(ctx, version, install_dir):
-    os = ctx["platform"]["os"]
+def environment(ctx, _version):
+    os = ctx.platform.os
     if os == "windows":
         # Windows: executables are in root dir
-        return {"PATH": install_dir}
+        return [env_prepend("PATH", ctx.install_dir)]
     else:
         # Unix: executables are in bin/
-        return {"PATH": install_dir + "/bin"}
+        return [env_prepend("PATH", ctx.ctx.install_dir + "/bin")]
 
 # ---------------------------------------------------------------------------
 # store_root — vx-managed install directory
@@ -209,26 +206,26 @@ def store_root(ctx, version):
 # get_execute_path — resolve node executable
 # ---------------------------------------------------------------------------
 
-def get_execute_path(ctx, version, install_dir):
+def get_execute_path(ctx, _version, install_dir):
     """Return the path to the node executable."""
-    os = ctx["platform"]["os"]
+    os = ctx.platform.os
     if os == "windows":
-        return install_dir + "/node.exe"
+        return ctx.install_dir + "/node.exe"
     else:
-        return install_dir + "/bin/node"
+        return ctx.install_dir + "/bin/node"
 
 # ---------------------------------------------------------------------------
 # post_install — set permissions on Unix
 # ---------------------------------------------------------------------------
 
-def post_install(ctx, version, install_dir):
+def post_install(ctx, _version):
     """Set execute permissions on bundled tools on Unix."""
-    os = ctx["platform"]["os"]
+    os = ctx.platform.os
     if os == "windows":
         return []
     bundled = ["node", "npm", "npx", "corepack"]
     return [
-        {"type": "set_permissions", "path": install_dir + "/bin/" + t, "mode": "755"}
+        {"type": "set_permissions", "path": ctx.install_dir + "/bin/" + t, "mode": "755"}
         for t in bundled
     ]
 
@@ -236,7 +233,7 @@ def post_install(ctx, version, install_dir):
 # deps — explicit dependency declarations (Buck2 style)
 # ---------------------------------------------------------------------------
 
-def deps(ctx, version):
+def deps(_ctx, _version):
     """Node.js has no external dependencies."""
     return []
 
@@ -259,7 +256,7 @@ def post_extract(ctx, version, install_dir):
     Returns:
         List of post-extract actions (empty on Windows)
     """
-    os = ctx["platform"]["os"]
+    os = ctx.platform.os
     if os == "windows":
         # Windows uses .cmd wrappers, no chmod needed
         return []

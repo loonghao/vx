@@ -1,4 +1,4 @@
-# provider.star - Deno provider
+﻿# provider.star - Deno provider
 #
 # Inheritance level: 2 (fetch_versions inherited, download_url overridden)
 #
@@ -11,31 +11,17 @@
 #   - DenoUrlBuilder::download_url() → custom download_url() below
 
 load("@vx//stdlib:github.star", "make_fetch_versions", "github_asset_url")
+load("@vx//stdlib:env.star", "env_set", "env_prepend")
 
 # ---------------------------------------------------------------------------
 # Provider metadata
 # ---------------------------------------------------------------------------
-
-def name():
-    return "deno"
-
-def description():
-    return "Deno - A modern runtime for JavaScript and TypeScript"
-
-def homepage():
-    return "https://deno.land"
-
-def repository():
-    return "https://github.com/denoland/deno"
-
-def license():
-    return "MIT"
-
-def ecosystem():
-    return "javascript"
-
-def aliases():
-    return []
+name        = "deno"
+description = "Deno - A modern runtime for JavaScript and TypeScript"
+homepage    = "https://deno.land"
+repository  = "https://github.com/denoland/deno"
+license     = "MIT"
+ecosystem   = "javascript"
 
 # ---------------------------------------------------------------------------
 # Runtime definitions
@@ -48,6 +34,10 @@ runtimes = [
         "description": "Deno - A secure runtime for JavaScript and TypeScript",
         "aliases":     [],
         "priority":    100,
+        "test_commands": [
+            {"command": "{executable} --version", "name": "version_check", "expected_output": "deno \\d+\\.\\d+"},
+            {"command": "{executable} eval \"console.log('ok')\"", "name": "eval_check", "expected_output": "ok"},
+        ],
     },
 ]
 
@@ -79,8 +69,8 @@ fetch_versions = make_fetch_versions("denoland", "deno", include_prereleases = F
 
 def _deno_triple(ctx):
     """Map platform to Deno's Rust target triple."""
-    os   = ctx["platform"]["os"]
-    arch = ctx["platform"]["arch"]
+    os   = ctx.platform.os
+    arch = ctx.platform.arch
 
     triples = {
         "windows/x64":  "x86_64-pc-windows-msvc",
@@ -118,9 +108,9 @@ def download_url(ctx, version):
 # install_layout
 # ---------------------------------------------------------------------------
 
-def install_layout(ctx, version):
+def install_layout(ctx, _version):
     """Deno archives contain just the binary at root level (no subdirectory)."""
-    os  = ctx["platform"]["os"]
+    os  = ctx.platform.os
     exe = "deno.exe" if os == "windows" else "deno"
 
     return {
@@ -133,11 +123,11 @@ def install_layout(ctx, version):
 # environment
 # ---------------------------------------------------------------------------
 
-def environment(ctx, version, install_dir):
-    return {
-        "PATH":      install_dir,
-        "DENO_HOME": install_dir,
-    }
+def environment(ctx, _version):
+    return [
+        env_prepend("PATH", ctx.install_dir),
+        env_set("DENO_HOME", ctx.install_dir),
+    ]
 
 
 # ---------------------------------------------------------------------------
@@ -145,14 +135,12 @@ def environment(ctx, version, install_dir):
 # ---------------------------------------------------------------------------
 
 def store_root(ctx):
-    return "{vx_home}/store/deno"
+    return ctx.vx_home + "/store/deno"
 
-def get_execute_path(ctx, version):
-    os = ctx["platform"]["os"]
-    if os == "windows":
-        return "{install_dir}/deno.exe"
-    else:
-        return "{install_dir}/deno"
+def get_execute_path(ctx, _version):
+    os = ctx.platform.os
+    exe = "deno.exe" if os == "windows" else "deno"
+    return ctx.install_dir + "/" + exe
 
-def post_install(ctx, version, install_dir):
+def post_install(_ctx, _version):
     return None

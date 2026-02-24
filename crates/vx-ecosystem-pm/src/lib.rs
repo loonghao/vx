@@ -89,6 +89,8 @@ pub fn get_installer(ecosystem: &str) -> anyhow::Result<Box<dyn EcosystemInstall
         // Python ecosystem
         "pip" | "python" | "pypi" => Ok(Box::new(PipInstaller::new())),
         "uv" => Ok(Box::new(UvInstaller::new())),
+        // uvx: run Python CLI tools in isolated, ephemeral uv-managed environments
+        "uvx" => Ok(Box::new(UvxInstaller::new())),
 
         // Node.js ecosystem
         "npm" | "node" => Ok(Box::new(NpmInstaller::new())),
@@ -109,7 +111,7 @@ pub fn get_installer(ecosystem: &str) -> anyhow::Result<Box<dyn EcosystemInstall
         "choco" | "chocolatey" => Ok(Box::new(ChocoInstaller::new())),
 
         _ => bail!(
-            "Unsupported ecosystem: {}. Supported: pip, uv, npm, bun, yarn, pnpm, cargo, go, gem, choco",
+            "Unsupported ecosystem: {}. Supported: pip, uv, uvx, npm, bun, yarn, pnpm, cargo, go, gem, choco",
             ecosystem
         ),
     }

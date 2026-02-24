@@ -1,4 +1,4 @@
-# provider.star - Azure CLI provider
+﻿# provider.star - Azure CLI provider
 #
 # Version source: https://github.com/Azure/azure-cli/releases
 #
@@ -9,31 +9,18 @@
 
 load("@vx//stdlib:github.star", "make_fetch_versions")
 load("@vx//stdlib:install.star", "set_permissions")
+load("@vx//stdlib:env.star", "env_prepend")
 
 # ---------------------------------------------------------------------------
 # Provider metadata
 # ---------------------------------------------------------------------------
-
-def name():
-    return "azcli"
-
-def description():
-    return "Azure CLI - Command-line interface for Microsoft Azure"
-
-def homepage():
-    return "https://docs.microsoft.com/cli/azure/"
-
-def repository():
-    return "https://github.com/Azure/azure-cli"
-
-def license():
-    return "MIT"
-
-def ecosystem():
-    return "cloud"
-
-def aliases():
-    return ["azure-cli"]
+name        = "azcli"
+description = "Azure CLI - Command-line interface for Microsoft Azure"
+homepage    = "https://docs.microsoft.com/cli/azure/"
+repository  = "https://github.com/Azure/azure-cli"
+license     = "MIT"
+ecosystem   = "cloud"
+aliases     = ["azure-cli"]
 
 # ---------------------------------------------------------------------------
 # Runtime definitions
@@ -46,6 +33,9 @@ runtimes = [
         "description": "Azure Command Line Interface",
         "aliases":     ["azcli", "azure-cli"],
         "priority":    100,
+        "test_commands": [
+            {"command": "{executable} --version", "name": "version_check", "expected_output": "azure-cli"},
+        ],
     },
 ]
 
@@ -75,8 +65,8 @@ def download_url(ctx, version):
     Linux: official tar.gz from GitHub releases
     Windows/macOS: use system_install (MSI not supported by vx-installer)
     """
-    os   = ctx["platform"]["os"]
-    arch = ctx["platform"]["arch"]
+    os   = ctx.platform.os
+    arch = ctx.platform.arch
 
     if os == "linux":
         # Azure CLI Linux release: azure-cli-{version}-1.el9.x86_64.rpm or tar.gz
@@ -93,7 +83,7 @@ def download_url(ctx, version):
 # install_layout
 # ---------------------------------------------------------------------------
 
-def install_layout(ctx, version):
+def install_layout(_ctx, _version):
     return {
         "type":             "archive",
         "strip_prefix":     "",
@@ -104,15 +94,15 @@ def install_layout(ctx, version):
 # environment
 # ---------------------------------------------------------------------------
 
-def environment(ctx, version, install_dir):
-    return {"PATH": install_dir + "/bin"}
+def environment(ctx, _version):
+    return [env_prepend("PATH", ctx.install_dir + "/bin")]
 
 # ---------------------------------------------------------------------------
 # system_install — preferred on Windows and macOS
 # ---------------------------------------------------------------------------
 
 def system_install(ctx):
-    os = ctx["platform"]["os"]
+    os = ctx.platform.os
     if os == "windows":
         return {
             "strategies": [
@@ -155,7 +145,7 @@ def post_extract(ctx, version, install_dir):
     Returns:
         List of post-extract actions
     """
-    os = ctx["platform"]["os"]
+    os = ctx.platform.os
     if os == "linux" or os == "macos":
         return [
             set_permissions("bin/az", "755"),
@@ -166,7 +156,7 @@ def post_extract(ctx, version, install_dir):
 # deps
 # ---------------------------------------------------------------------------
 
-def deps(ctx, version):
+def deps(_ctx, _version):
     return []
 
 
@@ -176,33 +166,16 @@ def deps(ctx, version):
 
 def store_root(ctx):
     """Return the vx store root directory for azcli."""
-    return "{vx_home}/store/azcli"
+    return ctx.vx_home + "/store/azcli"
 
 def get_execute_path(ctx, version):
     """Return the executable path for the given version."""
-    os = ctx["platform"]["os"]
+    os = ctx.platform.os
     if os == "windows":
-        return "{install_dir}/az.exe"
+        return ctx.install_dir + "/az.exe"
     else:
-        return "{install_dir}/az"
+        return ctx.install_dir + "/az"
 
-def post_install(ctx, version, install_dir):
+def post_install(_ctx, _version):
     """Post-install hook (no-op for azcli)."""
-    return None
-
-# ---------------------------------------------------------------------------
-# Path queries (RFC 0037)
-# ---------------------------------------------------------------------------
-
-def store_root(ctx):
-    return "{vx_home}/store/azcli"
-
-def get_execute_path(ctx, version):
-    os = ctx["platform"]["os"]
-    if os == "windows":
-        return "{install_dir}/az.exe"
-    else:
-        return "{install_dir}/az"
-
-def post_install(ctx, version, install_dir):
     return None

@@ -1,7 +1,7 @@
 //! dagu provider implementation
 
 use std::sync::Arc;
-use vx_runtime::{ManifestDrivenRuntime, ProviderSource, Runtime, provider::Provider};
+use vx_runtime::{Runtime, provider::Provider};
 
 /// dagu provider (Starlark-driven)
 #[derive(Debug, Default)]
@@ -13,18 +13,11 @@ impl Provider for DaguProvider {
     }
 
     fn description(&self) -> &str {
-        crate::star_metadata().description_or("Dagu - A No-code workflow runner")
+        crate::star_metadata().description_or("Dagu - Cron alternative with a Web UI")
     }
 
     fn runtimes(&self) -> Vec<Arc<dyn Runtime>> {
-        vec![Arc::new(
-            ManifestDrivenRuntime::new("dagu", "dagu", ProviderSource::BuiltIn)
-                .with_description("Dagu - A No-code workflow runner")
-                .with_fetch_versions(vx_starlark::make_fetch_versions_fn(
-                    "dagu",
-                    crate::PROVIDER_STAR,
-                )),
-        )]
+        vx_starlark::build_runtimes("dagu", crate::PROVIDER_STAR, None)
     }
 }
 

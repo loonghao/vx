@@ -1,4 +1,4 @@
-# provider.star - kubectl provider
+﻿# provider.star - kubectl provider
 #
 # Inheritance pattern:
 #   - fetch_versions: inherited from @vx//stdlib:github.star
@@ -8,30 +8,17 @@
 
 load("@vx//stdlib:github.star", "make_fetch_versions")
 
+load("@vx//stdlib:env.star", "env_prepend")
 # ---------------------------------------------------------------------------
 # Provider metadata
 # ---------------------------------------------------------------------------
-
-def name():
-    return "kubectl"
-
-def description():
-    return "kubectl - The Kubernetes command-line tool"
-
-def homepage():
-    return "https://kubernetes.io/docs/reference/kubectl/"
-
-def repository():
-    return "https://github.com/kubernetes/kubectl"
-
-def license():
-    return "Apache-2.0"
-
-def ecosystem():
-    return "devtools"
-
-def aliases():
-    return ["kube", "k"]
+name        = "kubectl"
+description = "kubectl - The Kubernetes command-line tool"
+homepage    = "https://kubernetes.io/docs/reference/kubectl/"
+repository  = "https://github.com/kubernetes/kubectl"
+license     = "Apache-2.0"
+ecosystem   = "devtools"
+aliases     = ["kube", "k"]
 
 # ---------------------------------------------------------------------------
 # Runtime definitions
@@ -44,6 +31,9 @@ runtimes = [
         "description": "Kubernetes command-line tool",
         "aliases":     ["kube", "k"],
         "priority":    100,
+        "test_commands": [
+            {"command": "{executable} version --client", "name": "version_check", "expected_output": "Client Version"},
+        ],
     },
 ]
 
@@ -73,8 +63,8 @@ fetch_versions = make_fetch_versions("kubernetes", "kubectl")
 
 def _kubectl_platform(ctx):
     """Map platform to kubectl's os/arch strings."""
-    os   = ctx["platform"]["os"]
-    arch = ctx["platform"]["arch"]
+    os   = ctx.platform.os
+    arch = ctx.platform.arch
 
     os_map = {
         "windows": "windows",
@@ -111,7 +101,7 @@ def download_url(ctx, version):
     if not os_str:
         return None
 
-    os = ctx["platform"]["os"]
+    os = ctx.platform.os
     exe = ".exe" if os == "windows" else ""
 
     return "https://dl.k8s.io/release/v{}/bin/{}/{}/kubectl{}".format(
@@ -122,8 +112,8 @@ def download_url(ctx, version):
 # install_layout — single binary, no archive
 # ---------------------------------------------------------------------------
 
-def install_layout(ctx, version):
-    os  = ctx["platform"]["os"]
+def install_layout(ctx, _version):
+    os  = ctx.platform.os
     exe = "kubectl.exe" if os == "windows" else "kubectl"
     return {
         "type":             "binary",
@@ -136,15 +126,15 @@ def install_layout(ctx, version):
 
 def store_root(ctx):
     """Return the vx store root directory for kubectl."""
-    return "{vx_home}/store/kubectl"
+    return ctx.vx_home + "/store/kubectl"
 
 def get_execute_path(ctx, version):
     """Return the executable path for the given version."""
-    os = ctx["platform"]["os"]
+    os = ctx.platform.os
     exe = "kubectl.exe" if os == "windows" else "kubectl"
-    return "{install_dir}/" + exe
+    return ctx.install_dir + "/" + exe
 
-def post_install(ctx, version, install_dir):
+def post_install(_ctx, _version):
     """No post-install steps needed for kubectl."""
     return None
 
@@ -152,7 +142,5 @@ def post_install(ctx, version, install_dir):
 # environment
 # ---------------------------------------------------------------------------
 
-def environment(ctx, version, install_dir):
-    return {
-        "PATH": install_dir,
-    }
+def environment(ctx, _version):
+    return [env_prepend("PATH", ctx.install_dir)]

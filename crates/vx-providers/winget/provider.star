@@ -1,4 +1,4 @@
-# provider.star - winget provider
+﻿# provider.star - winget provider
 #
 # Windows Package Manager - Official package manager for Windows
 # Inheritance pattern: Level 2 (custom download_url for msixbundle)
@@ -13,24 +13,12 @@ load("@vx//stdlib:github.star", "make_fetch_versions", "github_asset_url")
 # ---------------------------------------------------------------------------
 # Provider metadata
 # ---------------------------------------------------------------------------
-
-def name():
-    return "winget"
-
-def description():
-    return "Windows Package Manager - Official package manager for Windows"
-
-def homepage():
-    return "https://learn.microsoft.com/windows/package-manager/"
-
-def repository():
-    return "https://github.com/microsoft/winget-cli"
-
-def license():
-    return "MIT"
-
-def ecosystem():
-    return "system"
+name        = "winget"
+description = "Windows Package Manager - Official package manager for Windows"
+homepage    = "https://learn.microsoft.com/windows/package-manager/"
+repository  = "https://github.com/microsoft/winget-cli"
+license     = "MIT"
+ecosystem   = "system"
 
 # ---------------------------------------------------------------------------
 # Platform constraint: Windows-only
@@ -55,6 +43,9 @@ runtimes = [
         "priority":    100,
         "system_paths": [
             "C:/Users/*/AppData/Local/Microsoft/WindowsApps/winget.exe",
+        ],
+        "test_commands": [
+            {"command": "{executable} --version", "name": "version_check", "expected_output": "v\\d+\\.\\d+"},
         ],
     },
 ]
@@ -92,7 +83,7 @@ def download_url(ctx, version):
     Returns:
         Download URL string, or None if not Windows
     """
-    os = ctx["platform"]["os"]
+    os = ctx.platform.os
     if os != "windows":
         return None
 
@@ -104,7 +95,7 @@ def download_url(ctx, version):
 # script_install — PowerShell installation
 # ---------------------------------------------------------------------------
 
-def script_install(ctx):
+def script_install(_ctx):
     """Return the PowerShell install command for winget."""
     return {
         "command": """
@@ -126,13 +117,13 @@ def store_root(ctx):
 
     winget is a Windows system tool; it is not directly installed by vx.
     """
-    return "{vx_home}/store/winget"
+    return ctx.vx_home + "/store/winget"
 
-def get_execute_path(ctx, version):
+def get_execute_path(_ctx, _version):
     """Return the executable path for winget (Windows-only)."""
     return "C:/Users/*/AppData/Local/Microsoft/WindowsApps/winget.exe"
 
-def post_install(ctx, version, install_dir):
+def post_install(_ctx, _version):
     """No post-install actions needed — system package via msixbundle."""
     return None
 
@@ -140,5 +131,5 @@ def post_install(ctx, version, install_dir):
 # environment
 # ---------------------------------------------------------------------------
 
-def environment(ctx, version, install_dir):
-    return {}
+def environment(_ctx, _version):
+    return []

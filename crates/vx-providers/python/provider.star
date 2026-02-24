@@ -1,4 +1,4 @@
-# provider.star - Python provider
+﻿# provider.star - Python provider
 #
 # Version source: GitHub releases of python-build-standalone
 #   https://github.com/astral-sh/python-build-standalone/releases
@@ -10,32 +10,20 @@
 #
 # Inheritance pattern: Level 2 (custom fetch_versions + download_url)
 
-load("@vx//stdlib:github.star", "make_fetch_versions", "github_asset_url")
+load("@vx//stdlib:http.star",     "fetch_json_versions")
+load("@vx//stdlib:github.star",   "github_asset_url")
+load("@vx//stdlib:env.star",      "env_set", "env_prepend")
 
 # ---------------------------------------------------------------------------
 # Provider metadata
 # ---------------------------------------------------------------------------
-
-def name():
-    return "python"
-
-def description():
-    return "Python - A programming language that lets you work quickly and integrate systems more effectively"
-
-def homepage():
-    return "https://www.python.org"
-
-def repository():
-    return "https://github.com/python/cpython"
-
-def license():
-    return "PSF-2.0"
-
-def ecosystem():
-    return "python"
-
-def aliases():
-    return ["python3", "py"]
+name        = "python"
+description = "Python - A programming language that lets you work quickly and integrate systems more effectively"
+homepage    = "https://www.python.org"
+repository  = "https://github.com/python/cpython"
+license     = "PSF-2.0"
+ecosystem   = "python"
+aliases     = ["python3", "py"]
 
 # ---------------------------------------------------------------------------
 # Runtime definitions
@@ -48,6 +36,10 @@ runtimes = [
         "description": "Python programming language runtime",
         "aliases":     ["python3", "py"],
         "priority":    100,
+        "test_commands": [
+            {"command": "{executable} --version", "name": "version_check", "expected_output": "Python \\d+\\.\\d+"},
+            {"command": "{executable} -c \"import sys; print(sys.version)\"", "name": "eval_check"},
+        ],
     },
     {
         "name":        "pip",
@@ -55,6 +47,9 @@ runtimes = [
         "description": "Python package installer (bundled with Python)",
         "aliases":     ["pip3"],
         "bundled_with": "python",
+        "test_commands": [
+            {"command": "{executable} --version", "name": "version_check", "expected_output": "pip \\d+"},
+        ],
     },
 ]
 
@@ -71,50 +66,29 @@ permissions = {
 # ---------------------------------------------------------------------------
 # fetch_versions — python-build-standalone GitHub releases
 #
-# Tag format: "20240107" (date-based), asset names encode Python version:
+# Uses the fetch_json_versions descriptor with the "python_build_standalone"
+# transform strategy. The Rust runtime fetches the GitHub releases API and
+# extracts Python versions from asset names:
 #   cpython-3.12.1+20240107-x86_64-pc-windows-msvc-install_only_stripped.tar.gz
-# We extract the Python version from asset names.
+# The build tag (date) is stored in the version's date field.
 # ---------------------------------------------------------------------------
 
-def fetch_versions(ctx):
+def fetch_versions(_vx_ctx):
     """Fetch Python versions from python-build-standalone GitHub releases."""
-    releases = ctx["http"]["get_json"](
-        "https://api.github.com/repos/astral-sh/python-build-standalone/releases?per_page=50"
+    return fetch_json_versions(
+        _vx_ctx,
+        "https://api.github.com/repos/astral-sh/python-build-standalone/releases?per_page=50",
+        "python_build_standalone",
     )
-
-    versions = {}
-    for release in releases:
-        if release.get("draft") or release.get("prerelease"):
-            continue
-        for asset in release.get("assets", []):
-            asset_name = asset.get("name", "")
-            # Parse: cpython-3.12.1+20240107-x86_64-...
-            if asset_name.startswith("cpython-") and "install_only" in asset_name:
-                # Extract version: "3.12.1" from "cpython-3.12.1+20240107-..."
-                rest = asset_name[len("cpython-"):]
-                plus_idx = rest.find("+")
-                if plus_idx > 0:
-                    py_version = rest[:plus_idx]
-                    if py_version not in versions:
-                        # Use release tag as the build date
-                        tag = release.get("tag_name", "")
-                        versions[py_version] = {
-                            "version":    py_version,
-                            "lts":        py_version.startswith("3."),
-                            "prerelease": False,
-                            "build_tag":  tag,
-                        }
-
-    return list(versions.values())
 
 # ---------------------------------------------------------------------------
 # download_url — python-build-standalone asset
 # ---------------------------------------------------------------------------
 
-def _pbs_triple(ctx):
+def _pbs_triple(vx_ctx):
     """Map vx platform to python-build-standalone triple."""
-    os   = ctx["platform"]["os"]
-    arch = ctx["platform"]["arch"]
+    os   = vx_ctx.platform.os
+    arch = vx_ctx.platform.arch
 
     triples = {
         "windows/x64":   "x86_64-pc-windows-msvc",
@@ -125,46 +99,35 @@ def _pbs_triple(ctx):
     }
     return triples.get("{}/{}".format(os, arch))
 
-def download_url(ctx, version):
+def download_url(vx_ctx, version):
     """Build the python-build-standalone download URL.
 
     Args:
-        ctx:     Provider context
+        vx_ctx:  Provider context (vx_ctx.version_date contains the build tag)
         version: Python version string, e.g. "3.12.1"
 
     Returns:
         Download URL string, or None if platform is unsupported
     """
-    triple = _pbs_triple(ctx)
+    triple = _pbs_triple(vx_ctx)
     if not triple:
         return None
 
-    # We need to find the latest release tag for this Python version
-    # Query the releases to find the matching asset
-    releases = ctx["http"]["get_json"](
-        "https://api.github.com/repos/astral-sh/python-build-standalone/releases?per_page=50"
-    )
+    # The build tag (date like "20240107") is stored in vx_ctx.version_date
+    # by the Rust runtime when it resolves the python_build_standalone descriptor.
+    build_tag = vx_ctx.version_date
+    if not build_tag:
+        return None
 
-    for release in releases:
-        if release.get("draft") or release.get("prerelease"):
-            continue
-        tag = release.get("tag_name", "")
-        for asset in release.get("assets", []):
-            asset_name = asset.get("name", "")
-            # Match: cpython-{version}+{date}-{triple}-install_only_stripped.tar.gz
-            expected_prefix = "cpython-{}+".format(version)
-            expected_suffix = "-{}-install_only_stripped.tar.gz".format(triple)
-            if asset_name.startswith(expected_prefix) and asset_name.endswith(expected_suffix):
-                return asset.get("browser_download_url")
-
-    return None
+    asset = "cpython-{}+{}-{}-install_only_stripped.tar.gz".format(version, build_tag, triple)
+    return github_asset_url("astral-sh", "python-build-standalone", build_tag, asset)
 
 # ---------------------------------------------------------------------------
 # install_layout
 # ---------------------------------------------------------------------------
 
-def install_layout(ctx, version):
-    os = ctx["platform"]["os"]
+def install_layout(vx_ctx, _version):
+    os = vx_ctx.platform.os
 
     if os == "windows":
         exe_paths = ["python/python.exe", "python.exe"]
@@ -181,36 +144,36 @@ def install_layout(ctx, version):
 # environment
 # ---------------------------------------------------------------------------
 
-def environment(ctx, version, install_dir):
-    os = ctx["platform"]["os"]
+def environment(vx_ctx, _version):
+    os = vx_ctx.platform.os
     if os == "windows":
-        return {
-            "PYTHONHOME": install_dir + "/python",
-            "PATH":       install_dir + "/python",
-        }
+        return [
+            env_set("PYTHONHOME", vx_ctx.install_dir + "/python"),
+            env_prepend("PATH", vx_ctx.install_dir + "/python"),
+        ]
     else:
-        return {
-            "PYTHONHOME": install_dir + "/python",
-            "PATH":       install_dir + "/python/bin",
-        }
+        return [
+            env_set("PYTHONHOME", vx_ctx.install_dir + "/python"),
+            env_prepend("PATH", vx_ctx.install_dir + "/python/bin"),
+        ]
 
 # ---------------------------------------------------------------------------
 # Path queries (RFC-0037)
 # ---------------------------------------------------------------------------
 
-def store_root(ctx):
+def store_root(vx_ctx):
     """Return the vx store root directory for python."""
-    return "{vx_home}/store/python"
+    return vx_ctx.vx_home + "/store/python"
 
-def get_execute_path(ctx, version):
+def get_execute_path(vx_ctx, version):
     """Return the executable path for the given version."""
-    os = ctx["platform"]["os"]
+    os = vx_ctx.platform.os
     if os == "windows":
-        return "{install_dir}/python/python.exe"
+        return vx_ctx.install_dir + "/python/python.exe"
     else:
-        return "{install_dir}/python/bin/python3"
+        return vx_ctx.install_dir + "/python/bin/python3"
 
-def post_install(ctx, version, install_dir):
+def post_install(_vx_ctx, _version):
     """No post-install steps needed for python."""
     return None
 
@@ -218,7 +181,7 @@ def post_install(ctx, version, install_dir):
 # deps
 # ---------------------------------------------------------------------------
 
-def deps(ctx, version):
+def deps(_vx_ctx, version):
     """Python recommends uv for package management."""
     return [
         {"runtime": "uv", "version": "*", "optional": True,

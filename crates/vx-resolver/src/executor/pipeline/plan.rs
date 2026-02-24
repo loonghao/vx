@@ -114,6 +114,9 @@ pub struct PlannedRuntime {
 
     /// Installation directory (populated after Ensure stage)
     pub install_dir: Option<PathBuf>,
+
+    /// Command prefix to prepend before user args (e.g., ["x"] for bunx -> bun x)
+    pub command_prefix: Vec<String>,
 }
 
 impl PlannedRuntime {
@@ -131,6 +134,7 @@ impl PlannedRuntime {
             status,
             executable: None,
             install_dir: None,
+            command_prefix: Vec::new(),
         }
     }
 
@@ -145,6 +149,7 @@ impl PlannedRuntime {
             status: InstallStatus::Installed,
             executable: Some(executable),
             install_dir: None,
+            command_prefix: Vec::new(),
         }
     }
 
@@ -156,6 +161,7 @@ impl PlannedRuntime {
             status: InstallStatus::NeedsInstall,
             executable: None,
             install_dir: None,
+            command_prefix: Vec::new(),
         }
     }
 
@@ -167,6 +173,7 @@ impl PlannedRuntime {
             status: InstallStatus::PlatformUnsupported { reason },
             executable: None,
             install_dir: None,
+            command_prefix: Vec::new(),
         }
     }
 

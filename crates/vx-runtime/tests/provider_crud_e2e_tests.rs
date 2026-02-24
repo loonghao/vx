@@ -14,17 +14,16 @@ use std::path::Path;
 
 use tempfile::TempDir;
 use vx_manifest::{Ecosystem, ManifestLoader, ProviderManifest};
-use vx_runtime::ManifestRegistry;
 
 // ============================================
 // Test Utilities
 // ============================================
 
-/// Write a provider.toml file to disk
-fn write_provider_toml(dir: &Path, name: &str, content: &str) {
+/// Write a provider.star file to disk
+fn write_provider_star(dir: &Path, name: &str, content: &str) {
     let provider_dir = dir.join(name);
     fs::create_dir_all(&provider_dir).expect("Failed to create provider directory");
-    fs::write(provider_dir.join("provider.toml"), content).expect("Failed to write provider.toml");
+    fs::write(provider_dir.join("provider.star"), content).expect("Failed to write provider.star");
 }
 
 /// Write an override file to disk
@@ -203,7 +202,7 @@ mod read_tests {
         assert!(nodejs_providers.contains(&"node".to_string()));
     }
 
-    /// Test ManifestRegistry can load and query all providers
+    /// Test loading all providers via ManifestLoader
     #[test]
     fn test_manifest_registry_loads_all_providers() {
         let providers_dir = Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -211,24 +210,24 @@ mod read_tests {
             .unwrap()
             .join("vx-providers");
 
-        let mut registry = ManifestRegistry::new();
-        let count = registry
-            .load_from_directory(&providers_dir)
+        let mut loader = ManifestLoader::new();
+        let count = loader
+            .load_from_dir(&providers_dir)
             .expect("Failed to load");
 
         assert!(count >= 30);
 
-        // Test get_runtime_metadata
-        let node_meta = registry.get_runtime_metadata("node");
-        assert!(node_meta.is_some());
-        let meta = node_meta.unwrap();
-        assert_eq!(meta.name, "node");
-        assert_eq!(meta.provider_name, "node");
+        // Test get_runtime via find_runtime
+        let node_result = loader.find_runtime("node");
+        assert!(node_result.is_some());
+        let (manifest, runtime) = node_result.unwrap();
+        assert_eq!(runtime.name, "node");
+        assert_eq!(manifest.provider.name, "node");
 
-        // Test get_supported_runtimes
-        let supported = registry.get_supported_runtimes();
-        assert!(!supported.is_empty());
-        println!("Supported runtimes on this platform: {}", supported.len());
+        // Test all providers are accessible
+        let all: Vec<_> = loader.all().collect();
+        assert!(!all.is_empty());
+        println!("Supported runtimes on this platform: {}", all.len());
     }
 }
 
@@ -245,19 +244,21 @@ mod create_tests {
         let temp_dir = TempDir::new().expect("Failed to create temp dir");
 
         let custom_provider = r#"
-[provider]
 name = "my-custom-tool"
 description = "My custom development tool"
 ecosystem = "nodejs"
 
-[[runtimes]]
-name = "my-tool"
-description = "Custom tool runtime"
-executable = "my-tool"
-aliases = ["mt"]
-priority = 50
+runtimes = [
+    {
+        "name":       "my-tool",
+        "executable": "my-tool",
+        "description": "Custom tool runtime",
+        "aliases":    ["mt"],
+        "priority":   50,
+    },
+]
 "#;
-        write_provider_toml(temp_dir.path(), "my-custom-tool", custom_provider);
+        write_provider_star(temp_dir.path(), "my-custom-tool", custom_provider);
 
         let mut loader = ManifestLoader::new();
         let count = loader
@@ -287,16 +288,15 @@ priority = 50
             .load_from_dir(&providers_dir)
             .expect("Failed to load builtin");
 
-        // Then add custom
+        // Then add custom (using .star format)
         let custom = r#"
-[provider]
 name = "custom-addon"
 
-[[runtimes]]
-name = "addon-cli"
-executable = "addon"
+runtimes = [
+    {"name": "addon-cli", "executable": "addon"},
+]
 "#;
-        write_provider_toml(temp_dir.path(), "custom-addon", custom);
+        write_provider_star(temp_dir.path(), "custom-addon", custom);
         let custom_count = loader
             .load_from_dir(temp_dir.path())
             .expect("Failed to load custom");
@@ -318,6 +318,8 @@ mod update_tests {
     use super::*;
 
     /// Test overriding a builtin provider's constraints
+    /// Note: yarn provider is now a .star file, but override files are still TOML.
+    /// The override applies to the runtime with the same name as the provider.
     #[test]
     fn test_override_provider_constraints() {
         let temp_dir = TempDir::new().expect("Failed to create temp dir");
@@ -331,7 +333,13 @@ mod update_tests {
             .load_from_dir(&providers_dir)
             .expect("Failed to load builtin");
 
-        // Create an override for yarn
+        // Verify yarn was loaded from .star file
+        assert!(
+            loader.get("yarn").is_some(),
+            "yarn provider should be loaded from .star"
+        );
+
+        // Create an override for yarn (override files are still TOML)
         let override_content = r#"
 [[constraints]]
 when = "^1"
@@ -364,16 +372,15 @@ requires = [
         let user_dir = TempDir::new().expect("Failed to create user dir");
         let project_dir = TempDir::new().expect("Failed to create project dir");
 
-        // Create base provider - runtime name MUST match provider name for default override to apply
+        // Create base provider using .star format - runtime name MUST match provider name
         let base = r#"
-[provider]
 name = "mytool"
 
-[[runtimes]]
-name = "mytool"
-executable = "mytool"
+runtimes = [
+    {"name": "mytool", "executable": "mytool"},
+]
 "#;
-        write_provider_toml(user_dir.path(), "mytool", base);
+        write_provider_star(user_dir.path(), "mytool", base);
 
         // User-level override adds a constraint (applies to runtime with same name as provider)
         let user_override = r#"
@@ -439,18 +446,16 @@ requires = [{ runtime = "node", version = ">=18" }]
         let original_node = loader.get("node").unwrap();
         let original_desc = original_node.provider.description.clone();
 
-        // Replace node provider with custom version
+        // Replace node provider with custom version (using .star format)
         let custom_node = r#"
-[provider]
 name = "node"
 description = "Custom Node.js distribution"
 
-[[runtimes]]
-name = "node"
-executable = "node"
-description = "Custom node runtime"
+runtimes = [
+    {"name": "node", "executable": "node", "description": "Custom node runtime"},
+]
 "#;
-        write_provider_toml(temp_dir.path(), "node", custom_node);
+        write_provider_star(temp_dir.path(), "node", custom_node);
         loader.load_from_dir(temp_dir.path()).unwrap();
 
         let replaced = loader.get("node").unwrap();
@@ -474,7 +479,7 @@ mod delete_tests {
     fn test_provider_replacement_acts_as_delete() {
         let mut loader = ManifestLoader::new();
 
-        // Insert first version
+        // Insert first version (using TOML format via ProviderManifest::parse)
         let v1 = ProviderManifest::parse(
             r#"
 [provider]
@@ -523,7 +528,7 @@ executable = "tool-v2"
 
         let mut loader = ManifestLoader::new();
 
-        // Simulate embedded manifest
+        // Simulate embedded manifest (TOML format via load_embedded)
         let embedded = vec![(
             "test-provider",
             r#"
@@ -543,17 +548,16 @@ executable = "test"
             Some("Embedded version".to_string())
         );
 
-        // Directory version should replace
+        // Directory version should replace (using .star format)
         let dir_version = r#"
-[provider]
 name = "test-provider"
 description = "Directory version"
 
-[[runtimes]]
-name = "test"
-executable = "test-new"
+runtimes = [
+    {"name": "test", "executable": "test-new"},
+]
 "#;
-        write_provider_toml(temp_dir.path(), "test-provider", dir_version);
+        write_provider_star(temp_dir.path(), "test-provider", dir_version);
         loader.load_from_dir(temp_dir.path()).unwrap();
 
         let manifest = loader.get("test-provider").unwrap();
@@ -577,21 +581,16 @@ mod integration_tests {
         let temp_dir = TempDir::new().expect("Failed to create temp dir");
         let mut loader = ManifestLoader::new();
 
-        // CREATE: Add a new provider
+        // CREATE: Add a new provider (using .star format)
         let new_provider = r#"
-[provider]
 name = "workflow-test"
 description = "Initial version"
 
-[[runtimes]]
-name = "workflow-cli"
-executable = "workflow"
-
-[[runtimes.constraints]]
-when = "*"
-requires = [{ runtime = "node", version = ">=12" }]
+runtimes = [
+    {"name": "workflow-cli", "executable": "workflow"},
+]
 "#;
-        write_provider_toml(temp_dir.path(), "workflow-test", new_provider);
+        write_provider_star(temp_dir.path(), "workflow-test", new_provider);
         loader.load_from_dir(temp_dir.path()).unwrap();
 
         // READ: Verify it was created
@@ -601,7 +600,7 @@ requires = [{ runtime = "node", version = ">=12" }]
             Some("Initial version".to_string())
         );
 
-        // UPDATE: Override constraints
+        // UPDATE: Override constraints (override files are still TOML)
         let override_content = r#"
 [[constraints]]
 when = "*"
@@ -612,17 +611,16 @@ requires = [{ runtime = "node", version = ">=18" }]
 
         // DELETE (via replacement): Replace with new version
         let updated_provider = r#"
-[provider]
 name = "workflow-test"
 description = "Updated version"
 
-[[runtimes]]
-name = "workflow-cli"
-executable = "workflow-v2"
+runtimes = [
+    {"name": "workflow-cli", "executable": "workflow-v2"},
+]
 "#;
         // Remove old and write new
         fs::remove_dir_all(temp_dir.path().join("workflow-test")).unwrap();
-        write_provider_toml(temp_dir.path(), "workflow-test", updated_provider);
+        write_provider_star(temp_dir.path(), "workflow-test", updated_provider);
 
         // Reload
         let mut new_loader = ManifestLoader::new();

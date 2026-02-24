@@ -1,32 +1,26 @@
 //! vscode provider implementation
 
 use std::sync::Arc;
-use vx_runtime::{ManifestDrivenRuntime, ProviderSource, Runtime, provider::Provider};
+use vx_runtime::{Runtime, provider::Provider};
 
 /// vscode provider (Starlark-driven)
 #[derive(Debug, Default)]
-pub struct VsCodeProvider;
+pub struct VscodeProvider;
 
-impl Provider for VsCodeProvider {
+impl Provider for VscodeProvider {
     fn name(&self) -> &str {
         crate::star_metadata().name_or("vscode")
     }
 
     fn description(&self) -> &str {
-        crate::star_metadata().description_or("Visual Studio Code - Code editing. Redefined.")
+        crate::star_metadata().description_or("Visual Studio Code")
     }
 
     fn runtimes(&self) -> Vec<Arc<dyn Runtime>> {
-        vec![Arc::new(
-            ManifestDrivenRuntime::new("code", "code", ProviderSource::BuiltIn)
-                .with_fetch_versions(vx_starlark::make_fetch_versions_fn(
-                    "vscode",
-                    crate::PROVIDER_STAR,
-                )),
-        )]
+        vx_starlark::build_runtimes("vscode", crate::PROVIDER_STAR, None)
     }
 }
 
 pub fn create_provider() -> Arc<dyn Provider> {
-    Arc::new(VsCodeProvider)
+    Arc::new(VscodeProvider)
 }

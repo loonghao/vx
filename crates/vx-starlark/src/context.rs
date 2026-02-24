@@ -288,6 +288,14 @@ pub struct ProviderContext {
 
     /// Whether verbose logging is enabled
     pub verbose: bool,
+
+    /// Provider description (exposed as ctx.description)
+    pub description: String,
+
+    /// Build tag / release date for the resolved version (e.g. "20240107" for python-build-standalone).
+    /// Set by the Rust runtime when it resolves a version that has a `date` field.
+    /// Exposed to Starlark as `vx_ctx.version_date`.
+    pub version_date: Option<String>,
 }
 
 impl ProviderContext {
@@ -300,7 +308,15 @@ impl ProviderContext {
             env: HashMap::new(),
             dry_run: false,
             verbose: false,
+            description: String::new(),
+            version_date: None,
         }
+    }
+
+    /// Set provider description
+    pub fn with_description(mut self, description: &str) -> Self {
+        self.description = description.to_string();
+        self
     }
 
     /// Set sandbox configuration
@@ -312,6 +328,14 @@ impl ProviderContext {
     /// Set version
     pub fn with_version(mut self, version: &str) -> Self {
         self.paths = self.paths.with_version(version);
+        self
+    }
+
+    /// Set the build tag / release date for the resolved version.
+    /// Used by providers like python-build-standalone where the download URL
+    /// requires a date-based release tag (e.g. "20240107").
+    pub fn with_version_date(mut self, date: impl Into<String>) -> Self {
+        self.version_date = Some(date.into());
         self
     }
 

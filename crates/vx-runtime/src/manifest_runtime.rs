@@ -20,6 +20,7 @@ use async_trait::async_trait;
 use tracing::{debug, info, warn};
 
 use crate::{Ecosystem, InstallResult, Platform, Runtime, RuntimeContext, VersionInfo};
+use vx_runtime_core::{MirrorConfig, NormalizeConfig};
 use vx_system_pm::{PackageInstallSpec, PackageManagerRegistry};
 
 /// Source of a provider
@@ -55,6 +56,30 @@ pub type FetchVersionsFn = Arc<
         + Sync,
 >;
 
+/// Type alias for an async download_url function injected from Starlark providers.
+///
+/// Signature: `(version: String) -> Option<String>`
+pub type DownloadUrlFn = Arc<
+    dyn Fn(
+            String,
+        )
+            -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<Option<String>>> + Send>>
+        + Send
+        + Sync,
+>;
+
+/// Type alias for an async install_layout function injected from Starlark providers.
+///
+/// Returns a serialized JSON value describing the install layout, or `None`.
+pub type InstallLayoutFn = Arc<
+    dyn Fn(
+            String,
+        ) -> std::pin::Pin<
+            Box<dyn std::future::Future<Output = Result<Option<serde_json::Value>>> + Send>,
+        > + Send
+        + Sync,
+>;
+
 /// A runtime driven by manifest configuration (provider.toml)
 ///
 /// This is used for system tools that don't require strict version management.
@@ -74,6 +99,8 @@ pub struct ManifestDrivenRuntime {
     pub executable: String,
     /// Aliases
     pub aliases: Vec<String>,
+    /// Ecosystem (e.g. NodeJs, Python, Go)
+    pub ecosystem_override: Option<Ecosystem>,
     /// If bundled with another runtime (affects store_name)
     pub bundled_with: Option<String>,
     /// Provider name
@@ -89,15 +116,51 @@ pub struct ManifestDrivenRuntime {
     /// System dependencies
     pub system_deps: Option<SystemDepsConfig>,
     /// Post-install normalize configuration (RFC 0022)
-    pub normalize: Option<vx_manifest::NormalizeConfig>,
+    pub normalize: Option<NormalizeConfig>,
     /// Mirror configurations from provider.toml (RFC 0018)
-    pub mirrors: Vec<vx_manifest::MirrorConfig>,
+    pub mirrors: Vec<MirrorConfig>,
     /// Optional Starlark-driven fetch_versions implementation.
     ///
     /// When set, `fetch_versions()` delegates to this function instead of
     /// returning the default `["system"]` placeholder.  Injected by
     /// provider crates that have a `provider.star` with `fetch_versions`.
     pub fetch_versions_fn: Option<FetchVersionsFn>,
+
+    /// Optional Starlark-driven download_url implementation.
+    ///
+    /// When set, `download_url()` delegates to this function instead of
+    /// scanning `install_strategies` for a `DirectDownload` entry.
+    pub download_url_fn: Option<DownloadUrlFn>,
+
+    /// Optional Starlark-driven install_layout implementation.
+    ///
+    /// When set, the `install()` method uses the returned layout descriptor
+    /// (strip_prefix, executable_paths, etc.) instead of the default logic.
+    pub install_layout_fn: Option<InstallLayoutFn>,
+
+    /// Optional pip package name.
+    ///
+    /// When set, `install()` will use `uv pip install <pip_package>==<version>`
+    /// to install this runtime, and `fetch_versions()` will query PyPI.
+    /// Used for Python tools like meson, black, ruff, etc.
+    pub pip_package: Option<String>,
+
+    /// Shells provided by this runtime (RFC 0038)
+    ///
+    /// Maps shell names to their relative paths from the install directory.
+    /// For example, Git provides:
+    /// - "git-bash" -> "git-bash.exe"
+    /// - "git-cmd" -> "git-cmd.exe"
+    pub shells: Vec<ShellDefinition>,
+}
+
+/// Shell definition for runtime-provided shells (RFC 0038)
+#[derive(Debug, Clone)]
+pub struct ShellDefinition {
+    /// Shell name (e.g., "git-bash", "cmd")
+    pub name: String,
+    /// Relative path from install directory (e.g., "git-bash.exe", "bin/bash.exe")
+    pub path: String,
 }
 
 /// Installation strategy for system tools
@@ -294,6 +357,7 @@ impl ManifestDrivenRuntime {
             name,
             description: String::new(),
             aliases: Vec::new(),
+            ecosystem_override: None,
             bundled_with: None,
             provider_name: provider_name.into(),
             source,
@@ -304,6 +368,10 @@ impl ManifestDrivenRuntime {
             normalize: None,
             mirrors: Vec::new(),
             fetch_versions_fn: None,
+            download_url_fn: None,
+            install_layout_fn: None,
+            pip_package: None,
+            shells: Vec::new(),
         }
     }
 
@@ -314,7 +382,7 @@ impl ManifestDrivenRuntime {
     }
 
     /// Set mirrors from provider.toml configuration
-    pub fn with_mirrors(mut self, mirrors: Vec<vx_manifest::MirrorConfig>) -> Self {
+    pub fn with_mirrors(mut self, mirrors: Vec<MirrorConfig>) -> Self {
         self.mirrors = mirrors;
         self
     }
@@ -337,9 +405,48 @@ impl ManifestDrivenRuntime {
         self
     }
 
+    /// Add multiple aliases from a Vec<String>
+    pub fn with_aliases(mut self, aliases: Vec<String>) -> Self {
+        self.aliases.extend(aliases);
+        self
+    }
+
+    /// Set the ecosystem for this runtime
+    pub fn with_ecosystem(mut self, ecosystem: Ecosystem) -> Self {
+        self.ecosystem_override = Some(ecosystem);
+        self
+    }
+
     /// Add an installation strategy
     pub fn with_strategy(mut self, strategy: InstallStrategy) -> Self {
         self.install_strategies.push(strategy);
+        self
+    }
+
+    /// Set the pip package name for Python-based tools.
+    ///
+    /// When set, `install()` uses `uv pip install <package>==<version>` and
+    /// `fetch_versions()` queries PyPI for available versions.
+    pub fn with_pip_package(mut self, package: impl Into<String>) -> Self {
+        self.pip_package = Some(package.into());
+        self
+    }
+
+    /// Set shells provided by this runtime (RFC 0038)
+    ///
+    /// Shells are executables that can be launched with the runtime's environment.
+    /// For example, Git provides "git-bash" and "git-cmd".
+    pub fn with_shells(mut self, shells: Vec<ShellDefinition>) -> Self {
+        self.shells = shells;
+        self
+    }
+
+    /// Add a single shell definition
+    pub fn with_shell(mut self, name: impl Into<String>, path: impl Into<String>) -> Self {
+        self.shells.push(ShellDefinition {
+            name: name.into(),
+            path: path.into(),
+        });
         self
     }
 
@@ -350,8 +457,63 @@ impl ManifestDrivenRuntime {
     }
 
     /// Set normalize configuration
-    pub fn with_normalize(mut self, normalize: vx_manifest::NormalizeConfig) -> Self {
+    pub fn with_normalize(mut self, normalize: NormalizeConfig) -> Self {
         self.normalize = Some(normalize);
+        self
+    }
+
+    /// Set install dependencies (vx-managed runtimes that must be installed first)
+    ///
+    /// This is a convenience method that converts a list of runtime names
+    /// (with optional version constraints) into a `SystemDepsConfig`.
+    ///
+    /// # Example
+    ///
+    /// ```ignore
+    /// // In provider.star:
+    /// // install_deps = ["7zip", "node>=18"]
+    /// runtime = runtime.with_install_deps(vec!["7zip".to_string(), "node>=18".to_string()]);
+    /// ```
+    pub fn with_install_deps(mut self, deps: Vec<String>) -> Self {
+        if deps.is_empty() {
+            return self;
+        }
+
+        let pre_depends: Vec<SystemDependency> = deps
+            .into_iter()
+            .map(|dep| {
+                // Parse "name>=version" or "name" format
+                let (id, version) = if let Some(gt_pos) = dep.find(">=") {
+                    (
+                        dep[..gt_pos].to_string(),
+                        Some(dep[gt_pos + 2..].to_string()),
+                    )
+                } else if let Some(eq_pos) = dep.find('=') {
+                    (
+                        dep[..eq_pos].to_string(),
+                        Some(dep[eq_pos + 1..].to_string()),
+                    )
+                } else {
+                    (dep, None)
+                };
+
+                SystemDependency {
+                    dep_type: SystemDepType::Runtime,
+                    id,
+                    version,
+                    reason: Some("Install dependency".to_string()),
+                    platforms: vec![],
+                    optional: false,
+                }
+            })
+            .collect();
+
+        self.system_deps = Some(SystemDepsConfig {
+            pre_depends,
+            depends: vec![],
+            recommends: vec![],
+            suggests: vec![],
+        });
         self
     }
 
@@ -384,6 +546,70 @@ impl ManifestDrivenRuntime {
     {
         self.fetch_versions_fn = Some(Arc::new(f));
         self
+    }
+
+    /// Inject a Starlark-driven `download_url` implementation.
+    ///
+    /// When set, `Runtime::download_url()` delegates to this closure instead
+    /// of scanning `install_strategies` for a `DirectDownload` entry.
+    pub fn with_download_url<F>(mut self, f: F) -> Self
+    where
+        F: Fn(
+                String,
+            ) -> std::pin::Pin<
+                Box<dyn std::future::Future<Output = Result<Option<String>>> + Send>,
+            > + Send
+            + Sync
+            + 'static,
+    {
+        self.download_url_fn = Some(Arc::new(f));
+        self
+    }
+
+    /// Inject a Starlark-driven `install_layout` implementation.
+    ///
+    /// When set, the `install()` method uses the returned layout descriptor
+    /// to determine strip_prefix and executable_paths.
+    pub fn with_install_layout<F>(mut self, f: F) -> Self
+    where
+        F: Fn(
+                String,
+            ) -> std::pin::Pin<
+                Box<dyn std::future::Future<Output = Result<Option<serde_json::Value>>> + Send>,
+            > + Send
+            + Sync
+            + 'static,
+    {
+        self.install_layout_fn = Some(Arc::new(f));
+        self
+    }
+
+    /// Resolve the executable path from a Starlark install_layout descriptor.
+    ///
+    /// Tries `executable_paths` list first, then falls back to the runtime's
+    /// own executable name.
+    fn resolve_exe_path_from_layout(
+        &self,
+        install_dir: &std::path::Path,
+        layout: &serde_json::Value,
+    ) -> std::path::PathBuf {
+        // Try each path in executable_paths
+        if let Some(paths) = layout.get("executable_paths").and_then(|p| p.as_array()) {
+            for p in paths {
+                if let Some(rel) = p.as_str() {
+                    let candidate = install_dir.join(rel);
+                    if candidate.exists() {
+                        return candidate;
+                    }
+                }
+            }
+            // Return first entry even if it doesn't exist yet
+            if let Some(first) = paths.first().and_then(|p| p.as_str()) {
+                return install_dir.join(first);
+            }
+        }
+        // Fallback: use executable name
+        install_dir.join(vx_paths::with_executable_extension(&self.executable))
     }
 
     /// Select the best available installation strategy
@@ -490,8 +716,12 @@ impl Runtime for ManifestDrivenRuntime {
         &[]
     }
 
+    fn aliases_owned(&self) -> Vec<String> {
+        self.aliases.clone()
+    }
+
     fn ecosystem(&self) -> Ecosystem {
-        Ecosystem::System
+        self.ecosystem_override.clone().unwrap_or(Ecosystem::System)
     }
 
     fn metadata(&self) -> HashMap<String, String> {
@@ -505,7 +735,7 @@ impl Runtime for ManifestDrivenRuntime {
         meta
     }
 
-    fn mirror_urls(&self) -> Vec<vx_manifest::MirrorConfig> {
+    fn mirror_urls(&self) -> Vec<MirrorConfig> {
         self.mirrors.clone()
     }
 
@@ -526,9 +756,48 @@ impl Runtime for ManifestDrivenRuntime {
     /// Otherwise falls back to returning `["system"]`, indicating that this
     /// runtime is managed by the OS package manager and has no vx-managed
     /// version list.
-    async fn fetch_versions(&self, _ctx: &RuntimeContext) -> Result<Vec<VersionInfo>> {
+    async fn fetch_versions(&self, ctx: &RuntimeContext) -> Result<Vec<VersionInfo>> {
         if let Some(ref f) = self.fetch_versions_fn {
             return f().await;
+        }
+        // pip package: query PyPI for available versions
+        if let Some(ref pkg) = self.pip_package {
+            let url = format!("https://pypi.org/pypi/{}/json", pkg);
+            if let Ok(resp) = ctx.http.get_json_value(&url).await {
+                let mut versions = Vec::new();
+                if let Some(releases) = resp.get("releases").and_then(|v| v.as_object()) {
+                    for (ver, files) in releases {
+                        // Skip versions with no files (yanked)
+                        if files.as_array().map(|a| a.is_empty()).unwrap_or(true) {
+                            continue;
+                        }
+                        let prerelease = ver.contains('a')
+                            || ver.contains('b')
+                            || ver.contains("rc")
+                            || ver.contains("dev");
+                        versions.push(VersionInfo {
+                            version: ver.clone(),
+                            released_at: None,
+                            prerelease,
+                            lts: false,
+                            download_url: None,
+                            checksum: None,
+                            metadata: HashMap::new(),
+                        });
+                    }
+                }
+                // Sort newest first
+                versions.sort_by(|a, b| {
+                    let parse = |v: &str| -> Vec<u64> {
+                        v.split(|c: char| !c.is_ascii_digit())
+                            .filter(|s| !s.is_empty())
+                            .filter_map(|s| s.parse::<u64>().ok())
+                            .collect()
+                    };
+                    parse(&b.version).cmp(&parse(&a.version))
+                });
+                return Ok(versions);
+            }
         }
         Ok(vec![VersionInfo {
             version: "system".to_string(),
@@ -561,6 +830,12 @@ impl Runtime for ManifestDrivenRuntime {
 
     /// Get download URL (if direct download is available)
     async fn download_url(&self, version: &str, platform: &Platform) -> Result<Option<String>> {
+        // Prefer Starlark-driven download_url if injected
+        if let Some(ref f) = self.download_url_fn {
+            return f(version.to_string()).await;
+        }
+
+        // Fall back to scanning install_strategies for DirectDownload
         for strategy in &self.install_strategies {
             if let InstallStrategy::DirectDownload { url, platforms, .. } = strategy
                 && (platforms.is_empty()
@@ -579,25 +854,98 @@ impl Runtime for ManifestDrivenRuntime {
     /// Install the runtime using the best available strategy
     ///
     /// This method tries installation strategies in priority order:
-    /// 1. Direct download (if available for this platform)
-    /// 2. System package managers (brew, choco, apt, etc.)
-    /// 3. Installation scripts
+    /// 1. Starlark-driven install_layout (if injected) — uses custom strip_prefix/exe paths
+    /// 2. Direct download URL (from download_url_fn or install_strategies)
+    /// 3. System package managers (brew, choco, apt, etc.)
+    /// 4. Installation scripts
     async fn install(&self, version: &str, ctx: &RuntimeContext) -> Result<InstallResult> {
         let platform = Platform::current();
+        let store_name = self.bundled_with.as_deref().unwrap_or(&self.name);
+        let base_path = ctx.paths.version_store_dir(store_name, version);
+        let install_path = base_path.join(platform.as_str());
+
+        // pip package: install via uv pip install <package>==<version>
+        if let Some(ref pkg) = self.pip_package {
+            return crate::package_runtime::install_pip_package_for_manifest(
+                pkg, &self.name, version, ctx,
+            )
+            .await;
+        }
+
+        // Try Starlark-driven install_layout first (provides URL + strip_prefix + exe paths)
+        if let Some(ref layout_fn) = self.install_layout_fn
+            && let Some(layout) = layout_fn(version.to_string()).await?
+        {
+            let url = layout
+                .get("url")
+                .and_then(|u| u.as_str())
+                .map(|s| s.to_string());
+
+            if let Some(url) = url {
+                info!(
+                    "Installing {} via Starlark install_layout from {}",
+                    self.name, url
+                );
+
+                if ctx.fs.exists(&install_path) {
+                    let exe_path = self.resolve_exe_path_from_layout(&install_path, &layout);
+                    return Ok(InstallResult::already_installed(
+                        install_path,
+                        exe_path,
+                        version.to_string(),
+                    ));
+                }
+
+                // Build layout metadata for download_with_layout
+                let mut layout_meta = std::collections::HashMap::new();
+                if let Some(prefix) = layout.get("strip_prefix").and_then(|s| s.as_str()) {
+                    layout_meta.insert("strip_prefix".to_string(), prefix.to_string());
+                }
+
+                ctx.installer
+                    .download_with_layout(&url, &install_path, &layout_meta)
+                    .await?;
+
+                let exe_path = self.resolve_exe_path_from_layout(&install_path, &layout);
+                return Ok(InstallResult::success(
+                    install_path,
+                    exe_path,
+                    version.to_string(),
+                ));
+            }
+        }
 
         // First try the default install (direct download) if URL is available
         if let Some(url) = self.download_url(version, &platform).await? {
             info!("Installing {} via direct download from {}", self.name, url);
-            // Delegate to the default Runtime::install implementation
-            // by getting the URL and using the installer
-            let store_name = self.bundled_with.as_deref().unwrap_or(&self.name);
-            // Use platform-specific directory for installation
-            let base_path = ctx.paths.version_store_dir(store_name, version);
-            let install_path = base_path.join(platform.as_str());
+
+            // Resolve install_layout for executable path hints (strip_prefix, executable_paths)
+            let layout_hint = if let Some(ref layout_fn) = self.install_layout_fn {
+                match layout_fn(version.to_string()).await {
+                    Ok(Some(layout)) => {
+                        debug!("install_layout_fn returned: {:?}", layout);
+                        Some(layout)
+                    }
+                    Ok(None) => {
+                        debug!("install_layout_fn returned None");
+                        None
+                    }
+                    Err(e) => {
+                        warn!("install_layout_fn failed: {}", e);
+                        None
+                    }
+                }
+            } else {
+                None
+            };
 
             if ctx.fs.exists(&install_path) {
-                // Already installed
-                let exe_path = install_path.join(&self.executable);
+                // Already installed — use layout hint to find the executable
+                let exe_path = if let Some(ref layout) = layout_hint {
+                    self.resolve_exe_path_from_layout(&install_path, layout)
+                } else {
+                    install_path.join(vx_paths::with_executable_extension(&self.executable))
+                };
                 return Ok(InstallResult::already_installed(
                     install_path,
                     exe_path,
@@ -605,10 +953,36 @@ impl Runtime for ManifestDrivenRuntime {
                 ));
             }
 
+            // Build layout metadata for download_with_layout
+            let mut layout_meta = std::collections::HashMap::new();
+            if let Some(ref layout) = layout_hint {
+                // Archive strip_prefix
+                if let Some(prefix) = layout.get("strip_prefix").and_then(|s| s.as_str()) {
+                    debug!("Using strip_prefix: {}", prefix);
+                    layout_meta.insert("strip_prefix".to_string(), prefix.to_string());
+                }
+                // Binary rename: source_name → target_name in target_dir
+                if let Some(source) = layout.get("source_name").and_then(|s| s.as_str()) {
+                    layout_meta.insert("source_name".to_string(), source.to_string());
+                }
+                if let Some(target) = layout.get("target_name").and_then(|s| s.as_str()) {
+                    layout_meta.insert("target_name".to_string(), target.to_string());
+                }
+                if let Some(dir) = layout.get("target_dir").and_then(|s| s.as_str()) {
+                    layout_meta.insert("target_dir".to_string(), dir.to_string());
+                }
+            }
+            debug!("layout_meta for download_with_layout: {:?}", layout_meta);
+
             ctx.installer
-                .download_and_extract(&url, &install_path)
+                .download_with_layout(&url, &install_path, &layout_meta)
                 .await?;
-            let exe_path = install_path.join(&self.executable);
+
+            let exe_path = if let Some(ref layout) = layout_hint {
+                self.resolve_exe_path_from_layout(&install_path, layout)
+            } else {
+                install_path.join(vx_paths::with_executable_extension(&self.executable))
+            };
             return Ok(InstallResult::success(
                 install_path,
                 exe_path,
@@ -736,8 +1110,103 @@ impl Runtime for ManifestDrivenRuntime {
         }
     }
 
-    fn normalize_config(&self) -> Option<&vx_manifest::NormalizeConfig> {
+    fn normalize_config(&self) -> Option<&NormalizeConfig> {
         self.normalize.as_ref()
+    }
+
+    // ========== Shell Support (RFC 0038) ==========
+
+    fn get_shell_path(
+        &self,
+        shell_name: &str,
+        version: &str,
+        ctx: &RuntimeContext,
+    ) -> Option<std::path::PathBuf> {
+        // Find the shell definition
+        let shell_def = self.shells.iter().find(|s| s.name == shell_name)?;
+        let shell_relative = &shell_def.path;
+
+        tracing::debug!(
+            "Looking for shell '{}' with relative path '{}'",
+            shell_name,
+            shell_relative
+        );
+
+        // 1. Try vx store directory first
+        let platform = Platform::current();
+        let store_name = self.store_name();
+        let base_path = ctx.paths.version_store_dir(store_name, version);
+        let install_path = base_path.join(platform.as_str());
+        let shell_path = install_path.join(shell_relative);
+
+        tracing::debug!("Checking vx store path: {}", shell_path.display());
+
+        if shell_path.exists() {
+            tracing::debug!("Found shell in vx store: {}", shell_path.display());
+            return Some(shell_path);
+        }
+
+        // 2. Try system paths from detection config
+        if let Some(ref detection) = self.detection {
+            for sys_path in &detection.system_paths {
+                let path = std::path::PathBuf::from(sys_path);
+                if path.exists() {
+                    // Found the executable, derive install directory
+                    if let Some(install_dir) = derive_install_dir_from_executable(&path) {
+                        let shell_in_install = install_dir.join(shell_relative);
+                        tracing::debug!(
+                            "Checking system install path: {}",
+                            shell_in_install.display()
+                        );
+                        if shell_in_install.exists() {
+                            tracing::debug!(
+                                "Found shell in system install: {}",
+                                shell_in_install.display()
+                            );
+                            return Some(shell_in_install);
+                        }
+                    }
+                }
+            }
+        }
+
+        // 3. Try to find executable in PATH and derive install directory
+        if let Ok(exe_path) = which::which(&self.executable) {
+            tracing::debug!(
+                "Found executable '{}' at: {}",
+                self.executable,
+                exe_path.display()
+            );
+            if let Some(install_dir) = derive_install_dir_from_executable(&exe_path) {
+                let shell_in_install = install_dir.join(shell_relative);
+                tracing::debug!(
+                    "Checking derived install path: {}",
+                    shell_in_install.display()
+                );
+                if shell_in_install.exists() {
+                    tracing::debug!(
+                        "Found shell in derived install: {}",
+                        shell_in_install.display()
+                    );
+                    return Some(shell_in_install);
+                }
+            }
+        }
+
+        // 4. Try to find shell directly in PATH (last resort)
+        if let Ok(shell_exe) = which::which(shell_name) {
+            tracing::debug!("Found shell in PATH: {}", shell_exe.display());
+            return Some(shell_exe);
+        }
+
+        tracing::debug!("Shell '{}' not found", shell_name);
+        None
+    }
+
+    fn provided_shells(&self) -> Vec<&'static str> {
+        // This is a limitation - we can't return borrowed slices from owned Vec
+        // Return empty for now, the get_shell_path method will still work
+        vec![]
     }
 }
 
@@ -756,6 +1225,46 @@ async fn is_package_manager_available(manager: &str) -> bool {
         "apk" => which::which("apk").is_ok(),
         _ => false,
     }
+}
+
+/// Derive the installation directory from an executable path.
+///
+/// This is used to find the root installation directory for system-installed tools.
+/// For example, Git for Windows installs git.exe to:
+/// - `C:\Program Files\Git\cmd\git.exe` or `C:\Program Files\Git\bin\git.exe`
+///
+/// The install directory would be `C:\Program Files\Git`.
+fn derive_install_dir_from_executable(exe_path: &std::path::Path) -> Option<std::path::PathBuf> {
+    // Get the parent directory of the executable
+    let parent = exe_path.parent()?;
+
+    // Common patterns for installation directories:
+    // - Windows: <install>/bin/..., <install>/cmd/..., <install>/...
+    // - Unix: <install>/bin/...
+
+    let parent_name = parent.file_name()?.to_str()?;
+
+    // Check if parent is a common bin directory
+    if matches!(parent_name, "bin" | "cmd" | "sbin" | "libexec" | "Scripts") {
+        // The install directory is the parent of the bin directory
+        return parent.parent().map(|p| p.to_path_buf());
+    }
+
+    // On Windows, also check for mingw64/bin pattern (Git for Windows)
+    #[cfg(windows)]
+    {
+        if parent_name == "bin"
+            && let Some(grandparent) = parent.parent()
+            && let Some(grandparent_name) = grandparent.file_name().and_then(|n| n.to_str())
+            && (grandparent_name == "mingw64" || grandparent_name == "mingw32")
+        {
+            // Git for Windows: <install>/mingw64/bin/
+            return grandparent.parent().map(|p| p.to_path_buf());
+        }
+    }
+
+    // Otherwise, assume the parent is the install directory
+    Some(parent.to_path_buf())
 }
 
 #[cfg(test)]

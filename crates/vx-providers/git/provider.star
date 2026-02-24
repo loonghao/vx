@@ -1,4 +1,4 @@
-# provider.star - git provider
+﻿# provider.star - git provider
 #
 # Git - Distributed version control system
 # Inheritance pattern: Level 2 (custom download_url for Windows portable Git)
@@ -9,28 +9,17 @@
 # On Windows, vx can install portable Git from GitHub releases.
 
 load("@vx//stdlib:github.star", "make_fetch_versions", "github_asset_url")
+load("@vx//stdlib:env.star", "env_prepend")
 
 # ---------------------------------------------------------------------------
 # Provider metadata
 # ---------------------------------------------------------------------------
-
-def name():
-    return "git"
-
-def description():
-    return "Git - Distributed version control system"
-
-def homepage():
-    return "https://git-scm.com"
-
-def repository():
-    return "https://github.com/git-for-windows/git"
-
-def license():
-    return "GPL-2.0"
-
-def ecosystem():
-    return "devtools"
+name        = "git"
+description = "Git - Distributed version control system"
+homepage    = "https://git-scm.com"
+repository  = "https://github.com/git-for-windows/git"
+license     = "GPL-2.0"
+ecosystem   = "git"
 
 # ---------------------------------------------------------------------------
 # Runtime definitions
@@ -51,6 +40,17 @@ runtimes = [
             "/usr/bin/git",
             "/usr/local/bin/git",
             "/opt/homebrew/bin/git",
+        ],
+        "test_commands": [
+            {"command": "{executable} --version", "name": "version_check", "expected_output": "git version"},
+            {"command": "{executable} config --list", "name": "config_check", "expect_success": True},
+        ],
+        # Shells provided by Git (RFC 0038)
+        # These can be launched with: vx git::git-bash, vx git::git-cmd
+        "shells": [
+            {"name": "git-bash", "path": "git-bash.exe"},
+            {"name": "git-cmd",  "path": "git-cmd.exe"},
+            {"name": "bash",     "path": "bin/bash.exe"},
         ],
     },
 ]
@@ -95,8 +95,8 @@ def download_url(ctx, version):
     Returns:
         Download URL string, or None if not Windows
     """
-    os   = ctx["platform"]["os"]
-    arch = ctx["platform"]["arch"]
+    os   = ctx.platform.os
+    arch = ctx.platform.arch
 
     if os != "windows":
         return None
@@ -117,7 +117,7 @@ def download_url(ctx, version):
 # install_layout
 # ---------------------------------------------------------------------------
 
-def install_layout(ctx, version):
+def install_layout(_ctx, _version):
     return {
         "type":             "archive",
         "strip_prefix":     "",
@@ -128,7 +128,7 @@ def install_layout(ctx, version):
 # system_install — package manager strategies
 # ---------------------------------------------------------------------------
 
-def system_install(ctx):
+def system_install(_ctx):
     """Return system install strategies for git."""
     return [
         {"manager": "winget", "package": "Git.Git",  "priority": 70},
@@ -143,15 +143,15 @@ def system_install(ctx):
 # environment
 # ---------------------------------------------------------------------------
 
-def environment(ctx, version, install_dir):
-    os = ctx["platform"]["os"]
+def environment(ctx, _version):
+    os = ctx.platform.os
     if os == "windows":
-        return {
-            "PATH": "{}/bin:{}/mingw64/bin:{}/usr/bin".format(
-                install_dir, install_dir, install_dir
-            ),
-        }
-    return {}
+        return [
+            env_prepend("PATH", "{}/bin:{}/mingw64/bin:{}/usr/bin".format(
+                ctx.install_dir, ctx.install_dir, ctx.install_dir
+            )),
+        ]
+    return []
 
 
 # ---------------------------------------------------------------------------
@@ -159,14 +159,14 @@ def environment(ctx, version, install_dir):
 # ---------------------------------------------------------------------------
 
 def store_root(ctx):
-    return "{vx_home}/store/git"
+    return ctx.vx_home + "/store/git"
 
-def get_execute_path(ctx, version):
-    os = ctx["platform"]["os"]
+def get_execute_path(ctx, _version):
+    os = ctx.platform.os
     if os == "windows":
-        return "{install_dir}/git.exe"
+        return ctx.install_dir + "/git.exe"
     else:
-        return "{install_dir}/git"
+        return ctx.install_dir + "/git"
 
-def post_install(ctx, version, install_dir):
+def post_install(_ctx, _version):
     return None

@@ -7,7 +7,7 @@ use vx_ecosystem_pm::{InstallOptions, get_installer};
 use vx_paths::global_packages::{GlobalPackage, PackageRegistry};
 use vx_paths::shims;
 use vx_resolver::RuntimeRequest;
-use vx_runtime::{ProviderRegistry, init_constraints_from_manifests};
+use vx_runtime::ProviderRegistry;
 use vx_shim::{PackageRequest, ShimExecutor};
 
 pub mod cli;
@@ -58,9 +58,9 @@ pub async fn main() -> anyhow::Result<()> {
     // This must happen before any provider tries to deploy bridges.
     registry::register_embedded_bridges();
 
-    // Initialize constraints registry from embedded provider manifests
-    // This makes manifest-defined dependency constraints available globally.
-    let _ = init_constraints_from_manifests(registry::get_embedded_manifests().iter().copied());
+    // Initialize global ProviderHandle registry from embedded provider.star files (RFC-0037)
+    // This makes provider metadata (test commands, package aliases, etc.) available globally.
+    registry::init_provider_handles().await;
 
     // Create provider registry with all available providers
     let registry = create_registry();
@@ -188,6 +188,11 @@ async fn execute_tool(
         return Ok(());
     }
 
+    // Check if this is a shell request (runtime::shell syntax)
+    if request.is_shell_request() {
+        return execute_shell_request(ctx, &request, &tool_args, &with_deps).await;
+    }
+
     // Execute as runtime with --with dependencies
     commands::execute::handle_with_deps(
         ctx.registry(),
@@ -202,6 +207,147 @@ async fn execute_tool(
         &with_deps,
     )
     .await
+}
+
+/// Execute a shell request (runtime::shell syntax)
+///
+/// This launches an interactive shell with the runtime's environment configured.
+/// Examples:
+/// - `vx git::git-bash` - Launch Git Bash with git's environment
+/// - `vx node::cmd` - Launch cmd with node's environment
+/// - `vx go::powershell` - Launch PowerShell with go's environment
+async fn execute_shell_request(
+    ctx: &CommandContext,
+    request: &RuntimeRequest,
+    args: &[String],
+    with_deps: &[WithDependency],
+) -> Result<()> {
+    let shell_name = request.shell_name().unwrap_or("cmd");
+    let version = request.version.as_deref().unwrap_or("latest");
+
+    ui::UI::info(&format!(
+        "Launching {} shell with {} environment...",
+        shell_name, request.name
+    ));
+
+    // Ensure the runtime is installed first
+    if let Some(runtime) = ctx.registry().get_runtime(&request.name)
+        && !runtime
+            .is_installed(version, ctx.runtime_context())
+            .await
+            .unwrap_or(false)
+    {
+        ui::UI::info(&format!(
+            "Runtime '{}@{}' is not installed. Installing...",
+            request.name, version
+        ));
+        ensure_runtime_installed_for_ecosystem(ctx, &request.name).await?;
+    }
+
+    // Try to get shell path from the runtime first
+    let shell_exe = if let Some(runtime) = ctx.registry().get_runtime(&request.name) {
+        if let Some(shell_path) = runtime.get_shell_path(shell_name, version, ctx.runtime_context())
+        {
+            ui::UI::debug(&format!(
+                "Runtime '{}' provides shell path: {}",
+                request.name,
+                shell_path.display()
+            ));
+            shell_path
+        } else {
+            // Runtime doesn't provide this shell, search in system PATH
+            find_shell_in_path(shell_name)?
+        }
+    } else {
+        // Runtime not found, search in system PATH
+        find_shell_in_path(shell_name)?
+    };
+
+    ui::UI::debug(&format!("Using shell: {}", shell_exe.display()));
+
+    // Build environment with runtime's tools
+    let mut tool_env = vx_env::ToolEnvironment::new();
+
+    // Add the runtime
+    tool_env = tool_env.tool(&request.name, version);
+
+    // Add --with dependencies
+    for dep in with_deps {
+        let dep_version = dep.version.as_deref().unwrap_or("latest");
+        tool_env = tool_env.tool(&dep.runtime, dep_version);
+    }
+
+    let env = tool_env
+        .include_vx_bin(true)
+        .inherit_path(true)
+        .warn_missing(false)
+        .build()
+        .map_err(|e| anyhow::anyhow!("Failed to build shell environment: {}", e))?;
+
+    ui::UI::debug(&format!(
+        "Built shell environment with {} entries",
+        env.len()
+    ));
+
+    // Build shell command args
+    let shell_args: Vec<String> = args.to_vec();
+
+    ui::UI::debug(&format!(
+        "Launching shell {} with args: {:?}",
+        shell_exe.display(),
+        shell_args
+    ));
+
+    // Execute the shell
+    let status = std::process::Command::new(&shell_exe)
+        .args(&shell_args)
+        .envs(&env)
+        .stdin(std::process::Stdio::inherit())
+        .stdout(std::process::Stdio::inherit())
+        .stderr(std::process::Stdio::inherit())
+        .status()
+        .map_err(|e| anyhow::anyhow!("Failed to launch shell '{}': {}", shell_name, e))?;
+
+    let exit_code = status.code().unwrap_or(1);
+    if exit_code != 0 {
+        std::process::exit(exit_code);
+    }
+
+    Ok(())
+}
+
+/// Find a shell executable in system PATH
+///
+/// This searches for the shell with platform-specific extensions:
+/// - Windows: .exe, .cmd, .bat, and without extension
+/// - Unix: just the name
+fn find_shell_in_path(shell_name: &str) -> Result<std::path::PathBuf> {
+    // On Windows, try multiple extensions
+    #[cfg(windows)]
+    {
+        let extensions = [".exe", ".cmd", ".bat", ""];
+        for ext in extensions {
+            let name_with_ext = format!("{}{}", shell_name, ext);
+            if let Ok(path) = which::which(&name_with_ext) {
+                return Ok(path);
+            }
+        }
+        Err(anyhow::anyhow!(
+            "Shell '{}' not found in system PATH. Tried extensions: {:?}",
+            shell_name,
+            extensions
+        ))
+    }
+
+    #[cfg(not(windows))]
+    {
+        which::which(shell_name).map_err(|_| {
+            anyhow::anyhow!(
+                "Shell '{}' not found in system PATH. Please install it first.",
+                shell_name
+            )
+        })
+    }
 }
 
 /// Execute an RFC 0027 package request
@@ -425,6 +571,8 @@ fn get_all_required_runtimes_for_ecosystem(ecosystem: &str) -> Vec<&'static str>
         // Python ecosystem requires uv
         "pip" | "python" | "pypi" => vec!["uv"],
         "uv" => vec![], // uv is self-contained
+        // uvx: Python CLI tools run via uvx (isolated environments), requires uv
+        "uvx" => vec!["uv"],
         // Rust ecosystem
         "cargo" | "rust" | "crates" => vec!["cargo"],
         // Go ecosystem

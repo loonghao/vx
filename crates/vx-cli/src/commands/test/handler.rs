@@ -812,43 +812,68 @@ async fn handle_test_local_provider(
         println!("🧪 Testing local provider: {}", path.display());
     }
 
-    // Load provider.toml
-    let provider_toml = path.join("provider.toml");
-    if !provider_toml.exists() {
+    // Load provider.star
+    let provider_star = path.join("provider.star");
+    if !provider_star.exists() {
         anyhow::bail!(
-            "provider.toml not found in {}. Not a valid provider directory.",
+            "provider.star not found in {}. Not a valid provider directory.",
             path.display()
         );
     }
 
-    let content =
-        std::fs::read_to_string(&provider_toml).context("Failed to read provider.toml")?;
-    let manifest: vx_manifest::ProviderManifest =
-        toml::from_str(&content).context("Failed to parse provider.toml")?;
+    // Load the provider handle from the star file
+    let handle = vx_starlark::handle::ProviderHandle::load(&provider_star)
+        .await
+        .context("Failed to load provider.star")?;
 
     if !opts.quiet && !opts.json {
-        println!(
-            "✓ Provider: {} ({})",
-            manifest.provider.name,
-            manifest.provider.description.as_deref().unwrap_or("")
-        );
-        println!("✓ Runtimes: {}", manifest.runtimes.len());
+        println!("✓ Provider: {} ({})", handle.name(), handle.description());
+        println!("✓ Runtimes: {}", handle.runtime_metas().len());
     }
 
     let mut summary = TestSummary::default();
 
-    for runtime_def in &manifest.runtimes {
-        let runtime_name = &runtime_def.name;
+    for runtime_meta in handle.runtime_metas() {
+        let runtime_name = &runtime_meta.name;
 
         if opts.verbose && !opts.quiet && !opts.json {
             println!("\n--- Testing Runtime: {} ---", runtime_name);
         }
 
-        // Create tester with manifest config
+        // Create tester
         let mut tester = RuntimeTester::new(runtime_name);
 
-        if let Some(ref test_config) = runtime_def.test {
-            tester = tester.with_config(test_config.clone());
+        // Apply test commands from provider.star metadata
+        if !runtime_meta.test_commands.is_empty() {
+            let test_config = vx_runtime::TestConfig {
+                functional_commands: runtime_meta
+                    .test_commands
+                    .iter()
+                    .map(|tc| {
+                        use vx_runtime::TestCheckType as RtType;
+                        use vx_starlark::provider::types::TestCheckType as MetaType;
+                        let check_type = match tc.check_type {
+                            MetaType::CheckPath => RtType::CheckPath,
+                            MetaType::CheckNotPath => RtType::CheckNotPath,
+                            MetaType::CheckEnv => RtType::CheckEnv,
+                            MetaType::CheckNotEnv => RtType::CheckNotEnv,
+                            MetaType::CheckFile => RtType::CheckFile,
+                            MetaType::Command => RtType::Command,
+                        };
+                        vx_runtime::TestCommand {
+                            command: tc.command.clone(),
+                            check_type,
+                            expect_success: tc.expect_success,
+                            expected_output: tc.expected_output.clone(),
+                            expected_exit_code: None,
+                            name: tc.name.clone(),
+                            timeout_ms: tc.timeout_ms,
+                        }
+                    })
+                    .collect(),
+                ..Default::default()
+            };
+            tester = tester.with_config(test_config);
         }
 
         // Check if executable exists on system PATH for local testing
