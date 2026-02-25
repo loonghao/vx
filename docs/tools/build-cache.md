@@ -4,11 +4,20 @@ vx supports compilation cache tools to speed up builds across projects and sessi
 
 ## Overview
 
+### Compiler Cache Tools
+
 | Tool | Languages | Best For | Speed Improvement |
 |------|-----------|----------|-------------------|
 | **sccache** | Rust, C/C++, CUDA | Cross-language, CI/CD | 20-50% |
 | **ccache** | C/C++ | Native C/C++ projects | 30-60% |
 | **buildcache** | C/C++, CUDA | MSVC, Visual Studio | 30-50% |
+
+### Node.js Build Cache Tools
+
+| Tool | Type | Best For | Speed Improvement |
+|------|------|----------|-------------------|
+| **Nx** | Monorepo + Cache | Large monorepos | 50-90% |
+| **Turborepo** | Monorepo + Cache | Medium monorepos | 50-90% |
 
 ## sccache
 
@@ -298,9 +307,223 @@ BUILDCACHE_MAX_CACHE_SIZE = "20000000000"
 BUILDCACHE_DIR = "$HOME/.cache/buildcache"
 ```
 
+## Nx
+
+**Nx** is a smart build system for monorepos with powerful caching capabilities. It caches build artifacts and test results, supporting both local and remote caching.
+
+### Installation
+
+```bash
+# Install via vx (routes to npx nx)
+vx nx --version
+
+# Or auto-install on first use
+vx nx build myapp
+```
+
+### Features
+
+- **Local Caching**: Caches build outputs locally for fast rebuilds
+- **Remote Caching**: Share cache across team members via Nx Cloud
+- **Affected Project Detection**: Only build/test projects affected by changes
+- **Task Orchestration**: Parallel task execution with dependency management
+- **Code Generation**: Built-in generators for common patterns
+
+### Basic Usage
+
+```bash
+# Build with cache
+vx nx build myapp
+
+# Test with cache
+vx nx test myapp
+
+# Build all affected projects
+vx nx affected -t build
+
+# Skip cache
+vx nx build myapp --skip-nx-cache
+
+# Clear cache
+vx nx reset
+```
+
+### Configuration
+
+#### nx.json
+
+```json
+{
+  "tasksRunnerOptions": {
+    "default": {
+      "runner": "nx/tasks-runners/default",
+      "options": {
+        "cacheableOperations": ["build", "test", "lint", "e2e"],
+        "parallel": 3
+      }
+    }
+  }
+}
+```
+
+#### Environment Variables
+
+```bash
+# Custom cache directory
+export NX_CACHE_DIRECTORY=".nx-cache"
+
+# Disable daemon
+export NX_DAEMON=false
+
+# Enable verbose logging
+export NX_VERBOSE_LOGGING=true
+```
+
+### Remote Cache (Nx Cloud)
+
+```bash
+# Connect to Nx Cloud
+vx nx connect
+
+# View cache statistics
+# (via Nx Cloud dashboard)
+```
+
+### vx.toml Configuration
+
+```toml
+[tools]
+nx = "latest"
+
+[env]
+NX_CACHE_DIRECTORY = ".nx-cache"
+```
+
+### Use Cases
+
+| Use Case | Recommended |
+|----------|-------------|
+| Angular monorepo | ✅ Nx (native support) |
+| React monorepo | ✅ Nx (native support) |
+| Node.js monorepo | ✅ Nx |
+| Mixed language monorepo | ⚠️ Consider Turborepo |
+
+## Turborepo
+
+**Turborepo** is a high-performance build system for JavaScript/TypeScript monorepos. Written in Rust, it provides intelligent caching and parallel task execution.
+
+### Installation
+
+```bash
+# Install via vx (routes to npx turbo)
+vx turbo --version
+
+# Or auto-install on first use
+vx turbo build
+```
+
+### Features
+
+- **Local Caching**: Content-aware hashing for precise cache invalidation
+- **Remote Caching**: Built-in Vercel integration for team cache sharing
+- **Parallel Execution**: Automatic task parallelization
+- **Incremental Builds**: Only rebuild what changed
+- **Prune Command**: Create minimal deployment-ready subset
+
+### Basic Usage
+
+```bash
+# Build with cache
+vx turbo build
+
+# Run multiple tasks
+vx turbo build test lint
+
+# Force rebuild (skip cache)
+vx turbo build --force
+
+# Custom cache directory
+vx turbo build --cache-dir=./cache
+
+# Prune for deployment
+vx turbo prune --scope=web --docker
+```
+
+### Configuration
+
+#### turbo.json
+
+```json
+{
+  "$schema": "https://turbo.build/schema.json",
+  "pipeline": {
+    "build": {
+      "outputs": [".next/**", "!.next/cache/**"],
+      "dependsOn": ["^build"]
+    },
+    "test": {
+      "dependsOn": ["build"],
+      "outputs": ["coverage/**"]
+    },
+    "lint": {
+      "outputs": []
+    }
+  }
+}
+```
+
+#### Environment Variables
+
+```bash
+# Custom cache directory
+export TURBO_CACHE_DIR="./turbo-cache"
+
+# Remote cache team
+export TURBO_TEAM="my-team"
+
+# Remote cache token
+export TURBO_TOKEN="xxx"
+
+# Enable remote cache only
+export TURBO_REMOTE_ONLY=true
+```
+
+### Remote Cache (Vercel)
+
+```bash
+# Login to Vercel
+vx npx turbo login
+
+# Link to remote cache
+vx npx turbo link
+
+# View cache usage
+# (via Vercel dashboard)
+```
+
+### vx.toml Configuration
+
+```toml
+[tools]
+turbo = "latest"
+
+[env]
+TURBO_CACHE_DIR = "./turbo-cache"
+TURBO_TEAM = "my-team"
+```
+
+### Use Cases
+
+| Use Case | Recommended |
+|----------|-------------|
+| Next.js monorepo | ✅ Turborepo (native support) |
+| React monorepo | ✅ Turborepo |
+| Node.js monorepo | ✅ Turborepo |
+| Simple monorepo | ✅ Turborepo |
+
 ## Comparison
 
-### Performance
+### Compiler Cache Performance
 
 | Scenario | sccache | ccache | buildcache |
 |----------|---------|--------|------------|
@@ -310,7 +533,19 @@ BUILDCACHE_DIR = "$HOME/.cache/buildcache"
 | CUDA | ⭐⭐⭐⭐ | ⭐⭐⭐⭐ | ⭐⭐⭐⭐ |
 | Remote cache | ⭐⭐⭐⭐⭐ | ⭐⭐⭐ | ❌ |
 
+### Node.js Build Cache Performance
+
+| Scenario | Nx | Turborepo |
+|----------|-----|-----------|
+| Large monorepo (50+ packages) | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐ |
+| Medium monorepo (10-50 packages) | ⭐⭐⭐⭐ | ⭐⭐⭐⭐⭐ |
+| Small monorepo (<10 packages) | ⭐⭐⭐ | ⭐⭐⭐⭐⭐ |
+| Remote cache | ⭐⭐⭐⭐⭐ (Nx Cloud) | ⭐⭐⭐⭐⭐ (Vercel) |
+| Affected project detection | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐ |
+
 ### Recommendations
+
+#### Compiler Cache
 
 | Use Case | Recommended Tool |
 |----------|-----------------|
@@ -319,6 +554,16 @@ BUILDCACHE_DIR = "$HOME/.cache/buildcache"
 | C/C++ on Windows MSVC | **buildcache** or sccache |
 | CI/CD with remote cache | **sccache** |
 | Mixed Rust + C/C++ | **sccache** |
+
+#### Node.js Build Cache
+
+| Use Case | Recommended Tool |
+|----------|-----------------|
+| Angular monorepo | **Nx** |
+| Large enterprise monorepo | **Nx** |
+| Next.js monorepo | **Turborepo** |
+| Simple monorepo | **Turborepo** |
+| Already using Vercel | **Turborepo** |
 
 ## CI/CD Integration
 

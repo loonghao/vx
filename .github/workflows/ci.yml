@@ -394,6 +394,17 @@ jobs:
         with:
           tool: sccache
 
+      - name: Verify sccache is available
+        shell: bash
+        run: |
+          echo "Checking sccache..."
+          which sccache || where sccache || echo "sccache not found in PATH"
+          sccache --version || echo "sccache version check failed"
+          # On Windows, add cargo bin to PATH if needed
+          if [[ "$RUNNER_OS" == "Windows" ]]; then
+            echo "$USERPROFILE\\.cargo\\bin" >> $GITHUB_PATH
+          fi
+
       - name: Cache sccache
         uses: actions/cache@v5
         with:
@@ -410,6 +421,10 @@ jobs:
           prefix-key: ${{ matrix.platform.target }}
           shared-key: build
           save-if: ${{ github.ref == 'refs/heads/main' }}
+
+      - name: Start sccache server
+        shell: bash
+        run: sccache --start-server || true
 
       - name: Build vx release binary
         run: cargo build --release --target ${{ matrix.platform.target }}
@@ -473,6 +488,15 @@ jobs:
         uses: taiki-e/install-action@v2
         with:
           tool: sccache
+
+      - name: Verify sccache is available
+        shell: bash
+        run: |
+          which sccache || where sccache || echo "sccache not found in PATH"
+          sccache --version || echo "sccache version check failed"
+          if [[ "$RUNNER_OS" == "Windows" ]]; then
+            echo "$USERPROFILE\\.cargo\\bin" >> $GITHUB_PATH
+          fi
 
       - name: Cache sccache
         uses: actions/cache@v5
@@ -579,6 +603,15 @@ jobs:
         uses: taiki-e/install-action@v2
         with:
           tool: sccache
+
+      - name: Verify sccache is available
+        shell: bash
+        run: |
+          which sccache || where sccache || echo "sccache not found in PATH"
+          sccache --version || echo "sccache version check failed"
+          if [[ "$RUNNER_OS" == "Windows" ]]; then
+            echo "$USERPROFILE\\.cargo\\bin" >> $GITHUB_PATH
+          fi
 
       - name: Cache sccache
         uses: actions/cache@v5
@@ -696,6 +729,15 @@ jobs:
         uses: taiki-e/install-action@v2
         with:
           tool: sccache
+
+      - name: Verify sccache is available
+        shell: bash
+        run: |
+          which sccache || where sccache || echo "sccache not found in PATH"
+          sccache --version || echo "sccache version check failed"
+          if [[ "$RUNNER_OS" == "Windows" ]]; then
+            echo "$USERPROFILE\\.cargo\\bin" >> $GITHUB_PATH
+          fi
 
       - name: Cache sccache
         uses: actions/cache@v5
@@ -855,6 +897,12 @@ jobs:
         uses: taiki-e/install-action@v2
         with:
           tool: sccache
+
+      - name: Verify sccache is available
+        shell: bash
+        run: |
+          which sccache || where sccache || echo "sccache not found in PATH"
+          sccache --version || echo "sccache version check failed"
 
       - name: Cache sccache
         uses: actions/cache@v5

@@ -1,0 +1,20 @@
+[package]
+name = "vx-provider-nx"
+version.workspace = true
+edition.workspace = true
+description = "Nx provider for vx - Smart build system for monorepos"
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+authors.workspace = true
+keywords.workspace = true
+categories.workspace = true
+rust-version.workspace = true
+publish = false
+
+[lib]
+path = "lib.rs"
+
+[dependencies]
+# This is a manifest-driven provider using provider.star
+# No Rust dependencies needed - the provider is defined in provider.star
