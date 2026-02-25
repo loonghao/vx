@@ -49,6 +49,7 @@ sevenz-rust = { version = "0.6", optional = true }
 vx-runtime = { path = "../vx-runtime" }
 vx-cache = { workspace = true }
 vx-paths = { path = "../vx-paths" }
+vx-console = { path = "../vx-console" }
 
 # CDN acceleration (optional)
 turbo-cdn = { version = "0.8", default-features = false, features = ["rustls", "fast-hash", "high-performance"], optional = true }

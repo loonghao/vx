@@ -7,12 +7,11 @@ variables, and system package manager fallback.
 
 ## Overview
 
-A manifest-driven provider consists of two files:
+A manifest-driven provider uses a single file:
 
 | File | Purpose |
 |------|---------|
-| `provider.star` | **All logic** — metadata, download URLs, install layout, environment, system_install |
-| `provider.toml` | **Metadata only** — name, description, ecosystem, license (no layout fields) |
+| `provider.star` | **All logic and metadata** — name, description, download URLs, install layout, environment, system_install |
 
 This approach makes it easy to:
 - Add new tools without writing Rust code

@@ -4,7 +4,7 @@ description: |
   This skill should be used when creating a new runtime provider for the vx tool manager.
   It provides complete templates, code generation, and step-by-step guidance for implementing
   Provider and Runtime traits, including URL builders, platform configuration, test files,
-  provider.toml manifest, system package manager fallback, ecosystem-managed tools via
+  provider.star manifest, system package manager fallback, ecosystem-managed tools via
   package_alias (RFC 0033: vx meson = vx uvx:meson, vx vite = vx npx:vite), and optionally
   project analyzer integration for language-specific tools.
   Use this skill when the user asks to add support for a new tool/runtime in vx.
@@ -28,8 +28,8 @@ This skill guides the creation of new runtime providers for the vx universal too
 1. **Check license compatibility** (MUST DO FIRST)
 2. Create a feature branch from remote main
 3. **Determine installation type** (direct download / system package manager / ecosystem package)
-4. Generate provider directory structure (including `provider.toml`)
-5. Implement core files (lib.rs, provider.rs, runtime.rs, config.rs)
+4. Generate provider directory structure (including `provider.star`)
+5. Implement core files (lib.rs, provider.star, build.rs)
 6. **Add system package manager fallback if needed**
 7. **Add `package_alias` if tool is a PyPI/npm package** (RFC 0033)
 8. Register the provider in workspace and CLI

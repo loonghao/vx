@@ -159,6 +159,7 @@ fn test_provider_meta_defaults() {
         repository: None,
         platforms: None,
         package_alias: None,
+        package_prefixes: vec![],
     };
 
     assert_eq!(meta.name, "test");
@@ -183,6 +184,7 @@ fn test_provider_meta_with_platforms() {
         repository: None,
         platforms: Some(platforms),
         package_alias: None,
+        package_prefixes: vec![],
     };
 
     let platforms = meta.platforms.unwrap();
@@ -241,4 +243,77 @@ runtimes = [{"name": "tool", "executable": "tool"}]
         .unwrap();
     // SHA-256 hex = 64 characters
     assert_eq!(provider.script_hash_hex().len(), 64);
+}
+
+// ============================================================
+// Package prefixes tests (RFC 0027)
+// ============================================================
+
+#[test]
+fn test_provider_meta_with_package_prefixes() {
+    use vx_starlark::provider::ProviderMeta;
+
+    let meta = ProviderMeta {
+        name: "deno".to_string(),
+        description: "Deno runtime".to_string(),
+        version: "1.0.0".to_string(),
+        homepage: None,
+        repository: None,
+        platforms: None,
+        package_alias: None,
+        package_prefixes: vec!["deno".to_string()],
+    };
+
+    assert_eq!(meta.package_prefixes, vec!["deno"]);
+}
+
+#[test]
+fn test_provider_meta_package_prefixes_default_empty() {
+    use vx_starlark::provider::ProviderMeta;
+
+    let meta = ProviderMeta {
+        name: "test".to_string(),
+        description: "Test".to_string(),
+        version: "1.0.0".to_string(),
+        homepage: None,
+        repository: None,
+        platforms: None,
+        package_alias: None,
+        package_prefixes: vec![],
+    };
+
+    assert!(meta.package_prefixes.is_empty());
+}
+
+#[tokio::test]
+async fn test_package_prefixes_parsed_from_starlark() {
+    let content = r#"
+name = "deno"
+description = "Deno runtime"
+package_prefixes = ["deno", "deno-land"]
+
+runtimes = [{"name": "deno", "executable": "deno"}]
+"#;
+    let provider = StarlarkProvider::from_content("deno", content)
+        .await
+        .unwrap();
+
+    let meta = provider.meta();
+    assert_eq!(meta.package_prefixes, vec!["deno", "deno-land"]);
+}
+
+#[tokio::test]
+async fn test_package_prefixes_empty_when_not_declared() {
+    let content = r#"
+name = "node"
+description = "Node.js runtime"
+
+runtimes = [{"name": "node", "executable": "node"}]
+"#;
+    let provider = StarlarkProvider::from_content("node", content)
+        .await
+        .unwrap();
+
+    let meta = provider.meta();
+    assert!(meta.package_prefixes.is_empty());
 }

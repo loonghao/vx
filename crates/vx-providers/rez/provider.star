@@ -21,6 +21,10 @@ repository  = "https://github.com/AcademySoftwareFoundation/rez"
 license     = "Apache-2.0"
 ecosystem   = "python"
 
+# Supported package prefixes for ecosystem:package syntax (RFC 0027)
+# Enables `vx rez:<package>` for VFX package installation
+package_prefixes = ["rez"]
+
 # ---------------------------------------------------------------------------
 # Runtime definitions
 # ---------------------------------------------------------------------------

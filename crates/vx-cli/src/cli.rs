@@ -72,7 +72,6 @@ USAGE MODES:
        vx <ecosystem>:<package>[@version][::executable] [args...]
        vx npm:typescript::tsc --version
        vx uvx:ruff check .
-       vx pipx:cowsay Hello
        vx dlx:create-react-app my-app
        vx deno:cowsay Hello
        vx dotnet-tool:dotnet-script script.csx
@@ -90,7 +89,7 @@ USAGE MODES:
 
 SUPPORTED ECOSYSTEMS:
   Node.js:  npm, npx, node, bun, bunx, yarn, pnpm, dlx (pnpm dlx)
-  Python:   pip, uv, uvx, pipx
+  Python:   pip, uv, uvx
   Deno:     deno
   .NET:     dotnet-tool (alias: dotnet)
   Java:     jbang (alias: java)
@@ -103,7 +102,6 @@ EXAMPLES:
   vx node --version
   vx npm:create-react-app my-app
   vx uvx:ruff check .
-  vx pipx:cowsay Hello World
   vx dlx:create-react-app my-app
   vx deno:cowsay Hello
   vx dotnet-tool:dotnet-script script.csx

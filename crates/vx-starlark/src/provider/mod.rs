@@ -467,6 +467,7 @@ impl StarlarkProvider {
                     executable: None,
                 }
             }),
+            package_prefixes: star_meta.package_prefixes,
         };
 
         let mut runtimes: Vec<RuntimeMeta> = Vec::new();

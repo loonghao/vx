@@ -20,6 +20,10 @@ repository  = "https://github.com/astral-sh/uv"
 license     = "MIT OR Apache-2.0"
 ecosystem   = "python"
 
+# Supported package prefixes for ecosystem:package syntax (RFC 0027)
+# Enables `vx uv:<package>` and `vx uvx:<package>` for Python package execution
+package_prefixes = ["uv", "uvx"]
+
 # ---------------------------------------------------------------------------
 # Runtime definitions
 # ---------------------------------------------------------------------------

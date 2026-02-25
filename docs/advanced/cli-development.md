@@ -267,10 +267,11 @@ pub async fn handle(
 ### Command with Progress Indicator
 
 ```rust
-use crate::ui::{ProgressSpinner, UI};
+use vx_console::global_progress_manager;
 
 pub async fn handle(name: &str) -> Result<()> {
-    let spinner = ProgressSpinner::new(&format!("Processing {}...", name));
+    let pm = global_progress_manager();
+    let spinner = pm.add_spinner(&format!("Processing {}...", name));
 
     // Do work...
     tokio::time::sleep(std::time::Duration::from_secs(2)).await;
@@ -308,6 +309,138 @@ UI::detail(&format!("Installed to: {}", path.display()));
 
 // Tool not found (with suggestions)
 UI::tool_not_found("nod", &["node", "npm", "npx"]);
+```
+
+## Progress Bar Guidelines
+
+vx uses a **global `MultiProgress` singleton** (from `vx-console`) to coordinate all progress output. This prevents visual glitches when text messages and progress bars are printed concurrently.
+
+### The Core Problem
+
+When a download progress bar is active and you call `println!()` directly, the output interleaves with the progress bar rendering:
+
+```
+ℹ Package 'deno:cowsay' is not installed. Installing...
+ℹ Runtime deno is not installed. Auto-installing...
+                                                           ← stray blank lines
+deno-x86_64-pc-windows-msvc (download) ━╺╺╺╺╺╺╺╺╺╺╺╺╺╺ 33.51 KiB/44.99 MiB
+ℹ Fetching versions for deno...
+                                                           ← interleaved
+```
+
+The fix: **all text output must go through `global_progress_manager().println()`**, and **all progress bars must be registered via `global_progress_manager().multi().add(...)`**.
+
+### Correct Usage
+
+#### Text output (UI messages)
+
+`UI::info`, `UI::success`, `UI::warn`, `UI::error` etc. already route through the global manager — just use them normally:
+
+```rust
+use crate::ui::UI;
+
+UI::info("Runtime deno is not installed. Auto-installing...");
+UI::success("Successfully installed deno 2.6.10");
+```
+
+For `stderr` output (errors), use `suspend()` to avoid glitches:
+
+```rust
+use vx_console::global_progress_manager;
+
+global_progress_manager().suspend(|| {
+    eprintln!("✗ {}", error_message);
+});
+```
+
+#### Progress bars and spinners
+
+Always register bars through the global `MultiProgress`, not as standalone `ProgressBar::new()`:
+
+```rust
+use vx_console::global_progress_manager;
+use indicatif::{ProgressBar, ProgressStyle};
+
+// ✅ Correct: registered to global MultiProgress
+let pm = global_progress_manager();
+let pb = pm.multi().add(ProgressBar::new(total_size));
+pb.set_style(ProgressStyle::with_template(
+    "{filename} (download) {wide_bar:.cyan/blue} {bytes}/{total_bytes}"
+).unwrap());
+
+// ❌ Wrong: standalone bar, will interleave with other output
+let pb = ProgressBar::new(total_size);
+```
+
+Or use the higher-level helpers from `ProgressManager`:
+
+```rust
+use vx_console::global_progress_manager;
+
+let pm = global_progress_manager();
+
+// Spinner (for indeterminate operations)
+let spinner = pm.add_spinner("Fetching versions for deno...");
+// ... do work ...
+spinner.finish_and_clear();
+
+// Download bar (for file downloads)
+let dl = pm.add_download(total_bytes, "deno-x86_64-pc-windows-msvc");
+dl.inc(chunk_size);
+dl.finish_and_clear();
+```
+
+### Architecture
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    vx-console                                │
+│                                                              │
+│  GLOBAL_PROGRESS_MANAGER (Lazy<Arc<ProgressManager>>)       │
+│  └── MultiProgress (indicatif)                              │
+│       ├── ProgressBar (download, registered via .add())     │
+│       ├── ProgressBar (spinner, registered via .add())      │
+│       └── println() → suspends bars, prints, redraws        │
+└─────────────────────────────────────────────────────────────┘
+         ▲                          ▲
+         │                          │
+  vx-cli/src/ui.rs           vx-runtime-http/
+  UI::info/success/warn      http_client.rs
+  → global_progress_manager  → global_progress_manager
+    .println(msg)               .multi().add(pb)
+```
+
+### Rules Summary
+
+| Scenario | Correct API | Wrong API |
+|----------|-------------|-----------|
+| Print info/success/warn | `UI::info(msg)` | `println!("{}", msg)` |
+| Print to stderr | `global_progress_manager().suspend(|| eprintln!(...))` | `eprintln!(...)` directly |
+| Create download bar | `pm.multi().add(ProgressBar::new(n))` | `ProgressBar::new(n)` |
+| Create spinner | `pm.add_spinner(msg)` | `ProgressBar::new_spinner()` |
+| Print while bar active | `global_progress_manager().println(msg)` | `println!(msg)` |
+
+### Adding Progress to a New Crate
+
+If a new crate needs to show progress bars or print messages while progress bars may be active:
+
+1. Add `vx-console` as a dependency in `Cargo.toml`:
+
+```toml
+vx-console = { path = "../vx-console" }
+```
+
+2. Use `global_progress_manager()` for all output:
+
+```rust
+use vx_console::global_progress_manager;
+
+// Text output
+global_progress_manager().println("ℹ Installing...");
+
+// Progress bar
+let pm = global_progress_manager();
+let pb = pm.multi().add(ProgressBar::new(total));
 ```
 
 ## Testing Commands

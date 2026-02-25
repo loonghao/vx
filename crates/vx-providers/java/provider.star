@@ -1,4 +1,4 @@
-﻿# provider.star - Java (Adoptium Temurin) provider
+# provider.star - Java (Adoptium Temurin) provider
 #
 # Version source: Adoptium API
 # Bundled runtimes: javac, jar
@@ -23,6 +23,11 @@ repository  = "https://github.com/adoptium/temurin-build"
 license     = "GPL-2.0-with-classpath-exception"
 ecosystem   = "java"
 aliases     = ["jdk", "temurin"]
+
+# Supported package prefixes for ecosystem:package syntax (RFC 0027)
+# Enables `vx jbang:<package>` for Java package execution via jbang
+# Note: jbang must be installed separately or added as a runtime
+package_prefixes = ["jbang", "java"]
 
 # ---------------------------------------------------------------------------
 # Runtime definitions

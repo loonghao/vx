@@ -22,6 +22,10 @@ repository  = "https://github.com/oven-sh/bun"
 license     = "MIT"
 ecosystem   = "nodejs"
 
+# Supported package prefixes for ecosystem:package syntax (RFC 0027)
+# Enables `vx bun:<package>` and `vx bunx:<package>` for Bun package execution
+package_prefixes = ["bun", "bunx"]
+
 # ---------------------------------------------------------------------------
 # Runtime definitions
 # ---------------------------------------------------------------------------

@@ -6,12 +6,11 @@ vx 使用 **`provider.star`**（Starlark）作为所有 Provider 逻辑的唯一
 
 ## 概述
 
-声明式 Provider 由两个文件组成：
+声明式 Provider 使用单一文件：
 
 | 文件 | 用途 |
 |------|------|
-| `provider.star` | **所有逻辑** — 元数据、下载 URL、安装布局、环境变量、system_install |
-| `provider.toml` | **仅元数据** — name、description、ecosystem、license（无布局字段） |
+| `provider.star` | **所有逻辑和元数据** — name、description、下载 URL、安装布局、环境变量、system_install |
 
 这种方式使得：
 - 无需编写 Rust 代码即可添加新工具
