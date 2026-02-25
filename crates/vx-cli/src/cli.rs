@@ -58,8 +58,64 @@ impl From<CacheModeArg> for CacheMode {
 #[derive(Parser)]
 #[command(name = "vx")]
 #[command(about = "Universal version executor for development tools")]
+#[command(long_about = "\
+vx - Universal version executor for development tools
+
+Run any tool with automatic installation and version management.
+
+USAGE MODES:
+  1. Runtime execution:
+       vx <runtime>[@version] [args...]
+       vx node@20 --version
+
+  2. Package execution (RFC 0027):
+       vx <ecosystem>:<package>[@version][::executable] [args...]
+       vx npm:typescript::tsc --version
+       vx uvx:ruff check .
+       vx pipx:cowsay Hello
+       vx dlx:create-react-app my-app
+       vx deno:cowsay Hello
+       vx dotnet-tool:dotnet-script script.csx
+       vx jbang:picocli --help
+
+  3. Shell execution (attach to current terminal):
+       vx <runtime>[::shell_name]
+       vx git::git-bash
+       vx node::powershell
+       vx go::cmd
+
+  4. Globally installed package shims:
+       vx tsc --version        (from: vx global install npm:typescript)
+       vx ruff check .         (from: vx global install uvx:ruff)
+
+SUPPORTED ECOSYSTEMS:
+  Node.js:  npm, npx, node, bun, bunx, yarn, pnpm, dlx (pnpm dlx)
+  Python:   pip, uv, uvx, pipx
+  Deno:     deno
+  .NET:     dotnet-tool (alias: dotnet)
+  Java:     jbang (alias: java)
+  Rust:     cargo (aliases: rust, crates)
+  Go:       go (alias: golang)
+  Ruby:     gem (aliases: ruby, rubygems)
+  Windows:  choco (chocolatey)
+
+EXAMPLES:
+  vx node --version
+  vx npm:create-react-app my-app
+  vx uvx:ruff check .
+  vx pipx:cowsay Hello World
+  vx dlx:create-react-app my-app
+  vx deno:cowsay Hello
+  vx dotnet-tool:dotnet-script script.csx
+  vx jbang:picocli --help
+  vx cargo:ripgrep::rg --version
+  vx go:golang.org/x/tools/gopls::gopls -v
+  vx git::git-bash
+  vx --with bun npm:opencode-ai::opencode")]
 #[command(version)]
-#[command(after_help = "Run 'vx <command> --help' for more information on a command.")]
+#[command(
+    after_help = "Run 'vx <command> --help' for more information on a command.\nRun 'vx global --help' for global package management.\nRun 'vx versions <tool>' to see available versions."
+)]
 pub struct Cli {
     #[command(subcommand)]
     pub command: Option<Commands>,
