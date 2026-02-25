@@ -1792,7 +1792,6 @@ dependencies = [
  "tokio",
  "tokio-rustls",
  "tower-service",
- "webpki-roots",
 ]
 
 [[package]]
@@ -2418,7 +2417,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a69bcab0ad47271a0234d9422b131806bf3968021e5dc9328caf2d4cd58557fc"
 dependencies = [
  "libc",
- "log",
  "wasi",
  "windows-sys 0.61.2",
 ]
@@ -5932,6 +5930,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "vx-provider-nx"
+version = "0.8.3"
+
+[[package]]
 name = "vx-provider-ollama"
 version = "0.8.3"
 dependencies = [
@@ -6207,6 +6209,10 @@ dependencies = [
  "vx-starlark",
  "workspace-hack",
 ]
+
+[[package]]
+name = "vx-provider-turbo"
+version = "0.8.3"
 
 [[package]]
 name = "vx-provider-uv"
@@ -6755,15 +6761,6 @@ name = "webpki-root-certs"
 version = "1.0.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "804f18a4ac2676ffb4e8b5b5fa9ae38af06df08162314f96a68d2a363e21a8ca"
-dependencies = [
- "rustls-pki-types",
-]
-
-[[package]]
-name = "webpki-roots"
-version = "1.0.6"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "22cfaf3c063993ff62e73cb4311efde4db1efb31ab78a3e5c457939ad5cc0bed"
 dependencies = [
  "rustls-pki-types",
 ]
@@ -7389,17 +7386,13 @@ name = "workspace-hack"
 version = "0.1.0"
 dependencies = [
  "ahash",
- "bit-set 0.5.3",
- "bit-vec 0.6.3",
  "clap",
  "clap_builder",
- "clipboard-win",
  "console",
  "crossbeam-epoch",
  "crossbeam-utils",
  "either",
  "errno",
- "error-code",
  "flate2",
  "futures-channel",
  "futures-core",
@@ -7407,7 +7400,6 @@ dependencies = [
  "futures-sink",
  "futures-util",
  "getrandom 0.3.4",
- "half",
  "hashbrown 0.14.5",
  "hashbrown 0.16.1",
  "hyper",
@@ -7416,11 +7408,8 @@ dependencies = [
  "indexmap",
  "lalrpop-util",
  "libc",
- "linux-raw-sys",
  "log",
  "memchr",
- "miniz_oxide",
- "mio",
  "num-traits",
  "once_cell",
  "parking_lot",
@@ -7446,7 +7435,6 @@ dependencies = [
  "time",
  "time-macros",
  "tokio",
- "tokio-rustls",
  "tokio-util",
  "toml_parser",
  "toml_writer",
