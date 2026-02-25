@@ -91,12 +91,30 @@ pub fn get_installer(ecosystem: &str) -> anyhow::Result<Box<dyn EcosystemInstall
         "uv" => Ok(Box::new(UvInstaller::new())),
         // uvx: run Python CLI tools in isolated, ephemeral uv-managed environments
         "uvx" => Ok(Box::new(UvxInstaller::new())),
+        // pipx: run Python CLI tools via pipx run (similar to uvx)
+        "pipx" => Ok(Box::new(PipxInstaller::new())),
 
         // Node.js ecosystem
-        "npm" | "node" => Ok(Box::new(NpmInstaller::new())),
-        "bun" => Ok(Box::new(BunInstaller::new())),
+        // npx is a package runner bundled with npm, treat it as npm ecosystem
+        "npm" | "node" | "npx" => Ok(Box::new(NpmInstaller::new())),
+        // bunx is bun's package runner, treat it as bun ecosystem
+        "bun" | "bunx" => Ok(Box::new(BunInstaller::new())),
         "yarn" => Ok(Box::new(YarnInstaller::new())),
         "pnpm" => Ok(Box::new(PnpmInstaller::new())),
+        // dlx: pnpm's oneshot runner (like npx)
+        "dlx" => Ok(Box::new(DlxInstaller::new())),
+
+        // Deno ecosystem
+        // deno: run npm/JSR packages via deno run
+        "deno" => Ok(Box::new(DenoInstaller::new())),
+
+        // .NET ecosystem
+        // dotnet-tool: install and run .NET tools via dotnet tool install
+        "dotnet-tool" | "dotnet" => Ok(Box::new(DotnetToolInstaller::new())),
+
+        // Java ecosystem
+        // jbang: run Java tools in isolated, cached environments
+        "jbang" | "java" => Ok(Box::new(JBangInstaller::new())),
 
         // Rust ecosystem
         "cargo" | "rust" | "crates" => Ok(Box::new(CargoInstaller::new())),
@@ -111,7 +129,7 @@ pub fn get_installer(ecosystem: &str) -> anyhow::Result<Box<dyn EcosystemInstall
         "choco" | "chocolatey" => Ok(Box::new(ChocoInstaller::new())),
 
         _ => bail!(
-            "Unsupported ecosystem: {}. Supported: pip, uv, uvx, npm, bun, yarn, pnpm, cargo, go, gem, choco",
+            "Unsupported ecosystem: {}. Supported: pip, uv, uvx, pipx, npm, npx, bun, bunx, yarn, pnpm, dlx, deno, dotnet-tool, jbang, cargo, go, gem, choco",
             ecosystem
         ),
     }

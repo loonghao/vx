@@ -23,6 +23,7 @@ replacing `provider.toml` entirely.
 - **Adding required path query functions** (`store_root`, `get_execute_path`, `post_install`)
 - **Adding `package_alias` for PyPI/npm tools** (RFC 0033: `vx meson` = `vx uvx:meson`)
 - **Fixing `system_install` format** to use `{"strategies": [...]}` structure
+- **Fixing `runtimes` list to use `runtime_def()` / `bundled_runtime_def()` function call format** (required for `StarMetadata::parse()` to detect runtimes correctly)
 - Standardizing provider manifests
 - Fixing download/installation issues
 - Batch updating multiple providers
@@ -1022,6 +1023,57 @@ registered 53 lazy providers (0 errors, 9 manifest-only, 0 warnings)
 ```
 - **errors**: Real configuration problems
 - **manifest-only**: Expected for providers without Rust implementation yet
+
+### Issue: `vx <tool>` reports "Tool 'X' is not supported by vx" even though provider exists
+
+**Root Cause**: `StarMetadata::parse()` is a **static parser** — it reads `provider.star` without
+executing Starlark. It only recognizes two formats for the `runtimes = [...]` list:
+1. Dict literals: `{"name": "foo", ...}`
+2. Function calls: `runtime_def("foo", ...)` and `bundled_runtime_def("foo", bundled_with="bar", ...)`
+
+If the `runtimes` list uses any other format (e.g., a helper function that returns a list,
+or a variable reference), the static parser will see an empty runtimes list, causing
+`ProviderRegistry::get_runtime("tool")` to return `None`.
+
+**Diagnosis**:
+```bash
+# Check what StarMetadata::parse() sees
+cargo test -p vx-starlark --lib -- test_parse_node_provider_star 2>&1
+
+# Or add a quick test:
+# let meta = StarMetadata::parse(include_str!("../provider.star"));
+# assert!(!meta.runtimes.is_empty(), "runtimes: {:?}", meta.runtimes);
+```
+
+**Solution**: Ensure the top-level `runtimes = [...]` list uses one of the two supported formats:
+
+```python
+# ✅ Format A: Dict literals
+runtimes = [
+    {"name": "mytool", "executable": "mytool", "aliases": ["mt"]},
+    {"name": "mytool-extra", "bundled_with": "mytool"},
+]
+
+# ✅ Format B: runtime_def() / bundled_runtime_def() function calls
+runtimes = [
+    runtime_def("mytool",
+        aliases = ["mt"],
+    ),
+    bundled_runtime_def("mytool-extra", bundled_with = "mytool"),
+]
+
+# ❌ NOT supported: helper function returning a list
+runtimes = make_runtimes()  # StarMetadata::parse() cannot see these
+
+# ❌ NOT supported: variable reference
+_rt = [{"name": "mytool"}]
+runtimes = _rt  # StarMetadata::parse() cannot follow variable references
+```
+
+**Note**: Both `runtime_def()` and `bundled_runtime_def()` are parsed by `StarMetadata::parse()`
+in `crates/vx-starlark/src/metadata.rs`. The parser extracts:
+- `runtime_def("name", aliases=[...], executable="...", description="...")` → `StarRuntimeMeta`
+- `bundled_runtime_def("name", bundled_with="parent", ...)` → `StarRuntimeMeta` with `bundled_with` set
 
 ## Migration: Adding package_alias for Ecosystem-Managed Tools (RFC 0033)
 
