@@ -86,3 +86,37 @@ rustflags = [
 
 # [profile.dev]
 # debug = 1
+
+# ============================================
+# Build Cache Optimization with sccache
+# ============================================
+# sccache provides compiler cache across sessions and projects
+# Supports: Rust, C/C++, CUDA, and more
+#
+# Install: vx sccache (or cargo install sccache)
+# Usage: Automatically enabled when sccache is in PATH
+#
+# Benefits:
+# - 20-50% faster rebuilds (cross-project cache sharing)
+# - Works with rustc, gcc, clang, MSVC
+# - Supports remote caches (S3, GCS, Redis, etc.)
+#
+# Environment variables:
+#   SCCACHE_CACHE_SIZE=20G      - Cache size limit (default 10G)
+#   SCCACHE_DIR=~/.cache/sccache - Cache directory
+#   SCCACHE_LOG=debug           - Enable debug logging
+
+[build]
+# Enable sccache wrapper for rustc
+# Comment out if sccache is not installed
+rustc-wrapper = "sccache"
+
+# Increase parallel jobs (default is num_cpus)
+# jobs = 8
+
+# ============================================
+# Incremental Compilation Optimization
+# ============================================
+# Force enable incremental compilation (already enabled in Cargo.toml)
+# This setting can help if there are permission issues
+# incremental = true

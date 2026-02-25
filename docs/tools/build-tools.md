@@ -2,6 +2,30 @@
 
 vx supports various build systems, compilers, and task runners.
 
+## Build Cache Tools
+
+vx provides compilation cache tools to speed up builds across projects. **See [Build Cache](/tools/build-cache) for detailed documentation.**
+
+| Tool | Languages | Best For |
+|------|-----------|----------|
+| **sccache** | Rust, C/C++, CUDA | Cross-language, CI/CD |
+| **ccache** | C/C++ | Native C/C++ projects |
+| **buildcache** | C/C++ (MSVC) | Windows Visual Studio |
+
+```bash
+# Install sccache (supports Rust + C/C++)
+vx install sccache
+vx sccache --show-stats
+
+# Install ccache (optimized for C/C++)
+vx install ccache
+vx ccache -s
+
+# Install buildcache (best for MSVC)
+vx install buildcache
+vx buildcache -s
+```
+
 ## .NET SDK & MSBuild
 
 ### .NET SDK
