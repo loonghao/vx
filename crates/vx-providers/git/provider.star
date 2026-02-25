@@ -47,7 +47,10 @@ runtimes = [
              "expect_success": True},
         ],
         "shells": [
-            {"name": "git-bash", "path": "git-bash.exe"},
+            # Use bin/bash.exe directly (not git-bash.exe which is a MinTTY launcher)
+            # bin/bash.exe runs in the current terminal (like VSCode does)
+            # git-bash.exe opens a new MinTTY window and --attach causes it to flash and close
+            {"name": "git-bash", "path": "bin/bash.exe"},
             {"name": "git-cmd",  "path": "git-cmd.exe"},
             {"name": "bash",     "path": "bin/bash.exe"},
         ],

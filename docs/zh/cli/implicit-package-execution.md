@@ -562,8 +562,8 @@ vx uv::bash
 
 ### 行为说明
 
-- **默认**：Shell 附加到当前终端（不打开新窗口）
-- **Windows git-bash**：使用 `--attach` 参数保持在当前终端
+- **默认**：Shell 在当前终端中运行（不打开新窗口）
+- **Windows git-bash**：直接使用 `bin/bash.exe`（与 VSCode 做法相同），而非 `git-bash.exe`（MinTTY 启动器）。使用 `--login -i` 参数以交互式登录 shell 运行。
 - **所有 shell**：继承运行时的 PATH 和环境变量
 
 ## 相关命令

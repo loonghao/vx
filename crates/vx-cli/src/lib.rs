@@ -356,31 +356,23 @@ fn find_shell_in_path(shell_name: &str) -> Result<std::path::PathBuf> {
     }
 }
 
-/// Build default shell arguments to attach to the current terminal
+/// Build default shell arguments to run interactively in the current terminal
 ///
-/// Different shells have different flags to run interactively in the current terminal
-/// rather than opening a new window:
+/// Different shells have different flags to run interactively:
 ///
-/// - `git-bash` / `bash` / `sh`: No extra flags needed (runs in current terminal by default)
-///   But on Windows, git-bash.exe opens a new MinTTY window by default.
-///   Use `--attach` to attach to the current console.
+/// - `git-bash`: We use `bin/bash.exe` (not `git-bash.exe` which is a MinTTY launcher).
+///   `bin/bash.exe` runs directly in the current terminal, same as VSCode does.
+///   Pass `--init-file` to load Git's shell integration, or just `-i` for interactive mode.
+/// - `bash` / `sh` / `zsh` / `fish`: Run in current terminal by default
 /// - `cmd`: No extra flags needed
 /// - `powershell` / `pwsh`: No extra flags needed
-/// - `zsh` / `fish`: No extra flags needed
 fn build_default_shell_args(shell_name: &str) -> Vec<String> {
     match shell_name.to_lowercase().as_str() {
-        // git-bash on Windows opens a new MinTTY window by default.
-        // --attach makes it attach to the current console (cmd/PowerShell window).
-        // This is the same behavior as cmd, powershell, etc.
-        "git-bash" | "git-cmd" => {
-            #[cfg(windows)]
-            {
-                vec!["--attach".to_string()]
-            }
-            #[cfg(not(windows))]
-            {
-                vec![]
-            }
+        // git-bash: we use bin/bash.exe directly (like VSCode does).
+        // bin/bash.exe runs in the current terminal without opening a new MinTTY window.
+        // Pass --login -i to get a proper interactive login shell with Git environment.
+        "git-bash" => {
+            vec!["--login".to_string(), "-i".to_string()]
         }
         // bash, sh, zsh, fish, etc. run in current terminal by default
         _ => vec![],

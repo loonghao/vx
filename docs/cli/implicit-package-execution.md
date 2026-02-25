@@ -564,8 +564,8 @@ vx uv::bash
 
 ### Behavior
 
-- **Default**: Shells attach to the current terminal (no new window)
-- **Windows git-bash**: Uses `--attach` flag to stay in current terminal
+- **Default**: Shells run in the current terminal (no new window)
+- **Windows git-bash**: Uses `bin/bash.exe` directly (like VSCode), not `git-bash.exe` (MinTTY launcher). Runs with `--login -i` for a proper interactive login shell.
 - **All shells**: Inherit the runtime's PATH and environment variables
 
 ## See Also
