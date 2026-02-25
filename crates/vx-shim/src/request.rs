@@ -106,7 +106,25 @@ impl PackageRequest {
             // Check if it's a known ecosystem
             matches!(
                 ecosystem.to_lowercase().as_str(),
-                "npm" | "pip" | "cargo" | "go" | "gem" | "uv" | "uvx" | "bun" | "yarn" | "pnpm"
+                "npm"
+                    | "pip"
+                    | "cargo"
+                    | "go"
+                    | "gem"
+                    | "uv"
+                    | "uvx"
+                    | "pipx"
+                    | "bun"
+                    | "bunx"
+                    | "yarn"
+                    | "pnpm"
+                    | "npx"
+                    | "dlx"
+                    | "deno"
+                    | "dotnet-tool"
+                    | "dotnet"
+                    | "jbang"
+                    | "java"
             )
         } else {
             false

@@ -69,16 +69,24 @@ vx pip:ruff check .
 
 ## Supported Ecosystems
 
-| Ecosystem | Aliases | Runtime | Example Package |
-|-----------|---------|---------|-----------------|
-| `npm` | `node` | Node.js | `npm:typescript` |
-| `pip` | `python`, `pypi` | Python | `pip:black` |
-| `uv` | - | Python (via uv) | `uv:ruff` |
-| `cargo` | `rust`, `crates` | Rust | `cargo:ripgrep` |
-| `go` | `golang` | Go | `go:golangci-lint` |
-| `bun` | - | Bun | `bun:typescript` |
-| `yarn` | - | Node.js | `yarn:typescript` |
-| `pnpm` | - | Node.js | `pnpm:typescript` |
+| Ecosystem | Aliases | Runtime | Description | Example |
+|-----------|---------|---------|-------------|---------|
+| `npm` | `node`, `npx` | Node.js | npm packages | `npm:typescript` |
+| `bun` | `bunx` | Bun | Bun packages | `bun:typescript` |
+| `yarn` | - | Node.js | Yarn packages | `yarn:typescript` |
+| `pnpm` | - | Node.js | pnpm packages | `pnpm:typescript` |
+| `dlx` | - | Node.js | pnpm dlx oneshot runner (like npx) | `dlx:create-react-app` |
+| `pip` | `python`, `pypi` | Python | pip packages | `pip:black` |
+| `uv` | - | Python (via uv) | uv packages | `uv:ruff` |
+| `uvx` | - | Python (via uvx) | uvx oneshot runner | `uvx:ruff` |
+| `pipx` | - | Python (via pipx) | pipx oneshot runner | `pipx:cowsay` |
+| `deno` | - | Deno | npm/JSR packages via deno run | `deno:cowsay` |
+| `dotnet-tool` | `dotnet` | .NET | .NET tools via dotnet tool install | `dotnet-tool:dotnet-script` |
+| `jbang` | `java` | Java | Java tools via jbang | `jbang:picocli` |
+| `cargo` | `rust`, `crates` | Rust | Rust crates | `cargo:ripgrep` |
+| `go` | `golang` | Go | Go packages | `go:golangci-lint` |
+| `gem` | `ruby`, `rubygems` | Ruby | Ruby gems | `gem:rails` |
+| `choco` | `chocolatey` | Windows | Chocolatey packages | `choco:git` |
 
 ## Common Use Cases
 
@@ -119,8 +127,67 @@ vx pip@3.11:black .
 # Using uv (faster)
 vx uv:ruff check .
 
+# Using uvx (isolated, ephemeral)
+vx uvx:ruff check .
+vx uvx:black .
+
+# Using pipx (isolated, ephemeral)
+vx pipx:cowsay Hello World
+vx pipx:httpie::http GET example.com
+
 # HTTP client
 vx pip:httpie::http GET example.com
+```
+
+### Deno
+
+```bash
+# Run npm package via deno
+vx deno:cowsay Hello
+
+# Run JSR package via deno
+vx deno:@std/cli --help
+
+# Run with specific deno version
+vx deno@2:cowsay Hello
+```
+
+### .NET Tools
+
+```bash
+# Run dotnet-script
+vx dotnet-tool:dotnet-script script.csx
+
+# Run dotnet-format
+vx dotnet-tool:dotnet-format --verify-no-changes
+
+# Run dotnet-ef (Entity Framework)
+vx dotnet-tool:dotnet-ef migrations list
+
+# Using alias
+vx dotnet:dotnet-script script.csx
+```
+
+### Java (JBang)
+
+```bash
+# Run a JBang tool
+vx jbang:picocli --help
+
+# Run with GAV coordinate
+vx jbang:info.picocli:picocli-codegen --help
+
+# Using alias
+vx java:picocli --help
+```
+
+### pnpm dlx
+
+```bash
+# Run via pnpm dlx (like npx but for pnpm)
+vx dlx:create-react-app my-app
+vx dlx:vite --version
+vx dlx:@biomejs/biome::biome check .
 ```
 
 ### Rust
@@ -453,6 +520,53 @@ if part.starts_with('@') {
     }
 }
 ```
+
+## Shell Execution Syntax
+
+vx supports launching shells with a specific runtime's environment attached to the current terminal:
+
+```
+vx <runtime>[::shell_name]
+```
+
+This is equivalent to opening a shell with the runtime's tools in PATH, **attached to the current terminal** (not a new window).
+
+### Examples
+
+```bash
+# Open git-bash in current terminal (Windows)
+vx git::git-bash
+
+# Open PowerShell with node environment
+vx node::powershell
+
+# Open cmd with go environment
+vx go::cmd
+
+# Open bash with python environment
+vx python::bash
+
+# Open default shell with uv environment
+vx uv::bash
+```
+
+### Supported Shells
+
+| Shell | Platform | Notes |
+|-------|----------|-------|
+| `git-bash` | Windows | Git Bash (MINGW64), attaches to current terminal |
+| `bash` | Unix/Windows | Bash shell |
+| `zsh` | macOS/Linux | Z shell |
+| `fish` | Unix | Fish shell |
+| `powershell` | Windows/Unix | PowerShell |
+| `cmd` | Windows | Command Prompt |
+| `sh` | Unix | POSIX shell |
+
+### Behavior
+
+- **Default**: Shells attach to the current terminal (no new window)
+- **Windows git-bash**: Uses `--attach` flag to stay in current terminal
+- **All shells**: Inherit the runtime's PATH and environment variables
 
 ## See Also
 

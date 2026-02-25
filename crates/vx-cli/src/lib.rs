@@ -290,7 +290,13 @@ async fn execute_shell_request(
     ));
 
     // Build shell command args
-    let shell_args: Vec<String> = args.to_vec();
+    // For shells that open new windows by default (like git-bash), we need to
+    // add flags to attach to the current terminal instead of opening a new window.
+    let shell_args: Vec<String> = if args.is_empty() {
+        build_default_shell_args(shell_name)
+    } else {
+        args.to_vec()
+    };
 
     ui::UI::debug(&format!(
         "Launching shell {} with args: {:?}",
@@ -347,6 +353,37 @@ fn find_shell_in_path(shell_name: &str) -> Result<std::path::PathBuf> {
                 shell_name
             )
         })
+    }
+}
+
+/// Build default shell arguments to attach to the current terminal
+///
+/// Different shells have different flags to run interactively in the current terminal
+/// rather than opening a new window:
+///
+/// - `git-bash` / `bash` / `sh`: No extra flags needed (runs in current terminal by default)
+///   But on Windows, git-bash.exe opens a new MinTTY window by default.
+///   Use `--attach` to attach to the current console.
+/// - `cmd`: No extra flags needed
+/// - `powershell` / `pwsh`: No extra flags needed
+/// - `zsh` / `fish`: No extra flags needed
+fn build_default_shell_args(shell_name: &str) -> Vec<String> {
+    match shell_name.to_lowercase().as_str() {
+        // git-bash on Windows opens a new MinTTY window by default.
+        // --attach makes it attach to the current console (cmd/PowerShell window).
+        // This is the same behavior as cmd, powershell, etc.
+        "git-bash" | "git-cmd" => {
+            #[cfg(windows)]
+            {
+                vec!["--attach".to_string()]
+            }
+            #[cfg(not(windows))]
+            {
+                vec![]
+            }
+        }
+        // bash, sh, zsh, fish, etc. run in current terminal by default
+        _ => vec![],
     }
 }
 
@@ -467,10 +504,11 @@ async fn auto_install_package(ctx: &CommandContext, pkg_request: &PackageRequest
     };
 
     // Get the appropriate installer for this ecosystem
-    // For npm ecosystem, we need to use the npm executable from the installed node
+    // For npm/npx ecosystem, we need to use the npm executable from the installed node
+    // For uvx ecosystem, we need to use the uv executable from the installed uv
     let installer: Box<dyn vx_ecosystem_pm::EcosystemInstaller> = match ecosystem.as_str() {
-        "npm" | "node" => {
-            // For npm ecosystem, try to find npm executable from the installed node
+        "npm" | "node" | "npx" => {
+            // For npm/npx ecosystem, try to find npm executable from the installed node
             // Use vx-paths RuntimeRoot to get bundled tool path
             let npm_path = if runtime_installed {
                 match vx_paths::get_bundled_tool_path("node", "npm") {
@@ -488,6 +526,23 @@ async fn auto_install_package(ctx: &CommandContext, pkg_request: &PackageRequest
                 ))
             } else {
                 Box::new(vx_ecosystem_pm::installers::NpmInstaller::new())
+            }
+        }
+        "uvx" => {
+            // For uvx ecosystem, try to find uv executable from the vx-installed uv
+            // Use vx-paths RuntimeRoot to get the uv executable path
+            let uv_path = match vx_paths::get_bundled_tool_path("uv", "uv") {
+                Ok(Some(path)) if path.exists() => Some(path),
+                _ => None,
+            };
+
+            if let Some(path) = uv_path {
+                tracing::debug!("Using uv from vx store: {}", path.display());
+                Box::new(vx_ecosystem_pm::installers::UvxInstaller::with_uv_path(
+                    path,
+                ))
+            } else {
+                Box::new(vx_ecosystem_pm::installers::UvxInstaller::new())
             }
         }
         _ => get_installer(ecosystem)
@@ -565,14 +620,25 @@ fn get_all_required_runtimes_for_ecosystem(ecosystem: &str) -> Vec<&'static str>
     match ecosystem.to_lowercase().as_str() {
         // Node.js ecosystem - node is required, bun is optional but recommended
         // Some packages like opencode use bun internally
-        "npm" | "node" | "yarn" | "pnpm" => vec!["node", "bun"],
-        // Bun ecosystem just needs bun
-        "bun" => vec!["bun"],
+        // npx is bundled with npm/node, so it also requires node
+        "npm" | "node" | "yarn" | "pnpm" | "npx" => vec!["node", "bun"],
+        // Bun ecosystem just needs bun; bunx is bun's package runner
+        "bun" | "bunx" => vec!["bun"],
+        // dlx: pnpm's oneshot runner, requires node (for pnpm) and pnpm itself
+        "dlx" => vec!["node"],
         // Python ecosystem requires uv
         "pip" | "python" | "pypi" => vec!["uv"],
         "uv" => vec![], // uv is self-contained
         // uvx: Python CLI tools run via uvx (isolated environments), requires uv
         "uvx" => vec!["uv"],
+        // pipx: Python CLI tools run via pipx, requires uv (to install pipx) or system python
+        "pipx" => vec!["uv"],
+        // Deno ecosystem - deno is self-contained
+        "deno" => vec!["deno"],
+        // .NET ecosystem - requires dotnet SDK
+        "dotnet-tool" | "dotnet" => vec!["dotnet"],
+        // Java ecosystem - jbang requires java
+        "jbang" | "java" => vec!["java"],
         // Rust ecosystem
         "cargo" | "rust" | "crates" => vec!["cargo"],
         // Go ecosystem

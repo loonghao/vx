@@ -276,6 +276,9 @@ aliases     = ["mt"]         # optional
 platforms = {"os": ["windows"]}         # omit if cross-platform
 
 # ── Runtime definitions (required) ───────────────────────────────────────
+# Two equivalent formats are supported and both are parsed by StarMetadata::parse():
+#
+# Format A: Dict literal (simple tools)
 runtimes = [
     {
         "name":        "mytool",
@@ -291,6 +294,26 @@ runtimes = [
         # ],
     },
 ]
+
+# Format B: runtime_def() / bundled_runtime_def() function calls (preferred for complex providers)
+# This is the format used by most built-in providers (node, go, uv, etc.)
+# StarMetadata::parse() handles BOTH formats — they are fully equivalent.
+runtimes = [
+    runtime_def("mytool",
+        aliases      = ["mt"],
+        description  = "My tool CLI",
+        test_commands = [
+            {"command": "{executable} --version", "name": "version_check", "expected_output": "\\d+\\.\\d+"},
+        ],
+    ),
+    bundled_runtime_def("mytool-extra",  bundled_with = "mytool"),
+]
+
+# ⚠️  IMPORTANT: StarMetadata::parse() parses runtimes statically (without running Starlark).
+# It supports both dict literals AND runtime_def()/bundled_runtime_def() calls.
+# If you use a different format (e.g., a helper function that returns a list), the static
+# parser will NOT see those runtimes, causing `vx <tool>` to report "not supported".
+# Always use one of the two formats above for the top-level `runtimes = [...]` list.
 
 # ── Permissions (sandbox declaration) ────────────────────────────────────
 permissions = {
@@ -1601,6 +1624,70 @@ INFO: registered 53 lazy providers (0 errors, 9 manifest-only, 0 warnings)
 - **errors**: Real configuration errors that need fixing
 - **manifest-only**: Providers with manifests but no Rust factory (expected during development)
 - **warnings**: Non-fatal issues
+
+## Troubleshooting
+
+### Issue: `vx <tool>` reports "Tool 'X' is not supported by vx" right after creating a provider
+
+**Root Cause**: `StarMetadata::parse()` is a **static parser** — it reads `provider.star` without
+executing Starlark. It only recognizes two formats for the `runtimes = [...]` list:
+1. Dict literals: `{"name": "foo", ...}`
+2. Function calls: `runtime_def("foo", ...)` and `bundled_runtime_def("foo", bundled_with="bar", ...)`
+
+If the `runtimes` list uses any other format, the static parser will see an empty runtimes list,
+causing `ProviderRegistry::get_runtime("tool")` to return `None`.
+
+**Solution**: Always use one of the two supported formats for the top-level `runtimes = [...]` list:
+
+```python
+# ✅ Format A: Dict literals
+runtimes = [
+    {"name": "mytool", "executable": "mytool", "aliases": ["mt"]},
+    {"name": "mytool-extra", "bundled_with": "mytool"},
+]
+
+# ✅ Format B: runtime_def() / bundled_runtime_def() function calls (preferred)
+runtimes = [
+    runtime_def("mytool",
+        aliases = ["mt"],
+    ),
+    bundled_runtime_def("mytool-extra", bundled_with = "mytool"),
+]
+
+# ❌ NOT supported: helper function returning a list
+runtimes = make_runtimes()  # StarMetadata::parse() cannot see these
+
+# ❌ NOT supported: variable reference
+_rt = [{"name": "mytool"}]
+runtimes = _rt  # StarMetadata::parse() cannot follow variable references
+```
+
+**Diagnosis**:
+```bash
+# Add a quick test to verify StarMetadata::parse() sees your runtimes:
+# let meta = StarMetadata::parse(include_str!("../provider.star"));
+# assert!(!meta.runtimes.is_empty(), "runtimes: {:?}", meta.runtimes);
+cargo test -p vx-starlark --lib 2>&1 | grep -E "FAILED|ok"
+```
+
+### Issue: `runtime_def()` / `bundled_runtime_def()` not recognized
+
+**Cause**: These are Starlark helper functions loaded from `@vx//stdlib:provider.star`.
+The static parser in `StarMetadata::parse()` recognizes them by name pattern, not by
+executing the Starlark engine.
+
+**Supported call patterns**:
+```python
+# ✅ runtime_def with positional name + keyword args
+runtime_def("node", aliases=["nodejs"], description="Node.js runtime")
+
+# ✅ bundled_runtime_def with positional name + bundled_with kwarg
+bundled_runtime_def("npm", bundled_with="node")
+bundled_runtime_def("npx", bundled_with = "node")  # spaces around = are OK
+
+# ❌ NOT supported: name as keyword arg
+runtime_def(name="node")  # parser only reads first positional arg
+```
 
 ## Reference Files
 

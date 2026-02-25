@@ -69,16 +69,24 @@ vx pip:ruff check .
 
 ## 支持的生态系统
 
-| 生态系统 | 别名 | 运行时 | 示例包 |
-|----------|------|--------|--------|
-| `npm` | `node` | Node.js | `npm:typescript` |
-| `pip` | `python`、`pypi` | Python | `pip:black` |
-| `uv` | - | Python（通过 uv） | `uv:ruff` |
-| `cargo` | `rust`、`crates` | Rust | `cargo:ripgrep` |
-| `go` | `golang` | Go | `go:golangci-lint` |
-| `bun` | - | Bun | `bun:typescript` |
-| `yarn` | - | Node.js | `yarn:typescript` |
-| `pnpm` | - | Node.js | `pnpm:typescript` |
+| 生态系统 | 别名 | 运行时 | 描述 | 示例 |
+|----------|------|--------|------|------|
+| `npm` | `node`, `npx` | Node.js | npm 包 | `npm:typescript` |
+| `bun` | `bunx` | Bun | Bun 包 | `bun:typescript` |
+| `yarn` | - | Node.js | Yarn 包 | `yarn:typescript` |
+| `pnpm` | - | Node.js | pnpm 包 | `pnpm:typescript` |
+| `dlx` | - | Node.js | pnpm dlx 一次性运行（类似 npx） | `dlx:create-react-app` |
+| `pip` | `python`, `pypi` | Python | pip 包 | `pip:black` |
+| `uv` | - | Python（通过 uv） | uv 包 | `uv:ruff` |
+| `uvx` | - | Python（通过 uvx） | uvx 一次性运行 | `uvx:ruff` |
+| `pipx` | - | Python（通过 pipx） | pipx 一次性运行 | `pipx:cowsay` |
+| `deno` | - | Deno | 通过 deno run 运行 npm/JSR 包 | `deno:cowsay` |
+| `dotnet-tool` | `dotnet` | .NET | 通过 dotnet tool install 安装 .NET 工具 | `dotnet-tool:dotnet-script` |
+| `jbang` | `java` | Java | 通过 jbang 运行 Java 工具 | `jbang:picocli` |
+| `cargo` | `rust`, `crates` | Rust | Rust crate | `cargo:ripgrep` |
+| `go` | `golang` | Go | Go 包 | `go:golangci-lint` |
+| `gem` | `ruby`, `rubygems` | Ruby | Ruby gem | `gem:rails` |
+| `choco` | `chocolatey` | Windows | Chocolatey 包 | `choco:git` |
 
 ## 常见用例
 
@@ -119,8 +127,67 @@ vx pip@3.11:black .
 # 使用 uv（更快）
 vx uv:ruff check .
 
+# 使用 uvx（隔离、一次性）
+vx uvx:ruff check .
+vx uvx:black .
+
+# 使用 pipx（隔离、一次性）
+vx pipx:cowsay Hello World
+vx pipx:httpie::http GET example.com
+
 # HTTP 客户端
 vx pip:httpie::http GET example.com
+```
+
+### Deno
+
+```bash
+# 通过 deno 运行 npm 包
+vx deno:cowsay Hello
+
+# 通过 deno 运行 JSR 包
+vx deno:@std/cli --help
+
+# 使用指定 deno 版本
+vx deno@2:cowsay Hello
+```
+
+### .NET 工具
+
+```bash
+# 运行 dotnet-script
+vx dotnet-tool:dotnet-script script.csx
+
+# 运行 dotnet-format
+vx dotnet-tool:dotnet-format --verify-no-changes
+
+# 运行 dotnet-ef（Entity Framework）
+vx dotnet-tool:dotnet-ef migrations list
+
+# 使用别名
+vx dotnet:dotnet-script script.csx
+```
+
+### Java（JBang）
+
+```bash
+# 运行 JBang 工具
+vx jbang:picocli --help
+
+# 使用 GAV 坐标
+vx jbang:info.picocli:picocli-codegen --help
+
+# 使用别名
+vx java:picocli --help
+```
+
+### pnpm dlx
+
+```bash
+# 通过 pnpm dlx 运行（类似 npx）
+vx dlx:create-react-app my-app
+vx dlx:vite --version
+vx dlx:@biomejs/biome::biome check .
 ```
 
 ### Rust
@@ -453,6 +520,51 @@ if part.starts_with('@') {
     }
 }
 ```
+
+## Shell 执行语法
+
+vx 支持在当前终端中启动带有特定运行时环境的 shell（不会打开新窗口）：
+
+```
+vx <运行时>[::shell名称]
+```
+
+### 示例
+
+```bash
+# 在当前终端打开 git-bash（Windows）
+vx git::git-bash
+
+# 打开带 node 环境的 PowerShell
+vx node::powershell
+
+# 打开带 go 环境的 cmd
+vx go::cmd
+
+# 打开带 python 环境的 bash
+vx python::bash
+
+# 打开带 uv 环境的默认 shell
+vx uv::bash
+```
+
+### 支持的 Shell
+
+| Shell | 平台 | 说明 |
+|-------|------|------|
+| `git-bash` | Windows | Git Bash（MINGW64），附加到当前终端 |
+| `bash` | Unix/Windows | Bash shell |
+| `zsh` | macOS/Linux | Z shell |
+| `fish` | Unix | Fish shell |
+| `powershell` | Windows/Unix | PowerShell |
+| `cmd` | Windows | 命令提示符 |
+| `sh` | Unix | POSIX shell |
+
+### 行为说明
+
+- **默认**：Shell 附加到当前终端（不打开新窗口）
+- **Windows git-bash**：使用 `--attach` 参数保持在当前终端
+- **所有 shell**：继承运行时的 PATH 和环境变量
 
 ## 相关命令
 

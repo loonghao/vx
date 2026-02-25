@@ -291,8 +291,219 @@ fn extract_runtimes(source: &str) -> Vec<StarRuntimeMeta> {
         None => return Vec::new(),
     };
 
-    // Split into individual dict entries `{...}`
-    parse_runtime_dicts(list_body)
+    // Split into individual dict entries `{...}` or function calls `runtime_def(...)`
+    parse_runtime_entries(list_body)
+}
+
+/// Parse a list body into runtime metadata structs.
+///
+/// Handles two formats:
+/// 1. Dict literals: `{"name": "foo", ...}`
+/// 2. Function calls: `runtime_def("foo", ...)` and `bundled_runtime_def("foo", bundled_with="bar", ...)`
+fn parse_runtime_entries(list_body: &str) -> Vec<StarRuntimeMeta> {
+    let mut runtimes = Vec::new();
+    let mut remaining = list_body;
+
+    while !remaining.is_empty() {
+        remaining = remaining.trim_start();
+        if remaining.is_empty() {
+            break;
+        }
+
+        // Dict literal: `{...}`
+        if remaining.starts_with('{') {
+            let Some(dict_body) = find_matching_bracket(remaining, 0, '{', '}') else {
+                break;
+            };
+            runtimes.push(parse_runtime_dict(dict_body));
+            let end_pos = dict_body.len() + 2; // +2 for `{` and `}`
+            if end_pos >= remaining.len() {
+                break;
+            }
+            remaining = &remaining[end_pos..];
+            // Skip comma
+            remaining = remaining.trim_start();
+            if remaining.starts_with(',') {
+                remaining = &remaining[1..];
+            }
+            continue;
+        }
+
+        // Function call: `runtime_def(...)` or `bundled_runtime_def(...)`
+        if remaining.starts_with("bundled_runtime_def(") {
+            let call_start = "bundled_runtime_def(".len();
+            let Some(args_body) = find_matching_bracket(remaining, call_start - 1, '(', ')') else {
+                break;
+            };
+            runtimes.push(parse_bundled_runtime_def_call(args_body));
+            let end_pos = call_start + args_body.len() + 1; // +1 for closing `)`
+            if end_pos >= remaining.len() {
+                break;
+            }
+            remaining = &remaining[end_pos..];
+            remaining = remaining.trim_start();
+            if remaining.starts_with(',') {
+                remaining = &remaining[1..];
+            }
+            continue;
+        }
+
+        if remaining.starts_with("runtime_def(") {
+            let call_start = "runtime_def(".len();
+            let Some(args_body) = find_matching_bracket(remaining, call_start - 1, '(', ')') else {
+                break;
+            };
+            runtimes.push(parse_runtime_def_call(args_body));
+            let end_pos = call_start + args_body.len() + 1; // +1 for closing `)`
+            if end_pos >= remaining.len() {
+                break;
+            }
+            remaining = &remaining[end_pos..];
+            remaining = remaining.trim_start();
+            if remaining.starts_with(',') {
+                remaining = &remaining[1..];
+            }
+            continue;
+        }
+
+        // Skip unknown tokens (comments, whitespace, etc.)
+        if let Some(pos) = remaining.find([',', '{', '}', '(', ')']) {
+            if pos == 0 {
+                remaining = &remaining[1..];
+            } else {
+                remaining = &remaining[pos..];
+            }
+        } else {
+            break;
+        }
+    }
+
+    runtimes
+}
+
+/// Parse a `runtime_def("name", aliases=[...], ...)` call.
+///
+/// Extracts: name (positional arg 0), aliases, executable, description, priority.
+fn parse_runtime_def_call(args_body: &str) -> StarRuntimeMeta {
+    // First positional argument is the name (a string literal)
+    let name = extract_first_positional_string(args_body);
+    let executable = extract_kwarg_string(args_body, "executable").or_else(|| name.clone());
+    let description = extract_kwarg_string(args_body, "description");
+    let aliases = extract_kwarg_string_list(args_body, "aliases");
+
+    StarRuntimeMeta {
+        name,
+        executable,
+        description,
+        aliases,
+        platform_os: Vec::new(),
+        auto_installable: None,
+        bundled_with: None,
+        shells: Vec::new(),
+        install_deps: Vec::new(),
+    }
+}
+
+/// Parse a `bundled_runtime_def("name", bundled_with="parent", ...)` call.
+///
+/// Extracts: name (positional arg 0), bundled_with, executable, description.
+fn parse_bundled_runtime_def_call(args_body: &str) -> StarRuntimeMeta {
+    let name = extract_first_positional_string(args_body);
+    let bundled_with = extract_kwarg_string(args_body, "bundled_with");
+    let executable = extract_kwarg_string(args_body, "executable").or_else(|| name.clone());
+    let description = extract_kwarg_string(args_body, "description");
+    let aliases = extract_kwarg_string_list(args_body, "aliases");
+
+    StarRuntimeMeta {
+        name,
+        executable,
+        description,
+        aliases,
+        platform_os: Vec::new(),
+        auto_installable: None,
+        bundled_with,
+        shells: Vec::new(),
+        install_deps: Vec::new(),
+    }
+}
+
+/// Extract the first positional string argument from a function call args body.
+///
+/// e.g. `"node", aliases=["nodejs"]` → `Some("node")`
+fn extract_first_positional_string(args_body: &str) -> Option<String> {
+    let trimmed = args_body.trim_start();
+    extract_string_literal(trimmed)
+}
+
+/// Extract a keyword argument string value from a function call args body.
+///
+/// e.g. `"node", bundled_with = "go"` with key `"bundled_with"` → `Some("go")`
+fn extract_kwarg_string(args_body: &str, key: &str) -> Option<String> {
+    // Look for `key = "value"` or `key="value"` pattern
+    let pattern = format!("{} =", key);
+    let pattern2 = format!("{}=", key);
+
+    for pat in &[pattern.as_str(), pattern2.as_str()] {
+        if let Some(pos) = args_body.find(pat) {
+            // Make sure this is a keyword arg (preceded by comma/whitespace/newline, not part of a string)
+            let before = &args_body[..pos];
+            // Simple heuristic: the char before the key should be whitespace, comma, or newline
+            let is_kwarg = before.is_empty()
+                || before
+                    .chars()
+                    .last()
+                    .map(|c| c.is_whitespace() || c == ',')
+                    .unwrap_or(true);
+            if !is_kwarg {
+                continue;
+            }
+            let after = &args_body[pos + pat.len()..];
+            let after = after.trim_start();
+            if let Some(val) = extract_string_literal(after) {
+                return Some(val);
+            }
+        }
+    }
+    None
+}
+
+/// Extract a keyword argument string list from a function call args body.
+///
+/// e.g. `"node", aliases = ["nodejs", "node-js"]` with key `"aliases"` → `["nodejs", "node-js"]`
+fn extract_kwarg_string_list(args_body: &str, key: &str) -> Vec<String> {
+    let pattern = format!("{} =", key);
+    let pattern2 = format!("{}=", key);
+
+    for pat in &[pattern.as_str(), pattern2.as_str()] {
+        if let Some(pos) = args_body.find(pat) {
+            let before = &args_body[..pos];
+            let is_kwarg = before.is_empty()
+                || before
+                    .chars()
+                    .last()
+                    .map(|c| c.is_whitespace() || c == ',')
+                    .unwrap_or(true);
+            if !is_kwarg {
+                continue;
+            }
+            let after = &args_body[pos + pat.len()..];
+            let after = after.trim_start();
+            if after.starts_with('[')
+                && let Some(list_body) = find_matching_bracket(after, 0, '[', ']')
+            {
+                return extract_string_list_items(list_body);
+            }
+        }
+    }
+    Vec::new()
+}
+
+/// Parse a list body (content between `[` and `]`) into runtime metadata structs.
+///
+/// Legacy function kept for compatibility — delegates to `parse_runtime_entries`.
+#[allow(dead_code)]
+fn parse_runtime_dicts(list_body: &str) -> Vec<StarRuntimeMeta> {
+    parse_runtime_entries(list_body)
 }
 
 /// Given the source and the position of an opening bracket, return the content
@@ -326,29 +537,6 @@ fn find_matching_bracket(source: &str, open_pos: usize, open: char, close: char)
         i += 1;
     }
     None
-}
-
-/// Parse a list body (content between `[` and `]`) into runtime metadata structs.
-fn parse_runtime_dicts(list_body: &str) -> Vec<StarRuntimeMeta> {
-    let mut runtimes = Vec::new();
-    let mut remaining = list_body;
-
-    while let Some(dict_start) = remaining.find('{') {
-        let Some(dict_body) = find_matching_bracket(remaining, dict_start, '{', '}') else {
-            break;
-        };
-
-        runtimes.push(parse_runtime_dict(dict_body));
-
-        // Advance past this dict
-        let end_pos = dict_start + dict_body.len() + 2; // +2 for `{` and `}`
-        if end_pos >= remaining.len() {
-            break;
-        }
-        remaining = &remaining[end_pos..];
-    }
-
-    runtimes
 }
 
 /// Parse a single runtime dict body (content between `{` and `}`).
@@ -684,5 +872,119 @@ runtimes = [
         assert_eq!(meta.runtimes[0].aliases, vec!["nodejs"]);
         assert_eq!(meta.runtimes[1].name, Some("npm".to_string()));
         assert_eq!(meta.runtimes[1].bundled_with, Some("node".to_string()));
+    }
+
+    // RFC 0038: runtime_def() / bundled_runtime_def() function call format
+    const SAMPLE_STAR_FUNC_CALLS: &str = r#"
+name        = "node"
+description = "Node.js JavaScript runtime"
+ecosystem   = "nodejs"
+
+runtimes = [
+    runtime_def("node",
+        aliases = ["nodejs"],
+    ),
+    bundled_runtime_def("npm",  bundled_with = "node"),
+    bundled_runtime_def("npx",  bundled_with = "node"),
+]
+"#;
+
+    #[test]
+    fn test_parse_runtime_def_calls_count() {
+        let meta = StarMetadata::parse(SAMPLE_STAR_FUNC_CALLS);
+        assert_eq!(
+            meta.runtimes.len(),
+            3,
+            "Expected 3 runtimes from runtime_def/bundled_runtime_def calls"
+        );
+    }
+
+    #[test]
+    fn test_parse_runtime_def_name() {
+        let meta = StarMetadata::parse(SAMPLE_STAR_FUNC_CALLS);
+        assert_eq!(meta.runtimes[0].name, Some("node".to_string()));
+    }
+
+    #[test]
+    fn test_parse_runtime_def_aliases() {
+        let meta = StarMetadata::parse(SAMPLE_STAR_FUNC_CALLS);
+        assert_eq!(meta.runtimes[0].aliases, vec!["nodejs"]);
+    }
+
+    #[test]
+    fn test_parse_bundled_runtime_def_name() {
+        let meta = StarMetadata::parse(SAMPLE_STAR_FUNC_CALLS);
+        assert_eq!(meta.runtimes[1].name, Some("npm".to_string()));
+        assert_eq!(meta.runtimes[2].name, Some("npx".to_string()));
+    }
+
+    #[test]
+    fn test_parse_bundled_runtime_def_bundled_with() {
+        let meta = StarMetadata::parse(SAMPLE_STAR_FUNC_CALLS);
+        assert_eq!(meta.runtimes[1].bundled_with, Some("node".to_string()));
+        assert_eq!(meta.runtimes[2].bundled_with, Some("node".to_string()));
+    }
+
+    #[test]
+    fn test_parse_node_provider_star() {
+        // Test with the actual node provider.star content
+        let content = vx_provider_node_star();
+        let meta = StarMetadata::parse(content);
+        assert_eq!(meta.name, Some("node".to_string()));
+        let names: Vec<_> = meta
+            .runtimes
+            .iter()
+            .filter_map(|r| r.name.as_deref())
+            .collect();
+        assert!(
+            names.contains(&"node"),
+            "Expected 'node' in runtimes, got: {:?}",
+            names
+        );
+        assert!(
+            names.contains(&"npm"),
+            "Expected 'npm' in runtimes, got: {:?}",
+            names
+        );
+        assert!(
+            names.contains(&"npx"),
+            "Expected 'npx' in runtimes, got: {:?}",
+            names
+        );
+    }
+
+    fn vx_provider_node_star() -> &'static str {
+        // Inline a minimal version of node's provider.star for testing
+        r#"
+load("@vx//stdlib:provider.star",
+     "runtime_def", "bundled_runtime_def",
+     "fetch_versions_from_api",
+     "system_permissions",
+     "bin_subdir_layout", "bin_subdir_env", "bin_subdir_execute_path",
+     "post_extract_permissions", "pre_run_ensure_deps")
+load("@vx//stdlib:env.star", "env_prepend")
+
+name        = "node"
+description = "Node.js - JavaScript runtime built on Chrome's V8 engine"
+homepage    = "https://nodejs.org"
+repository  = "https://github.com/nodejs/node"
+license     = "MIT"
+ecosystem   = "nodejs"
+aliases     = ["nodejs"]
+
+runtimes = [
+    runtime_def("node",
+        aliases = ["nodejs"],
+        test_commands = [
+            {"command": "{executable} --version", "name": "version_check",
+             "expected_output": "^v?\\d+\\.\\d+\\.\\d+"},
+        ],
+    ),
+    bundled_runtime_def("npm",  bundled_with = "node",
+        version_pattern = "^\\d+\\.\\d+\\.\\d+"),
+    bundled_runtime_def("npx",  bundled_with = "node",
+        version_pattern = "^\\d+\\.\\d+\\.\\d+"),
+]
+"#
     }
 }
