@@ -334,6 +334,32 @@ parallel_install = true
 cache_duration = "7d"  # Cache version lookups
 ```
 
+### Use Compilation Cache
+
+Use compilation cache tools for faster rebuilds:
+
+```toml
+[tools]
+# sccache supports Rust + C/C++
+sccache = "latest"
+
+# Or use ccache for C/C++ only
+# ccache = "latest"
+
+[env]
+SCCACHE_CACHE_SIZE = "20G"  # 20GB cache
+```
+
+```bash
+# Start cache server
+vx sccache --start-server
+
+# View statistics
+vx sccache --show-stats
+```
+
+See [Build Cache Tools](/tools/build-cache) for detailed documentation.
+
 ### Minimize Hook Execution Time
 
 ```toml

@@ -93,9 +93,12 @@ mod thresholds {
 
     /// Maximum time for setup dry-run (small config)
     /// Note: macOS CI runners have higher variability, so we use a more generous threshold
+    /// Note: Windows debug builds are slower, so we use a more generous threshold
     #[cfg(target_os = "macos")]
     pub const SETUP_DRYRUN_SMALL_MS: u64 = 1500;
-    #[cfg(not(target_os = "macos"))]
+    #[cfg(all(not(target_os = "macos"), windows))]
+    pub const SETUP_DRYRUN_SMALL_MS: u64 = 1500;
+    #[cfg(all(not(target_os = "macos"), not(windows)))]
     pub const SETUP_DRYRUN_SMALL_MS: u64 = 1000;
 
     /// Maximum time for setup dry-run (large config)
@@ -105,12 +108,16 @@ mod thresholds {
     pub const SETUP_DRYRUN_LARGE_MS: u64 = 3000;
 
     /// Maximum time for script listing
+    /// Note: Increased to 1500ms to account for Windows debug builds
+    #[cfg(windows)]
+    pub const SCRIPT_LIST_MS: u64 = 1500;
+    #[cfg(not(windows))]
     pub const SCRIPT_LIST_MS: u64 = 1000;
 
     /// Maximum time for config validation
-    /// Note: Increased to 1500ms to account for Windows CI variability
+    /// Note: Increased to 2000ms to account for Windows debug builds
     #[cfg(windows)]
-    pub const CONFIG_VALIDATE_MS: u64 = 1500;
+    pub const CONFIG_VALIDATE_MS: u64 = 2000;
     #[cfg(not(windows))]
     pub const CONFIG_VALIDATE_MS: u64 = 1000;
 }

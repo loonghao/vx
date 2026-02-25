@@ -3,7 +3,12 @@
 # OpenSSL is pre-installed on most systems.
 # vx only detects the system installation — no download managed.
 #
-# Uses stdlib templates from @vx//stdlib:provider.star
+# Note: This is a system tool provider. OpenSSL is typically available via:
+# - Git for Windows (bundled)
+# - Chocolatey (choco install openssl)
+# - System package managers on Linux/macOS
+#
+# Users should install OpenSSL via system package managers if not available.
 
 load("@vx//stdlib:provider.star", "runtime_def", "system_permissions")
 
@@ -11,7 +16,7 @@ load("@vx//stdlib:provider.star", "runtime_def", "system_permissions")
 # Provider metadata
 # ---------------------------------------------------------------------------
 name        = "openssl"
-description = "Cryptography and SSL/TLS toolkit"
+description = "Cryptography and SSL/TLS toolkit (system tool)"
 homepage    = "https://www.openssl.org"
 repository  = "https://github.com/openssl/openssl"
 license     = "Apache-2.0"
@@ -23,18 +28,6 @@ ecosystem   = "system"
 
 runtimes = [
     runtime_def("openssl",
-        system_paths = [
-            "C:/Program Files/Git/mingw64/bin/openssl.exe",
-            "C:/Program Files/Git/usr/bin/openssl.exe",
-            "C:/ProgramData/chocolatey/lib/openssl/tools/openssl/bin/openssl.exe",
-            "C:/OpenSSL-Win64/bin/openssl.exe",
-            "C:/OpenSSL-Win32/bin/openssl.exe",
-            "C:/msys64/usr/bin/openssl.exe",
-            "/opt/homebrew/bin/openssl",
-            "/usr/local/bin/openssl",
-            "/usr/bin/openssl",
-            "/bin/openssl",
-        ],
         test_commands = [
             {"command": "{executable} version", "name": "version_check",
              "expected_output": "OpenSSL \\d+"},

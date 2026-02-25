@@ -104,6 +104,10 @@ members = [
   "crates/vx-providers/openssl",
   "crates/vx-providers/systemctl",
   "crates/vx-providers/xcodebuild",
+  # Build cache
+  "crates/vx-providers/sccache",
+  "crates/vx-providers/ccache",
+  "crates/vx-providers/buildcache",
   # Python ecosystem tools
   "crates/vx-providers/pre-commit",
   "crates/vx-providers/spack",
@@ -277,6 +281,10 @@ vx-provider-vscode = { path = "crates/vx-providers/vscode" }
 vx-provider-openssl = { path = "crates/vx-providers/openssl" }
 vx-provider-systemctl = { path = "crates/vx-providers/systemctl" }
 vx-provider-xcodebuild = { path = "crates/vx-providers/xcodebuild" }
+# Build cache
+vx-provider-sccache = { path = "crates/vx-providers/sccache" }
+vx-provider-ccache = { path = "crates/vx-providers/ccache" }
+vx-provider-buildcache = { path = "crates/vx-providers/buildcache" }
 # Python ecosystem tools
 vx-provider-pre-commit = { path = "crates/vx-providers/pre-commit" }
 vx-provider-spack = { path = "crates/vx-providers/spack" }
@@ -381,10 +389,9 @@ semver = "1.0"
 self-replace = "1.5"
 
 # Self-updater library for cargo-dist integration
-# Disable default features to avoid pulling in ring via reqwest 0.12
-# Note: axoupdater depends on axoasset which uses reqwest 0.12 with rustls (ring by default)
-# This may cause issues for aarch64-pc-windows-msvc cross-compilation
-axoupdater = { version = "0.9", default-features = false, features = ["github_releases"] }
+# axoupdater 0.10+ uses axoasset 2.0+ which uses reqwest 0.13 with aws-lc-rs (no ring dependency)
+# This resolves the reqwest 0.12/0.13 duplicate version issue
+axoupdater = { version = "0.10", default-features = false, features = ["github_releases"] }
 
 # Windows system calls for file operations
 windows-sys = { version = "0.61", features = ["Win32_Storage_FileSystem"] }
@@ -497,3 +504,10 @@ create-release = false
 publish-jobs = ["homebrew"]
 # Path that installers should place binaries in
 install-path = "CARGO_HOME"
+
+# =============================================================================
+# Patches to unify duplicate dependency versions
+# NOTE: [patch.crates-io] requires git or path, not version.
+# The windows-sys version unification would require a fork or overlay.
+# Consider using cargo-deny or dependabot to track version drift instead.
+# =============================================================================

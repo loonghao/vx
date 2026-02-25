@@ -340,12 +340,13 @@ impl DownloadProgress {
         let bar = pm.multi().add(ProgressBar::new(total_size));
         bar.set_style(
             ProgressStyle::with_template(
-                "{spinner:.green} {msg}\n  {wide_bar:.cyan/blue} {bytes}/{total_bytes} ({bytes_per_sec}, {eta})"
+                "{spinner:.green} {msg} {wide_bar:.cyan/blue} {bytes}/{total_bytes} ({bytes_per_sec}, {eta})"
             )
             .unwrap()
             .progress_chars("━━╺"),
         );
         bar.set_message(message.to_string());
+        bar.enable_steady_tick(Duration::from_millis(100));
         Self { bar }
     }
 
@@ -470,11 +471,12 @@ impl InstallProgress {
         // Main progress bar showing overall progress
         let main_bar = pm.multi().add(ProgressBar::new(total_tools as u64));
         main_bar.set_style(
-            ProgressStyle::with_template("{msg}\n  {wide_bar:.green/dim} {pos}/{len} tools")
+            ProgressStyle::with_template("{msg} [{bar:40.green/dim}] {pos}/{len} tools")
                 .unwrap()
                 .progress_chars("━━╺"),
         );
         main_bar.set_message(title.to_string());
+        main_bar.enable_steady_tick(Duration::from_millis(100));
 
         Self {
             main_bar,
