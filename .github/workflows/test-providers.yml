@@ -55,6 +55,9 @@ jobs:
   build-and-discover:
     name: Build & Discover
     runs-on: ubuntu-latest
+    env:
+      RUSTC_WRAPPER: sccache
+      SCCACHE_DIR: ${{ github.workspace }}/.cache/sccache
     outputs:
       matrix-linux: ${{ steps.discover.outputs.matrix-linux }}
       matrix-macos: ${{ steps.discover.outputs.matrix-macos }}
@@ -69,6 +72,23 @@ jobs:
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
+
+      - name: Install sccache
+        uses: taiki-e/install-action@v2
+        with:
+          tool: sccache
+
+      - name: Cache sccache
+        uses: actions/cache@v5
+        with:
+          path: ${{ github.workspace }}/.cache/sccache
+          key: sccache-providers-${{ runner.os }}-${{ hashFiles('Cargo.lock') }}
+          restore-keys: |
+            sccache-providers-${{ runner.os }}-
+            sccache-providers-
+
+      - name: Start sccache server
+        run: sccache --start-server || true
 
       - name: Cache Cargo
         uses: actions/cache@v5
@@ -120,10 +140,30 @@ jobs:
     runs-on: macos-latest
     needs: build-and-discover
     if: needs.build-and-discover.outputs.has-macos == 'true'
+    env:
+      RUSTC_WRAPPER: sccache
+      SCCACHE_DIR: ${{ github.workspace }}/.cache/sccache
 
     steps:
       - uses: actions/checkout@v6
       - uses: dtolnay/rust-toolchain@stable
+
+      - name: Install sccache
+        uses: taiki-e/install-action@v2
+        with:
+          tool: sccache
+
+      - name: Cache sccache
+        uses: actions/cache@v5
+        with:
+          path: ${{ github.workspace }}/.cache/sccache
+          key: sccache-providers-${{ runner.os }}-${{ hashFiles('Cargo.lock') }}
+          restore-keys: |
+            sccache-providers-${{ runner.os }}-
+
+      - name: Start sccache server
+        run: sccache --start-server || true
+
       - uses: actions/cache@v5
         with:
           path: |
@@ -145,10 +185,50 @@ jobs:
     runs-on: windows-latest
     needs: build-and-discover
     if: needs.build-and-discover.outputs.has-windows == 'true'
+    env:
+      RUSTC_WRAPPER: sccache
+      SCCACHE_DIR: ${{ github.workspace }}/.cache/sccache
 
     steps:
       - uses: actions/checkout@v6
       - uses: dtolnay/rust-toolchain@stable
+
+      - name: Install sccache
+        uses: taiki-e/install-action@v2
+        with:
+          tool: sccache
+
+      - name: Setup sccache path (Windows)
+        shell: pwsh
+        run: |
+          $sccacheDir = "$env:USERPROFILE\.cargo\bin"
+          if (Test-Path "$sccacheDir\sccache.exe") {
+            echo "Found sccache at $sccacheDir\sccache.exe"
+            echo "$sccacheDir" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+            & "$sccacheDir\sccache.exe" --version
+          } else {
+            $sccachePath = (Get-Command sccache -ErrorAction SilentlyContinue).Source
+            if ($sccachePath) {
+              $sccacheDir = Split-Path $sccachePath
+              echo "Found sccache at $sccachePath"
+              echo "$sccacheDir" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+            } else {
+              Write-Warning "sccache not found, disabling RUSTC_WRAPPER"
+              echo "RUSTC_WRAPPER=" >> $env:GITHUB_ENV
+            }
+          }
+
+      - name: Cache sccache
+        uses: actions/cache@v5
+        with:
+          path: ${{ github.workspace }}/.cache/sccache
+          key: sccache-providers-${{ runner.os }}-${{ hashFiles('Cargo.lock') }}
+          restore-keys: |
+            sccache-providers-${{ runner.os }}-
+
+      - name: Start sccache server
+        run: sccache --start-server || true
+
       - uses: actions/cache@v5
         with:
           path: |
