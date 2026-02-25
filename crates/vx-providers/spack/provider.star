@@ -20,6 +20,10 @@ ecosystem   = "python"
 
 platforms = {"os": ["linux", "macos"]}
 
+# Supported package prefixes for ecosystem:package syntax (RFC 0027)
+# Enables `vx spack:<package>` for HPC package installation
+package_prefixes = ["spack"]
+
 # ---------------------------------------------------------------------------
 # Runtime definitions
 # ---------------------------------------------------------------------------

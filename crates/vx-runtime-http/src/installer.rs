@@ -235,8 +235,11 @@ impl RealInstaller {
         let filename_display = RealHttpClient::extract_display_name_from_url(url);
         let cdn_suffix = if actual_using_cdn { " [CDN]" } else { "" };
 
+        // Use global progress manager to ensure progress bar is properly coordinated
+        // with other output (messages, spinners, etc.)
+        let pm = vx_console::global_progress_manager();
         let progress_bar = if total_size > 0 {
-            let pb = ProgressBar::new(total_size);
+            let pb = pm.multi().add(ProgressBar::new(total_size));
             pb.set_style(
                 ProgressStyle::with_template(&format!(
                     "{filename_display}{cdn_suffix} (download) {{wide_bar:.cyan/blue}} {{bytes}}/{{total_bytes}}"
@@ -246,7 +249,7 @@ impl RealInstaller {
             );
             pb
         } else {
-            let pb = ProgressBar::new_spinner();
+            let pb = pm.multi().add(ProgressBar::new_spinner());
             pb.set_style(
                 ProgressStyle::with_template(&format!(
                     "{{spinner:.green}} {filename_display}{cdn_suffix} (download) {{bytes}}"

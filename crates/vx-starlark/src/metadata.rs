@@ -65,6 +65,13 @@ pub struct StarMetadata {
     /// For example, `package_alias = {"ecosystem": "uvx", "package": "meson"}`
     /// makes `vx meson` equivalent to `vx uvx meson`.
     pub package_alias: Option<(String, String)>,
+    /// Supported package prefixes for ecosystem:package syntax (RFC 0027).
+    ///
+    /// When set, `vx <prefix>:<package>` will be routed to this provider.
+    /// Example: `package_prefixes = ["deno"]` enables `vx deno:cowsay`.
+    ///
+    /// Extracted from `package_prefixes = ["deno", "npm"]` in provider.star.
+    pub package_prefixes: Vec<String>,
 }
 
 /// Metadata for a single runtime entry inside the `runtimes` list.
@@ -109,6 +116,7 @@ impl StarMetadata {
             runtimes: extract_runtimes(source),
             pip_package: extract_simple_return(source, "pip_package"),
             package_alias: extract_package_alias(source),
+            package_prefixes: extract_string_list_var(source, "package_prefixes"),
         }
     }
 
@@ -697,6 +705,46 @@ fn extract_package_alias(source: &str) -> Option<(String, String)> {
         }
     }
     None
+}
+
+/// Extract a top-level string list variable like `package_prefixes = ["deno", "npm"]`.
+///
+/// Supports both formats:
+/// 1. Top-level variable: `package_prefixes = ["deno", "npm"]`
+/// 2. Function return: `def package_prefixes(): return ["deno", "npm"]`
+fn extract_string_list_var(source: &str, var_name: &str) -> Vec<String> {
+    // Try top-level variable format first: `var_name = [...]`
+    for line in source.lines() {
+        let trimmed = line.trim();
+        if let Some(rest) = trimmed.strip_prefix(var_name) {
+            let rest = rest.trim_start();
+            if let Some(after_eq_raw) = rest.strip_prefix('=') {
+                let after_eq = after_eq_raw.trim_start();
+                if after_eq.starts_with('[')
+                    && let Some(list_body) = find_matching_bracket(after_eq, 0, '[', ']')
+                {
+                    return extract_string_list_items(list_body);
+                }
+            }
+        }
+    }
+
+    // Fall back to function return format: `def var_name(): return [...]`
+    let pattern = format!("def {}()", var_name);
+    if let Some(start) = source.find(&pattern) {
+        let after_def = &source[start + pattern.len()..];
+        let window = &after_def[..after_def.len().min(500)];
+        if let Some(return_pos) = window.find("return") {
+            let after_return = &window[return_pos + 6..].trim_start();
+            if after_return.starts_with('[')
+                && let Some(list_body) = find_matching_bracket(after_return, 0, '[', ']')
+            {
+                return extract_string_list_items(list_body);
+            }
+        }
+    }
+
+    Vec::new()
 }
 
 // ---------------------------------------------------------------------------

@@ -21,6 +21,10 @@ repository  = "https://github.com/rust-lang/rust"
 license     = "MIT OR Apache-2.0"
 ecosystem   = "rust"
 
+# Supported package prefixes for ecosystem:package syntax (RFC 0027)
+# Enables `vx cargo:<package>` for Rust crate installation via `cargo install`
+package_prefixes = ["cargo"]
+
 # ---------------------------------------------------------------------------
 # Runtime definitions
 # ---------------------------------------------------------------------------

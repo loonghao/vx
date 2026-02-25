@@ -21,6 +21,10 @@ repository  = "https://github.com/yarnpkg/yarn"
 license     = "BSD-2-Clause"
 ecosystem   = "nodejs"
 
+# Supported package prefixes for ecosystem:package syntax (RFC 0027)
+# Enables `vx yarn:<package>` for Node.js package execution via Yarn
+package_prefixes = ["yarn"]
+
 # ---------------------------------------------------------------------------
 # Runtime definitions
 # ---------------------------------------------------------------------------

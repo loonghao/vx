@@ -3,8 +3,41 @@
 //! This module provides unified progress reporting using indicatif.
 
 use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
-use std::sync::Mutex;
+use once_cell::sync::Lazy;
+use std::sync::{Arc, Mutex};
 use std::time::Duration;
+
+/// Global progress manager singleton.
+///
+/// All progress bars and text output should go through this instance to avoid
+/// interleaving issues between progress bars and plain text output.
+static GLOBAL_PROGRESS_MANAGER: Lazy<Arc<ProgressManager>> =
+    Lazy::new(|| Arc::new(ProgressManager::new()));
+
+/// Get the global progress manager.
+///
+/// Use this to create progress bars or print text that won't interfere with
+/// active progress bars.
+///
+/// # Example
+/// ```rust,no_run
+/// use vx_console::progress::global_progress_manager;
+///
+/// let pm = global_progress_manager();
+/// pm.println("ℹ Installing deno...");
+/// let spinner = pm.add_spinner("Downloading...");
+/// ```
+pub fn global_progress_manager() -> Arc<ProgressManager> {
+    Arc::clone(&GLOBAL_PROGRESS_MANAGER)
+}
+
+/// Print a line above all active progress bars without disrupting them.
+///
+/// This is the correct way to print text while progress bars are active.
+/// Using `println!` directly will cause visual glitches.
+pub fn println_above_bars(message: impl AsRef<str>) {
+    GLOBAL_PROGRESS_MANAGER.println(message.as_ref());
+}
 
 /// Progress manager for handling multiple progress bars.
 #[derive(Debug)]
@@ -109,6 +142,19 @@ impl ProgressManager {
     /// Get the underlying MultiProgress.
     pub fn multi(&self) -> &MultiProgress {
         &self.multi
+    }
+
+    /// Print a line above all active progress bars.
+    ///
+    /// This is the correct way to print text while progress bars are active.
+    /// Using `println!` directly will cause visual glitches.
+    pub fn println(&self, message: &str) {
+        // Use suspend to ensure the message is printed correctly on all terminals,
+        // especially Windows where MultiProgress::println can have issues with
+        // cursor positioning and message interleaving.
+        self.multi.suspend(|| {
+            println!("{}", message);
+        });
     }
 }
 

@@ -20,6 +20,10 @@ repository  = "https://github.com/ziglang/zig"
 license     = "MIT"
 ecosystem   = "zig"
 
+# Supported package prefixes for ecosystem:package syntax (RFC 0027)
+# Enables `vx zig:<package>` for Zig package management via `zig build`
+package_prefixes = ["zig"]
+
 # ---------------------------------------------------------------------------
 # Runtime definitions
 # ---------------------------------------------------------------------------

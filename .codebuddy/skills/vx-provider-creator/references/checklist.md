@@ -27,8 +27,7 @@ Use this checklist to ensure all steps are completed when creating a new provide
 
 ### Starlark Provider (Preferred — `crates/vx-providers/{name}/`)
 
-- [ ] `provider.star` - Starlark provider script (main logic)
-- [ ] `provider.toml` - Provider manifest (metadata + layout config)
+- [ ] `provider.star` - Starlark provider script (main logic + metadata)
 - [ ] `Cargo.toml` - Package configuration
 - [ ] `src/lib.rs` - Minimal Rust shim (`include_str!("../provider.star")`)
 - [ ] `build.rs` - Rebuild trigger for provider.star changes

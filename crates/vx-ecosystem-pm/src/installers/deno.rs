@@ -85,12 +85,18 @@ impl DenoInstaller {
     fn build_shim_content(&self, package: &str, version: &str) -> String {
         let package_spec = Self::build_package_spec(package, version);
 
+        // Use the full deno path if available, otherwise just "deno"
+        let deno_cmd = self.get_deno().unwrap_or_else(|_| "deno".to_string());
+
         if cfg!(windows) {
-            format!("@echo off\r\ndeno run --allow-all {} %*\r\n", package_spec)
+            format!(
+                "@echo off\r\n\"{}\" run --allow-all {} %*\r\n",
+                deno_cmd, package_spec
+            )
         } else {
             format!(
-                "#!/bin/sh\nexec deno run --allow-all {} \"$@\"\n",
-                package_spec
+                "#!/bin/sh\nexec \"{}\" run --allow-all {} \"$@\"\n",
+                deno_cmd, package_spec
             )
         }
     }

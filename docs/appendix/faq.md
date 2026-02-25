@@ -159,19 +159,22 @@ vx install node@22
 
 Use [Manifest-Driven Providers](/guide/manifest-driven-providers) to create a custom provider:
 
-```toml
-# ~/.vx/providers/mytool/provider.toml
-[provider]
+```python
+# ~/.vx/providers/mytool/provider.star
 name = "mytool"
+description = "My awesome tool"
 
-[[runtimes]]
-name = "mytool"
-executable = "mytool"
+runtimes = [
+    runtime_def("mytool"),
+]
 
-[runtimes.version_source]
-type = "github_releases"
-owner = "org"
-repo = "mytool"
+permissions = github_permissions()
+
+def fetch_versions(ctx):
+    return fetch_versions_from_github(ctx, "org", "mytool")
+
+def download_url(ctx, version, platform):
+    return github_asset_url(ctx, "org", "mytool", version, platform)
 ```
 
 ### How do I create an extension?

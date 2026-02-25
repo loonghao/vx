@@ -511,6 +511,7 @@ impl HttpClient for RealHttpClient {
         use futures_util::StreamExt;
         use indicatif::{ProgressBar, ProgressStyle};
         use tokio::io::AsyncWriteExt;
+        use vx_console::global_progress_manager;
 
         // Optimize URL with CDN if enabled
         let download_url = self.optimize_url(url).await;
@@ -585,10 +586,12 @@ impl HttpClient for RealHttpClient {
         let filename = Self::extract_display_name_from_url(url);
         let cdn_suffix = if actual_using_cdn { " [CDN]" } else { "" };
 
-        // Create progress bar with uv-style format:
+        // Create progress bar with uv-style format, registered to the global MultiProgress
+        // so it doesn't interleave with other progress bars or text output.
         // cpython-3.10.19-windows-x86_64-none (download) ━━━━━━━━━━━━━━ 1.47 MiB/21.49 MiB
+        let pm = global_progress_manager();
         let progress_bar = if total_size > 0 {
-            let pb = ProgressBar::new(total_size);
+            let pb = pm.multi().add(ProgressBar::new(total_size));
             pb.set_style(
                 ProgressStyle::with_template(&format!(
                     "{filename}{cdn_suffix} (download) {{wide_bar:.cyan/blue}} {{bytes}}/{{total_bytes}}"
@@ -598,7 +601,7 @@ impl HttpClient for RealHttpClient {
             );
             pb
         } else {
-            let pb = ProgressBar::new_spinner();
+            let pb = pm.multi().add(ProgressBar::new_spinner());
             pb.set_style(
                 ProgressStyle::with_template(&format!(
                     "{{spinner:.green}} {filename}{cdn_suffix} (download) {{bytes}}"
@@ -712,6 +715,7 @@ impl HttpClient for RealHttpClient {
 
     async fn download_cached(&self, url: &str, dest: &Path) -> Result<bool> {
         use indicatif::{ProgressBar, ProgressStyle};
+        use vx_console::global_progress_manager;
 
         // Check if we have a download cache
         let cache = match &self.download_cache {
@@ -730,7 +734,8 @@ impl HttpClient for RealHttpClient {
                 // Cache hit! Copy from cache
                 let filename = Self::extract_display_name_from_url(url);
                 let size_mb = metadata.size as f64 / 1_000_000.0;
-                let pb = ProgressBar::new_spinner();
+                let pm = global_progress_manager();
+                let pb = pm.multi().add(ProgressBar::new_spinner());
                 pb.set_style(
                     ProgressStyle::with_template(&format!(
                         "{filename} (cached) {{spinner:.green}} {size_mb:.1} MB"
@@ -753,7 +758,8 @@ impl HttpClient for RealHttpClient {
                 // Has ETag, could do conditional request but for simplicity use cached
                 let filename = Self::extract_display_name_from_url(url);
                 let size_mb = metadata.size as f64 / 1_000_000.0;
-                let pb = ProgressBar::new_spinner();
+                let pm = global_progress_manager();
+                let pb = pm.multi().add(ProgressBar::new_spinner());
                 pb.set_style(
                     ProgressStyle::with_template(&format!(
                         "{filename} (cached) {{spinner:.green}} {size_mb:.1} MB"

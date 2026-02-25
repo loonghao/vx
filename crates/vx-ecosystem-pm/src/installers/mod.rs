@@ -5,8 +5,6 @@
 //! ## Python
 //! - [`PipInstaller`] - Standard Python package manager using venv
 //! - [`UvInstaller`] - Fast Python package manager (recommended)
-//! - [`UvxInstaller`] - Run Python CLI tools via uvx (isolated, ephemeral environments)
-//! - [`PipxInstaller`] - Run Python CLI tools via pipx run (isolated, ephemeral environments)
 //!
 //! ## Node.js
 //! - [`NpmInstaller`] - Node Package Manager
@@ -40,7 +38,6 @@ mod go;
 mod jbang;
 mod npm;
 mod pip;
-mod pipx;
 mod pnpm;
 mod uv;
 mod uvx;
@@ -57,7 +54,6 @@ pub use go::GoInstaller;
 pub use jbang::JBangInstaller;
 pub use npm::NpmInstaller;
 pub use pip::PipInstaller;
-pub use pipx::PipxInstaller;
 pub use pnpm::PnpmInstaller;
 pub use uv::UvInstaller;
 pub use uvx::UvxInstaller;

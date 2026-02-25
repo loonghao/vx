@@ -68,7 +68,7 @@ def runtime_def(name, executable = None, description = None, aliases = None,
 # ---------------------------------------------------------------------------
 
 def bundled_runtime_def(name, bundled_with, executable = None, description = None,
-                        command_prefix = None, test_commands = None,
+                        aliases = None, command_prefix = None, test_commands = None,
                         version_pattern = None):
     """Build a runtime definition for a tool bundled inside another tool's install.
 
@@ -83,6 +83,7 @@ def bundled_runtime_def(name, bundled_with, executable = None, description = Non
                         (e.g. "node", "go", "java")
         executable:     Executable name; defaults to `name`
         description:    Human-readable description
+        aliases:        List of alias strings (default: [])
         command_prefix: List of args to prepend when invoking the executable.
                         e.g. ["x"] makes `bunx foo` invoke `bun x foo`
         test_commands:  Full test_commands list; overrides version_pattern
@@ -96,12 +97,14 @@ def bundled_runtime_def(name, bundled_with, executable = None, description = Non
             runtime_def("node"),
             bundled_runtime_def("npm",  bundled_with="node"),
             bundled_runtime_def("npx",  bundled_with="node"),
+            bundled_runtime_def("pip",  bundled_with="python", aliases=["pip3"]),
             bundled_runtime_def("bunx", bundled_with="bun",
                                 executable="bun", command_prefix=["x"]),
         ]
     """
     exe  = executable  if executable  != None else name
     desc = description if description != None else "{} (bundled with {})".format(name, bundled_with)
+    also = aliases     if aliases     != None else []
 
     if test_commands != None:
         cmds = test_commands
@@ -115,6 +118,7 @@ def bundled_runtime_def(name, bundled_with, executable = None, description = Non
         "name":          name,
         "executable":    exe,
         "description":   desc,
+        "aliases":       also,
         "bundled_with":  bundled_with,
         "test_commands": cmds,
     }

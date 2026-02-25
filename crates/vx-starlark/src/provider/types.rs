@@ -255,6 +255,15 @@ pub struct ProviderMeta {
     /// Package alias: routes `vx <name>` to `vx <ecosystem>:<package>` (RFC 0033)
     #[serde(default)]
     pub package_alias: Option<PackageAlias>,
+    /// Supported package prefixes for ecosystem:package syntax (RFC 0027)
+    ///
+    /// When set, `vx <prefix>:<package>` will be routed to this provider.
+    /// Example: `package_prefixes = ["deno"]` enables `vx deno:cowsay`.
+    ///
+    /// This allows providers to declare their ecosystem capabilities without
+    /// hardcoding the list in vx-shim.
+    #[serde(default)]
+    pub package_prefixes: Vec<String>,
 }
 
 fn default_version() -> String {

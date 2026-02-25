@@ -1,7 +1,7 @@
 //! Build script for vx-cli
 //!
 //! This script:
-//! 1. Collects all `provider.toml` manifests at compile time and embeds them
+//! 1. Collects all `provider.star` manifests at compile time and embeds them
 //!    into the binary (RFC 0013: Manifest-Driven Provider Registration)
 //! 2. On Windows, locates and embeds bridge binaries (e.g., `MSBuild.exe`)
 //!    so they can be deployed without shipping separate files

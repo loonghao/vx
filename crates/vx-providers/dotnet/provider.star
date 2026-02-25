@@ -18,8 +18,12 @@ description = ".NET SDK - Free, cross-platform, open-source developer platform f
 homepage    = "https://dotnet.microsoft.com"
 repository  = "https://github.com/dotnet/sdk"
 license     = "MIT"
-ecosystem   = "devtools"
+ecosystem   = "dotnet"
 aliases     = ["dotnet-sdk"]
+
+# Supported package prefixes for ecosystem:package syntax (RFC 0027)
+# Enables `vx dotnet-tool:<package>` for .NET global tool installation
+package_prefixes = ["dotnet-tool", "dotnet"]
 
 # ---------------------------------------------------------------------------
 # Runtime definitions

@@ -91,8 +91,6 @@ pub fn get_installer(ecosystem: &str) -> anyhow::Result<Box<dyn EcosystemInstall
         "uv" => Ok(Box::new(UvInstaller::new())),
         // uvx: run Python CLI tools in isolated, ephemeral uv-managed environments
         "uvx" => Ok(Box::new(UvxInstaller::new())),
-        // pipx: run Python CLI tools via pipx run (similar to uvx)
-        "pipx" => Ok(Box::new(PipxInstaller::new())),
 
         // Node.js ecosystem
         // npx is a package runner bundled with npm, treat it as npm ecosystem
@@ -129,7 +127,7 @@ pub fn get_installer(ecosystem: &str) -> anyhow::Result<Box<dyn EcosystemInstall
         "choco" | "chocolatey" => Ok(Box::new(ChocoInstaller::new())),
 
         _ => bail!(
-            "Unsupported ecosystem: {}. Supported: pip, uv, uvx, pipx, npm, npx, bun, bunx, yarn, pnpm, dlx, deno, dotnet-tool, jbang, cargo, go, gem, choco",
+            "Unsupported ecosystem: {}. Supported: pip, uv, uvx, npm, npx, bun, bunx, yarn, pnpm, dlx, deno, dotnet-tool, jbang, cargo, go, gem, choco",
             ecosystem
         ),
     }

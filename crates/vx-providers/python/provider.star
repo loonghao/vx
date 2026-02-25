@@ -23,6 +23,10 @@ license     = "PSF-2.0"
 ecosystem   = "python"
 aliases     = ["python3", "py"]
 
+# Supported package prefixes for ecosystem:package syntax (RFC 0027)
+# Enables `vx pip:<package>` for Python package installation via pip
+package_prefixes = ["pip"]
+
 # ---------------------------------------------------------------------------
 # Runtime definitions
 # ---------------------------------------------------------------------------

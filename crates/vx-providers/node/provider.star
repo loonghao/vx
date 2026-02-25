@@ -25,6 +25,10 @@ license     = "MIT"
 ecosystem   = "nodejs"
 aliases     = ["nodejs"]
 
+# Supported package prefixes for ecosystem:package syntax (RFC 0027)
+# Enables `vx npm:<package>` and `vx npx:<package>` for Node.js package execution
+package_prefixes = ["npm", "npx"]
+
 # ---------------------------------------------------------------------------
 # Runtime definitions
 # ---------------------------------------------------------------------------
