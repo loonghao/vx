@@ -22,6 +22,10 @@ repository  = "https://github.com/pnpm/pnpm"
 license     = "MIT"
 ecosystem   = "nodejs"
 
+# Supported package prefixes for ecosystem:package syntax (RFC 0027)
+# Enables `vx pnpm:<package>` for Node.js package execution via pnpm
+package_prefixes = ["pnpm"]
+
 # ---------------------------------------------------------------------------
 # Runtime definitions
 # ---------------------------------------------------------------------------

@@ -20,6 +20,10 @@ repository  = "https://github.com/denoland/deno"
 license     = "MIT"
 ecosystem   = "javascript"
 
+# Supported package prefixes for ecosystem:package syntax (RFC 0027)
+# Enables `vx deno:cowsay` to install and run Deno packages via deno.land/x
+package_prefixes = ["deno"]
+
 # ---------------------------------------------------------------------------
 # Runtime definitions
 # ---------------------------------------------------------------------------

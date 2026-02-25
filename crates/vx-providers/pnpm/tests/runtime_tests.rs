@@ -2,7 +2,7 @@
 
 use rstest::rstest;
 use vx_provider_pnpm::create_provider;
-use vx_runtime::{Provider, Runtime};
+use vx_runtime::Runtime;
 
 #[test]
 fn test_provider_name() {

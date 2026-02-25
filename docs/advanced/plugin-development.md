@@ -100,20 +100,34 @@ def environment(ctx, _version):
 
 ```
 crates/vx-providers/mytool/
-├── provider.star     # All logic (required)
-└── provider.toml     # Metadata only (required for built-in providers)
+├── provider.star     # All logic and metadata (required)
+├── Cargo.toml        # Package configuration
+├── src/lib.rs        # Minimal Rust shim
+└── build.rs          # Rebuild trigger for provider.star changes
 ```
 
-**`provider.toml`** — metadata only, no layout fields:
+**`provider.star`** — metadata and logic combined:
 
-```toml
-[provider]
+```python
+# provider.star
 name        = "mytool"
 description = "My awesome tool"
 homepage    = "https://github.com/myorg/mytool"
 repository  = "https://github.com/myorg/mytool"
 ecosystem   = "devtools"
 license     = "MIT"
+
+runtimes = [
+    runtime_def("mytool"),
+]
+
+permissions = github_permissions()
+
+def fetch_versions(ctx):
+    return fetch_versions_from_github(ctx, "myorg", "mytool")
+
+def download_url(ctx, version, platform):
+    return github_asset_url(ctx, "myorg", "mytool", version, platform)
 ```
 
 ### Required Functions Checklist

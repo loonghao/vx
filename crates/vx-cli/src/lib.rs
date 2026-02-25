@@ -133,15 +133,38 @@ async fn execute_tool(
     // Parse --with dependencies
     let with_deps = WithDependency::parse_many(with_deps_specs);
 
+    // Check if this is an RFC 0027 package request (ecosystem:package syntax)
+    // Priority:
+    // 1. Check against dynamic package_prefixes from provider registry
+    // 2. Fallback to built-in list in vx-shim for backwards compatibility
+    let is_pkg_req = if let Some(colon_pos) = tool_spec.find(':') {
+        let ecosystem_part = &tool_spec[..colon_pos];
+        let ecosystem = ecosystem_part.split('@').next().unwrap_or("");
+
+        // Check against registry's dynamic package_prefixes
+        let matches_registry = {
+            let reg = vx_starlark::handle::global_registry().await;
+            reg.get_all_package_prefixes()
+                .iter()
+                .any(|p| p.eq_ignore_ascii_case(ecosystem))
+        };
+
+        // Also check built-in list for backwards compatibility
+        let matches_builtin = PackageRequest::is_package_request(tool_spec);
+
+        matches_registry || matches_builtin
+    } else {
+        false
+    };
+
     tracing::debug!(
         "execute_tool: tool_spec={}, is_package_request={}, with_deps={:?}",
         tool_spec,
-        PackageRequest::is_package_request(tool_spec),
+        is_pkg_req,
         with_deps
     );
 
-    // Check if this is an RFC 0027 package request (ecosystem:package syntax)
-    if PackageRequest::is_package_request(tool_spec) {
+    if is_pkg_req {
         tracing::debug!("Routing to execute_package_request");
         return execute_package_request(ctx, tool_spec, &tool_args, &with_deps).await;
     }
@@ -537,6 +560,23 @@ async fn auto_install_package(ctx: &CommandContext, pkg_request: &PackageRequest
                 Box::new(vx_ecosystem_pm::installers::UvxInstaller::new())
             }
         }
+        "deno" => {
+            // For deno ecosystem, try to find deno executable from the vx-installed deno
+            // Use vx-paths RuntimeRoot to get the deno executable path
+            let deno_path = match vx_paths::get_bundled_tool_path("deno", "deno") {
+                Ok(Some(path)) if path.exists() => Some(path),
+                _ => None,
+            };
+
+            if let Some(path) = deno_path {
+                tracing::debug!("Using deno from vx store: {}", path.display());
+                Box::new(vx_ecosystem_pm::installers::DenoInstaller::with_deno_path(
+                    path,
+                ))
+            } else {
+                Box::new(vx_ecosystem_pm::installers::DenoInstaller::new())
+            }
+        }
         _ => get_installer(ecosystem)
             .with_context(|| format!("Unsupported ecosystem: {}", ecosystem))?,
     };
@@ -623,9 +663,7 @@ fn get_all_required_runtimes_for_ecosystem(ecosystem: &str) -> Vec<&'static str>
         "uv" => vec![], // uv is self-contained
         // uvx: Python CLI tools run via uvx (isolated environments), requires uv
         "uvx" => vec!["uv"],
-        // pipx: Python CLI tools run via pipx, requires uv (to install pipx) or system python
-        "pipx" => vec!["uv"],
-        // Deno ecosystem - deno is self-contained
+        // Deno ecosystem        // Deno ecosystem - deno is self-contained
         "deno" => vec!["deno"],
         // .NET ecosystem - requires dotnet SDK
         "dotnet-tool" | "dotnet" => vec!["dotnet"],

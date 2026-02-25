@@ -773,6 +773,26 @@ impl ProviderHandleRegistry {
     pub fn iter(&self) -> impl Iterator<Item = (&str, &Arc<ProviderHandle>)> {
         self.handles.iter().map(|(k, v)| (k.as_str(), v))
     }
+
+    /// Get all registered package prefixes across all providers.
+    ///
+    /// Package prefixes are declared in provider.star via `package_prefixes = ["deno", "npm"]`.
+    /// They enable `vx <prefix>:<package>` syntax for ecosystem package execution.
+    ///
+    /// This is used by `is_package_request()` to dynamically determine
+    /// if a command like `vx deno:cowsay` should be treated as a package request.
+    pub fn get_all_package_prefixes(&self) -> Vec<&str> {
+        self.handles
+            .values()
+            .flat_map(|handle| {
+                handle
+                    .provider_meta()
+                    .package_prefixes
+                    .iter()
+                    .map(|s| s.as_str())
+            })
+            .collect()
+    }
 }
 
 /// Global lazy-initialized ProviderHandleRegistry

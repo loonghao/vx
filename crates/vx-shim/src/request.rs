@@ -375,6 +375,9 @@ mod tests {
         assert!(PackageRequest::is_package_request("npm:typescript"));
         assert!(PackageRequest::is_package_request("pip:ruff"));
         assert!(PackageRequest::is_package_request("cargo:ripgrep"));
+        assert!(PackageRequest::is_package_request("deno:cowsay"));
+        assert!(PackageRequest::is_package_request("uvx:ruff"));
+        assert!(PackageRequest::is_package_request("bun:typescript"));
         assert!(!PackageRequest::is_package_request("node"));
         assert!(!PackageRequest::is_package_request("tsc"));
         assert!(!PackageRequest::is_package_request("python@3.11"));

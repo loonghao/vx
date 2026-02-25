@@ -26,6 +26,10 @@ license     = "BSD-3-Clause"
 ecosystem   = "go"
 aliases     = ["golang"]
 
+# Supported package prefixes for ecosystem:package syntax (RFC 0027)
+# Enables `vx go:<package>` for Go package installation via `go install`
+package_prefixes = ["go"]
+
 # ---------------------------------------------------------------------------
 # Runtime definitions
 # ---------------------------------------------------------------------------
