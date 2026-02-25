@@ -3,11 +3,13 @@
 # kubectl is a single binary downloaded from dl.k8s.io (not GitHub releases).
 # URL: https://dl.k8s.io/release/v{version}/bin/{os}/{arch}/kubectl[.exe]
 #
+# Version source: kubernetes/kubernetes releases (kubectl version matches Kubernetes version)
+#
 # Uses runtime_def + github_permissions from @vx//stdlib:provider.star
 
 load("@vx//stdlib:provider.star",
      "runtime_def", "github_permissions")
-load("@vx//stdlib:github.star", "make_fetch_versions")
+load("@vx//stdlib:github.star", "github_releases", "releases_to_versions")
 load("@vx//stdlib:env.star",    "env_prepend")
 
 # ---------------------------------------------------------------------------
@@ -16,7 +18,7 @@ load("@vx//stdlib:env.star",    "env_prepend")
 name        = "kubectl"
 description = "kubectl - The Kubernetes command-line tool"
 homepage    = "https://kubernetes.io/docs/reference/kubectl/"
-repository  = "https://github.com/kubernetes/kubectl"
+repository  = "https://github.com/kubernetes/kubernetes"
 license     = "Apache-2.0"
 ecosystem   = "devtools"
 aliases     = ["kube", "k"]
@@ -40,10 +42,17 @@ runtimes = [
 permissions = github_permissions(extra_hosts = ["dl.k8s.io"])
 
 # ---------------------------------------------------------------------------
-# fetch_versions — GitHub releases
+# fetch_versions — from kubernetes/kubernetes releases
+# kubectl versions match Kubernetes versions (e.g., v1.31.0)
 # ---------------------------------------------------------------------------
 
-fetch_versions = make_fetch_versions("kubernetes", "kubectl")
+def fetch_versions(ctx):
+    # Fetch releases from kubernetes/kubernetes (not kubernetes/kubectl)
+    # kubectl version matches Kubernetes major.minor.patch version
+    releases = github_releases(ctx, "kubernetes", "kubernetes", False)
+    versions = releases_to_versions(releases)
+    # Filter to only include standard Kubernetes versions (v1.x.x)
+    return [v for v in versions if v["version"].startswith("1.")]
 
 # ---------------------------------------------------------------------------
 # Platform helpers

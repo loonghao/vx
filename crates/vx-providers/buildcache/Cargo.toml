@@ -1,0 +1,18 @@
+[package]
+name = "vx-provider-buildcache"
+version.workspace = true
+edition.workspace = true
+description = "buildcache provider for vx"
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+authors.workspace = true
+keywords.workspace = true
+categories.workspace = true
+rust-version.workspace = true
+publish = false
+
+[lib]
+path = "lib.rs"
+
+[dependencies]

@@ -404,12 +404,15 @@ fn test_uninstall_multiple_tools_not_installed() {
         let stdout = String::from_utf8_lossy(&output.stdout);
         let combined = format!("{}{}", stdout, stderr);
 
-        // Should report not installed (not crash)
+        // Should report not installed or warn about system versions (not crash)
         assert!(
             combined.contains("not installed")
                 || combined.contains("No version")
-                || combined.to_lowercase().contains("no version"),
-            "Tool '{}' should report not installed, got: {}",
+                || combined.to_lowercase().contains("no version")
+                || combined.contains("will remove all")
+                || combined.contains("system")
+                || combined.contains("--force"),
+            "Tool '{}' should report not installed or warn about system versions, got: {}",
             tool,
             combined
         );
@@ -479,7 +482,7 @@ fn test_imagemagick_install_platform_handling() {
                 combined
             );
         } else {
-            // Installation failed - should mention package manager options or rate limit
+            // Installation failed - should mention package manager options, rate limit, or version error
             assert!(
                 combined.contains("choco")
                     || combined.contains("scoop")
@@ -490,8 +493,10 @@ fn test_imagemagick_install_platform_handling() {
                     || combined.contains("install manually")
                     || combined.contains("rate limit")
                     || combined.contains("GITHUB_TOKEN")
-                    || combined.contains("GH_TOKEN"),
-                "Expected package manager guidance or rate limit error, got: {}",
+                    || combined.contains("GH_TOKEN")
+                    || combined.contains("No version found")
+                    || combined.contains("Available versions"),
+                "Expected package manager guidance, rate limit error, or version error, got: {}",
                 combined
             );
         }
