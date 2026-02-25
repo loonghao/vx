@@ -108,6 +108,9 @@ members = [
   "crates/vx-providers/sccache",
   "crates/vx-providers/ccache",
   "crates/vx-providers/buildcache",
+  # Node.js build cache (monorepo tools)
+  "crates/vx-providers/nx",
+  "crates/vx-providers/turbo",
   # Python ecosystem tools
   "crates/vx-providers/pre-commit",
   "crates/vx-providers/spack",
@@ -285,6 +288,9 @@ vx-provider-xcodebuild = { path = "crates/vx-providers/xcodebuild" }
 vx-provider-sccache = { path = "crates/vx-providers/sccache" }
 vx-provider-ccache = { path = "crates/vx-providers/ccache" }
 vx-provider-buildcache = { path = "crates/vx-providers/buildcache" }
+# Node.js build cache (monorepo tools)
+vx-provider-nx = { path = "crates/vx-providers/nx" }
+vx-provider-turbo = { path = "crates/vx-providers/turbo" }
 # Python ecosystem tools
 vx-provider-pre-commit = { path = "crates/vx-providers/pre-commit" }
 vx-provider-spack = { path = "crates/vx-providers/spack" }
