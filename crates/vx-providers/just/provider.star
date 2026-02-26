@@ -24,7 +24,7 @@ ecosystem   = "devtools"
 # Runtime definitions
 # ---------------------------------------------------------------------------
 
-runtimes = [runtime_def("just", version_pattern="^\\d+\\.\\d+")]
+runtimes = [runtime_def("just", version_pattern="just \\d+\\.\\d+")]
 
 # ---------------------------------------------------------------------------
 # Permissions
