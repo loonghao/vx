@@ -432,14 +432,12 @@ jobs:
           restore-keys: |
             sccache-v2-${{ runner.os }}-
             sccache-v2-
-          save-if: ${{ github.ref == 'refs/heads/main' }}
 
       - name: Cache Rust
         uses: Swatinem/rust-cache@v2
         with:
           prefix-key: ${{ matrix.platform.target }}
           shared-key: build
-          save-if: ${{ github.ref == 'refs/heads/main' }}
 
       - name: Start sccache server
         shell: bash
@@ -525,13 +523,11 @@ jobs:
           restore-keys: |
             sccache-v2-${{ runner.os }}-
             sccache-v2-
-          save-if: ${{ github.ref == 'refs/heads/main' }}
 
       - name: Cache Rust
         uses: Swatinem/rust-cache@v2
         with:
           shared-key: quality
-          save-if: ${{ github.ref == 'refs/heads/main' }}
 
       - name: Verify workspace-hack (cargo-hakari)
         run: |
@@ -659,7 +655,6 @@ jobs:
           restore-keys: |
             sccache-v2-${{ runner.os }}-
             sccache-v2-
-          save-if: ${{ github.ref == 'refs/heads/main' }}
 
       - name: Add Rust to PATH (Windows)
         if: runner.os == 'Windows'
@@ -680,7 +675,6 @@ jobs:
         uses: Swatinem/rust-cache@v2
         with:
           shared-key: test
-          save-if: ${{ github.ref == 'refs/heads/main' }}
 
       - name: Install cargo-nextest
         uses: taiki-e/install-action@v2
@@ -803,7 +797,6 @@ jobs:
           restore-keys: |
             sccache-v2-${{ runner.os }}-
             sccache-v2-
-          save-if: ${{ github.ref == 'refs/heads/main' }}
 
       - name: Add Rust to PATH (Windows)
         if: runner.os == 'Windows'
@@ -824,7 +817,6 @@ jobs:
         uses: Swatinem/rust-cache@v2
         with:
           shared-key: test
-          save-if: ${{ github.ref == 'refs/heads/main' }}
 
       - name: Install cargo-nextest
         uses: taiki-e/install-action@v2
@@ -883,7 +875,6 @@ jobs:
         with:
           prefix-key: ${{ matrix.target }}
           shared-key: cross
-          save-if: ${{ github.ref == 'refs/heads/main' }}
 
       - name: Build with cross
         run: vx just cross-build ${{ matrix.target }}
@@ -967,7 +958,6 @@ jobs:
           restore-keys: |
             sccache-v2-${{ runner.os }}-
             sccache-v2-
-          save-if: ${{ github.ref == 'refs/heads/main' }}
 
       - name: Install cargo-llvm-cov
         uses: taiki-e/install-action@cargo-llvm-cov
@@ -976,7 +966,6 @@ jobs:
         uses: Swatinem/rust-cache@v2
         with:
           shared-key: coverage
-          save-if: ${{ github.ref == 'refs/heads/main' }}
 
       - name: Generate coverage
         run: vx just coverage-ci

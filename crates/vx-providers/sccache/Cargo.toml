@@ -18,3 +18,4 @@ path = "lib.rs"
 [dependencies]
 # This is a manifest-driven provider using provider.star
 # No Rust dependencies needed - the provider is defined in provider.star
+workspace-hack = { version = "0.1", path = "../../workspace-hack" }
