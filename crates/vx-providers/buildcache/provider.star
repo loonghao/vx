@@ -88,7 +88,7 @@ def download_url(ctx, version):
 # install_layout
 # ---------------------------------------------------------------------------
 
-def install_layout(ctx, version):
+def install_layout(ctx, _version):
     exe = "buildcache.exe" if ctx.platform.os == "windows" else "buildcache"
 
     return {
@@ -108,7 +108,7 @@ def get_execute_path(ctx, _version):
     exe = "buildcache.exe" if ctx.platform.os == "windows" else "buildcache"
     return ctx.install_dir + "/" + exe
 
-def post_install(ctx, _version):
+def post_install(_ctx, _version):
     return """
 buildcache installed successfully!
 

@@ -121,7 +121,7 @@ def store_root(ctx):
     """Return the vx store root directory for brew."""
     return ctx.vx_home + "/store/brew"
 
-def get_execute_path(ctx, version):
+def get_execute_path(ctx, _version):
     """Return the executable path for the given version."""
     os = ctx.platform.os
     if os == "windows":

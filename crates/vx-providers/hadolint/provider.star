@@ -14,8 +14,6 @@
 load("@vx//stdlib:provider.star",
      "github_binary_provider", "runtime_def", "github_permissions")
 load("@vx//stdlib:github.star", "github_asset_url")
-
-load("@vx//stdlib:env.star", "env_prepend")
 # ---------------------------------------------------------------------------
 # Provider metadata
 # ---------------------------------------------------------------------------
@@ -116,30 +114,6 @@ def install_layout(ctx, _version):
     }
 
 # ---------------------------------------------------------------------------
-# Path queries (RFC 0037)
+# environment (inherited from template)
 # ---------------------------------------------------------------------------
-
-def store_root(ctx):
-    """Return the vx store root directory for hadolint."""
-    return ctx.vx_home + "/store/hadolint"
-
-def get_execute_path(ctx, version):
-    """Return the executable path for the given version.
-
-    After install_layout renames the binary, the path is always
-    bin/hadolint[.exe] — no platform-specific suffix.
-    """
-    os  = ctx.platform.os
-    ext = ".exe" if os == "windows" else ""
-    return ctx.install_dir + "/bin/hadolint" + ext
-
-def post_install(_ctx, _version):
-    """No post-install steps needed for hadolint."""
-    return None
-
-# ---------------------------------------------------------------------------
-# environment
-# ---------------------------------------------------------------------------
-
-def environment(ctx, _version):
-    return [env_prepend("PATH", ctx.install_dir)]
+# Note: environment is already provided by _p["environment"] above

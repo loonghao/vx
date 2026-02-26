@@ -10,10 +10,9 @@ load("@vx//stdlib:provider.star",
      "runtime_def", "bundled_runtime_def",
      "fetch_versions_from_api",
      "system_permissions",
-     "bin_subdir_execute_path", "bin_subdir_env",
+     "bin_subdir_execute_path",
      "dep_def", "pre_run_ensure_deps")
 load("@vx//stdlib:env.star", "env_set", "env_prepend")
-load("@vx//stdlib:install.star", "ensure_dependencies")
 
 # ---------------------------------------------------------------------------
 # Provider metadata
