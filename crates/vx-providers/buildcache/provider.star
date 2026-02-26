@@ -9,9 +9,11 @@
 # - Clang
 # - NVIDIA nvcc
 
-load("@vx//stdlib:provider.star", "runtime_def", "github_permissions")
+load("@vx//stdlib:provider.star",
+     "runtime_def", "github_permissions",
+     "archive_layout", "path_fns")
 load("@vx//stdlib:github.star", "make_fetch_versions", "github_asset_url")
-load("@vx//stdlib:env.star", "env_prepend")
+load("@vx//stdlib:env.star",    "env_prepend")
 
 # ---------------------------------------------------------------------------
 # Provider metadata
@@ -49,31 +51,23 @@ fetch_versions = make_fetch_versions("mbitsnbites", "buildcache")
 
 # ---------------------------------------------------------------------------
 # Platform helpers
-#
-# buildcache releases use:
-#   - Windows: buildcache-win-x86_64.zip
-#   - Linux: buildcache-linux-x86_64.tar.gz
-#   - macOS: buildcache-darwin-x86_64.tar.gz
+# buildcache uses: buildcache-{os}-{arch}.{ext}
 # ---------------------------------------------------------------------------
 
+_BUILDCACHE_PLATFORMS = {
+    "windows/x64":   ("win-x86_64",    "zip"),
+    "macos/x64":     ("darwin-x86_64", "tar.gz"),
+    "macos/arm64":   ("darwin-arm64",  "tar.gz"),
+    "linux/x64":     ("linux-x86_64",  "tar.gz"),
+    "linux/arm64":   ("linux-arm64",   "tar.gz"),
+}
+
 def _buildcache_platform(ctx):
-    os   = ctx.platform.os
-    arch = ctx.platform.arch
-
-    platform_map = {
-        ("windows", "x64"):   ("win-x86_64", "zip"),
-        ("macos",   "x64"):   ("darwin-x86_64", "tar.gz"),
-        ("macos",   "arm64"): ("darwin-arm64", "tar.gz"),
-        ("linux",   "x64"):   ("linux-x86_64", "tar.gz"),
-        ("linux",   "arm64"): ("linux-arm64", "tar.gz"),
-    }
-
-    return platform_map.get((os, arch))
+    key = "{}/{}".format(ctx.platform.os, ctx.platform.arch)
+    return _BUILDCACHE_PLATFORMS.get(key)
 
 # ---------------------------------------------------------------------------
 # download_url
-# Asset: buildcache-{platform}.{ext}
-# Note: buildcache uses different naming convention
 # ---------------------------------------------------------------------------
 
 def download_url(ctx, version):
@@ -85,28 +79,17 @@ def download_url(ctx, version):
     return github_asset_url("mbitsnbites", "buildcache", "v" + version, asset)
 
 # ---------------------------------------------------------------------------
-# install_layout
+# Layout + path functions (from stdlib)
 # ---------------------------------------------------------------------------
 
-def install_layout(ctx, _version):
-    exe = "buildcache.exe" if ctx.platform.os == "windows" else "buildcache"
-
-    return {
-        "type":             "archive",
-        "strip_prefix":     "",  # No top-level directory
-        "executable_paths": [exe],
-    }
+install_layout   = archive_layout("buildcache")
+_paths           = path_fns("buildcache")
+store_root       = _paths["store_root"]
+get_execute_path = _paths["get_execute_path"]
 
 # ---------------------------------------------------------------------------
-# Path queries + environment
+# post_install — usage instructions
 # ---------------------------------------------------------------------------
-
-def store_root(ctx):
-    return ctx.vx_home + "/store/buildcache"
-
-def get_execute_path(ctx, _version):
-    exe = "buildcache.exe" if ctx.platform.os == "windows" else "buildcache"
-    return ctx.install_dir + "/" + exe
 
 def post_install(_ctx, _version):
     return """
@@ -138,9 +121,4 @@ Environment Variables:
 """
 
 def environment(ctx, _version):
-    return [
-        env_prepend("PATH", ctx.install_dir),
-    ]
-
-def deps(_ctx, _version):
-    return []
+    return [env_prepend("PATH", ctx.install_dir)]
