@@ -115,7 +115,7 @@ def store_root(ctx):
     """Return the vx store root directory for make."""
     return ctx.vx_home + "/store/make"
 
-def get_execute_path(ctx, version):
+def get_execute_path(ctx, _version):
     """Return the executable path for the given version (system tool)."""
     return ctx.install_dir + "/make"
 

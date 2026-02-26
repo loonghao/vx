@@ -99,7 +99,6 @@ def fetch_versions(ctx):
     if os != "linux":
         return []
 
-    result = ctx.get("execute", {})
     # Return a sentinel indicating system-only detection
     return [{"version": "system", "lts": True, "prerelease": False}]
 

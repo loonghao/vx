@@ -8,7 +8,6 @@
 load("@vx//stdlib:provider.star",
      "runtime_def", "fetch_versions_from_api",
      "system_permissions")
-load("@vx//stdlib:http.star", "http_get_json")
 load("@vx//stdlib:env.star",  "env_prepend")
 
 # ---------------------------------------------------------------------------

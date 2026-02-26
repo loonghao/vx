@@ -7,7 +7,7 @@
 # Uses stdlib templates from @vx//stdlib:provider.star
 
 load("@vx//stdlib:provider.star",
-     "runtime_def", "fetch_versions_with_tag_prefix",
+     "runtime_def",
      "system_permissions",
      "multi_platform_install", "winget_install", "choco_install",
      "brew_install", "apt_install")

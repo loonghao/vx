@@ -102,8 +102,8 @@ script_install = irm_iex_install(
 # environment
 # ---------------------------------------------------------------------------
 
-def environment(_ctx, _version):
-    install_dir = _ctx.vx_home + "/store/choco/" + _version
+def environment(ctx, version):
+    install_dir = ctx.vx_home + "/store/choco/" + version
     return [
         env_set("ChocolateyInstall", install_dir),
         env_prepend("PATH", install_dir + "/bin"),

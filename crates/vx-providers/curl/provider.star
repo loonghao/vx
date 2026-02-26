@@ -5,7 +5,7 @@
 #
 # Uses stdlib templates from @vx//stdlib:provider.star
 
-load("@vx//stdlib:provider.star", "runtime_def", "system_permissions", "system_provider")
+load("@vx//stdlib:provider.star", "runtime_def", "system_permissions")
 
 # ---------------------------------------------------------------------------
 # Provider metadata
