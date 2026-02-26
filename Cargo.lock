@@ -5425,6 +5425,9 @@ dependencies = [
 [[package]]
 name = "vx-provider-buildcache"
 version = "0.8.3"
+dependencies = [
+ "workspace-hack",
+]
 
 [[package]]
 name = "vx-provider-bun"
@@ -5447,6 +5450,9 @@ dependencies = [
 [[package]]
 name = "vx-provider-ccache"
 version = "0.8.3"
+dependencies = [
+ "workspace-hack",
+]
 
 [[package]]
 name = "vx-provider-choco"
@@ -5932,6 +5938,9 @@ dependencies = [
 [[package]]
 name = "vx-provider-nx"
 version = "0.8.3"
+dependencies = [
+ "workspace-hack",
+]
 
 [[package]]
 name = "vx-provider-ollama"
@@ -6134,6 +6143,9 @@ dependencies = [
 [[package]]
 name = "vx-provider-sccache"
 version = "0.8.3"
+dependencies = [
+ "workspace-hack",
+]
 
 [[package]]
 name = "vx-provider-spack"
@@ -6213,6 +6225,9 @@ dependencies = [
 [[package]]
 name = "vx-provider-turbo"
 version = "0.8.3"
+dependencies = [
+ "workspace-hack",
+]
 
 [[package]]
 name = "vx-provider-uv"
