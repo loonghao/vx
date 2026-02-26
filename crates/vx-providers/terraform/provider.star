@@ -3,12 +3,12 @@
 # Terraform releases are hosted on releases.hashicorp.com (NOT GitHub).
 # URL: https://releases.hashicorp.com/terraform/{version}/terraform_{version}_{os}_{arch}.zip
 #
-# Uses fetch_versions_from_api + runtime_def from @vx//stdlib:provider.star
+# Uses stdlib templates to minimize boilerplate.
 
 load("@vx//stdlib:provider.star",
      "runtime_def", "fetch_versions_from_api",
-     "system_permissions")
-load("@vx//stdlib:env.star",  "env_prepend")
+     "system_permissions",
+     "archive_layout", "path_fns", "path_env_fns")
 
 # ---------------------------------------------------------------------------
 # Provider metadata
@@ -54,14 +54,24 @@ fetch_versions = fetch_versions_from_api(
 # Platform helpers
 # ---------------------------------------------------------------------------
 
+_TERRAFORM_PLATFORMS = {
+    "windows/x64":   ("windows", "amd64"),
+    "windows/arm64": ("windows", "arm64"),
+    "windows/x86":   ("windows", "386"),
+    "macos/x64":     ("darwin",  "amd64"),
+    "macos/arm64":   ("darwin",  "arm64"),
+    "linux/x64":     ("linux",   "amd64"),
+    "linux/arm64":   ("linux",   "arm64"),
+    "linux/x86":     ("linux",   "386"),
+    "linux/arm":     ("linux",   "arm"),
+}
+
 def _terraform_platform(ctx):
-    os_map   = {"windows": "windows", "macos": "darwin", "linux": "linux"}
-    arch_map = {"x64": "amd64", "arm64": "arm64", "x86": "386", "arm": "arm"}
-    return os_map.get(ctx.platform.os, "linux"), arch_map.get(ctx.platform.arch, "amd64")
+    key = "{}/{}".format(ctx.platform.os, ctx.platform.arch)
+    return _TERRAFORM_PLATFORMS.get(key, ("linux", "amd64"))
 
 # ---------------------------------------------------------------------------
 # download_url — releases.hashicorp.com
-# URL: https://releases.hashicorp.com/terraform/{version}/terraform_{version}_{os}_{arch}.zip
 # ---------------------------------------------------------------------------
 
 def download_url(ctx, version):
@@ -70,33 +80,13 @@ def download_url(ctx, version):
     return "https://releases.hashicorp.com/terraform/{}/{}".format(version, asset)
 
 # ---------------------------------------------------------------------------
-# install_layout — single binary at archive root
+# Layout + path functions (from stdlib)
 # ---------------------------------------------------------------------------
 
-def install_layout(ctx, _version):
-    exe = "terraform.exe" if ctx.platform.os == "windows" else "terraform"
-    return {
-        "type":             "archive",
-        "strip_prefix":     "",
-        "executable_paths": [exe, "terraform"],
-    }
-
-# ---------------------------------------------------------------------------
-# Path queries + environment
-# ---------------------------------------------------------------------------
-
-def store_root(ctx):
-    return ctx.vx_home + "/store/terraform"
-
-def get_execute_path(ctx, _version):
-    exe = "terraform.exe" if ctx.platform.os == "windows" else "terraform"
-    return ctx.install_dir + "/" + exe
-
-def post_install(_ctx, _version):
-    return None
-
-def environment(ctx, _version):
-    return [env_prepend("PATH", ctx.install_dir)]
-
-def deps(_ctx, _version):
-    return []
+install_layout   = archive_layout("terraform")
+_paths           = path_fns("terraform")
+store_root       = _paths["store_root"]
+get_execute_path = _paths["get_execute_path"]
+_env_fns         = path_env_fns()
+environment      = _env_fns["environment"]
+post_install     = _env_fns["post_install"]

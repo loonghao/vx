@@ -4,13 +4,13 @@
 # Tags use "jq-" prefix: "jq-1.8.1" → version "1.8.1"
 # Asset: jq-{os}-{arch}[.exe]  (direct binary, no archive)
 #
-# Uses stdlib templates from @vx//stdlib:provider.star
+# Uses stdlib templates.
 
 load("@vx//stdlib:provider.star",
      "runtime_def", "github_permissions",
-     "fetch_versions_with_tag_prefix")
+     "fetch_versions_with_tag_prefix",
+     "binary_layout", "bin_subdir_env", "bin_subdir_execute_path", "path_fns")
 load("@vx//stdlib:github.star", "github_asset_url")
-load("@vx//stdlib:env.star",    "env_prepend")
 
 # ---------------------------------------------------------------------------
 # Provider metadata
@@ -50,7 +50,7 @@ permissions = github_permissions()
 fetch_versions = fetch_versions_with_tag_prefix("jqlang", "jq", tag_prefix = "jq-")
 
 # ---------------------------------------------------------------------------
-# download_url — direct binary: jq-{os}-{arch}[.exe]
+# Platform helpers
 # ---------------------------------------------------------------------------
 
 _JQ_PLATFORMS = {
@@ -74,34 +74,12 @@ def download_url(ctx, version):
     return github_asset_url("jqlang", "jq", "jq-" + version, asset)
 
 # ---------------------------------------------------------------------------
-# install_layout — single binary
+# Layout + path functions (from stdlib)
+# jq places binary in bin/ subdir
 # ---------------------------------------------------------------------------
 
-def install_layout(ctx, _version):
-    exe = "jq.exe" if ctx.platform.os == "windows" else "jq"
-    return {
-        "type":               "binary",
-        "target_name":        exe,
-        "target_dir":         "bin",
-        "target_permissions": "755",
-    }
-
-# ---------------------------------------------------------------------------
-# Path queries + environment
-# ---------------------------------------------------------------------------
-
-def store_root(ctx):
-    return ctx.vx_home + "/store/jq"
-
-def get_execute_path(ctx, _version):
-    exe = "jq.exe" if ctx.platform.os == "windows" else "jq"
-    return ctx.install_dir + "/bin/" + exe
-
-def post_install(_ctx, _version):
-    return None
-
-def environment(ctx, _version):
-    return [env_prepend("PATH", ctx.install_dir + "/bin")]
-
-def deps(_ctx, _version):
-    return []
+install_layout   = binary_layout("jq")
+_paths           = path_fns("jq")
+store_root       = _paths["store_root"]
+get_execute_path = bin_subdir_execute_path("jq")
+environment      = bin_subdir_env()
