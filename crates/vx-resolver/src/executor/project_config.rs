@@ -1,21 +1,36 @@
-//! Project configuration for vx.toml
+//! Project configuration for vx.toml and vx.lock
 //!
 //! This module handles loading and querying project-level tool version
-//! configurations from vx.toml files.
+//! configurations from vx.toml and vx.lock files.
+//!
+//! # Version Priority
+//!
+//! When resolving a tool version, the following priority is used:
+//! 1. **Explicit** - Command-line specified (e.g., `vx node@20`)
+//! 2. **vx.lock** - Locked version from vx.lock (highest priority in config)
+//! 3. **vx.toml** - Project configuration version
+//! 4. **Latest** - Default to the latest available version
+//!
+//! This ensures reproducible builds: once a version is locked in vx.lock,
+//! it will be used consistently until the lock file is updated.
 
 use std::collections::HashMap;
 use tracing::debug;
 use vx_config::parse_config;
 use vx_paths::find_config_file_upward;
 
+use crate::version::LockFile;
+
 /// Install options for a specific tool (key-value env-style pairs)
 type InstallEnvVars = HashMap<String, String>;
 
-/// Project tools configuration extracted from vx.toml
+/// Project tools configuration extracted from vx.toml and vx.lock
 #[derive(Debug, Clone)]
 pub struct ProjectToolsConfig {
     /// Tool versions from vx.toml (tool_name -> version)
     tools: HashMap<String, String>,
+    /// Locked tool versions from vx.lock (higher priority than vx.toml)
+    locked_tools: HashMap<String, String>,
     /// Per-tool install options extracted from detailed ToolConfig
     /// (e.g., msvc -> {"VX_MSVC_COMPONENTS": "spectre", "VX_MSVC_EXCLUDE_PATTERNS": "..."})
     tool_install_options: HashMap<String, InstallEnvVars>,
@@ -26,24 +41,47 @@ impl ProjectToolsConfig {
     pub fn from_tools(tools: HashMap<String, String>) -> Self {
         Self {
             tools,
+            locked_tools: HashMap::new(),
             tool_install_options: HashMap::new(),
         }
     }
 
-    /// Load project configuration from vx.toml in current directory or parent directories
+    /// Create a ProjectToolsConfig with both tools and locked versions (for testing)
+    pub fn from_tools_with_locked(
+        tools: HashMap<String, String>,
+        locked_tools: HashMap<String, String>,
+    ) -> Self {
+        Self {
+            tools,
+            locked_tools,
+            tool_install_options: HashMap::new(),
+        }
+    }
+
+    /// Load project configuration from vx.toml and vx.lock in current directory or parent directories
+    ///
+    /// This loads both files from the same directory where vx.toml is found.
+    /// The vx.lock has higher priority than vx.toml for version resolution.
     pub fn load() -> Option<Self> {
         let cwd = std::env::current_dir().ok()?;
         let config_path = find_config_file_upward(&cwd)?;
         let config = parse_config(&config_path).ok()?;
         let tools = config.tools_as_hashmap();
 
-        if tools.is_empty() {
-            debug!("No tools defined in vx.toml at {}", config_path.display());
+        // Load locked versions from vx.lock (same directory as vx.toml)
+        let locked_tools = Self::load_locked_versions(&config_path);
+
+        if tools.is_empty() && locked_tools.is_empty() {
+            debug!(
+                "No tools defined in vx.toml or vx.lock at {}",
+                config_path.display()
+            );
             None
         } else {
             debug!(
-                "Loaded {} tool(s) from vx.toml at {}",
+                "Loaded {} tool(s) from vx.toml, {} locked version(s) from vx.lock at {}",
                 tools.len(),
+                locked_tools.len(),
                 config_path.display()
             );
 
@@ -52,14 +90,71 @@ impl ProjectToolsConfig {
 
             Some(Self {
                 tools,
+                locked_tools,
                 tool_install_options,
             })
         }
     }
 
+    /// Load locked versions from vx.lock file
+    ///
+    /// The lock file is expected to be in the same directory as vx.toml.
+    fn load_locked_versions(config_path: &std::path::Path) -> HashMap<String, String> {
+        let lock_path = config_path
+            .parent()
+            .map(|p| p.join("vx.lock"))
+            .unwrap_or_else(|| config_path.with_file_name("vx.lock"));
+
+        if !lock_path.exists() {
+            debug!("No vx.lock found at {}", lock_path.display());
+            return HashMap::new();
+        }
+
+        match LockFile::load(&lock_path) {
+            Ok(lockfile) => {
+                let locked: HashMap<String, String> = lockfile
+                    .tools
+                    .into_iter()
+                    .map(|(name, locked_tool)| (name, locked_tool.version))
+                    .collect();
+
+                debug!(
+                    "Loaded {} locked version(s) from {}",
+                    locked.len(),
+                    lock_path.display()
+                );
+                locked
+            }
+            Err(e) => {
+                debug!("Failed to load vx.lock: {}", e);
+                HashMap::new()
+            }
+        }
+    }
+
     /// Get the version for a specific tool
+    ///
+    /// Priority: vx.lock > vx.toml
+    ///
+    /// This ensures reproducible builds - once a version is locked,
+    /// it will be used consistently until the lock file is updated.
     pub fn get_version(&self, tool: &str) -> Option<&str> {
+        // First, check vx.lock (highest priority)
+        if let Some(locked) = self.locked_tools.get(tool) {
+            return Some(locked);
+        }
+        // Then, check vx.toml
         self.tools.get(tool).map(|s| s.as_str())
+    }
+
+    /// Check if a tool has a locked version in vx.lock
+    pub fn is_locked(&self, tool: &str) -> bool {
+        self.locked_tools.contains_key(tool)
+    }
+
+    /// Get all locked tool names
+    pub fn locked_tool_names(&self) -> Vec<&str> {
+        self.locked_tools.keys().map(|s| s.as_str()).collect()
     }
 
     /// Get the version for a tool with ecosystem fallback
@@ -71,6 +166,8 @@ impl ProjectToolsConfig {
     /// should fall back to the primary runtime's version. Independent tools like pnpm,
     /// yarn, and bun have their own version schemes and should NOT inherit the Node.js
     /// version.
+    ///
+    /// Priority: vx.lock > vx.toml (for both direct and fallback lookups)
     ///
     /// Examples of valid fallbacks:
     /// - `cargo` -> checks `cargo` then `rust` (cargo is bundled with Rust)
@@ -84,7 +181,7 @@ impl ProjectToolsConfig {
     /// - `yarn` -> only checks `yarn` (yarn has its own version scheme: 1.x, 2.x, 3.x, 4.x)
     /// - `bun` -> only checks `bun` (bun has its own version scheme)
     pub fn get_version_with_fallback(&self, tool: &str) -> Option<&str> {
-        // First, try direct lookup
+        // First, try direct lookup (respects lock > config priority)
         if let Some(version) = self.get_version(tool) {
             return Some(version);
         }

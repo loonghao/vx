@@ -273,10 +273,7 @@ fn test_nx_provider_files_exist() {
         nx_dir.join("Cargo.toml").exists(),
         "Cargo.toml should exist"
     );
-    assert!(
-        nx_dir.join("lib.rs").exists(),
-        "lib.rs should exist"
-    );
+    assert!(nx_dir.join("lib.rs").exists(), "lib.rs should exist");
 }
 
 #[test]
@@ -291,10 +288,7 @@ fn test_turbo_provider_files_exist() {
         turbo_dir.join("Cargo.toml").exists(),
         "Cargo.toml should exist"
     );
-    assert!(
-        turbo_dir.join("lib.rs").exists(),
-        "lib.rs should exist"
-    );
+    assert!(turbo_dir.join("lib.rs").exists(), "lib.rs should exist");
 }
 
 #[test]
