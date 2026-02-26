@@ -125,7 +125,7 @@ def get_execute_path(ctx, _version):
     exe = "sccache.exe" if ctx.platform.os == "windows" else "sccache"
     return ctx.install_dir + "/" + exe
 
-def post_install(ctx, _version):
+def post_install(_ctx, _version):
     """Print usage hints after installation."""
     return """
 sccache installed successfully!
