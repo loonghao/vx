@@ -1,4 +1,5 @@
 //! Tests for ProjectToolsConfig, especially companion tools injection
+//! and version priority rules (vx.lock > vx.toml)
 
 use rstest::rstest;
 use std::collections::HashMap;
@@ -11,6 +12,19 @@ fn config_from(tools: &[(&str, &str)]) -> ProjectToolsConfig {
         .map(|(k, v)| (k.to_string(), v.to_string()))
         .collect();
     ProjectToolsConfig::from_tools(map)
+}
+
+/// Helper to create a ProjectToolsConfig with both tools and locked versions
+fn config_with_locked(tools: &[(&str, &str)], locked: &[(&str, &str)]) -> ProjectToolsConfig {
+    let tools_map: HashMap<String, String> = tools
+        .iter()
+        .map(|(k, v)| (k.to_string(), v.to_string()))
+        .collect();
+    let locked_map: HashMap<String, String> = locked
+        .iter()
+        .map(|(k, v)| (k.to_string(), v.to_string()))
+        .collect();
+    ProjectToolsConfig::from_tools_with_locked(tools_map, locked_map)
 }
 
 // =============================================================================
@@ -118,4 +132,114 @@ fn test_version_with_fallback_bundled() {
     assert_eq!(config.get_version_with_fallback("npm"), Some("22"));
     // pnpm is independent, should NOT fallback
     assert_eq!(config.get_version_with_fallback("pnpm"), None);
+}
+
+// =============================================================================
+// Version Priority tests: vx.lock > vx.toml
+// =============================================================================
+
+#[rstest]
+fn test_version_priority_lock_over_config() {
+    // When both vx.lock and vx.toml have a version for the same tool,
+    // vx.lock should take priority
+    let config = config_with_locked(
+        &[("node", "22")],      // vx.toml: node = "22"
+        &[("node", "20.18.0")], // vx.lock: node = "20.18.0"
+    );
+
+    // get_version should return the locked version
+    assert_eq!(config.get_version("node"), Some("20.18.0"));
+    assert!(config.is_locked("node"));
+}
+
+#[rstest]
+fn test_version_priority_lock_missing_uses_config() {
+    // When vx.lock doesn't have a tool, vx.toml version is used
+    let config = config_with_locked(
+        &[("node", "22"), ("go", "1.21")], // vx.toml has both
+        &[("node", "20.18.0")],            // vx.lock only has node
+    );
+
+    // node: locked version
+    assert_eq!(config.get_version("node"), Some("20.18.0"));
+    assert!(config.is_locked("node"));
+
+    // go: config version (not locked)
+    assert_eq!(config.get_version("go"), Some("1.21"));
+    assert!(!config.is_locked("go"));
+}
+
+#[rstest]
+fn test_version_priority_only_config() {
+    // When there's no vx.lock, vx.toml version is used
+    let config = config_from(&[("node", "22"), ("go", "1.21")]);
+
+    assert_eq!(config.get_version("node"), Some("22"));
+    assert_eq!(config.get_version("go"), Some("1.21"));
+    assert!(!config.is_locked("node"));
+    assert!(!config.is_locked("go"));
+}
+
+#[rstest]
+fn test_version_priority_only_locked() {
+    // When vx.toml is empty but vx.lock has versions
+    let config = config_with_locked(
+        &[],                                      // vx.toml has no tools
+        &[("node", "20.18.0"), ("go", "1.21.5")], // vx.lock has versions
+    );
+
+    assert_eq!(config.get_version("node"), Some("20.18.0"));
+    assert_eq!(config.get_version("go"), Some("1.21.5"));
+    assert!(config.is_locked("node"));
+    assert!(config.is_locked("go"));
+}
+
+#[rstest]
+fn test_version_priority_unknown_tool() {
+    let config = config_with_locked(&[("node", "22")], &[("node", "20.18.0")]);
+
+    // Unknown tool returns None
+    assert_eq!(config.get_version("unknown-tool"), None);
+    assert!(!config.is_locked("unknown-tool"));
+}
+
+#[rstest]
+fn test_version_priority_with_fallback_respects_lock() {
+    // get_version_with_fallback should also respect lock priority
+    let config = config_with_locked(
+        &[("node", "22")],      // vx.toml: node = "22"
+        &[("node", "20.18.0")], // vx.lock: node = "20.18.0"
+    );
+
+    // npm falls back to node's version, which should be the locked version
+    assert_eq!(config.get_version_with_fallback("npm"), Some("20.18.0"));
+    assert_eq!(config.get_version_with_fallback("npx"), Some("20.18.0"));
+}
+
+#[rstest]
+fn test_version_priority_with_fallback_lock_for_different_tool() {
+    // When falling back, check locked version of primary runtime
+    let config = config_with_locked(
+        &[("node", "22"), ("python", "3.12")], // vx.toml
+        &[("node", "20.18.0")],                // vx.lock only has node
+    );
+
+    // npm falls back to node's LOCKED version
+    assert_eq!(config.get_version_with_fallback("npm"), Some("20.18.0"));
+
+    // pip falls back to python's CONFIG version (not locked)
+    assert_eq!(config.get_version_with_fallback("pip"), Some("3.12"));
+}
+
+#[rstest]
+fn test_locked_tool_names() {
+    let config = config_with_locked(
+        &[("node", "22"), ("go", "1.21")],
+        &[("node", "20.18.0"), ("go", "1.21.5")],
+    );
+
+    let mut locked = config.locked_tool_names();
+    locked.sort();
+
+    assert_eq!(locked, vec!["go", "node"]);
 }

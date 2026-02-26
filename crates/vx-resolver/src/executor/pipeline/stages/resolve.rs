@@ -3,7 +3,8 @@
 //! The first stage of the execution pipeline. Transforms a `ResolveRequest`
 //! into an `ExecutionPlan` by:
 //!
-//! 1. Resolving the requested version (explicit → project config → latest installed)
+//! 1. Resolving the requested version with priority:
+//!    - explicit (command-line) > vx.lock > vx.toml > latest
 //! 2. Calling `Resolver::resolve_with_version()` for dependency analysis
 //! 3. Checking platform support via the provider registry
 //! 4. Mapping `ResolutionResult` into `PlannedRuntime` entries
@@ -157,7 +158,7 @@ impl<'a> ResolveStage<'a> {
 
     /// Resolve version from explicit argument or project config.
     ///
-    /// Priority: explicit > project config > None (let resolver decide)
+    /// Priority: explicit > vx.lock > vx.toml > None (let resolver decide)
     /// If the result is "latest", try to resolve to the actual latest installed version.
     fn resolve_version(&self, runtime_name: &str, explicit: Option<&str>) -> Option<String> {
         // Pass "latest" through to EnsureStage so that
@@ -176,11 +177,16 @@ impl<'a> ResolveStage<'a> {
     }
 
     /// Determine the `VersionSource` based on how the version was obtained
+    ///
+    /// Priority: explicit > locked > project config > installed latest
     fn determine_source(&self, runtime_name: &str, explicit: Option<&str>) -> VersionSource {
         if explicit.is_some() {
             VersionSource::Explicit
         } else if let Some(project_config) = self.project_config {
-            if project_config
+            // Check if the version comes from vx.lock
+            if project_config.is_locked(runtime_name) {
+                VersionSource::Locked
+            } else if project_config
                 .get_version_with_fallback(runtime_name)
                 .is_some()
             {
@@ -754,5 +760,91 @@ mod tests {
         assert!(!plan.config.auto_install);
         assert!(!plan.config.inherit_vx_path);
         assert_eq!(plan.config.working_dir, Some(PathBuf::from("/tmp/project")));
+    }
+
+    // =============================================================================
+    // VersionSource::Locked tests
+    // =============================================================================
+
+    #[test]
+    fn test_determine_source_locked() {
+        use crate::executor::project_config::ProjectToolsConfig;
+
+        let resolver = test_resolver();
+        let config = ResolverConfig::default();
+
+        // Create a ProjectToolsConfig with locked version
+        let project_config = ProjectToolsConfig::from_tools_with_locked(
+            std::collections::HashMap::from([("node".to_string(), "22".to_string())]),
+            std::collections::HashMap::from([("node".to_string(), "20.18.0".to_string())]),
+        );
+
+        let stage = ResolveStage::new(&resolver, &config).with_project_config(&project_config);
+
+        // When no explicit version and tool is locked, source should be Locked
+        let source = stage.determine_source("node", None);
+        assert_eq!(source, VersionSource::Locked);
+    }
+
+    #[test]
+    fn test_determine_source_project_config_when_not_locked() {
+        use crate::executor::project_config::ProjectToolsConfig;
+
+        let resolver = test_resolver();
+        let config = ResolverConfig::default();
+
+        // Create a ProjectToolsConfig with only vx.toml version (no lock)
+        let project_config = ProjectToolsConfig::from_tools(std::collections::HashMap::from([(
+            "node".to_string(),
+            "22".to_string(),
+        )]));
+
+        let stage = ResolveStage::new(&resolver, &config).with_project_config(&project_config);
+
+        // When no explicit version and tool is in config but not locked
+        let source = stage.determine_source("node", None);
+        assert_eq!(source, VersionSource::ProjectConfig);
+    }
+
+    #[test]
+    fn test_determine_source_priority() {
+        use crate::executor::project_config::ProjectToolsConfig;
+
+        let resolver = test_resolver();
+        let config = ResolverConfig::default();
+
+        // Create a ProjectToolsConfig with both locked and config versions
+        let project_config = ProjectToolsConfig::from_tools_with_locked(
+            std::collections::HashMap::from([
+                ("node".to_string(), "22".to_string()), // vx.toml
+                ("go".to_string(), "1.21".to_string()), // vx.toml only
+            ]),
+            std::collections::HashMap::from([
+                ("node".to_string(), "20.18.0".to_string()), // vx.lock
+            ]),
+        );
+
+        let stage = ResolveStage::new(&resolver, &config).with_project_config(&project_config);
+
+        // Explicit takes highest priority
+        assert_eq!(
+            stage.determine_source("node", Some("18.0.0")),
+            VersionSource::Explicit
+        );
+
+        // Locked takes priority over config
+        assert_eq!(stage.determine_source("node", None), VersionSource::Locked);
+
+        // Config when not locked
+        assert_eq!(
+            stage.determine_source("go", None),
+            VersionSource::ProjectConfig
+        );
+
+        // InstalledLatest when not in config or lock
+        assert_eq!(
+            stage.determine_source("unknown", None),
+            VersionSource::InstalledLatest
+        );
     }
 }
