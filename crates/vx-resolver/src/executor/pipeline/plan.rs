@@ -263,6 +263,8 @@ pub enum VersionResolution {
 pub enum VersionSource {
     /// Explicit command-line argument (e.g., `vx node@20.0.0`)
     Explicit,
+    /// Locked version from vx.lock (highest priority in config files)
+    Locked,
     /// Project configuration (vx.toml)
     ProjectConfig,
     /// Legacy config file (.nvmrc, .node-version, etc.)
