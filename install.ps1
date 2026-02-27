@@ -81,11 +81,10 @@ function Main {
     Write-Step "Detected: Windows -> $platform"
 
     # Resolve download URL
-    if ($Version) {
+    if ($Version -and $Version -ne "latest") {
         # Normalize version tag
         $ver = $Version -replace '^(vx-)?v', ''
         # Try v{ver} first (v0.7.0+), then vx-v{ver} (legacy)
-        $tagCandidates = @("v$ver", "vx-v$ver")
         $archiveCandidates = @(
             @{ Tag = "v$ver";    Archive = "vx-$ver-$platform.zip" },
             @{ Tag = "v$ver";    Archive = "vx-$platform.zip" },
