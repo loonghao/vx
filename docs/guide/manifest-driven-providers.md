@@ -839,6 +839,12 @@ archive structure. Download the archive manually and inspect it:
 tar -tzf tool-1.0.0-linux.tar.gz | head -20
 ```
 
+## Advanced Topics
+
+For more advanced usage, see:
+
+- **[Starlark Providers - Advanced Guide](./starlark-providers.md)** — Multi-runtime providers, custom version sources, system integration, and extension patterns
+
 ## See Also
 
 - [Provider Development Guide](../advanced/plugin-development.md) — For providers with custom Rust code

@@ -749,6 +749,12 @@ def system_install(ctx):
 tar -tzf tool-1.0.0-linux.tar.gz | head -20
 ```
 
+## 高级主题
+
+更多高级用法，请参阅：
+
+- **[Starlark Providers - 高级指南](./starlark-providers.md)** — 多运行时 Provider、自定义版本源、系统集成和扩展模式
+
 ## 另请参阅
 
 - [Provider 开发指南](../advanced/plugin-development.md) — 带自定义 Rust 代码的 Provider
