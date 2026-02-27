@@ -159,11 +159,111 @@ pub fn make_download_url_fn(
     }
 }
 
+/// Convert an `InstallLayout` enum into the flat JSON dict that
+/// `manifest_runtime` expects (keys at the top level, not nested under
+/// the enum variant name).
+///
+/// `serde_json::to_value` on an untagged enum produces `{"Archive": {...}}`
+/// which `manifest_runtime` cannot read directly. This helper flattens it
+/// to `{"strip_prefix": "...", "executable_paths": [...], ...}`.
+fn install_layout_to_flat_json(layout: crate::provider::types::InstallLayout) -> serde_json::Value {
+    use crate::provider::types::InstallLayout;
+    match layout {
+        InstallLayout::Archive {
+            url,
+            strip_prefix,
+            executable_paths,
+        } => {
+            let mut map = serde_json::Map::new();
+            if let Some(u) = url {
+                map.insert("url".into(), serde_json::Value::String(u));
+            }
+            if let Some(sp) = strip_prefix {
+                map.insert("strip_prefix".into(), serde_json::Value::String(sp));
+            }
+            map.insert(
+                "executable_paths".into(),
+                serde_json::Value::Array(
+                    executable_paths
+                        .into_iter()
+                        .map(serde_json::Value::String)
+                        .collect(),
+                ),
+            );
+            serde_json::Value::Object(map)
+        }
+        InstallLayout::Binary {
+            url,
+            executable_name,
+            permissions,
+        } => {
+            let mut map = serde_json::Map::new();
+            map.insert("url".into(), serde_json::Value::String(url));
+            if let Some(n) = executable_name {
+                map.insert("executable_name".into(), serde_json::Value::String(n));
+            }
+            map.insert("permissions".into(), serde_json::Value::String(permissions));
+            serde_json::Value::Object(map)
+        }
+        InstallLayout::Msi {
+            url,
+            executable_paths,
+            strip_prefix,
+            extra_args,
+        } => {
+            let mut map = serde_json::Map::new();
+            map.insert("url".into(), serde_json::Value::String(url));
+            map.insert(
+                "executable_paths".into(),
+                serde_json::Value::Array(
+                    executable_paths
+                        .into_iter()
+                        .map(serde_json::Value::String)
+                        .collect(),
+                ),
+            );
+            if let Some(sp) = strip_prefix {
+                map.insert("strip_prefix".into(), serde_json::Value::String(sp));
+            }
+            map.insert(
+                "extra_args".into(),
+                serde_json::Value::Array(
+                    extra_args
+                        .into_iter()
+                        .map(serde_json::Value::String)
+                        .collect(),
+                ),
+            );
+            serde_json::Value::Object(map)
+        }
+        InstallLayout::SystemFind {
+            executable,
+            system_paths,
+            hint,
+        } => {
+            let mut map = serde_json::Map::new();
+            map.insert("executable".into(), serde_json::Value::String(executable));
+            map.insert(
+                "system_paths".into(),
+                serde_json::Value::Array(
+                    system_paths
+                        .into_iter()
+                        .map(serde_json::Value::String)
+                        .collect(),
+                ),
+            );
+            if let Some(h) = hint {
+                map.insert("hint".into(), serde_json::Value::String(h));
+            }
+            serde_json::Value::Object(map)
+        }
+    }
+}
+
 /// Create an `InstallLayoutFn` closure backed by an embedded `provider.star`.
 ///
-/// The returned JSON value is a serialized `InstallLayout` descriptor that
-/// `ManifestDrivenRuntime::install()` uses to determine strip_prefix and
-/// executable_paths.
+/// The returned JSON value is a flat dict that `ManifestDrivenRuntime::install()`
+/// uses to determine `strip_prefix` and `executable_paths`.
 ///
 /// # Arguments
 ///
@@ -192,9 +292,9 @@ pub fn make_install_layout_fn(
                 .map_err(|e| anyhow::anyhow!("{name} install_layout failed: {e}"))?;
 
             if let Some(l) = layout {
-                return Ok(Some(
-                    serde_json::to_value(l).unwrap_or(serde_json::Value::Null),
-                ));
+                // Convert to flat JSON so manifest_runtime can read strip_prefix /
+                // executable_paths directly without knowing the enum variant name.
+                return Ok(Some(install_layout_to_flat_json(l)));
             }
 
             // Fallback: call the Starlark engine directly to get the raw JSON dict.
@@ -321,9 +421,7 @@ fn make_install_layout_fn_owned(
                 .map_err(|e| anyhow::anyhow!("{provider_name} install_layout failed: {e}"))?;
 
             if let Some(l) = layout {
-                return Ok(Some(
-                    serde_json::to_value(l).unwrap_or(serde_json::Value::Null),
-                ));
+                return Ok(Some(install_layout_to_flat_json(l)));
             }
 
             let raw = provider
