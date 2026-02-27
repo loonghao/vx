@@ -15,6 +15,9 @@
 
 set -euo pipefail
 
+# Global temp dir so the EXIT trap can always reference it
+_VX_TEMP_DIR=""
+
 REPO_OWNER="loonghao"
 REPO_NAME="vx"
 BASE_URL="https://github.com/$REPO_OWNER/$REPO_NAME/releases"
@@ -100,9 +103,9 @@ main() {
     step "Installing vx for $(uname -s)..."
     step "Detected: $(uname -s) $(uname -m) -> $platform"
 
-    local temp_dir
-    temp_dir=$(mktemp -d)
-    trap 'rm -rf "$temp_dir"' EXIT
+    _VX_TEMP_DIR=$(mktemp -d)
+    trap 'rm -rf "$_VX_TEMP_DIR"' EXIT
+    local temp_dir="$_VX_TEMP_DIR"
 
     # Build list of (url, archive) candidates to try
     local candidates=()
