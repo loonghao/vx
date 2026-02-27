@@ -30,7 +30,7 @@ jobs:
     timeout-minutes: 15
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Setup vx
         uses: ./
@@ -80,6 +80,6 @@ jobs:
         run: |
           echo "## Documentation Deployed" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "✅ Documentation has been deployed to GitHub Pages!" >> $GITHUB_STEP_SUMMARY
+          echo "�?Documentation has been deployed to GitHub Pages!" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "🔗 **URL:** ${{ steps.deployment.outputs.page_url }}" >> $GITHUB_STEP_SUMMARY

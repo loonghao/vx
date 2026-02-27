@@ -61,7 +61,7 @@ jobs:
             target: aarch64-apple-darwin
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Setup vx
         uses: ./
@@ -159,9 +159,9 @@ jobs:
               esac
 
               if [ "$duration" -le "$threshold" ]; then
-                status="✅"
+                status="�?
               else
-                status="❌ REGRESSION"
+                status="�?REGRESSION"
               fi
               echo "| $test_name | $duration | $threshold | $status |" >> benchmark_results.md
             fi
@@ -210,7 +210,7 @@ jobs:
           echo "}" >> benchmark.json
 
       - name: Upload benchmark results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: benchmark-${{ matrix.platform.name }}
           path: |
@@ -232,7 +232,7 @@ jobs:
     if: always()
     steps:
       - name: Download all benchmark artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v5
         with:
           pattern: benchmark-*
           path: benchmarks/
@@ -267,10 +267,10 @@ jobs:
 
           if [ "$regression_found" = true ]; then
             echo "" >> $GITHUB_STEP_SUMMARY
-            echo "❌ **Performance regressions detected!** Please investigate before merging." >> $GITHUB_STEP_SUMMARY
+            echo "�?**Performance regressions detected!** Please investigate before merging." >> $GITHUB_STEP_SUMMARY
             # Don't fail the job - just warn. Thresholds are generous enough
             # that occasional CI variability shouldn't block PRs.
           else
             echo "" >> $GITHUB_STEP_SUMMARY
-            echo "✅ **All benchmarks within acceptable thresholds.**" >> $GITHUB_STEP_SUMMARY
+            echo "�?**All benchmarks within acceptable thresholds.**" >> $GITHUB_STEP_SUMMARY
           fi
