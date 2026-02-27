@@ -68,7 +68,7 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
@@ -128,7 +128,7 @@ jobs:
           eval ".github/scripts/discover-providers.sh $ARGS"
 
       - name: Upload VX binary (Linux)
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: vx-linux
           path: target/release/vx
@@ -145,7 +145,7 @@ jobs:
       SCCACHE_DIR: ${{ github.workspace }}/.cache/sccache
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: dtolnay/rust-toolchain@stable
 
       - name: Install sccache
@@ -174,7 +174,7 @@ jobs:
             target/
           key: macos-cargo-build-${{ hashFiles('**/Cargo.lock') }}
       - run: cargo build --release
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v5
         with:
           name: vx-macos
           path: target/release/vx
@@ -190,7 +190,7 @@ jobs:
       SCCACHE_DIR: ${{ github.workspace }}/.cache/sccache
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: dtolnay/rust-toolchain@stable
 
       - name: Install sccache
@@ -239,7 +239,7 @@ jobs:
             target/
           key: windows-cargo-build-${{ hashFiles('**/Cargo.lock') }}
       - run: cargo build --release
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v5
         with:
           name: vx-windows
           path: target/release/vx.exe
@@ -258,10 +258,10 @@ jobs:
         chunk: ${{ fromJSON(needs.build-and-discover.outputs.matrix-linux) }}
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Download VX binary
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v5
         with:
           name: vx-linux
           path: ./bin
@@ -284,7 +284,7 @@ jobs:
 
       - name: Upload test report
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: report-linux-${{ strategy.job-index }}
           path: test-report.json
@@ -303,10 +303,10 @@ jobs:
         chunk: ${{ fromJSON(needs.build-and-discover.outputs.matrix-macos) }}
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Download VX binary
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v5
         with:
           name: vx-macos
           path: ./bin
@@ -329,7 +329,7 @@ jobs:
 
       - name: Upload test report
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: report-macos-${{ strategy.job-index }}
           path: test-report.json
@@ -348,10 +348,10 @@ jobs:
         chunk: ${{ fromJSON(needs.build-and-discover.outputs.matrix-windows) }}
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Download VX binary
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v5
         with:
           name: vx-windows
           path: ./bin
@@ -372,7 +372,7 @@ jobs:
 
       - name: Upload test report
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: report-windows-${{ strategy.job-index }}
           path: test-report.json
@@ -389,7 +389,7 @@ jobs:
       SCCACHE_DIR: ${{ github.workspace }}/.cache/sccache
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: dtolnay/rust-toolchain@stable
 
       - name: Install sccache
@@ -401,10 +401,10 @@ jobs:
         uses: actions/cache@v5
         with:
           path: ${{ github.workspace }}/.cache/sccache
-          key: sccache-quick-${{ runner.os }}-${{ hashFiles('Cargo.lock') }}
+          key: sccache-v2-${{ runner.os }}-${{ hashFiles('Cargo.lock') }}
           restore-keys: |
-            sccache-quick-${{ runner.os }}-
-            sccache-quick-
+            sccache-v2-${{ runner.os }}-
+            sccache-v2-
 
       - name: Start sccache server
         run: sccache --start-server || true
@@ -437,10 +437,10 @@ jobs:
     if: always() && (needs.test-linux.result != 'skipped' || needs.test-macos.result != 'skipped' || needs.test-windows.result != 'skipped')
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Download all reports
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v5
         with:
           pattern: report-*
           merge-multiple: false
