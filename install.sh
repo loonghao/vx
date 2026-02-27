@@ -107,7 +107,7 @@ main() {
     # Build list of (url, archive) candidates to try
     local candidates=()
 
-    if [[ -z "$VX_VERSION" ]]; then
+    if [[ -z "$VX_VERSION" || "$VX_VERSION" == "latest" ]]; then
         # No version specified — use latest/download directly (no API call needed)
         candidates+=("$BASE_URL/latest/download/vx-$platform.tar.gz")
     else
