@@ -13,7 +13,7 @@
 load("@vx//stdlib:github.star", "make_fetch_versions")
 load("@vx//stdlib:env.star", "env_set", "env_prepend")
 load("@vx//stdlib:test.star", "cmd", "check_path", "check_env")
-load("@vx//stdlib:provider.star", "system_permissions", "irm_iex_install")
+load("@vx//stdlib:provider.star", "system_permissions", "irm_iex_install", "path_fns")
 
 # ---------------------------------------------------------------------------
 # Provider metadata
@@ -102,29 +102,21 @@ script_install = irm_iex_install(
 # environment
 # ---------------------------------------------------------------------------
 
-def environment(ctx, version):
-    install_dir = ctx.vx_home + "/store/choco/" + version
+def environment(ctx, _version):
     return [
-        env_set("ChocolateyInstall", install_dir),
-        env_prepend("PATH", install_dir + "/bin"),
+        env_set("ChocolateyInstall", ctx.install_dir),
+        env_prepend("PATH", ctx.install_dir + "/bin"),
     ]
 
 # ---------------------------------------------------------------------------
 # Path queries (RFC 0037)
+# Note: choco uses version-specific path in vx_home
 # ---------------------------------------------------------------------------
 
-def store_root(ctx):
-    """Return the vx store root directory for choco."""
-    return ctx.vx_home + "/store/choco"
+_paths = path_fns("choco")
+store_root = _paths["store_root"]
 
 def get_execute_path(ctx, version):
     """Return the executable path for the given version."""
-    os = ctx.platform.os
-    if os == "windows":
-        return ctx.vx_home + "/store/choco/" + version + "/choco.exe"
-    else:
-        return ctx.vx_home + "/store/choco/" + version + "/choco"
-
-def post_install(_ctx, _version):
-    """Post-install hook (no-op for choco)."""
-    return None
+    # choco.exe is at install root, not in bin/ subdir
+    return ctx.install_dir + "/choco.exe"

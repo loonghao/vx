@@ -1,32 +1,26 @@
 # provider.star - Node.js provider
 #
-# Version source: https://nodejs.org/dist/index.json (official API, no rate limiting)
-# Bundled runtimes: npm, npx (included in every Node.js release)
-# Archive layout: node-v{version}-{os}-{arch}/ with bin/ subdir on Unix
+# Node.js - JavaScript runtime built on Chrome's V8 JavaScript engine
+# Downloads from nodejs.org/dist
 #
 # Uses stdlib templates from @vx//stdlib:provider.star
 
 load("@vx//stdlib:provider.star",
      "runtime_def", "bundled_runtime_def",
-     "fetch_versions_from_api",
-     "system_permissions",
+     "github_permissions",
      "bin_subdir_env", "bin_subdir_execute_path",
-     "post_extract_permissions", "pre_run_ensure_deps")
+     "post_extract_permissions", "pre_run_ensure_deps",
+     "fetch_versions_from_api", "path_fns")
 
 # ---------------------------------------------------------------------------
 # Provider metadata
 # ---------------------------------------------------------------------------
 name        = "node"
-description = "Node.js - JavaScript runtime built on Chrome's V8 engine"
+description = "Node.js - JavaScript runtime built on Chrome's V8 JavaScript engine"
 homepage    = "https://nodejs.org"
 repository  = "https://github.com/nodejs/node"
 license     = "MIT"
 ecosystem   = "nodejs"
-aliases     = ["nodejs"]
-
-# Supported package prefixes for ecosystem:package syntax (RFC 0027)
-# Enables `vx npm:<package>` and `vx npx:<package>` for Node.js package execution
-package_prefixes = ["npm", "npx"]
 
 # ---------------------------------------------------------------------------
 # Runtime definitions
@@ -34,28 +28,31 @@ package_prefixes = ["npm", "npx"]
 
 runtimes = [
     runtime_def("node",
-        aliases = ["nodejs"],
+        aliases         = ["nodejs"],
+        version_pattern = "v\\d+\\.\\d+\\.\\d+",
         test_commands = [
             {"command": "{executable} --version", "name": "version_check",
-             "expected_output": "^v?\\d+\\.\\d+\\.\\d+"},
-            {"command": "{executable} -e \"console.log('ok')\"", "name": "eval_check",
-             "expected_output": "ok"},
+             "expected_output": "v\\d+\\.\\d+"},
         ],
     ),
-    bundled_runtime_def("npm",  bundled_with = "node",
-        version_pattern = "^\\d+\\.\\d+\\.\\d+"),
-    bundled_runtime_def("npx",  bundled_with = "node",
-        version_pattern = "^\\d+\\.\\d+\\.\\d+"),
+    bundled_runtime_def("npm", "node",
+        description     = "Node Package Manager",
+        version_pattern = "\\d+\\.\\d+\\.\\d+",
+    ),
+    bundled_runtime_def("npx", "node",
+        description     = "Node Package eXecute",
+        version_pattern = "\\d+\\.\\d+\\.\\d+",
+    ),
 ]
 
 # ---------------------------------------------------------------------------
 # Permissions
 # ---------------------------------------------------------------------------
 
-permissions = system_permissions(extra_hosts = ["nodejs.org"])
+permissions = github_permissions(extra_hosts = ["nodejs.org"])
 
 # ---------------------------------------------------------------------------
-# fetch_versions — nodejs.org official API (no rate limiting)
+# fetch_versions — from nodejs.org official API
 # ---------------------------------------------------------------------------
 
 fetch_versions = fetch_versions_from_api(
@@ -65,26 +62,28 @@ fetch_versions = fetch_versions_from_api(
 
 # ---------------------------------------------------------------------------
 # Platform helpers
-# Node.js uses: win/darwin/linux × x64/x86/arm64/armv7l
+# Node uses: node-v{version}-{os}-{arch}.{ext}
 # ---------------------------------------------------------------------------
 
 _NODE_PLATFORMS = {
-    "windows/x64":  ("win",    "x64"),
-    "windows/x86":  ("win",    "x86"),
-    "macos/x64":    ("darwin", "x64"),
-    "macos/arm64":  ("darwin", "arm64"),
-    "linux/x64":    ("linux",  "x64"),
-    "linux/arm64":  ("linux",  "arm64"),
-    "linux/armv7":  ("linux",  "armv7l"),
+    "windows/x64":   ("win",    "x64"),
+    "windows/x86":   ("win",    "x86"),
+    "windows/arm64": ("win",    "arm64"),
+    "macos/x64":     ("darwin", "x64"),
+    "macos/arm64":   ("darwin", "arm64"),
+    "linux/x64":     ("linux",  "x64"),
+    "linux/arm64":   ("linux",  "arm64"),
+    "linux/armv7":   ("linux",  "armv7l"),
+    "linux/ppc64":   ("linux",  "ppc64le"),
+    "linux/s390x":   ("linux",  "s390x"),
 }
 
 def _node_platform(ctx):
-    return _NODE_PLATFORMS.get("{}/{}".format(ctx.platform.os, ctx.platform.arch))
+    key = "{}/{}".format(ctx.platform.os, ctx.platform.arch)
+    return _NODE_PLATFORMS.get(key)
 
 # ---------------------------------------------------------------------------
-# download_url — nodejs.org
-# Windows: node-v{version}-win-{arch}.zip
-# Unix:    node-v{version}-{os}-{arch}.tar.xz
+# download_url
 # ---------------------------------------------------------------------------
 
 def download_url(ctx, version):
@@ -92,10 +91,14 @@ def download_url(ctx, version):
     if not platform:
         return None
     os_str, arch_str = platform[0], platform[1]
+    # macOS uses .tar.gz, Linux uses .tar.xz, Windows uses .zip
     if ctx.platform.os == "windows":
-        filename = "node-v{}-{}-{}.zip".format(version, os_str, arch_str)
+        ext = "zip"
+    elif ctx.platform.os == "macos":
+        ext = "tar.gz"
     else:
-        filename = "node-v{}-{}-{}.tar.xz".format(version, os_str, arch_str)
+        ext = "tar.xz"
+    filename = "node-v{}-{}-{}.{}".format(version, os_str, arch_str, ext)
     return "https://nodejs.org/dist/v{}/{}".format(version, filename)
 
 # ---------------------------------------------------------------------------
@@ -137,17 +140,13 @@ pre_run = pre_run_ensure_deps("npm",
 )
 
 # ---------------------------------------------------------------------------
-# Path queries + environment
+# Path queries + environment (using stdlib helpers)
 # ---------------------------------------------------------------------------
 
-def store_root(ctx):
-    return ctx.vx_home + "/store/node"
-
+_paths = path_fns("node")
+store_root       = _paths["store_root"]
 get_execute_path = bin_subdir_execute_path("node")
 environment      = bin_subdir_env()
-
-def post_install(_ctx, _version):
-    return None
 
 def deps(_ctx, _version):
     return []

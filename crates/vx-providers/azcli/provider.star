@@ -7,6 +7,7 @@
 
 load("@vx//stdlib:provider.star",
      "runtime_def", "github_permissions", "post_extract_permissions",
+     "path_fns",
      "multi_platform_install", "winget_install", "choco_install",
      "brew_install")
 load("@vx//stdlib:github.star", "make_fetch_versions")
@@ -91,21 +92,18 @@ system_install = multi_platform_install(
 )
 
 # ---------------------------------------------------------------------------
-# Path queries + environment
+# Path + env functions (from stdlib)
 # ---------------------------------------------------------------------------
 
-def store_root(ctx):
-    return ctx.vx_home + "/store/azcli"
-
-def get_execute_path(ctx, _version):
-    exe = "az.exe" if ctx.platform.os == "windows" else "az"
-    return ctx.install_dir + "/" + exe
-
-def post_install(_ctx, _version):
-    return None
+_paths           = path_fns("azcli", executable = "az")
+store_root       = _paths["store_root"]
+get_execute_path = _paths["get_execute_path"]
 
 def environment(ctx, _version):
     return [env_prepend("PATH", ctx.install_dir + "/bin")]
+
+def post_install(_ctx, _version):
+    return None
 
 def deps(_ctx, _version):
     return []

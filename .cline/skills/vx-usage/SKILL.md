@@ -103,6 +103,100 @@ vx --with bun node app.js     # Node.js + Bun in PATH
 vx --with deno npm test        # npm + Deno available
 ```
 
+## Package Aliases
+
+vx supports **package aliases** — short commands that automatically route to ecosystem packages:
+
+```bash
+# These are equivalent:
+vx vite              # Same as: vx npm:vite
+vx vite@5.0          # Same as: vx npm:vite@5.0
+vx rez               # Same as: vx uv:rez
+vx pre-commit        # Same as: vx uv:pre-commit
+vx meson             # Same as: vx uv:meson
+vx release-please    # Same as: vx npm:release-please
+```
+
+**Benefits**:
+- Simpler commands without remembering ecosystem prefixes
+- Automatic runtime dependency management (node/python installed as needed)
+- Respects project `vx.toml` version configuration
+
+**Available Aliases**:
+| Short Command | Equivalent | Ecosystem |
+|--------------|------------|-----------|
+| `vx vite` | `vx npm:vite` | npm |
+| `vx release-please` | `vx npm:release-please` | npm |
+| `vx rez` | `vx uv:rez` | uv |
+| `vx pre-commit` | `vx uv:pre-commit` | uv |
+| `vx meson` | `vx uv:meson` | uv |
+
+## Companion Tool Environment Injection
+
+When `vx.toml` includes tools like MSVC, vx automatically injects discovery environment variables into **all** subprocess environments. This allows any tool needing a C/C++ compiler to discover the vx-managed installation.
+
+```toml
+# vx.toml — MSVC env vars injected for ALL tools
+[tools]
+node = "22"
+cmake = "3.28"
+rust = "1.82"
+
+[tools.msvc]
+version = "14.42"
+os = ["windows"]
+```
+
+Now tools like node-gyp, CMake, Cargo (cc crate) automatically find MSVC:
+
+```bash
+# node-gyp finds MSVC via VCINSTALLDIR
+vx npx node-gyp rebuild
+
+# CMake discovers the compiler
+vx cmake -B build -G "Ninja"
+
+# Cargo cc crate finds MSVC for C dependencies
+vx cargo build
+```
+
+**Injected Environment Variables** (MSVC example):
+| Variable | Purpose |
+|----------|---------|
+| `VCINSTALLDIR` | VS install path (node-gyp, CMake) |
+| `VCToolsInstallDir` | Exact toolchain path |
+| `VX_MSVC_ROOT` | vx MSVC root path |
+
+## MSVC Build Tools (Windows)
+
+Microsoft Visual C++ compiler for Windows development:
+
+```bash
+# Install MSVC Build Tools
+vx install msvc@latest
+vx install msvc 14.40       # Specific version
+
+# Using MSVC tools via namespace
+vx msvc cl main.cpp -o main.exe
+vx msvc link main.obj
+vx msvc nmake
+
+# Direct aliases
+vx cl main.cpp              # Same as: vx msvc cl
+vx nmake                    # Same as: vx msvc nmake
+
+# Version-specific usage
+vx msvc@14.40 cl main.cpp
+```
+
+**Available MSVC Tools**:
+| Tool | Command | Description |
+|------|---------|-------------|
+| cl | `vx msvc cl` | C/C++ compiler |
+| link | `vx msvc link` | Linker |
+| lib | `vx msvc lib` | Library manager |
+| nmake | `vx msvc nmake` | Make utility |
+
 ## Supported Tools (50+)
 
 | Category | Tools |

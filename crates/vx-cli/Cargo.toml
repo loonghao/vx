@@ -117,6 +117,10 @@ vx-provider-pre-commit = { workspace = true }
 vx-provider-spack = { workspace = true }
 # Build tools
 vx-provider-just = { workspace = true }
+# Frontend tooling
+vx-provider-nx = { workspace = true }
+vx-provider-turbo = { workspace = true }
+vx-provider-vite = { workspace = true }
 # Platform-specific
 vx-provider-systemctl = { workspace = true }
 vx-provider-xcodebuild = { workspace = true }
@@ -144,7 +148,6 @@ dirs = { workspace = true }
 regex = { workspace = true }
 which = { workspace = true }
 strsim = "0.11"
-paste = "1.0"
 async-trait = { workspace = true }
 dotenvy = "0.15"
 self-replace = { workspace = true }

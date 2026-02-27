@@ -6,8 +6,19 @@ type = "command"
 authors = ["vx contributors"]
 license = "MIT"
 
+# Runtime dependency: vx will auto-install Python via the Python provider
+# if it is not already available.
+#
+# Format: "<runtime-name> <version-constraint>"
+#   runtime-name  - must match a vx provider runtime (e.g. python, node, go)
+#   version-constraint - semver range (>=, >, <, <=, ~, ^, *)
+#
+# vx resolves this by calling the matching Provider (vx-provider-python / uv)
+# and ensuring the requested version is installed before executing the script.
 [runtime]
 requires = "python >= 3.8"
+# Optional: pip packages to install into the runtime environment before execution.
+# dependencies = ["requests", "rich>=13.0"]
 
 [entrypoint]
 main = "main.py"

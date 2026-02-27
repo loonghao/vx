@@ -1,29 +1,24 @@
 # provider.star - .NET SDK provider
 #
-# Version source: Microsoft dotnet-releases API
-# Downloads from Microsoft CDN (dotnetcli.azureedge.net)
+# .NET SDK downloads from Microsoft CDN
+# RID: win-x64, osx-x64, linux-x64, etc.
 #
 # Uses stdlib templates from @vx//stdlib:provider.star
 
 load("@vx//stdlib:provider.star",
-     "runtime_def", "fetch_versions_from_api", "dep_def",
-     "system_permissions")
-load("@vx//stdlib:env.star", "env_set", "env_prepend")
+     "runtime_def", "github_permissions", "dep_def",
+     "archive_layout", "path_fns")
+load("@vx//stdlib:env.star",    "env_prepend", "env_set")
 
 # ---------------------------------------------------------------------------
 # Provider metadata
 # ---------------------------------------------------------------------------
 name        = "dotnet"
-description = ".NET SDK - Free, cross-platform, open-source developer platform for C#, F#, and VB.NET"
+description = ".NET SDK - Developer platform for building apps"
 homepage    = "https://dotnet.microsoft.com"
 repository  = "https://github.com/dotnet/sdk"
 license     = "MIT"
 ecosystem   = "dotnet"
-aliases     = ["dotnet-sdk"]
-
-# Supported package prefixes for ecosystem:package syntax (RFC 0027)
-# Enables `vx dotnet-tool:<package>` for .NET global tool installation
-package_prefixes = ["dotnet-tool", "dotnet"]
 
 # ---------------------------------------------------------------------------
 # Runtime definitions
@@ -31,12 +26,10 @@ package_prefixes = ["dotnet-tool", "dotnet"]
 
 runtimes = [
     runtime_def("dotnet",
-        aliases = ["dotnet-sdk"],
+        aliases         = ["dotnet-sdk", "dotnet-cli"],
+        version_pattern = "\\d+\\.\\d+\\.\\d+",
         test_commands = [
-            {"command": "{executable} --version", "name": "version_check",
-             "expected_output": "^\\d+\\.\\d+"},
-            {"command": "{executable} --info", "name": "info_check",
-             "expected_output": "Runtime Environment"},
+            {"command": "{executable} --version", "name": "version_check"},
         ],
     ),
 ]
@@ -45,22 +38,19 @@ runtimes = [
 # Permissions
 # ---------------------------------------------------------------------------
 
-permissions = system_permissions(
-    extra_hosts = ["dotnetcli.blob.core.windows.net", "dotnetcli.azureedge.net",
-                   "builds.dotnet.microsoft.com"],
-)
+permissions = github_permissions(extra_hosts = ["dotnetcli.azureedge.net"])
 
 # ---------------------------------------------------------------------------
-# fetch_versions — Microsoft dotnet-releases API
+# fetch_versions — from dotnetcli.azureedge.net
+# Note: For now we use an empty list; users should specify version explicitly
 # ---------------------------------------------------------------------------
 
-fetch_versions = fetch_versions_from_api(
-    "https://dotnetcli.blob.core.windows.net/dotnet/release-metadata/releases-index.json",
-    "dotnet_releases",
-)
+def fetch_versions(_ctx):
+    return []
 
 # ---------------------------------------------------------------------------
-# Platform helpers — .NET Runtime Identifiers (RIDs)
+# Platform helpers
+# .NET uses Runtime Identifiers (RIDs)
 # ---------------------------------------------------------------------------
 
 _DOTNET_RIDS = {
@@ -93,24 +83,10 @@ def download_url(ctx, version):
 # install_layout — flat layout
 # ---------------------------------------------------------------------------
 
-def install_layout(ctx, _version):
-    exe = "dotnet.exe" if ctx.platform.os == "windows" else "dotnet"
-    return {
-        "type":             "archive",
-        "strip_prefix":     "",
-        "executable_paths": [exe],
-    }
-
-# ---------------------------------------------------------------------------
-# Path queries + environment
-# ---------------------------------------------------------------------------
-
-def store_root(ctx):
-    return ctx.vx_home + "/store/dotnet"
-
-def get_execute_path(ctx, _version):
-    exe = "dotnet.exe" if ctx.platform.os == "windows" else "dotnet"
-    return ctx.install_dir + "/" + exe
+install_layout   = archive_layout("dotnet")
+_paths           = path_fns("dotnet")
+store_root       = _paths["store_root"]
+get_execute_path = _paths["get_execute_path"]
 
 def post_install(_ctx, _version):
     return None

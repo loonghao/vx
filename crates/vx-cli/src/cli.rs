@@ -763,6 +763,22 @@ pub enum Commands {
         #[command(subcommand)]
         command: AiCommand,
     },
+
+    // =========================================================================
+    // Provider Management
+    // =========================================================================
+    /// Manage user-defined providers
+    ///
+    /// Add, remove, and list custom providers loaded from provider.star files.
+    ///
+    /// Examples:
+    ///   vx provider add ./my-tool/provider.star
+    ///   vx provider list
+    ///   vx provider remove my-tool
+    Provider {
+        #[command(subcommand)]
+        command: PluginCommand,
+    },
 }
 
 // =============================================================================
@@ -967,6 +983,38 @@ pub enum PluginCommand {
     },
     /// Show plugin statistics
     Stats,
+    /// Add a provider from a local file, directory, or remote HTTP URL
+    ///
+    /// Copies provider.star file(s) into ~/.vx/providers/<name>/provider.star
+    /// so that `vx <runtime>` can use it immediately on the next invocation.
+    ///
+    /// Supported sources:
+    ///   - Single file:  vx provider add ./my-tool/provider.star
+    ///   - Directory:    vx provider add ./my-providers/   (recursively finds all provider.star)
+    ///   - HTTP URL:     vx provider add https://example.com/provider.star
+    ///
+    /// Examples:
+    ///   vx provider add ./my-tool/provider.star
+    ///   vx provider add ./examples/providers/
+    ///   vx provider add https://raw.githubusercontent.com/user/repo/main/provider.star
+    ///   vx provider add /tmp/provider.star --name my-tool
+    Add {
+        /// Path to a provider.star file, a directory containing provider.star files,
+        /// or an HTTP/HTTPS URL pointing to a provider.star file
+        path: String,
+        /// Override the provider name (only valid when adding a single file; defaults to
+        /// the `name` field inside provider.star)
+        #[arg(long, short)]
+        name: Option<String>,
+        /// Overwrite existing providers with the same name
+        #[arg(long, short)]
+        force: bool,
+    },
+    /// Remove a previously added user provider
+    Remove {
+        /// Provider name to remove
+        name: String,
+    },
 }
 
 #[derive(Subcommand, Clone)]
@@ -1324,6 +1372,7 @@ impl CommandHandler for Commands {
             Commands::Metrics { .. } => "metrics",
             Commands::Auth { .. } => "auth",
             Commands::Ai { .. } => "ai",
+            Commands::Provider { .. } => "provider",
         }
     }
 
@@ -1929,6 +1978,10 @@ impl CommandHandler for Commands {
                 }
                 AiCommand::Session(session) => commands::ai::handle_session(ctx, session).await,
             },
+
+            Commands::Provider { command } => {
+                commands::plugin::handle(ctx.registry(), command.clone()).await
+            }
         }
     }
 }

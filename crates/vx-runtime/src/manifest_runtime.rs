@@ -152,6 +152,12 @@ pub struct ManifestDrivenRuntime {
     /// - "git-bash" -> "git-bash.exe"
     /// - "git-cmd" -> "git-cmd.exe"
     pub shells: Vec<ShellDefinition>,
+    /// Platform OS constraint from provider.star `platforms = {"os": [...]}`.
+    ///
+    /// When non-empty, `supported_platforms()` returns only platforms whose
+    /// OS name matches one of the entries (e.g. `["macos"]` → macOS-only).
+    /// An empty vec means "all platforms" (no constraint).
+    pub platform_os: Vec<String>,
 }
 
 /// Shell definition for runtime-provided shells (RFC 0038)
@@ -372,6 +378,7 @@ impl ManifestDrivenRuntime {
             install_layout_fn: None,
             pip_package: None,
             shells: Vec::new(),
+            platform_os: Vec::new(),
         }
     }
 
@@ -390,6 +397,16 @@ impl ManifestDrivenRuntime {
     /// Set bundled_with (parent runtime for bundled tools)
     pub fn with_bundled_with(mut self, bundled_with: impl Into<String>) -> Self {
         self.bundled_with = Some(bundled_with.into());
+        self
+    }
+
+    /// Set platform OS constraint (e.g. `["macos"]` for macOS-only tools).
+    ///
+    /// When set, `supported_platforms()` will only return platforms whose OS
+    /// matches one of the provided names.  Accepted values: `"windows"`,
+    /// `"macos"`, `"linux"`, `"freebsd"`.
+    pub fn with_platform_os(mut self, platform_os: Vec<String>) -> Self {
+        self.platform_os = platform_os;
         self
     }
 
@@ -722,6 +739,30 @@ impl Runtime for ManifestDrivenRuntime {
 
     fn ecosystem(&self) -> Ecosystem {
         self.ecosystem_override.clone().unwrap_or(Ecosystem::System)
+    }
+
+    fn supported_platforms(&self) -> Vec<crate::platform::Platform> {
+        if self.platform_os.is_empty() {
+            return crate::platform::Platform::all_common();
+        }
+        // Build platform list from the OS constraint strings
+        let mut platforms = Vec::new();
+        for os_name in &self.platform_os {
+            match os_name.to_lowercase().as_str() {
+                "windows" => platforms.extend(crate::platform::Platform::windows_only()),
+                "macos" | "darwin" | "osx" => {
+                    platforms.extend(crate::platform::Platform::macos_only())
+                }
+                "linux" => platforms.extend(crate::platform::Platform::linux_only()),
+                "unix" => platforms.extend(crate::platform::Platform::unix_only()),
+                _ => {}
+            }
+        }
+        if platforms.is_empty() {
+            crate::platform::Platform::all_common()
+        } else {
+            platforms
+        }
     }
 
     fn metadata(&self) -> HashMap<String, String> {

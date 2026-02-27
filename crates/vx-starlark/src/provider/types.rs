@@ -18,8 +18,11 @@ pub enum InstallLayout {
         extra_args: Vec<String>,
     },
     /// Archive installation (ZIP, TAR.GZ, TAR.XZ, etc.)
+    ///
+    /// The `url` field is optional - when present, the layout includes download info.
+    /// When absent, the layout is just hints for extraction (strip_prefix, executable_paths).
     Archive {
-        url: String,
+        url: Option<String>,
         strip_prefix: Option<String>,
         executable_paths: Vec<String>,
     },
@@ -33,7 +36,7 @@ pub enum InstallLayout {
     /// System tool finder (for prepare_execution)
     ///
     /// Instructs the Rust runtime to search for an already-installed system tool
-    /// via PATH lookup and optional known system paths, before falling back to
+    /// via PATH lookup and optional known paths, before falling back to
     /// the vx-managed installation.
     SystemFind {
         executable: String,
@@ -264,6 +267,15 @@ pub struct ProviderMeta {
     /// hardcoding the list in vx-shim.
     #[serde(default)]
     pub package_prefixes: Vec<String>,
+    /// Minimum vx version required to use this provider (semver constraint string).
+    ///
+    /// When set, vx checks its own version against this constraint before loading
+    /// the provider. If the constraint is not satisfied, a warning is emitted and
+    /// the provider is skipped (graceful degradation).
+    ///
+    /// Examples: `">=0.7.0"`, `"^0.8"`, `">=0.7.0, <1.0.0"`
+    #[serde(default)]
+    pub vx_version_req: Option<String>,
 }
 
 fn default_version() -> String {

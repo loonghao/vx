@@ -273,14 +273,13 @@ impl StarlarkProvider {
                             extra_args,
                         }))
                     }
-                    "archive_install" => {
+                    "archive_install" | "archive" => {
+                        // "archive" is the legacy format (no URL, just layout hints)
+                        // "archive_install" includes the URL for complete install info
                         let url = json
                             .get("url")
                             .and_then(|u| u.as_str())
-                            .ok_or_else(|| {
-                                Error::EvalError("archive_install descriptor missing 'url'".into())
-                            })?
-                            .to_string();
+                            .map(|s| s.to_string());
                         let strip_prefix = json
                             .get("strip_prefix")
                             .and_then(|s| s.as_str())
@@ -294,7 +293,7 @@ impl StarlarkProvider {
                                     .collect()
                             })
                             .unwrap_or_default();
-                        debug!(provider = %self.meta.name, url = %url, "Resolved archive_install descriptor");
+                        debug!(provider = %self.meta.name, url = ?url, strip_prefix = ?strip_prefix, "Resolved archive_install/archive descriptor");
                         Ok(Some(InstallLayout::Archive {
                             url,
                             strip_prefix,

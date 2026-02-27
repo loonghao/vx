@@ -113,7 +113,8 @@ pub use runtime_root::{
 pub use platform::{
     Arch, Os, Platform, append_to_path, executable_extension, filter_system_path, is_system_path,
     is_unix_path, is_windows_path, join_paths_env, join_paths_simple, path_separator,
-    prepend_to_path, split_path, split_path_owned, venv_bin_dir, with_executable_extension,
+    platform_dir_name, prepend_to_path, split_path, split_path_owned, venv_bin_dir,
+    with_executable_extension,
 };
 
 /// Standard vx directory structure

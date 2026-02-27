@@ -7,9 +7,9 @@
 # Uses stdlib templates from @vx//stdlib:provider.star
 
 load("@vx//stdlib:provider.star",
-     "runtime_def", "github_permissions")
+     "runtime_def", "github_permissions",
+     "archive_layout", "path_fns", "path_env_fns")
 load("@vx//stdlib:github.star", "make_fetch_versions", "github_asset_url")
-load("@vx//stdlib:env.star",    "env_prepend")
 
 # ---------------------------------------------------------------------------
 # Provider metadata
@@ -67,33 +67,17 @@ def download_url(ctx, version):
     return github_asset_url("actionforge", "actrun-cli", "v" + version, asset)
 
 # ---------------------------------------------------------------------------
-# install_layout
+# Layout + path/env functions (from stdlib)
 # ---------------------------------------------------------------------------
 
-def install_layout(ctx, _version):
-    exe = "actrun.exe" if ctx.platform.os == "windows" else "actrun"
-    return {
-        "type":             "archive",
-        "strip_prefix":     "",
-        "executable_paths": [exe, "actrun"],
-    }
+install_layout   = archive_layout("actrun")
+_paths           = path_fns("actrun")
+store_root       = _paths["store_root"]
+get_execute_path = _paths["get_execute_path"]
 
-# ---------------------------------------------------------------------------
-# Path queries + environment
-# ---------------------------------------------------------------------------
-
-def store_root(ctx):
-    return ctx.vx_home + "/store/actrun"
-
-def get_execute_path(ctx, _version):
-    exe = "actrun.exe" if ctx.platform.os == "windows" else "actrun"
-    return ctx.install_dir + "/" + exe
-
-def post_install(_ctx, _version):
-    return None
-
-def environment(ctx, _version):
-    return [env_prepend("PATH", ctx.install_dir)]
+_env             = path_env_fns()
+post_install     = _env["post_install"]
+environment      = _env["environment"]
 
 def deps(_ctx, _version):
     return []

@@ -247,6 +247,13 @@ pub fn prepend_to_path<S: AsRef<str>>(original: &str, entries: &[S]) -> String {
     join_paths_simple(&parts)
 }
 
+/// Get the platform directory name (e.g., "windows-x64", "darwin-arm64", "linux-x64")
+///
+/// This is used for platform-specific subdirectories in the vx store.
+pub fn platform_dir_name() -> &'static str {
+    Platform::current().as_str()
+}
+
 /// Append entries to an existing PATH string
 ///
 /// # Example

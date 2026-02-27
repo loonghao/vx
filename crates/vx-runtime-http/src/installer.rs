@@ -631,9 +631,28 @@ impl Installer for RealInstaller {
         // First download and extract
         self.download_and_extract(url, dest).await?;
 
+        // Debug: log metadata and dest contents
+        tracing::info!("download_with_layout: dest = {}", dest.display());
+        tracing::info!("download_with_layout: metadata = {:?}", metadata);
+        if let Ok(entries) = std::fs::read_dir(dest) {
+            let entries: Vec<_> = entries.filter_map(|e| e.ok()).collect();
+            tracing::info!(
+                "download_with_layout: dest contains {} entries",
+                entries.len()
+            );
+            for e in &entries {
+                tracing::info!(
+                    "  - {} (is_dir={})",
+                    e.file_name().to_string_lossy(),
+                    e.path().is_dir()
+                );
+            }
+        }
+
         // Handle strip_prefix for archive extraction
         // This moves contents from a nested directory to the root of dest.
         if let Some(strip_prefix) = metadata.get("strip_prefix") {
+            tracing::info!("download_with_layout: strip_prefix = '{}'", strip_prefix);
             let prefix_dir = if strip_prefix.is_empty() {
                 // Auto-detect: check if dest contains exactly one directory and nothing else
                 let entries: Vec<_> = std::fs::read_dir(dest)?.filter_map(|e| e.ok()).collect();
@@ -644,10 +663,16 @@ impl Installer for RealInstaller {
                 }
             } else {
                 let p = dest.join(strip_prefix);
+                tracing::info!(
+                    "download_with_layout: checking path {} (exists={}, is_dir={})",
+                    p.display(),
+                    p.exists(),
+                    p.is_dir()
+                );
                 if p.exists() && p.is_dir() {
                     Some(p)
                 } else {
-                    tracing::debug!(
+                    tracing::warn!(
                         "strip_prefix directory not found: {} (expected at {})",
                         strip_prefix,
                         p.display()

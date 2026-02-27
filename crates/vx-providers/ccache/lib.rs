@@ -1,6 +1,6 @@
 //! ccache provider for vx
 //!
 //! This is a manifest-driven provider defined in `provider.star`.
-//! The provider implements C/C++ compilation caching for GCC/Clang.
 
-// This crate exists for cargo workspace membership only.
+/// The raw content of `provider.star`, embedded at compile time.
+pub const PROVIDER_STAR: &str = include_str!("provider.star");

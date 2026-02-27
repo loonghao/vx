@@ -151,7 +151,7 @@ impl ArchiveExtractor {
     pub fn new() -> Self {
         #[cfg(feature = "extended-formats")]
         let handlers: Vec<Box<dyn FormatHandler>> = {
-            let mut handlers = vec![
+            let mut handlers: Vec<Box<dyn FormatHandler>> = vec![
                 Box::new(zip::ZipHandler::new()),
                 Box::new(tar::TarHandler::new()),
                 Box::new(msi::MsiHandler::new()),

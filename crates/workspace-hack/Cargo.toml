@@ -83,42 +83,31 @@ toml_parser = { version = "1" }
 winnow = { version = "0.7" }
 
 [target.x86_64-pc-windows-msvc.dependencies]
-clap = { version = "4", default-features = false, features = ["env"] }
-clap_builder = { version = "4", default-features = false, features = ["env"] }
 flate2 = { version = "1", features = ["zlib-rs"] }
-getrandom = { version = "0.3", default-features = false, features = ["std"] }
 hyper = { version = "1", features = ["client", "http1", "http2"] }
 hyper-rustls = { version = "0.27", default-features = false, features = ["aws-lc-rs", "http1", "http2", "tls12"] }
 hyper-util = { version = "0.1", features = ["client-legacy", "client-proxy", "http1", "http2"] }
-reqwest = { version = "0.13", default-features = false, features = ["native-tls"] }
 rustls = { version = "0.23", default-features = false, features = ["aws-lc-rs", "aws_lc_rs", "logging", "ring", "std", "tls12"] }
 rustls-webpki = { version = "0.103", default-features = false, features = ["aws-lc-rs", "ring", "std"] }
+simd-adler32 = { version = "0.3", default-features = false, features = ["std"] }
+slab = { version = "0.4" }
 smallvec = { version = "1", default-features = false, features = ["const_new"] }
 thiserror = { version = "2" }
-time = { version = "0.3" }
 tokio-util = { version = "0.7", features = ["codec", "io"] }
 tower-http = { version = "0.6", default-features = false, features = ["decompression-br", "decompression-deflate", "decompression-gzip", "follow-redirect"] }
 winapi = { version = "0.3", default-features = false, features = ["consoleapi", "fileapi", "handleapi", "knownfolders", "objbase", "shlobj", "sysinfoapi", "winbase", "wincon", "winerror"] }
 windows-sys-4db8c43aad08e7ae = { package = "windows-sys", version = "0.60", features = ["Win32_Networking_WinSock", "Win32_System_Console", "Win32_System_IO", "Win32_System_Threading", "Win32_System_WindowsProgramming"] }
 windows-sys-73dcd821b1037cfd = { package = "windows-sys", version = "0.59", features = ["Win32_Security", "Win32_Storage_FileSystem", "Win32_System_Diagnostics_Debug", "Win32_System_IO", "Win32_System_Registry", "Win32_System_Time"] }
 windows-sys-b21d60becc0929df = { package = "windows-sys", version = "0.52", features = ["Win32_Foundation", "Win32_Networking_WinSock", "Win32_Security", "Win32_Storage_FileSystem", "Win32_System_Console", "Win32_System_Environment", "Win32_System_IO", "Win32_System_LibraryLoader", "Win32_System_Memory", "Win32_System_Threading", "Win32_System_WindowsProgramming", "Win32_UI_Input_KeyboardAndMouse", "Win32_UI_Shell"] }
-windows-sys-d4189bed749088b6 = { package = "windows-sys", version = "0.61", features = ["Wdk_Foundation", "Wdk_Storage_FileSystem", "Wdk_System_IO", "Win32_Globalization", "Win32_Networking_WinSock", "Win32_Security_Authentication_Identity", "Win32_Security_Credentials", "Win32_Security_Cryptography", "Win32_Storage_FileSystem", "Win32_System_Com", "Win32_System_Console", "Win32_System_IO", "Win32_System_LibraryLoader", "Win32_System_Memory", "Win32_System_Pipes", "Win32_System_SystemInformation", "Win32_System_SystemServices", "Win32_System_Threading", "Win32_System_WindowsProgramming", "Win32_UI_Input_KeyboardAndMouse", "Win32_UI_Shell"] }
-winnow = { version = "0.7", default-features = false, features = ["simd"] }
-zip = { version = "8", default-features = false, features = ["deflate", "time", "zstd"] }
-zstd = { version = "0.13" }
-zstd-safe = { version = "7", default-features = false, features = ["arrays", "legacy", "std", "zdict_builder"] }
-zstd-sys = { version = "2", default-features = false, features = ["legacy", "std", "zdict_builder"] }
+windows-sys-d4189bed749088b6 = { package = "windows-sys", version = "0.61", features = ["Wdk_Foundation", "Wdk_Storage_FileSystem", "Wdk_System_IO", "Win32_Globalization", "Win32_Networking_WinSock", "Win32_Security_Cryptography", "Win32_Storage_FileSystem", "Win32_System_Com", "Win32_System_Console", "Win32_System_IO", "Win32_System_Pipes", "Win32_System_SystemInformation", "Win32_System_SystemServices", "Win32_System_Threading", "Win32_System_WindowsProgramming", "Win32_UI_Input_KeyboardAndMouse", "Win32_UI_Shell"] }
 
 [target.x86_64-pc-windows-msvc.build-dependencies]
-getrandom = { version = "0.3", default-features = false, features = ["std"] }
 smallvec = { version = "1", default-features = false, features = ["const_new"] }
 winapi = { version = "0.3", default-features = false, features = ["consoleapi", "fileapi", "handleapi", "knownfolders", "objbase", "shlobj", "sysinfoapi", "winbase", "wincon", "winerror"] }
-windows-sys-d4189bed749088b6 = { package = "windows-sys", version = "0.61", features = ["Wdk_Foundation", "Wdk_Storage_FileSystem", "Wdk_System_IO", "Win32_Globalization", "Win32_Networking_WinSock", "Win32_Security_Authentication_Identity", "Win32_Security_Credentials", "Win32_Security_Cryptography", "Win32_Storage_FileSystem", "Win32_System_Com", "Win32_System_Console", "Win32_System_IO", "Win32_System_LibraryLoader", "Win32_System_Memory", "Win32_System_Pipes", "Win32_System_SystemInformation", "Win32_System_SystemServices", "Win32_System_Threading", "Win32_System_WindowsProgramming", "Win32_UI_Input_KeyboardAndMouse", "Win32_UI_Shell"] }
-winnow = { version = "0.7", default-features = false, features = ["simd"] }
+windows-sys-d4189bed749088b6 = { package = "windows-sys", version = "0.61", features = ["Wdk_Foundation", "Wdk_Storage_FileSystem", "Wdk_System_IO", "Win32_Globalization", "Win32_Networking_WinSock", "Win32_Security_Cryptography", "Win32_Storage_FileSystem", "Win32_System_Com", "Win32_System_Console", "Win32_System_IO", "Win32_System_Pipes", "Win32_System_SystemInformation", "Win32_System_SystemServices", "Win32_System_Threading", "Win32_System_WindowsProgramming", "Win32_UI_Input_KeyboardAndMouse", "Win32_UI_Shell"] }
 
 [target.x86_64-unknown-linux-gnu.dependencies]
 flate2 = { version = "1", features = ["zlib-rs"] }
-getrandom = { version = "0.3", default-features = false, features = ["std"] }
 hyper = { version = "1", features = ["client", "http1", "http2"] }
 hyper-rustls = { version = "0.27", default-features = false, features = ["aws-lc-rs", "http1", "http2", "tls12"] }
 hyper-util = { version = "0.1", features = ["client-legacy", "client-proxy", "http1", "http2"] }
@@ -127,6 +116,7 @@ rustix = { version = "1", features = ["fs", "termios"] }
 rustls = { version = "0.23", default-features = false, features = ["aws-lc-rs", "aws_lc_rs", "logging", "ring", "std", "tls12"] }
 rustls-webpki = { version = "0.103", default-features = false, features = ["aws-lc-rs", "ring", "std"] }
 simd-adler32 = { version = "0.3", default-features = false, features = ["std"] }
+slab = { version = "0.4" }
 smallvec = { version = "1", default-features = false, features = ["const_new"] }
 thiserror = { version = "2" }
 tokio-util = { version = "0.7", features = ["codec", "io"] }
@@ -139,7 +129,6 @@ smallvec = { version = "1", default-features = false, features = ["const_new"] }
 [target.x86_64-apple-darwin.dependencies]
 errno = { version = "0.3" }
 flate2 = { version = "1", features = ["zlib-rs"] }
-getrandom = { version = "0.3", default-features = false, features = ["std"] }
 hyper = { version = "1", features = ["client", "http1", "http2"] }
 hyper-rustls = { version = "0.27", default-features = false, features = ["aws-lc-rs", "http1", "http2", "tls12"] }
 hyper-util = { version = "0.1", features = ["client-legacy", "client-proxy", "http1", "http2"] }
@@ -148,6 +137,7 @@ rustix = { version = "1", features = ["fs", "termios"] }
 rustls = { version = "0.23", default-features = false, features = ["aws-lc-rs", "aws_lc_rs", "logging", "ring", "std", "tls12"] }
 rustls-webpki = { version = "0.103", default-features = false, features = ["aws-lc-rs", "ring", "std"] }
 simd-adler32 = { version = "0.3", default-features = false, features = ["std"] }
+slab = { version = "0.4" }
 smallvec = { version = "1", default-features = false, features = ["const_new"] }
 thiserror = { version = "2" }
 tokio-util = { version = "0.7", features = ["codec", "io"] }
@@ -160,7 +150,6 @@ smallvec = { version = "1", default-features = false, features = ["const_new"] }
 [target.aarch64-apple-darwin.dependencies]
 errno = { version = "0.3" }
 flate2 = { version = "1", features = ["zlib-rs"] }
-getrandom = { version = "0.3", default-features = false, features = ["std"] }
 hyper = { version = "1", features = ["client", "http1", "http2"] }
 hyper-rustls = { version = "0.27", default-features = false, features = ["aws-lc-rs", "http1", "http2", "tls12"] }
 hyper-util = { version = "0.1", features = ["client-legacy", "client-proxy", "http1", "http2"] }
@@ -169,6 +158,7 @@ rustix = { version = "1", features = ["fs", "termios"] }
 rustls = { version = "0.23", default-features = false, features = ["aws-lc-rs", "aws_lc_rs", "logging", "ring", "std", "tls12"] }
 rustls-webpki = { version = "0.103", default-features = false, features = ["aws-lc-rs", "ring", "std"] }
 simd-adler32 = { version = "0.3", default-features = false, features = ["std"] }
+slab = { version = "0.4" }
 smallvec = { version = "1", default-features = false, features = ["const_new"] }
 thiserror = { version = "2" }
 tokio-util = { version = "0.7", features = ["codec", "io"] }

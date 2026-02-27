@@ -296,6 +296,11 @@ pub struct ProviderContext {
     /// Set by the Rust runtime when it resolves a version that has a `date` field.
     /// Exposed to Starlark as `vx_ctx.version_date`.
     pub version_date: Option<String>,
+
+    /// Runtime name within a multi-runtime provider (e.g. "yazi" within "shell-tools").
+    /// Exposed to Starlark as `ctx.runtime_name` so that providers can dispatch
+    /// on the specific runtime being queried (e.g. fetch different GitHub repos).
+    pub runtime_name: Option<String>,
 }
 
 impl ProviderContext {
@@ -310,6 +315,7 @@ impl ProviderContext {
             verbose: false,
             description: String::new(),
             version_date: None,
+            runtime_name: None,
         }
     }
 
@@ -336,6 +342,14 @@ impl ProviderContext {
     /// requires a date-based release tag (e.g. "20240107").
     pub fn with_version_date(mut self, date: impl Into<String>) -> Self {
         self.version_date = Some(date.into());
+        self
+    }
+
+    /// Set the runtime name for multi-runtime providers.
+    /// This allows providers like shell-tools to dispatch on the specific
+    /// runtime being queried (e.g. fetch different GitHub repos for yazi vs starship).
+    pub fn with_runtime_name(mut self, name: impl Into<String>) -> Self {
+        self.runtime_name = Some(name.into());
         self
     }
 
