@@ -116,7 +116,7 @@ def environment(ctx, _version):
 _paths = path_fns("choco")
 store_root = _paths["store_root"]
 
-def get_execute_path(ctx, version):
+def get_execute_path(ctx, _version):
     """Return the executable path for the given version."""
     # choco.exe is at install root, not in bin/ subdir
     return ctx.install_dir + "/choco.exe"

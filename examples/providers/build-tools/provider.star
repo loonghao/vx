@@ -22,7 +22,7 @@ load("@vx//stdlib:provider.star",
      "runtime_def",
      "github_permissions",
      "multi_platform_install",
-     "winget_install", "choco_install", "scoop_install",
+     "winget_install", "choco_install",
      "brew_install", "apt_install")
 load("@vx//stdlib:github.star",
      "make_fetch_versions",
@@ -184,7 +184,7 @@ def install_layout(ctx, version):
     if runtime == "just":
         exe = "just.exe" if os == "windows" else "just"
         return {
-            "type":             "archive",
+            "__type":           "archive",
             "strip_prefix":     "",
             "executable_paths": [exe, "just"],
         }
@@ -201,7 +201,7 @@ def install_layout(ctx, version):
             strip = "cmake-{}-linux-{}".format(version, "x86_64" if arch == "x64" else "aarch64")
             exe   = "bin/cmake"
         return {
-            "type":             "archive",
+            "__type":           "archive",
             "strip_prefix":     strip,
             "executable_paths": [exe, "cmake"],
         }
@@ -210,12 +210,12 @@ def install_layout(ctx, version):
     if runtime in ("ninja", "ninja-build"):
         exe = "ninja.exe" if os == "windows" else "ninja"
         return {
-            "type":             "archive",
+            "__type":           "archive",
             "strip_prefix":     "",
             "executable_paths": [exe, "ninja"],
         }
 
-    return {"type": "archive", "strip_prefix": "", "executable_paths": []}
+    return {"__type": "archive", "strip_prefix": "", "executable_paths": []}
 
 # ---------------------------------------------------------------------------
 # system_install — package manager fallback
@@ -248,10 +248,9 @@ def store_root(ctx):
     runtime = ctx.runtime_name if hasattr(ctx, "runtime_name") else "just"
     return ctx.vx_home + "/store/" + runtime
 
-def get_execute_path(ctx, version):
+def get_execute_path(ctx, _version):
     runtime = ctx.runtime_name if hasattr(ctx, "runtime_name") else "just"
     os      = ctx.platform.os
-    arch    = ctx.platform.arch
 
     if runtime == "just":
         exe = "just.exe" if os == "windows" else "just"
@@ -302,7 +301,7 @@ def environment(ctx, _version):
 #   requires   → vx will auto-install the dep before running this tool
 #   recommends → vx will suggest installing the dep, but won't block
 # ---------------------------------------------------------------------------
-def deps(ctx, version):
+def deps(ctx, _version):
     runtime = ctx.runtime_name if hasattr(ctx, "runtime_name") else "just"
 
     # just is a standalone command runner — no runtime dependencies

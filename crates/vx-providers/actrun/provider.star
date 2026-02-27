@@ -71,13 +71,13 @@ def download_url(ctx, version):
 # ---------------------------------------------------------------------------
 
 install_layout   = archive_layout("actrun")
-_paths           = path_fns("actrun")
-store_root       = _paths["store_root"]
-get_execute_path = _paths["get_execute_path"]
+paths            = path_fns("actrun")
+store_root       = paths["store_root"]
+get_execute_path = paths["get_execute_path"]
 
-_env             = path_env_fns()
-post_install     = _env["post_install"]
-environment      = _env["environment"]
+env_fns          = path_env_fns()
+post_install     = env_fns["post_install"]
+environment      = env_fns["environment"]
 
 def deps(_ctx, _version):
     return []

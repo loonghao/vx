@@ -74,13 +74,13 @@ def install_layout(_ctx, _version):
 # Path queries + environment (RFC-0037)
 # ---------------------------------------------------------------------------
 
-_paths = path_fns("nuget", executable = "nuget")
-_env   = path_env_fns()
+paths = path_fns("nuget", executable = "nuget")
+env_fns = path_env_fns()
 
-store_root       = _paths["store_root"]
-get_execute_path = _paths["get_execute_path"]
-environment      = _env["environment"]
-post_install     = _env["post_install"]
+store_root       = paths["store_root"]
+get_execute_path = paths["get_execute_path"]
+environment      = env_fns["environment"]
+post_install     = env_fns["post_install"]
 
 def deps(_ctx, _version):
     return []

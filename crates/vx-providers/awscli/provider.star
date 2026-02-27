@@ -7,7 +7,7 @@
 
 load("@vx//stdlib:provider.star",
      "runtime_def", "github_permissions", "post_extract_permissions",
-     "path_fns", "path_env_fns",
+     "path_fns",
      "multi_platform_install", "winget_install", "choco_install",
      "brew_install")
 load("@vx//stdlib:github.star", "make_fetch_versions")
@@ -98,9 +98,9 @@ system_install = multi_platform_install(
 # Note: awscli uses install_dir/bin for PATH, not install_dir directly
 # ---------------------------------------------------------------------------
 
-_paths           = path_fns("awscli", executable = "aws")
-store_root       = _paths["store_root"]
-get_execute_path = _paths["get_execute_path"]
+paths            = path_fns("awscli", executable = "aws")
+store_root       = paths["store_root"]
+get_execute_path = paths["get_execute_path"]
 
 def environment(ctx, _version):
     return [{"op": "prepend", "name": "PATH", "value": ctx.install_dir + "/bin"}]

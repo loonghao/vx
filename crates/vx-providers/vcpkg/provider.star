@@ -9,6 +9,7 @@ load("@vx//stdlib:provider.star",
      "runtime_def", "github_permissions", "dep_def",
      "platform_map")
 load("@vx//stdlib:github.star", "make_fetch_versions")
+load("@vx//stdlib:env.star", "env_set", "env_prepend")
 
 # ---------------------------------------------------------------------------
 # Provider metadata
@@ -97,8 +98,6 @@ def get_execute_path(ctx, _version):
 
 def post_install(_ctx, _version):
     return None
-
-load("@vx//stdlib:env.star", "env_set", "env_prepend")
 
 def environment(ctx, _version):
     return [

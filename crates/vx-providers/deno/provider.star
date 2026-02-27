@@ -80,9 +80,9 @@ def download_url(ctx, version):
 # ---------------------------------------------------------------------------
 
 install_layout   = archive_layout("deno")
-_paths           = path_fns("deno")
-store_root       = _paths["store_root"]
-get_execute_path = _paths["get_execute_path"]
+paths            = path_fns("deno")
+store_root       = paths["store_root"]
+get_execute_path = paths["get_execute_path"]
 
 def post_install(_ctx, _version):
     return None

@@ -95,9 +95,9 @@ system_install = multi_platform_install(
 # Path + env functions (from stdlib)
 # ---------------------------------------------------------------------------
 
-_paths           = path_fns("azcli", executable = "az")
-store_root       = _paths["store_root"]
-get_execute_path = _paths["get_execute_path"]
+paths            = path_fns("azcli", executable = "az")
+store_root       = paths["store_root"]
+get_execute_path = paths["get_execute_path"]
 
 def environment(ctx, _version):
     return [env_prepend("PATH", ctx.install_dir + "/bin")]

@@ -21,10 +21,7 @@
 
 load("@vx//stdlib:provider.star",
      "runtime_def",
-     "github_permissions",
-     "archive_layout",
-     "path_fns",
-     "path_env_fns")
+     "github_permissions")
 load("@vx//stdlib:github.star",
      "make_fetch_versions",
      "github_asset_url")
@@ -111,7 +108,6 @@ def fetch_versions(ctx):
     entry = repos.get(runtime, repos["jq"])
     owner, repo = entry[0], entry[1]
 
-    load("@vx//stdlib:github.star", "make_fetch_versions")
     fetcher = make_fetch_versions(owner, repo)
     return fetcher(ctx)
 
@@ -227,7 +223,7 @@ def install_layout(ctx, version):
             "executable_paths": [exe, "bat"],
         }
 
-    return {"type": "archive", "strip_prefix": "", "executable_paths": []}
+return {"__type": "archive", "strip_prefix": "", "executable_paths": []}
 
 # ---------------------------------------------------------------------------
 # Path queries (RFC 0037)

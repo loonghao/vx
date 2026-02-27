@@ -130,7 +130,7 @@ def _std_provider_fns(store_name, exe_name, path_env, extra_env):
     def _install_layout(ctx, _version):
         exe = exe_name + _exe_suffix(ctx)
         return {
-            "type":             "archive",
+            "__type":           "archive",
             "strip_prefix":     "",
             "executable_paths": [exe, exe_name],
         }
@@ -236,7 +236,7 @@ def github_rust_provider(owner, repo, asset,
             strip  = _expand_asset(strip_prefix, ctx, version,
                                    triple = triple if triple else "")
         return {
-            "type":             "archive",
+            "__type":           "archive",
             "strip_prefix":     strip,
             "executable_paths": [exe, exe_name],
         }
@@ -330,7 +330,7 @@ def github_go_provider(owner, repo, asset,
                                   go_os  = go_os   if go_os   else "",
                                   go_arch = go_arch if go_arch else "")
         return {
-            "type":             "archive",
+            "__type":           "archive",
             "strip_prefix":     strip,
             "executable_paths": [exe, exe_name],
         }
@@ -408,7 +408,7 @@ def github_binary_provider(owner, repo, asset,
     def _install_layout(ctx, _version):
         exe = exe_name + _exe_suffix(ctx)
         return {
-            "type":             "binary",
+            "__type":           "binary",
             "executable_paths": [exe, exe_name],
         }
 
