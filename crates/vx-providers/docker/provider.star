@@ -7,10 +7,9 @@
 
 load("@vx//stdlib:provider.star",
      "runtime_def", "github_permissions",
-     "archive_layout", "path_fns", "path_env_fns",
+     "path_fns", "path_env_fns",
      "multi_platform_install", "winget_install", "choco_install",
      "brew_install")
-load("@vx//stdlib:env.star",    "env_prepend")
 
 # ---------------------------------------------------------------------------
 # Provider metadata

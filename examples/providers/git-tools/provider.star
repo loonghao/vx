@@ -141,7 +141,7 @@ def install_layout(ctx, version):
     if runtime in ("lazygit", "lg"):
         exe = "lazygit.exe" if os == "windows" else "lazygit"
         return {
-            "type":             "archive",
+            "__type":           "archive",
             "strip_prefix":     "",          # flat archive, no subdirectory
             "executable_paths": [exe, "lazygit"],
         }
@@ -149,12 +149,12 @@ def install_layout(ctx, version):
     if runtime in ("lazydocker", "lzd"):
         exe = "lazydocker.exe" if os == "windows" else "lazydocker"
         return {
-            "type":             "archive",
+            "__type":           "archive",
             "strip_prefix":     "",
             "executable_paths": [exe, "lazydocker"],
         }
 
-    return {"type": "archive", "strip_prefix": "", "executable_paths": []}
+    return {"__type": "archive", "strip_prefix": "", "executable_paths": []}
 
 # ---------------------------------------------------------------------------
 # Path queries

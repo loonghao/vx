@@ -9,7 +9,6 @@
 load("@vx//stdlib:provider.star",
      "runtime_def",
      "system_permissions",
-     "path_fns",
      "multi_platform_install", "winget_install", "choco_install",
      "brew_install", "apt_install")
 load("@vx//stdlib:github.star", "github_releases", "releases_to_versions")

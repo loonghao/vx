@@ -21,7 +21,7 @@ load("@vx//stdlib:provider.star",
      "runtime_def",
      "github_permissions",
      "multi_platform_install",
-     "winget_install", "choco_install", "scoop_install",
+     "winget_install", "scoop_install",
      "brew_install")
 load("@vx//stdlib:github.star",
      "make_fetch_versions",
@@ -174,7 +174,7 @@ def install_layout(ctx, version):
         exe = "fzf.exe" if os == "windows" else "fzf"
         # fzf archive has no subdirectory prefix
         return {
-            "type":             "archive",
+            "__type":           "archive",
             "strip_prefix":     "",
             "executable_paths": [exe, "fzf"],
         }
@@ -184,7 +184,7 @@ def install_layout(ctx, version):
         strip = "delta-{}-{}".format(version, triple) if triple else ""
         exe   = "delta.exe" if os == "windows" else "delta"
         return {
-            "type":             "archive",
+            "__type":           "archive",
             "strip_prefix":     strip,
             "executable_paths": [exe, "delta"],
         }
@@ -194,12 +194,12 @@ def install_layout(ctx, version):
         # zoxide archive has no subdirectory prefix
         exe = "zoxide.exe" if os == "windows" else "zoxide"
         return {
-            "type":             "archive",
+            "__type":           "archive",
             "strip_prefix":     "",
             "executable_paths": [exe, "zoxide"],
         }
 
-    return {"type": "archive", "strip_prefix": "", "executable_paths": []}
+    return {"__type": "archive", "strip_prefix": "", "executable_paths": []}
 
 # ---------------------------------------------------------------------------
 # system_install — package manager fallback

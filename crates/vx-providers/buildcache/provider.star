@@ -83,9 +83,9 @@ def download_url(ctx, version):
 # ---------------------------------------------------------------------------
 
 install_layout   = archive_layout("buildcache")
-_paths           = path_fns("buildcache")
-store_root       = _paths["store_root"]
-get_execute_path = _paths["get_execute_path"]
+paths            = path_fns("buildcache")
+store_root       = paths["store_root"]
+get_execute_path = paths["get_execute_path"]
 
 # ---------------------------------------------------------------------------
 # post_install — usage instructions

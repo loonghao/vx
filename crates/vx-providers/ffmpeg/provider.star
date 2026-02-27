@@ -11,7 +11,7 @@
 
 load("@vx//stdlib:provider.star",
      "runtime_def", "github_permissions", "post_extract_flatten",
-     "path_fns", "path_env_fns")
+     "path_fns")
 load("@vx//stdlib:github.star", "make_fetch_versions", "github_asset_url")
 
 # ---------------------------------------------------------------------------
@@ -99,9 +99,9 @@ post_extract = post_extract_flatten()
 # Path + env functions
 # ---------------------------------------------------------------------------
 
-_paths           = path_fns("ffmpeg")
-store_root       = _paths["store_root"]
-get_execute_path = _paths["get_execute_path"]
+paths            = path_fns("ffmpeg")
+store_root       = paths["store_root"]
+get_execute_path = paths["get_execute_path"]
 
 def environment(ctx, _version):
     if ctx.platform.os == "windows":

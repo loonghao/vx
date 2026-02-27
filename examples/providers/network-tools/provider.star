@@ -17,10 +17,7 @@
 
 load("@vx//stdlib:provider.star",
      "runtime_def",
-     "github_permissions",
-     "archive_layout",
-     "path_fns",
-     "path_env_fns")
+     "github_permissions")
 load("@vx//stdlib:github.star",
      "make_fetch_versions",
      "github_asset_url")
@@ -173,28 +170,26 @@ def install_layout(ctx, version):
     if runtime in ("gh", "github-cli"):
         os_str   = _os_name(ctx)
         arch_str = _arch_name(ctx)
-        strip    = "gh_{}_{}_{}".format(version, os_str, arch_str)
+        strip    = "gh_{}_{}_{}" .format(version, os_str, arch_str)
         exe      = "bin/gh.exe" if os == "windows" else "bin/gh"
         return {
-            "type":             "archive",
+            "__type":           "archive",
             "strip_prefix":     strip,
             "executable_paths": [exe, "gh"],
         }
 
     # ── xh ──────────────────────────────────────────────────────────────────
-    # Archive structure: xh-v{version}-{triple}/xh[.exe]
     if runtime in ("xh", "xhs"):
         triple = _xh_triple(ctx)
         strip  = "xh-v{}-{}".format(version, triple) if triple else ""
         exe    = "xh.exe" if os == "windows" else "xh"
         return {
-            "type":             "archive",
+            "__type":           "archive",
             "strip_prefix":     strip,
             "executable_paths": [exe, "xh"],
         }
 
-    return {"type": "archive", "strip_prefix": "", "executable_paths": []}
-
+    return {"__type": "archive", "strip_prefix": "", "executable_paths": []}
 # ---------------------------------------------------------------------------
 # Path queries
 # ---------------------------------------------------------------------------

@@ -45,10 +45,20 @@ impl StarlarkProvider {
         let hash_hex = self.script_hash_hex();
         let cache = global_version_cache();
 
+        // For multi-runtime providers (e.g. build-tools with just/cmake/ninja),
+        // the cache key must include the runtime name so that each runtime gets
+        // its own cache entry. Without this, "just" versions (1.x) would be
+        // returned for "cmake" queries (which should return 3.x/4.x).
+        let cache_key = match ctx.runtime_name.as_deref() {
+            Some(rt) if !rt.is_empty() => format!("{}/{}", provider_name, rt),
+            _ => provider_name.clone(),
+        };
+
         // ── Cache lookup (L1 → L2) ────────────────────────────────────────────
-        if let Some(cached) = cache.get(provider_name, &hash_hex).await {
+        if let Some(cached) = cache.get(&cache_key, &hash_hex).await {
             debug!(
                 provider = %provider_name,
+                cache_key = %cache_key,
                 count = %cached.len(),
                 "fetch_versions: returning cached versions"
             );
@@ -57,6 +67,7 @@ impl StarlarkProvider {
 
         debug!(
             provider = %provider_name,
+            cache_key = %cache_key,
             "fetch_versions: cache miss, executing Starlark"
         );
 
@@ -124,11 +135,12 @@ impl StarlarkProvider {
         if !versions.is_empty() {
             info!(
                 provider = %provider_name,
+                cache_key = %cache_key,
                 count = %versions.len(),
                 "fetch_versions: caching {} versions",
                 versions.len()
             );
-            cache.put(provider_name, &hash_hex, &versions).await;
+            cache.put(&cache_key, &hash_hex, &versions).await;
         }
 
         Ok(versions)
