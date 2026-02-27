@@ -18,10 +18,7 @@
 
 load("@vx//stdlib:provider.star",
      "runtime_def",
-     "github_permissions",
-     "archive_layout",
-     "path_fns",
-     "path_env_fns")
+     "github_permissions")
 load("@vx//stdlib:github.star",
      "make_fetch_versions",
      "github_asset_url")
@@ -167,7 +164,7 @@ def install_layout(ctx, version):
     if runtime == "starship":
         exe = "starship.exe" if os == "windows" else "starship"
         return {
-            "type":             "archive",
+            "__type":           "archive",
             "strip_prefix":     "",
             "executable_paths": [exe, "starship"],
         }
@@ -178,7 +175,7 @@ def install_layout(ctx, version):
         strip = "atuin-v{}-{}".format(version, triple) if triple else ""
         exe   = "atuin.exe" if os == "windows" else "atuin"
         return {
-            "type":             "archive",
+            "__type":           "archive",
             "strip_prefix":     strip,
             "executable_paths": [exe, "atuin"],
         }
@@ -189,12 +186,12 @@ def install_layout(ctx, version):
         strip = "yazi-{}".format(triple) if triple else ""
         exe   = "yazi.exe" if os == "windows" else "yazi"
         return {
-            "type":             "archive",
+            "__type":           "archive",
             "strip_prefix":     strip,
             "executable_paths": [exe, "yazi"],
         }
 
-    return {"type": "archive", "strip_prefix": "", "executable_paths": []}
+    return {"__type": "archive", "strip_prefix": "", "executable_paths": []}
 
 # ---------------------------------------------------------------------------
 # Path queries

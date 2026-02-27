@@ -82,7 +82,7 @@ def download_url(ctx, version):
         return None
     go_os, go_arch = platform[0], platform[1]
     ext = "zip" if ctx.platform.os == "windows" else "tar.gz"
-    return "https://go.dev/dl/go{}.{}.{}.{}".format(version, go_os, go_arch, ext)
+    return "https://go.dev/dl/go{}.{}-{}.{}".format(version, go_os, go_arch, ext)
 
 # ---------------------------------------------------------------------------
 # install_layout — Go uses bin/ subdir on all platforms

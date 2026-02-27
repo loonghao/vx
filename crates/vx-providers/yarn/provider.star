@@ -7,7 +7,7 @@
 # Uses stdlib templates from @vx//stdlib:provider.star
 
 load("@vx//stdlib:provider.star",
-     "runtime_def", "github_permissions", "pre_run_ensure_deps", "dep_def")
+     "runtime_def", "github_permissions", "pre_run_ensure_deps")
 load("@vx//stdlib:github.star", "make_fetch_versions", "github_asset_url")
 load("@vx//stdlib:env.star",    "env_prepend")
 

@@ -84,9 +84,9 @@ def download_url(ctx, version):
 # ---------------------------------------------------------------------------
 
 install_layout   = archive_layout("terraform")
-_paths           = path_fns("terraform")
-store_root       = _paths["store_root"]
-get_execute_path = _paths["get_execute_path"]
-_env_fns         = path_env_fns()
-environment      = _env_fns["environment"]
-post_install     = _env_fns["post_install"]
+paths            = path_fns("terraform")
+store_root       = paths["store_root"]
+get_execute_path = paths["get_execute_path"]
+env_fns          = path_env_fns()
+environment      = env_fns["environment"]
+post_install     = env_fns["post_install"]

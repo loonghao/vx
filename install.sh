@@ -1,863 +1,214 @@
 #!/usr/bin/env bash
 # vx installer script for Linux and macOS
 #
-# Basic usage:
+# Usage:
 #   curl -fsSL https://raw.githubusercontent.com/loonghao/vx/main/install.sh | bash
 #
-# With specific version (use tag format like "v0.6.0" or just "0.6.0"):
-#   VX_VERSION="0.5.7" curl -fsSL https://raw.githubusercontent.com/loonghao/vx/main/install.sh | bash
+# With specific version:
+#   VX_VERSION="0.7.0" curl -fsSL https://raw.githubusercontent.com/loonghao/vx/main/install.sh | bash
 #
-# With GitHub token (to avoid rate limits):
+# With custom install directory:
+#   VX_INSTALL_DIR="$HOME/bin" curl -fsSL https://raw.githubusercontent.com/loonghao/vx/main/install.sh | bash
+#
+# With GitHub token (to avoid rate limits when specifying a version):
 #   GITHUB_TOKEN="your_token" curl -fsSL https://raw.githubusercontent.com/loonghao/vx/main/install.sh | bash
-#
-# Build from source:
-#   BUILD_FROM_SOURCE=true curl -fsSL https://raw.githubusercontent.com/loonghao/vx/main/install.sh | bash
-#
-# Use package manager (auto-detect or specify):
-#   USE_PACKAGE_MANAGER=auto curl -fsSL https://raw.githubusercontent.com/loonghao/vx/main/install.sh | bash
-#   USE_PACKAGE_MANAGER=brew curl -fsSL https://raw.githubusercontent.com/loonghao/vx/main/install.sh | bash
-#   USE_PACKAGE_MANAGER=apt curl -fsSL https://raw.githubusercontent.com/loonghao/vx/main/install.sh | bash
-#
-# Prefer static binary (musl):
-#   PREFER_STATIC=true curl -fsSL https://raw.githubusercontent.com/loonghao/vx/main/install.sh | bash
-#
-# Alternative package managers (manual):
-#   # Homebrew: brew install loonghao/vx/vx
-#   # Cargo: cargo install vx
-#   # APT (Debian/Ubuntu): See instructions below
 
 set -euo pipefail
 
-# Configuration
 REPO_OWNER="loonghao"
 REPO_NAME="vx"
 BASE_URL="https://github.com/$REPO_OWNER/$REPO_NAME/releases"
 
-# Default values
-VX_VERSION="${VX_VERSION:-latest}"
+VX_VERSION="${VX_VERSION:-}"
 VX_INSTALL_DIR="${VX_INSTALL_DIR:-$HOME/.local/bin}"
-BUILD_FROM_SOURCE="${BUILD_FROM_SOURCE:-false}"
-USE_PACKAGE_MANAGER="${USE_PACKAGE_MANAGER:-}"
-PREFER_STATIC="${PREFER_STATIC:-false}"
 
-# Colors for output
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-NC='\033[0m' # No Color
+# ── Logging ───────────────────────────────────────────────────────────────────
 
-# Logging functions (all write to stderr to avoid polluting stdout used for return values)
-info() {
-    echo -e "${BLUE}[INFO]${NC} $1" >&2
-}
+step() { printf "  \033[36m%s\033[0m %s\n" "$REPO_NAME" "$1" >&2; }
+ok()   { printf "  \033[32m%s\033[0m %s\n" "$REPO_NAME" "$1" >&2; }
+fail() { printf "  \033[31m%s\033[0m %s\n" "$REPO_NAME" "$1" >&2; exit 1; }
 
-warn() {
-    echo -e "${YELLOW}[WARN]${NC} $1" >&2
-}
+# ── Platform detection ────────────────────────────────────────────────────────
 
-error() {
-    echo -e "${RED}[ERROR]${NC} $1" >&2
-}
-
-success() {
-    echo -e "${GREEN}[SUCCESS]${NC} $1" >&2
-}
-
-# Detect available package managers
-detect_package_manager() {
-    local os_type
-    os_type=$(uname -s)
-
-    case "$os_type" in
-        Darwin)
-            # macOS - prefer Homebrew
-            if command -v brew >/dev/null 2>&1; then
-                echo "brew"
-                return
-            fi
-            ;;
-        Linux)
-            # Check for various Linux package managers
-            if command -v apt-get >/dev/null 2>&1; then
-                echo "apt"
-                return
-            elif command -v dnf >/dev/null 2>&1; then
-                echo "dnf"
-                return
-            elif command -v yum >/dev/null 2>&1; then
-                echo "yum"
-                return
-            elif command -v pacman >/dev/null 2>&1; then
-                echo "pacman"
-                return
-            elif command -v apk >/dev/null 2>&1; then
-                echo "apk"
-                return
-            elif command -v zypper >/dev/null 2>&1; then
-                echo "zypper"
-                return
-            elif command -v brew >/dev/null 2>&1; then
-                # Linuxbrew
-                echo "brew"
-                return
-            fi
-            ;;
-    esac
-
-    echo "none"
-}
-
-# Install using Homebrew (macOS/Linux)
-install_with_brew() {
-    info "Installing vx using Homebrew..."
-
-    # Check if tap exists, add if not
-    if ! brew tap | grep -q "loonghao/vx"; then
-        info "Adding loonghao/vx tap..."
-        brew tap loonghao/vx
-    fi
-
-    if [[ "$VX_VERSION" == "latest" ]]; then
-        brew install loonghao/vx/vx
-    else
-        # Install specific version if available
-        brew install "loonghao/vx/vx@$VX_VERSION" 2>/dev/null || brew install loonghao/vx/vx
-    fi
-
-    success "vx installed via Homebrew"
-    return 0
-}
-
-# Install using APT (Debian/Ubuntu)
-install_with_apt() {
-    info "Installing vx using APT..."
-
-    local temp_dir
-    temp_dir=$(mktemp -d)
-    trap 'rm -rf "$temp_dir"' EXIT
-
-    # Download the .deb package from GitHub releases
-    local tag_name version_number deb_url deb_file arch
-
-    if [[ "$VX_VERSION" == "latest" ]]; then
-        tag_name=$(get_latest_version)
-    else
-        if [[ "$VX_VERSION" =~ ^v ]]; then
-            tag_name="$VX_VERSION"
-        else
-            tag_name="v$VX_VERSION"
-        fi
-    fi
-
-    version_number=$(echo "$tag_name" | sed -E 's/^(vx-)?v//')
-
-    # Detect architecture
-    case "$(uname -m)" in
-        x86_64|amd64) arch="amd64" ;;
-        aarch64|arm64) arch="arm64" ;;
-        *) error "Unsupported architecture for APT install: $(uname -m)"; return 1 ;;
-    esac
-
-    deb_file="vx_${version_number}_${arch}.deb"
-    deb_url="$BASE_URL/download/$tag_name/$deb_file"
-
-    info "Downloading $deb_file..."
-    if curl -fsSL "$deb_url" -o "$temp_dir/$deb_file"; then
-        info "Installing package..."
-        sudo dpkg -i "$temp_dir/$deb_file" || sudo apt-get install -f -y
-        success "vx installed via APT"
-        return 0
-    else
-        warn "DEB package not available, falling back to binary install"
-        return 1
-    fi
-}
-
-# Install using DNF/YUM (Fedora/RHEL/CentOS)
-install_with_dnf() {
-    local pkg_manager="$1"
-    info "Installing vx using $pkg_manager..."
-
-    local temp_dir
-    temp_dir=$(mktemp -d)
-    trap 'rm -rf "$temp_dir"' EXIT
-
-    # Download the .rpm package from GitHub releases
-    local tag_name version_number rpm_url rpm_file arch
-
-    if [[ "$VX_VERSION" == "latest" ]]; then
-        tag_name=$(get_latest_version)
-    else
-        if [[ "$VX_VERSION" =~ ^v ]]; then
-            tag_name="$VX_VERSION"
-        else
-            tag_name="v$VX_VERSION"
-        fi
-    fi
-
-    version_number=$(echo "$tag_name" | sed -E 's/^(vx-)?v//')
-
-    # Detect architecture
-    case "$(uname -m)" in
-        x86_64|amd64) arch="x86_64" ;;
-        aarch64|arm64) arch="aarch64" ;;
-        *) error "Unsupported architecture for RPM install: $(uname -m)"; return 1 ;;
-    esac
-
-    rpm_file="vx-${version_number}-1.${arch}.rpm"
-    rpm_url="$BASE_URL/download/$tag_name/$rpm_file"
-
-    info "Downloading $rpm_file..."
-    if curl -fsSL "$rpm_url" -o "$temp_dir/$rpm_file"; then
-        info "Installing package..."
-        sudo "$pkg_manager" install -y "$temp_dir/$rpm_file"
-        success "vx installed via $pkg_manager"
-        return 0
-    else
-        warn "RPM package not available, falling back to binary install"
-        return 1
-    fi
-}
-
-# Install using Pacman (Arch Linux)
-install_with_pacman() {
-    info "Installing vx using Pacman..."
-
-    # Check if yay or paru is available for AUR
-    if command -v yay >/dev/null 2>&1; then
-        yay -S --noconfirm vx-bin 2>/dev/null || yay -S --noconfirm vx
-        success "vx installed via yay (AUR)"
-        return 0
-    elif command -v paru >/dev/null 2>&1; then
-        paru -S --noconfirm vx-bin 2>/dev/null || paru -S --noconfirm vx
-        success "vx installed via paru (AUR)"
-        return 0
-    else
-        warn "AUR helper (yay/paru) not found, falling back to binary install"
-        return 1
-    fi
-}
-
-# Install using APK (Alpine Linux)
-install_with_apk() {
-    info "Installing vx using APK..."
-
-    # Alpine uses musl, so we'll download the static binary
-    warn "APK package not available, will install static musl binary"
-    PREFER_STATIC=true
-    return 1
-}
-
-# Try to install using package manager
-try_package_manager_install() {
-    local pm="$1"
-
-    case "$pm" in
-        brew)
-            install_with_brew && return 0
-            ;;
-        apt)
-            install_with_apt && return 0
-            ;;
-        dnf)
-            install_with_dnf "dnf" && return 0
-            ;;
-        yum)
-            install_with_dnf "yum" && return 0
-            ;;
-        pacman)
-            install_with_pacman && return 0
-            ;;
-        apk)
-            install_with_apk && return 0
-            ;;
-        zypper)
-            warn "Zypper package not yet available, falling back to binary install"
-            return 1
-            ;;
-        *)
-            return 1
-            ;;
-    esac
-
-    return 1
-}
-
-# Detect platform and architecture - returns Rust target triple
 detect_platform() {
-    local os arch libc
+    local os arch
 
     case "$(uname -s)" in
         Linux*)  os="unknown-linux" ;;
-        Darwin*) os="apple-darwin" ;;
-        *)       error "Unsupported operating system: $(uname -s)"; exit 1 ;;
+        Darwin*) os="apple-darwin"  ;;
+        *)       fail "Unsupported OS: $(uname -s)" ;;
     esac
 
     case "$(uname -m)" in
-        x86_64|amd64) arch="x86_64" ;;
-        aarch64|arm64) arch="aarch64" ;;
-        *) error "Unsupported architecture: $(uname -m)"; exit 1 ;;
+        x86_64|amd64)   arch="x86_64"  ;;
+        aarch64|arm64)  arch="aarch64" ;;
+        *)               fail "Unsupported architecture: $(uname -m)" ;;
     esac
 
-    # For Linux, determine libc type (gnu vs musl)
     if [[ "$os" == "unknown-linux" ]]; then
-        # Check if user prefers static binary
-        if [[ "$PREFER_STATIC" == "true" ]]; then
+        # Prefer musl on Alpine or when PREFER_STATIC is set
+        local libc="gnu"
+        if [[ "${PREFER_STATIC:-false}" == "true" ]] || \
+           [[ -f /etc/alpine-release ]] || \
+           (ldd --version 2>&1 | grep -q musl); then
             libc="musl"
-        # Check if running on Alpine or musl-based system
-        elif [[ -f /etc/alpine-release ]] || ldd --version 2>&1 | grep -q musl; then
-            libc="musl"
-        else
-            libc="gnu"
         fi
         echo "$arch-$os-$libc"
     else
-        # macOS doesn't have libc suffix
         echo "$arch-$os"
     fi
 }
 
-# Get latest version from GitHub API with optional authentication and fallback
-# Returns the full tag name (e.g., "v0.5.7") of a release that has assets
-get_latest_version() {
-    local api_url="https://api.github.com/repos/$REPO_OWNER/$REPO_NAME/releases?per_page=30"
-    local auth_header=""
-    local is_rate_limited=false
+# ── Download helper ───────────────────────────────────────────────────────────
 
-    # Check for GitHub token
+download() {
+    local url="$1" dest="$2"
+    local auth_opts=""
     if [[ -n "${GITHUB_TOKEN:-}" ]]; then
-        auth_header="Authorization: Bearer $GITHUB_TOKEN"
-        info "Using authenticated GitHub API request"
-    else
-        info "Using unauthenticated GitHub API request (rate limited)"
+        auth_opts="-H \"Authorization: Bearer $GITHUB_TOKEN\""
     fi
 
-    # Try GitHub API - get releases list and find one with assets
-    local response=""
-    if command -v curl >/dev/null 2>&1; then
-        if [[ -n "$auth_header" ]]; then
-            response=$(curl -s -H "$auth_header" -H "Accept: application/vnd.github.v3+json" "$api_url" 2>/dev/null || echo "")
-        else
-            response=$(curl -s -H "Accept: application/vnd.github.v3+json" "$api_url" 2>/dev/null || echo "")
-        fi
-    elif command -v wget >/dev/null 2>&1; then
-        if [[ -n "$auth_header" ]]; then
-            response=$(wget -qO- --header="$auth_header" --header="Accept: application/vnd.github.v3+json" "$api_url" 2>/dev/null || echo "")
-        else
-            response=$(wget -qO- --header="Accept: application/vnd.github.v3+json" "$api_url" 2>/dev/null || echo "")
-        fi
-    fi
-
-    # Check for rate limit error
-    if [[ -n "$response" ]] && echo "$response" | grep "rate limit\|429\|API rate limit exceeded" >/dev/null 2>&1; then
-        is_rate_limited=true
-        warn "GitHub API rate limit exceeded. Trying fallback method..."
-    fi
-
-    # If not rate limited, try to parse the API response
-    if [[ "$is_rate_limited" != "true" ]] && [[ -n "$response" ]]; then
-        if command -v jq >/dev/null 2>&1; then
-            local tag_name
-            tag_name=$(echo "$response" | jq -r '
-                [.[] | select(.assets | length > 0) | select(.prerelease == false)] |
-                first | .tag_name // empty
-            ' 2>/dev/null)
-            if [[ -n "$tag_name" && "$tag_name" != "null" ]]; then
-                echo "$tag_name"
-                return
+    local max_retries=3
+    for i in $(seq 1 $max_retries); do
+        if command -v curl >/dev/null 2>&1; then
+            if eval curl -fsSL --connect-timeout 15 --max-time 120 $auth_opts "\"$url\"" -o "\"$dest\"" 2>/dev/null; then
+                local size
+                size=$(stat -f%z "$dest" 2>/dev/null || stat -c%s "$dest" 2>/dev/null || echo 0)
+                [[ "$size" -gt 1024 ]] && return 0
             fi
-            # API succeeded but no release with assets found
-            warn "No releases with assets found via API. Trying fallback method..."
-        else
-            # Fallback: use grep/sed to find first release tag (without jq we can't check assets)
-            local tag_name
-            tag_name=$(echo "$response" | grep -o '"tag_name": *"[^"]*"' | head -1 | sed -E 's/.*"([^"]+)".*/\1/')
-            if [[ -n "$tag_name" ]]; then
-                echo "$tag_name"
-                return
+        elif command -v wget >/dev/null 2>&1; then
+            if eval wget -q --timeout=120 $auth_opts "\"$url\"" -O "\"$dest\"" 2>/dev/null; then
+                local size
+                size=$(stat -f%z "$dest" 2>/dev/null || stat -c%s "$dest" 2>/dev/null || echo 0)
+                [[ "$size" -gt 1024 ]] && return 0
             fi
-            warn "Could not parse API response. Trying fallback method..."
+        else
+            fail "Neither curl nor wget is available"
         fi
-    fi
-
-    # Fallback: try to find a version with assets from releases HTML page
-    local found_version
-    found_version=$(find_version_with_assets_from_page)
-    if [[ -n "$found_version" ]]; then
-        info "Found version with assets: $found_version"
-        echo "$found_version"
-        return
-    fi
-
-    # If all else fails, provide helpful error message
-    error "Unable to determine latest version automatically."
-    echo "" >&2
-    echo "Solutions:" >&2
-    echo "1. Set GITHUB_TOKEN environment variable:" >&2
-    echo "   GITHUB_TOKEN='your_token_here' $0" >&2
-    echo "" >&2
-    echo "2. Specify version explicitly:" >&2
-    echo "   VX_VERSION='0.6.7' $0" >&2
-    echo "" >&2
-    echo "3. Use package managers:" >&2
-    echo "   brew install loonghao/vx/vx" >&2
-    echo "   cargo install vx" >&2
-    echo "" >&2
-    echo "4. Download directly from:" >&2
-    echo "   https://github.com/loonghao/vx/releases/latest" >&2
-    echo "" >&2
-    exit 1
+        rm -f "$dest"
+        [[ $i -lt $max_retries ]] && sleep 2
+    done
+    return 1
 }
 
-# Find a version with assets from GitHub releases page (fallback when API is rate limited)
-# Parses the releases page HTML to find versions that have downloadable assets
-find_version_with_assets_from_page() {
-    local releases_url="https://github.com/$REPO_OWNER/$REPO_NAME/releases"
-    local html_content
+# ── Main ──────────────────────────────────────────────────────────────────────
 
-    info "Fetching releases page to find version with assets..."
-
-    if command -v curl >/dev/null 2>&1; then
-        html_content=$(curl -sL "$releases_url" 2>/dev/null || echo "")
-    elif command -v wget >/dev/null 2>&1; then
-        html_content=$(wget -qO- "$releases_url" 2>/dev/null || echo "")
-    else
-        return
-    fi
-
-    if [[ -z "$html_content" ]]; then
-        warn "Failed to fetch releases page"
-        return
-    fi
-
-    # Extract version tags from release links using portable methods
-    # Pattern: href="/loonghao/vx/releases/tag/TAG_NAME"
-    local tags
-    # Use grep -oE (extended regex) which is more portable than -oP (perl regex)
-    # Fallback to sed if grep -E is not available
-    if echo "test" | grep -oE "test" >/dev/null 2>&1; then
-        tags=$(echo "$html_content" | grep -oE 'href="/[^"]+/releases/tag/[^"]+"' | sed 's|.*/releases/tag/||g' | tr -d '"' | sort -u | head -20)
-    else
-        # Fallback: use only sed
-        tags=$(echo "$html_content" | sed -n 's|.*href="/[^"]*/releases/tag/\([^"]*\)".*|\1|p' | sort -u | head -20)
-    fi
-
-    if [[ -z "$tags" ]]; then
-        warn "No release tags found on page"
-        return
-    fi
-
-    info "Found release tags, checking for assets..."
-
-    # For each tag, check if it has assets by trying direct download
+main() {
     local platform
     platform=$(detect_platform)
 
-    for tag in $tags; do
-        # Skip pre-release tags (usually contain -alpha, -beta, -rc, etc.)
-        if [[ "$tag" =~ -(alpha|beta|rc|pre|dev) ]]; then
-            continue
-        fi
+    step "Installing vx for $(uname -s)..."
+    step "Detected: $(uname -s) $(uname -m) -> $platform"
 
-        # Extract version number from tag for versioned naming
-        local ver_num
-        ver_num=$(echo "$tag" | sed -E 's/^(vx-)?v//')
-
-        # Try common asset naming patterns:
-        # 1. Versioned: vx-{ver}-{platform}.tar.gz (v0.6.x+)
-        # 2. Unversioned: vx-{platform}.tar.gz (cargo-dist / legacy)
-        local test_urls=(
-            "$BASE_URL/download/$tag/vx-${ver_num}-${platform}.tar.gz"
-            "$BASE_URL/download/$tag/vx-${platform}.tar.gz"
-        )
-
-        # Prepare auth header for HEAD requests
-        local head_auth=""
-        if [[ -n "${GITHUB_TOKEN:-}" ]]; then
-            head_auth="-H \"Authorization: Bearer $GITHUB_TOKEN\""
-        fi
-
-        for test_url in "${test_urls[@]}"; do
-            if command -v curl >/dev/null 2>&1; then
-                # Use -fsSL -o /dev/null to check if URL is downloadable (follows redirects)
-                if eval curl -fsSL --connect-timeout 5 --max-time 10 -o /dev/null $head_auth "\"$test_url\"" 2>/dev/null; then
-                    info "Found valid release with assets: $tag"
-                    echo "$tag"
-                    return
-                fi
-            elif command -v wget >/dev/null 2>&1; then
-                if wget -q --spider "$test_url" 2>/dev/null; then
-                    info "Found valid release with assets: $tag"
-                    echo "$tag"
-                    return
-                fi
-            fi
-        done
-    done
-
-    warn "No releases with assets found"
-}
-
-# Build from source (fallback method)
-build_from_source() {
-    info "Building vx from source..."
-
-    # Check if Rust is installed
-    if ! command -v cargo >/dev/null 2>&1; then
-        error "Rust is not installed. Please install Rust first: https://rustup.rs/"
-        exit 1
-    fi
-
-    # Check if we're in the vx repository
-    if [[ ! -f "Cargo.toml" ]]; then
-        error "Not in vx repository. Please clone the repository first:"
-        echo "  git clone https://github.com/$REPO_OWNER/$REPO_NAME.git"
-        echo "  cd $REPO_NAME"
-        echo "  BUILD_FROM_SOURCE=true ./install.sh"
-        exit 1
-    fi
-
-    # Build the project
-    info "Building vx..."
-    cargo build --release
-
-    # Create installation directory
-    mkdir -p "$VX_INSTALL_DIR"
-
-    # Copy the binary
-    cp "target/release/vx" "$VX_INSTALL_DIR/vx"
-    chmod +x "$VX_INSTALL_DIR/vx"
-
-    success "vx built and installed from source to: $VX_INSTALL_DIR"
-}
-
-# Download and install vx from GitHub releases with retry
-install_from_release() {
-    local platform tag_name version_number archive_name archive_name_versioned archive_name_legacy download_url temp_dir
-    local max_retries=3
-    local retry_delay=2
-
-    platform=$(detect_platform)
-
-    if [[ "$VX_VERSION" == "latest" ]]; then
-        info "Fetching latest version..."
-        tag_name=$(get_latest_version)
-        if [[ -z "$tag_name" ]]; then
-            error "Failed to get latest version"
-            exit 1
-        fi
-    else
-        # User specified version - normalize to tag format
-        # Accept: "v0.6.7", "0.6.7", "vx-v0.6.7"
-        if [[ "$VX_VERSION" =~ ^vx-v ]]; then
-            tag_name="$VX_VERSION"
-        elif [[ "$VX_VERSION" =~ ^v ]]; then
-            tag_name="$VX_VERSION"
-        else
-            tag_name="v$VX_VERSION"
-        fi
-    fi
-
-    info "Installing vx $tag_name for $platform..."
-
-    # Extract version number from tag (e.g., "v0.5.7" -> "0.5.7", "vx-v0.6.27" -> "0.6.27")
-    version_number=$(echo "$tag_name" | sed -E 's/^(vx-)?v//')
-
-    # Determine all possible tag formats for this version
-    # v0.7.0+ uses v{ver} (cargo-dist), v0.6.x and earlier use vx-v{ver}
-    local major minor
-    major=$(echo "$version_number" | cut -d. -f1)
-    minor=$(echo "$version_number" | cut -d. -f2)
-    local tag_candidates=()
-    if [[ "$major" -gt 0 ]] || [[ "$major" -eq 0 && "$minor" -ge 7 ]]; then
-        # v0.7.0+: try v{ver} first, then vx-v{ver} as fallback
-        tag_candidates=("v${version_number}" "vx-v${version_number}")
-    else
-        # v0.6.x and earlier: try vx-v{ver} first, then v{ver} as fallback
-        tag_candidates=("vx-v${version_number}" "v${version_number}")
-    fi
-    # Override tag_name with the primary candidate
-    tag_name="${tag_candidates[0]}"
-    info "Using tag format: $tag_name (fallback: ${tag_candidates[1]:-none})"
-
-    # Construct download URL based on Rust target triple
-    # Three naming eras:
-    #   v0.5.x: unversioned (vx-{triple}.tar.gz) with tag vx-v{ver}
-    #   v0.6.x: versioned (vx-{ver}-{triple}.tar.gz) with tag vx-v{ver}
-    #   v0.7.0+: unversioned (vx-{triple}.tar.gz) with tag v{ver} (cargo-dist)
-    local fallback_archive=""
-    local unversioned_archive=""
-
-    # Determine the Rust target triple
-    local target_triple=""
-    local fallback_triple=""
-    case "$platform" in
-        x86_64-unknown-linux-gnu)
-            target_triple="x86_64-unknown-linux-gnu"
-            fallback_triple="x86_64-unknown-linux-musl"
-            ;;
-        x86_64-unknown-linux-musl)
-            target_triple="x86_64-unknown-linux-musl"
-            fallback_triple="x86_64-unknown-linux-gnu"
-            ;;
-        aarch64-unknown-linux-gnu)
-            target_triple="aarch64-unknown-linux-gnu"
-            fallback_triple="aarch64-unknown-linux-musl"
-            ;;
-        aarch64-unknown-linux-musl)
-            target_triple="aarch64-unknown-linux-musl"
-            fallback_triple="aarch64-unknown-linux-gnu"
-            ;;
-        x86_64-apple-darwin)
-            target_triple="x86_64-apple-darwin"
-            ;;
-        aarch64-apple-darwin)
-            target_triple="aarch64-apple-darwin"
-            ;;
-        *) error "Unsupported platform: $platform"; exit 1 ;;
-    esac
-
-    # Primary: try versioned naming (vx-{ver}-{triple}.tar.gz)
-    archive_name="vx-${version_number}-${target_triple}.tar.gz"
-    # Secondary: try unversioned naming (vx-{triple}.tar.gz) for cargo-dist and legacy
-    unversioned_archive="vx-${target_triple}.tar.gz"
-    # Tertiary: fallback triple (e.g., musl <-> gnu)
-    if [[ -n "$fallback_triple" ]]; then
-        fallback_archive="vx-${version_number}-${fallback_triple}.tar.gz"
-    fi
-
-    # Create temporary directory
+    local temp_dir
     temp_dir=$(mktemp -d)
-    # shellcheck disable=SC2064
-    trap 'rm -rf "${temp_dir:-}"' EXIT
+    trap 'rm -rf "$temp_dir"' EXIT
 
-    # Download from GitHub Releases with retry
-    download_success=false
+    # Build list of (url, archive) candidates to try
+    local candidates=()
 
-    # Prepare auth header for download if token is available
-    local curl_auth_opts=""
-    local wget_auth_opts=""
-    if [[ -n "${GITHUB_TOKEN:-}" ]]; then
-        curl_auth_opts="-H \"Authorization: Bearer $GITHUB_TOKEN\""
-        wget_auth_opts="--header=\"Authorization: Bearer $GITHUB_TOKEN\""
+    if [[ -z "$VX_VERSION" ]]; then
+        # No version specified — use latest/download directly (no API call needed)
+        candidates+=("$BASE_URL/latest/download/vx-$platform.tar.gz")
+    else
+        # Normalize version
+        local ver="${VX_VERSION#v}"
+        ver="${ver#vx-v}"
+
+        # Try v{ver} tag first (v0.7.0+), then vx-v{ver} (legacy)
+        for tag in "v$ver" "vx-v$ver"; do
+            candidates+=("$BASE_URL/download/$tag/vx-$ver-$platform.tar.gz")
+            candidates+=("$BASE_URL/download/$tag/vx-$platform.tar.gz")
+        done
+
+        # Also try fallback libc variant for Linux
+        if [[ "$platform" == *"linux-gnu"* ]]; then
+            local fallback="${platform/linux-gnu/linux-musl}"
+            for tag in "v$ver" "vx-v$ver"; do
+                candidates+=("$BASE_URL/download/$tag/vx-$ver-$fallback.tar.gz")
+                candidates+=("$BASE_URL/download/$tag/vx-$fallback.tar.gz")
+            done
+        elif [[ "$platform" == *"linux-musl"* ]]; then
+            local fallback="${platform/linux-musl/linux-gnu}"
+            for tag in "v$ver" "vx-v$ver"; do
+                candidates+=("$BASE_URL/download/$tag/vx-$ver-$fallback.tar.gz")
+                candidates+=("$BASE_URL/download/$tag/vx-$fallback.tar.gz")
+            done
+        fi
     fi
 
-    # Build comprehensive list of (tag, archive) combinations to try
-    # Order: primary tag + versioned, primary tag + unversioned,
-    #        fallback tag + versioned, fallback tag + unversioned,
-    #        then same with fallback triples
-    local try_list=()
-    for try_tag in "${tag_candidates[@]}"; do
-        try_list+=("$try_tag|$archive_name")
-        if [[ "$unversioned_archive" != "$archive_name" ]]; then
-            try_list+=("$try_tag|$unversioned_archive")
+    # Try each candidate URL
+    local archive_path=""
+    local archive_name=""
+    for url in "${candidates[@]}"; do
+        archive_name="${url##*/}"
+        local dest="$temp_dir/$archive_name"
+        step "Downloading from: $url"
+        if download "$url" "$dest"; then
+            archive_path="$dest"
+            break
         fi
     done
-    # Also try fallback triple if available
-    if [[ -n "$fallback_triple" ]]; then
-        local fallback_versioned="vx-${version_number}-${fallback_triple}.tar.gz"
-        local fallback_unversioned="vx-${fallback_triple}.tar.gz"
-        for try_tag in "${tag_candidates[@]}"; do
-            try_list+=("$try_tag|$fallback_versioned")
-            try_list+=("$try_tag|$fallback_unversioned")
-        done
-    fi
 
-    # Try each (tag, archive) combination
-    for combo in "${try_list[@]}"; do
-        [[ "$download_success" == "true" ]] && break
-        local try_tag="${combo%%|*}"
-        local try_archive="${combo##*|}"
-        local download_url="$BASE_URL/download/$try_tag/$try_archive"
-
-        for retry in $(seq 1 $max_retries); do
-            if [[ $retry -gt 1 ]]; then
-                sleep $retry_delay
-            fi
-
-            info "Trying: $download_url"
-
-            local dl_ok=false
-            if command -v curl >/dev/null 2>&1; then
-                if eval curl -fsSL --connect-timeout 10 --max-time 120 --retry 3 --retry-delay 2 $curl_auth_opts "\"$download_url\"" -o "\"$temp_dir/$try_archive\"" 2>/dev/null; then
-                    dl_ok=true
-                fi
-            elif command -v wget >/dev/null 2>&1; then
-                if eval wget -q --timeout=120 --tries=3 --waitretry=2 $wget_auth_opts "\"$download_url\"" -O "\"$temp_dir/$try_archive\"" 2>/dev/null; then
-                    dl_ok=true
-                fi
-            else
-                error "Neither curl nor wget is available"
-                exit 1
-            fi
-
-            if [[ "$dl_ok" == "true" ]] && [[ -f "$temp_dir/$try_archive" ]]; then
-                local file_size
-                file_size=$(stat -f%z "$temp_dir/$try_archive" 2>/dev/null || stat -c%s "$temp_dir/$try_archive" 2>/dev/null || echo 0)
-                if [[ "$file_size" -gt 1024 ]]; then
-                    success "Successfully downloaded ($(echo "scale=2; $file_size/1024/1024" | bc 2>/dev/null || echo "unknown") MB)"
-                    archive_name="$try_archive"
-                    tag_name="$try_tag"
-                    download_success=true
-                    break
-                fi
-            fi
-
-            rm -f "$temp_dir/$try_archive"
-        done
-    done
-
-    if [[ "$download_success" != "true" ]]; then
-        error "Failed to download vx binary after $max_retries retries"
-        error "Try building from source with: BUILD_FROM_SOURCE=true $0"
-        exit 1
+    if [[ -z "$archive_path" ]]; then
+        fail "Download failed. Check your internet connection or specify a version:
+  VX_VERSION='0.7.0' curl -fsSL https://raw.githubusercontent.com/loonghao/vx/main/install.sh | bash"
     fi
 
     # Extract
-    info "Extracting to $VX_INSTALL_DIR..."
+    step "Extracting..."
     mkdir -p "$VX_INSTALL_DIR"
+    tar -xzf "$archive_path" -C "$temp_dir"
 
-    if [[ "$archive_name" == *.tar.gz ]]; then
-        tar -xzf "$temp_dir/$archive_name" -C "$temp_dir"
-    else
-        error "Unsupported archive format: $archive_name"
-        exit 1
-    fi
+    # Find and install binary
+    local binary
+    binary=$(find "$temp_dir" -name "vx" -type f | head -n1)
+    [[ -z "$binary" ]] && fail "vx binary not found in archive"
 
-    # Find and copy the binary
-    local binary_path
-    binary_path=$(find "$temp_dir" -name "vx" -type f | head -n1)
-    if [[ -z "$binary_path" ]]; then
-        error "vx binary not found in archive"
-        exit 1
-    fi
-
-    cp "$binary_path" "$VX_INSTALL_DIR/vx"
+    cp "$binary" "$VX_INSTALL_DIR/vx"
     chmod +x "$VX_INSTALL_DIR/vx"
 
-    success "vx $tag_name installed to $VX_INSTALL_DIR/vx"
-}
+    # Detect installed version
+    local installed_version
+    installed_version=$("$VX_INSTALL_DIR/vx" --version 2>/dev/null | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1 || echo "unknown")
 
-# Update PATH environment variable
-update_path() {
-    local install_path="$1"
-    local shell_config
-    local path_export="export PATH=\"$install_path:\$PATH\""
+    ok "Installed: vx $installed_version"
 
-    # Detect shell and config file
-    case "$SHELL" in
-        */bash) shell_config="$HOME/.bashrc" ;;
-        */zsh)  shell_config="$HOME/.zshrc" ;;
-        */fish) shell_config="$HOME/.config/fish/config.fish" ;;
-        *) shell_config="$HOME/.profile" ;;
-    esac
+    # Update PATH
+    local path_export="export PATH=\"$VX_INSTALL_DIR:\$PATH\""
+    if [[ ":$PATH:" != *":$VX_INSTALL_DIR:"* ]]; then
+        local shell_config
+        case "${SHELL:-bash}" in
+            */zsh)  shell_config="$HOME/.zshrc"  ;;
+            */fish) shell_config="$HOME/.config/fish/config.fish" ;;
+            *)      shell_config="$HOME/.bashrc" ;;
+        esac
 
-    # Check if install directory is already in PATH
-    if [[ ":$PATH:" == *":$install_path:"* ]]; then
-        info "Install directory already in PATH"
-        return
-    fi
-
-    # Check if already configured in shell config
-    if [[ -f "$shell_config" ]] && grep -q "$install_path" "$shell_config" 2>/dev/null; then
-        info "PATH already configured in $shell_config"
-        # Update current session
-        export PATH="$install_path:$PATH"
-        return
-    fi
-
-    # Automatically add to shell config
-    if [[ -f "$shell_config" ]] || [[ -w "$(dirname "$shell_config")" ]]; then
-        echo "" >> "$shell_config"
-        echo "# Added by vx installer" >> "$shell_config"
-        if [[ "$shell_config" == *"fish"* ]]; then
-            echo "set -gx PATH \"$install_path\" \$PATH" >> "$shell_config"
-        else
-            echo "$path_export" >> "$shell_config"
-        fi
-        success "Added $install_path to PATH in $shell_config"
-
-        # Update current session
-        export PATH="$install_path:$PATH"
-        info "Updated current session PATH"
-    else
-        warn "Could not automatically update PATH"
-        echo "  Add this to your shell configuration:"
-        echo "  $path_export"
-    fi
-
-    # Also check for CI environments (GitHub Actions, GitLab CI, etc.)
-    if [[ -n "${GITHUB_PATH:-}" ]]; then
-        echo "$install_path" >> "$GITHUB_PATH"
-        info "Added to GITHUB_PATH for subsequent steps"
-    fi
-}
-
-# Verify installation
-test_installation() {
-    local binary_path="$1"
-
-    if "$binary_path" --version >/dev/null 2>&1; then
-        success "Installation verified successfully!"
-        echo ""
-        echo "🎉 vx is ready to use!"
-        echo "📖 Try these commands:"
-        echo "   vx --help"
-        echo "   vx list"
-        echo "   vx npm --version"
-        echo "   vx uv self version"
-    else
-        error "Installation verification failed"
-        exit 1
-    fi
-}
-
-# Main execution function
-main() {
-    info "vx installer"
-    echo ""
-
-    # Try package manager install if requested
-    if [[ -n "$USE_PACKAGE_MANAGER" ]]; then
-        local pm="$USE_PACKAGE_MANAGER"
-
-        # Auto-detect package manager if "auto" is specified
-        if [[ "$pm" == "auto" ]]; then
-            pm=$(detect_package_manager)
-            if [[ "$pm" == "none" ]]; then
-                info "No supported package manager found, falling back to binary install"
+        if [[ -w "$(dirname "$shell_config")" ]]; then
+            echo "" >> "$shell_config"
+            echo "# Added by vx installer" >> "$shell_config"
+            if [[ "$shell_config" == *"fish"* ]]; then
+                echo "set -gx PATH \"$VX_INSTALL_DIR\" \$PATH" >> "$shell_config"
             else
-                info "Detected package manager: $pm"
+                echo "$path_export" >> "$shell_config"
             fi
+            ok "Added to PATH in $shell_config"
         fi
 
-        if [[ "$pm" != "none" ]]; then
-            if try_package_manager_install "$pm"; then
-                # Package manager install succeeded
-                test_installation "$(command -v vx || echo "/usr/local/bin/vx")"
-                return 0
-            fi
-            # Package manager install failed, continue with binary install
-            info "Package manager install failed, falling back to binary install"
-        fi
+        export PATH="$VX_INSTALL_DIR:$PATH"
     fi
 
-    # Install vx
-    if [[ "$BUILD_FROM_SOURCE" == "true" ]]; then
-        build_from_source
-    else
-        if ! install_from_release; then
-            warn "Failed to download pre-built binary, falling back to building from source..."
-            build_from_source
-        fi
+    # GitHub Actions support
+    if [[ -n "${GITHUB_PATH:-}" ]]; then
+        echo "$VX_INSTALL_DIR" >> "$GITHUB_PATH"
     fi
 
-    # Update PATH and verify installation
-    local binary_path="$VX_INSTALL_DIR/vx"
-    update_path "$VX_INSTALL_DIR"
-    test_installation "$binary_path"
+    echo "" >&2
+    ok "vx installed successfully!"
+    echo "" >&2
+    printf "  Run: vx --help\n" >&2
+    printf "  Docs: https://github.com/%s/%s\n" "$REPO_OWNER" "$REPO_NAME" >&2
+    echo "" >&2
 }
 
-# Run main function
 main "$@"
