@@ -1,7 +1,7 @@
 //! Node.js provider tests
 
 use rstest::rstest;
-use vx_runtime::{Ecosystem, Provider, Runtime};
+use vx_runtime::{Ecosystem, Runtime};
 
 fn create_provider() -> std::sync::Arc<dyn vx_runtime::Provider> {
     let meta = vx_starlark::StarMetadata::parse(vx_provider_node::PROVIDER_STAR);

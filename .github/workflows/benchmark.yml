@@ -1,4 +1,4 @@
-name: Performance Benchmark
+﻿name: Performance Benchmark
 
 # Run benchmarks on every PR and main push to detect performance regressions
 on:
@@ -159,9 +159,9 @@ jobs:
               esac
 
               if [ "$duration" -le "$threshold" ]; then
-                status="�?
+                status="PASS"
               else
-                status="�?REGRESSION"
+                status="REGRESSION"
               fi
               echo "| $test_name | $duration | $threshold | $status |" >> benchmark_results.md
             fi
@@ -267,10 +267,10 @@ jobs:
 
           if [ "$regression_found" = true ]; then
             echo "" >> $GITHUB_STEP_SUMMARY
-            echo "�?**Performance regressions detected!** Please investigate before merging." >> $GITHUB_STEP_SUMMARY
+            echo "?**Performance regressions detected!** Please investigate before merging." >> $GITHUB_STEP_SUMMARY
             # Don't fail the job - just warn. Thresholds are generous enough
             # that occasional CI variability shouldn't block PRs.
           else
             echo "" >> $GITHUB_STEP_SUMMARY
-            echo "�?**All benchmarks within acceptable thresholds.**" >> $GITHUB_STEP_SUMMARY
+            echo "?**All benchmarks within acceptable thresholds.**" >> $GITHUB_STEP_SUMMARY
           fi
