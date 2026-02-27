@@ -50,8 +50,9 @@ permissions = github_permissions()
 
 _p = github_rust_provider(
     "astral-sh", "uv",
-    asset      = "uv-{triple}.{ext}",
-    tag_prefix = "",
+    asset        = "uv-{triple}.{ext}",
+    tag_prefix   = "",
+    strip_prefix = "uv-{triple}",
 )
 
 fetch_versions   = _p["fetch_versions"]
