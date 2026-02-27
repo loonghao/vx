@@ -2,20 +2,85 @@
 # Please note: Do not modify the header of this document. If modified, CodeBuddy (Internal Edition) will apply the default logic settings.
 alwaysApply: true
 ---
-### Provider manifest 平台约束字段规范
-- **不要使用**：`[provider.platform_constraint]`（manifest schema 不支持该字段，会导致平台标签/过滤失效）
-- **应使用**：
-  - Provider 级别：`[provider.platforms]`（对应 `ProviderMeta.platform_constraint`，serde rename 为 `platforms`）
-  - Runtime 级别：`platform_constraint` 字段（对应 `RuntimeDef.platform_constraint`）
+### Provider 平台约束规范
 
-#### 示例
-```toml
-[provider.platforms]
-os = ["windows"]
+在 `provider.star` 中，平台约束通过以下方式处理：
 
-[[runtimes]]
-name = "foo"
-executable = "foo"
-# runtime 级别（可选）
-platform_constraint = { os = ["windows"] }
+### 下载 URL 返回 None
+
+在 `download_url` 函数中返回 `None` 表示不支持当前平台：
+
+```starlark
+def download_url(ctx, version):
+    # 检查平台支持
+    key = "{}/{}".format(ctx.platform.os, ctx.platform.arch)
+    platform = _PLATFORMS.get(key)
+    if not platform:
+        return None  # 不支持该平台
+    # 返回下载 URL
+    return "https://example.com/releases/v{}/tool-{}.tar.gz".format(version, platform)
+```
+
+### 平台映射
+
+使用字典定义支持的平台：
+
+```starlark
+_PLATFORMS = {
+    "windows/x64":   ("win",    "x64"),
+    "macos/arm64":   ("darwin", "arm64"),
+    "linux/x64":     ("linux",  "x64"),
+}
+
+def _my_platform(ctx):
+    key = "{}/{}".format(ctx.platform.os, ctx.platform.arch)
+    return _PLATFORMS.get(key)
+```
+
+### 使用 platform_map 辅助函数
+
+```starlark
+load("@vx//stdlib:provider.star", "platform_map")
+
+_PLATFORMS = {
+    "windows/x64":   "windows-x64",
+    "macos/arm64":   "darwin-arm64",
+    "linux/x64":     "linux-x64",
+}
+
+def download_url(ctx, version):
+    platform_id = platform_map(ctx, _PLATFORMS)
+    if not platform_id:
+        return None
+    return "https://example.com/releases/v{}/tool-{}.tar.gz".format(version, platform_id)
+```
+
+### 使用 platform_select 按 OS 选择
+
+```starlark
+load("@vx//stdlib:provider.star", "platform_select")
+
+def environment(ctx, _version):
+    # 按 OS 选择不同的 bin 目录
+    bin_dir = platform_select(ctx, {
+        "windows": ctx.install_dir,
+        "macos":   ctx.install_dir + "/bin",
+        "linux":   ctx.install_dir + "/bin",
+    })
+    return [env_prepend("PATH", bin_dir)]
+```
+
+### 模板自动处理
+
+使用 `github_rust_provider` 或 `github_go_provider` 模板时，平台支持自动处理：
+
+```starlark
+_p = github_rust_provider("owner", "mytool",
+    asset = "mytool-{vversion}-{triple}.{ext}",
+)
+
+# 模板会自动：
+# 1. 检测当前平台的 Rust target triple
+# 2. 如果平台不支持，download_url 返回 None
+# 3. 如果支持，生成正确的下载 URL
 ```

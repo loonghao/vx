@@ -57,11 +57,11 @@ alwaysApply: true
 │       ├── node -> ../../store/node/18.0.0
 │       └── go -> ../../store/go/1.20.0
 │
-├── providers/                  # 用户自定义 Manifest-Driven Providers
+├── providers/                  # 用户自定义 Providers
 │   ├── unix-tools/            # Unix 哲学工具
-│   │   └── provider.toml      # 定义 jq, rg, fd, bat 等
+│   │   └── provider.star      # 定义 jq, rg, fd, bat 等
 │   └── my-custom-tools/       # 用户自定义工具
-│       └── provider.toml
+│       └── provider.star
 │
 ├── bin/                        # 全局 shims（用于 PATH）
 │   ├── node                   # shim 脚本，转发到当前环境
@@ -80,11 +80,11 @@ alwaysApply: true
 
 ### Providers 目录说明
 
-`~/.vx/providers/` 目录用于存放用户自定义的 Manifest-Driven Providers。
+`~/.vx/providers/` 目录用于存放用户自定义的 Providers。
 
 **加载优先级**：
-1. `~/.vx/providers/*/provider.toml` (用户本地，最高优先级)
-2. `$VX_PROVIDERS_PATH/*/provider.toml` (环境变量指定)
+1. `~/.vx/providers/*/provider.star` (用户本地，最高优先级)
+2. `$VX_PROVIDERS_PATH/*/provider.star` (环境变量指定)
 3. Built-in providers (内置，最低优先级)
 
 **示例**：创建自定义工具
@@ -93,21 +93,24 @@ alwaysApply: true
 # 创建 provider 目录
 mkdir -p ~/.vx/providers/mytools
 
-# 创建 provider.toml
-cat > ~/.vx/providers/mytools/provider.toml << 'EOF'
-[provider]
-name = "mytools"
+# 创建 provider.star
+cat > ~/.vx/providers/mytools/provider.star << 'EOF'
+load("@vx//stdlib:provider.star", "runtime_def", "github_permissions",
+     "brew_install", "cross_platform_install")
+
+name        = "mytools"
 description = "My custom tools"
 
-[[runtimes]]
-name = "mytool"
-executable = "mytool"
+runtimes = [
+    runtime_def("mytool"),
+]
 
-[[runtimes.system_install.strategies]]
-type = "package_manager"
-manager = "brew"
-package = "mytool"
-priority = 90
+permissions = github_permissions()
+
+def system_install(_ctx, _version):
+    return cross_platform_install(
+        macos = brew_install("mytool"),
+    )
 EOF
 
 # 使用
