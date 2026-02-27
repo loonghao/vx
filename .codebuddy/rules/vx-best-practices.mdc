@@ -1,9 +1,9 @@
 ---
-description: 
+description:
 alwaysApply: true
 enabled: true
 updatedAt: 2026-02-16T08:37:31.547Z
-provider: 
+provider:
 ---
 
 # VX 开发最佳实践规范
@@ -111,113 +111,269 @@ vx metrics --html report.html
 vx metrics --clean
 ```
 
-## provider.toml 最新规范
+## provider.star 规范
 
 ### 基本结构
 
-```toml
-[provider]
-name = "mytool"
+```starlark
+# crates/vx-providers/mytool/provider.star
+load("@vx//stdlib:provider.star",
+     "runtime_def", "bundled_runtime_def", "github_permissions",
+     "bin_subdir_env", "bin_subdir_execute_path", "path_fns")
+load("@vx//stdlib:provider_templates.star", "github_rust_provider")
+
+# ---------------------------------------------------------------------------
+# Provider metadata
+# ---------------------------------------------------------------------------
+name        = "mytool"
 description = "My awesome tool"
-homepage = "https://example.com"
-repository = "https://github.com/example/mytool"
-ecosystem = "custom"  # nodejs, python, rust, go, system, custom
-license = "MIT"
+homepage    = "https://example.com"
+repository  = "https://github.com/example/mytool"
+license     = "MIT"
+ecosystem   = "custom"  # nodejs, python, rust, go, system, custom
 
-# 平台约束（Provider 级别）
-[provider.platforms]
-os = ["windows", "linux", "macos"]
-```
-
-### Runtime 定义
-
-```toml
-[[runtimes]]
-name = "mytool"
-description = "My tool runtime"
-executable = "mytool"
-aliases = ["mt", "my-tool"]
-priority = 100
-auto_installable = true
-
-# 版本源配置
-[runtimes.versions]
-source = "github-releases"  # 或 "nodejs-org", "pypi", "custom"
-owner = "example"           # GitHub owner (for github-releases)
-repo = "mytool"            # GitHub repo
-strip_v_prefix = true      # 移除版本前缀 v
-
-# 平台检测
-[runtimes.detection]
-command = "{executable} --version"
-pattern = "mytool version ([\\d.]+)"
-system_paths = ["/usr/bin/mytool", "C:\\Program Files\\mytool\\mytool.exe"]
-env_hints = ["MYTOOL_HOME"]
-
-# 环境变量
-[runtimes.env]
-vars = { MYTOOL_ROOT = "{install_dir}" }
-
-[runtimes.env.advanced]
-path_prepend = ["{install_dir}/bin"]
-isolate = false
-inherit_system_vars = ["MYTOOL_CONFIG"]
-
-# 可执行文件布局
-[runtimes.layout]
-download_type = "archive"  # 或 "binary", "git-clone"
-
-[runtimes.layout.archive]
-strip_prefix = "mytool-{version}-{platform}"
-executable_paths = ["bin/mytool", "mytool.exe"]
-
-# 测试配置
-[runtimes.test]
-timeout_ms = 30000
-functional_commands = [
-    { command = "{executable} --version", expect_success = true, expected_output = "\\d+\\.\\d+", name = "version_check" },
+# ---------------------------------------------------------------------------
+# Runtime definitions
+# ---------------------------------------------------------------------------
+runtimes = [
+    runtime_def("mytool",
+        aliases         = ["mt", "my-tool"],
+        version_pattern = "\\d+\\.\\d+\\.\\d+",
+    ),
+    bundled_runtime_def("mytool-cli", "mytool",
+        description = "My tool CLI (bundled)",
+    ),
 ]
 
-# 系统安装策略
-[runtimes.system_install]
-[[runtimes.system_install.strategies]]
-type = "package_manager"
-manager = "brew"
-package = "mytool"
-priority = 90
+# ---------------------------------------------------------------------------
+# Permissions
+# ---------------------------------------------------------------------------
+permissions = github_permissions(extra_hosts = ["example.com"])
 
-[[runtimes.system_install.strategies]]
-type = "package_manager"
-manager = "winget"
-package = "Example.MyTool"
-priority = 80
+# ---------------------------------------------------------------------------
+# 使用模板（推荐）
+# ---------------------------------------------------------------------------
+_p = github_rust_provider("example", "mytool",
+    asset = "mytool-{vversion}-{triple}.{ext}",
+)
 
-# 依赖约束
-[[runtimes.constraints]]
-when = "*"
-requires = [
-    { runtime = "node", version = ">=18", reason = "Requires Node.js runtime" }
-]
+fetch_versions   = _p["fetch_versions"]
+download_url     = _p["download_url"]
+install_layout   = _p["install_layout"]
+store_root       = _p["store_root"]
+get_execute_path = _p["get_execute_path"]
+environment      = _p["environment"]
 
-[[runtimes.constraints]]
-when = "*"
-recommends = [
-    { runtime = "npm", version = "*", reason = "Recommended for package management" }
-]
+def deps(_ctx, _version):
+    return []
 ```
 
 ### 关键字段说明
 
 | 字段 | 必需 | 说明 |
 |------|------|------|
-| `provider.name` | ✓ | Provider 名称 |
-| `runtimes[].name` | ✓ | Runtime 名称 |
-| `runtimes[].executable` | ✓ | 可执行文件名 |
-| `runtimes[].aliases` | | 别名列表 |
-| `runtimes[].priority` | | 安装优先级（越高越先） |
-| `runtimes.versions.source` | ✓ | 版本源 |
-| `runtimes.detection` | | 系统检测配置 |
-| `runtimes.system_install` | | 系统包管理器安装策略 |
+| `name` | ✓ | Provider 名称 |
+| `runtimes` | ✓ | Runtime 定义列表 |
+| `permissions` | ✓ | 权限声明 |
+| `fetch_versions` | ✓ | 版本获取函数 |
+| `download_url` | | 下载 URL 函数（模板可提供） |
+| `install_layout` | | 安装布局函数 |
+| `environment` | | 环境变量函数 |
+
+### Runtime 定义
+
+```starlark
+# 独立 Runtime
+runtime_def("mytool",
+    aliases         = ["mt"],           # 别名
+    version_pattern = "\\d+\\.\\d+",    # 版本输出正则
+    test_commands = [                    # 功能测试
+        {"command": "{executable} --version", "name": "version_check",
+         "expected_output": "\\d+\\.\\d+"},
+    ],
+)
+
+# 捆绑 Runtime (随其他工具发布)
+bundled_runtime_def("npm", "node",
+    description     = "Node Package Manager",
+    command_prefix  = None,  # 可选：如 ["x"] 使 `bunx foo` 变成 `bun x foo`
+)
+```
+
+### 权限声明
+
+```starlark
+# GitHub releases + 额外主机
+permissions = github_permissions(extra_hosts = ["nodejs.org", "go.dev"])
+
+# 仅系统包管理器（无网络下载）
+permissions = system_permissions()
+```
+
+## 模板使用
+
+### github_rust_provider - Rust target triple 命名
+
+最常用的模板，适用于 Rust 工具：
+
+```starlark
+_p = github_rust_provider("owner", "repo",
+    asset         = "mytool-{vversion}-{triple}.{ext}",
+    executable    = "mytool",           # 可选，默认为 repo 名
+    store         = "mytool",           # 可选，默认为 repo 名
+    tag_prefix    = "v",                # 可选，默认 "v"
+    linux_libc    = "musl",             # 可选，"musl" 或 "gnu"
+    strip_prefix  = "mytool-{vversion}-{triple}",  # 可选
+)
+
+# 占位符:
+# {version}  - 版本号 (1.0.0)
+# {vversion} - 带 v 前缀 (v1.0.0)
+# {triple}   - Rust target triple (x86_64-unknown-linux-musl)
+# {ext}      - 压缩格式 (zip/tar.gz)
+# {exe}      - 可执行文件后缀 (.exe/)
+```
+
+### github_go_provider - Go 风格命名
+
+```starlark
+_p = github_go_provider("owner", "repo",
+    asset = "mytool_{version}_{os}_{arch}.{ext}",
+)
+
+# 占位符:
+# {os}   - Go GOOS (linux, darwin, windows)
+# {arch} - Go GOARCH (amd64, arm64)
+```
+
+### github_binary_provider - 单二进制
+
+```starlark
+_p = github_binary_provider("owner", "repo",
+    asset = "mytool{exe}",  # 直接下载可执行文件
+)
+```
+
+### system_provider - 系统包管理器
+
+```starlark
+_p = system_provider("mytool", executable="mytool")
+```
+
+## 版本获取
+
+### 官方 API（推荐，无限流）
+
+```starlark
+load("@vx//stdlib:provider.star", "fetch_versions_from_api")
+
+# Node.js
+fetch_versions = fetch_versions_from_api(
+    "https://nodejs.org/dist/index.json",
+    "nodejs_org",
+)
+
+# Go
+fetch_versions = fetch_versions_from_api(
+    "https://go.dev/dl/?mode=json&include=all",
+    "go_versions",
+)
+
+# 支持的 transform: nodejs_org, go_versions, adoptium, pypi, npm_registry
+```
+
+### GitHub Releases
+
+模板自动处理。自定义：
+
+```starlark
+load("@vx//stdlib:provider.star", "fetch_versions_with_tag_prefix")
+
+# 自定义 tag 前缀
+fetch_versions = fetch_versions_with_tag_prefix(
+    "owner", "repo", tag_prefix="mytool-"
+)
+```
+
+## 环境变量
+
+```starlark
+load("@vx//stdlib:env.star", "env_set", "env_prepend", "env_append", "env_unset")
+
+def environment(ctx, _version):
+    return [
+        env_set("GOROOT", ctx.install_dir),
+        env_prepend("PATH", ctx.install_dir + "/bin"),
+        env_set("GO111MODULE", "on"),
+    ]
+```
+
+## 钩子
+
+### post_extract - 解压后
+
+```starlark
+load("@vx//stdlib:provider.star",
+     "post_extract_flatten", "post_extract_shim",
+     "post_extract_permissions", "post_extract_combine")
+
+# 扁平化版本目录
+post_extract = post_extract_flatten(pattern="jdk-*")
+
+# 创建 shim (bunx -> bun x)
+post_extract = post_extract_shim("bunx", "bun", args=["x"])
+
+# Unix 执行权限
+post_extract = post_extract_permissions(["bin/node", "bin/npm"])
+
+# 组合多个钩子
+post_extract = post_extract_combine([
+    post_extract_flatten(pattern="jdk-*"),
+    post_extract_permissions(["bin/java"]),
+])
+```
+
+### pre_run - 运行前
+
+```starlark
+load("@vx//stdlib:provider.star", "pre_run_ensure_deps")
+
+# npm run 前确保 node_modules
+pre_run = pre_run_ensure_deps("npm",
+    trigger_args = ["run", "run-script"],
+    check_file   = "package.json",
+    install_dir  = "node_modules",
+)
+```
+
+## 依赖声明
+
+```starlark
+load("@vx//stdlib:provider.star", "dep_def")
+
+def deps(_ctx, _version):
+    return [
+        dep_def("git", optional=True,
+                reason="Git is required for fetching modules"),
+        dep_def("node", version=">=18",
+                reason="Requires Node.js 18+"),
+    ]
+```
+
+## 系统包管理器安装
+
+```starlark
+load("@vx//stdlib:provider.star",
+     "winget_install", "brew_install", "apt_install",
+     "cross_platform_install")
+
+def system_install(_ctx, _version):
+    return cross_platform_install(
+        windows = winget_install("Microsoft.MyTool"),
+        macos   = brew_install("mytool"),
+        linux   = apt_install("mytool"),
+    )
+```
 
 ## Tools 用法 (vx npm:vite -> vx vite)
 
@@ -246,137 +402,74 @@ vx npx vite          # 显式使用 npx
 vx bunx vite         # 使用 bunx (如果 bun 可用)
 ```
 
-### 在 provider.toml 中配置
+## Bundled Runtime 用法
 
-```toml
-# vite 作为独立 runtime
-[[runtimes]]
-name = "vite"
-description = "Next generation frontend tooling"
-executable = "vite"
+Bundled Runtime 是随其他工具一起发布的 Runtime，如 npm 随 Node.js 发布：
 
-# 通过 npm 执行
-[runtimes.versions]
-source = "npm"
-package = "vite"
-
-# 代理配置
-[runtimes.proxy]
-type = "npx"  # 或 "bunx"
-auto_install = true
+```starlark
+runtimes = [
+    runtime_def("node"),
+    bundled_runtime_def("npm", "node"),  # npm 随 node 安装
+    bundled_runtime_def("npx", "node"),
+]
 ```
 
-## System 用法 (vx winget)
-
-### 系统工具 Provider
-
-系统工具是指通过系统包管理器安装的工具，如 `winget`、`brew`、`apt` 等：
-
-```toml
-[provider]
-name = "winget"
-ecosystem = "system"  # 标记为系统工具
-
-[provider.platforms]
-os = ["windows"]  # 仅支持 Windows
-
-[[runtimes]]
-name = "winget"
-executable = "winget"
-
-# 系统安装策略
-[runtimes.system_install]
-[[runtimes.system_install.strategies]]
-type = "package_manager"
-manager = "winget"
-package = "Microsoft.Winget"
-priority = 100
-
-# 提供 `prepare_execution` 来查找系统路径
-```
-
-### 系统工具 Runtime 实现
-
-```rust
-#[async_trait]
-impl Runtime for WingetRuntime {
-    fn ecosystem(&self) -> Ecosystem {
-        Ecosystem::System  // 标记为系统工具
-    }
-
-    /// 使用 `prepare_execution` 查找系统路径
-    async fn prepare_execution(
-        &self,
-        _version: &str,
-        _ctx: &ExecutionContext,
-    ) -> Result<ExecutionPrep> {
-        // 查找系统安装的 winget
-        let output = Command::new("where").arg("winget").output();
-
-        if let Ok(output) = output
-            && output.status.success()
-        {
-            let stdout = String::from_utf8_lossy(&output.stdout);
-            if let Some(line) = stdout.lines().next() {
-                let path = PathBuf::from(line.trim());
-                if path.exists() {
-                    return Ok(ExecutionPrep {
-                        executable_override: Some(path),
-                        proxy_ready: true,
-                        message: Some("Using system winget".to_string()),
-                        ..Default::default()
-                    });
-                }
-            }
-        }
-
-        Err(anyhow::anyhow!(
-            "winget not found. Install 'App Installer' from Microsoft Store"
-        ))
-    }
-}
-```
-
-### 常见系统工具
-
-| 工具 | 平台 | Provider |
-|------|------|----------|
-| `winget` | Windows | Windows Package Manager |
-| `brew` | macOS | Homebrew |
-| `apt` | Linux | APT |
-| `choco` | Windows | Chocolatey |
-| `scoop` | Windows | Scoop |
+执行时，vx 会自动：
+1. 检查 bundled_with 的 runtime 是否已安装
+2. 在父 runtime 的安装目录中查找可执行文件
+3. 如未找到，自动安装父 runtime
 
 ## 平台约束规范
 
 ### Provider 级别约束
 
-```toml
-# 使用 [provider.platforms] 而非 [provider.platform_constraint]
-[provider.platforms]
-os = ["windows"]
+在 provider.star 中通过 `permissions` 隐式声明：
+
+```starlark
+# Windows only
+permissions = github_permissions(extra_hosts=[])
+
+# 通过 runtimes 定义平台支持
+# 如果 download_url 返回 None，表示不支持该平台
 ```
 
 ### Runtime 级别约束
 
-```toml
-[[runtimes]]
-name = "msvc"
+通过 `download_url` 返回 `None` 表示不支持：
 
-# Runtime 级别使用 platform_constraint
-platform_constraint = { os = ["windows"] }
+```starlark
+def download_url(ctx, version):
+    if ctx.platform.os not in ["windows", "linux", "macos"]:
+        return None  # 不支持的平台
+    # ...
 ```
 
-### 约束条件语法
+## 测试规范
 
-```toml
-# OS 约束
-platform_constraint = { os = ["windows", "linux"] }
+### Provider 测试
 
-# 组合约束
-[[runtimes.constraints]]
-when = { os = "windows" }
-recommends = [
-    { runtime = "msvc", version = "*", reason = "MSVC for Windows C++ development" }
-]
+```bash
+# 测试 Provider 加载
+vx provider list
+
+# 测试 runtime 执行
+vx <runtime> --version
+
+# 测试安装
+vx install <runtime>@<version>
+```
+
+### 单元测试
+
+Provider 的单元测试在 `crates/vx-starlark/tests/` 目录：
+
+```rust
+// crates/vx-starlark/tests/provider_tests.rs
+#[test]
+fn test_node_provider_loads() {
+    let engine = Engine::new();
+    let handle = engine.load_provider("node").unwrap();
+    assert_eq!(handle.name(), "node");
+    assert!(handle.runtimes().iter().any(|r| r.name() == "npm"));
+}
 ```

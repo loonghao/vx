@@ -34,7 +34,8 @@ pub struct RuntimeSpec {
 1. 解析 Runtime 名和别名
 2. 检测 Runtime 及其依赖状态
 3. 自动安装缺失组件
-4. 转发命令并返回退出码
+4. 调用 provider.star 函数准备执行环境
+5. 转发命令并返回退出码
 
 ## 生态系统定义
 
@@ -75,9 +76,62 @@ pub struct ExecutorConfig {
 }
 ```
 
+## Provider 集成
+
+### provider.star 方式（推荐）
+
+依赖关系在 provider.star 中通过 `bundled_runtime_def` 和 `deps` 函数声明：
+
+```starlark
+# Bundled Runtime 自动创建依赖关系
+runtimes = [
+    runtime_def("node"),
+    bundled_runtime_def("npm", "node"),  # npm 依赖 node
+    bundled_runtime_def("npx", "node"),
+]
+
+# 额外依赖声明
+def deps(_ctx, _version):
+    return [
+        dep_def("git", optional=True, reason="Git is required for modules"),
+    ]
+```
+
+### Rust Runtime trait 实现
+
+对于复杂场景，`ManifestDrivenRuntime` 实现了 `Runtime` trait，并从 provider.star 读取依赖信息：
+
+```rust
+impl Runtime for ManifestDrivenRuntime {
+    fn dependencies(&self) -> &[RuntimeDependency] {
+        // 从 provider.star 的 runtimes 和 deps() 函数获取
+    }
+}
+```
+
 ## 扩展新 Runtime
 
-1. 在对应 Provider 中实现 `Runtime` trait
-2. 在 `DependencyMap::with_defaults()` 添加 RuntimeSpec
-3. 如有运行时依赖，指定 `runtime_dependency`
-4. 添加别名到 `aliases` 列表
+1. 创建 `crates/vx-providers/<name>/provider.star`
+2. 使用 `runtime_def()` 定义主 runtime
+3. 使用 `bundled_runtime_def()` 定义捆绑 runtime
+4. 使用 `dep_def()` 在 `deps()` 函数中声明依赖
+5. 如有别名，在 `runtime_def()` 中添加 `aliases` 参数
+
+### 示例
+
+```starlark
+load("@vx//stdlib:provider.star",
+     "runtime_def", "bundled_runtime_def", "dep_def")
+
+name = "mytool"
+
+runtimes = [
+    runtime_def("mytool", aliases=["mt", "my-tool"]),
+    bundled_runtime_def("mytool-cli", "mytool"),
+]
+
+def deps(_ctx, _version):
+    return [
+        dep_def("node", version=">=18", reason="Requires Node.js 18+"),
+    ]
+```
