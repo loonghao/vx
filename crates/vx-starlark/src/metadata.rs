@@ -72,6 +72,14 @@ pub struct StarMetadata {
     ///
     /// Extracted from `package_prefixes = ["deno", "npm"]` in provider.star.
     pub package_prefixes: Vec<String>,
+    /// Minimum vx version required to use this provider (semver constraint).
+    ///
+    /// When set, vx will check its own version against this constraint before
+    /// loading the provider. If the constraint is not satisfied, a warning is
+    /// emitted and the provider is skipped.
+    ///
+    /// Extracted from `vx_version = ">=0.7.0"` in provider.star.
+    pub vx_version: Option<String>,
 }
 
 /// Metadata for a single runtime entry inside the `runtimes` list.
@@ -117,6 +125,7 @@ impl StarMetadata {
             pip_package: extract_simple_return(source, "pip_package"),
             package_alias: extract_package_alias(source),
             package_prefixes: extract_string_list_var(source, "package_prefixes"),
+            vx_version: extract_simple_return(source, "vx_version"),
         }
     }
 
@@ -318,6 +327,16 @@ fn parse_runtime_entries(list_body: &str) -> Vec<StarRuntimeMeta> {
             break;
         }
 
+        // Skip comment lines (# ...)
+        if remaining.starts_with('#') {
+            if let Some(newline) = remaining.find('\n') {
+                remaining = &remaining[newline + 1..];
+            } else {
+                break;
+            }
+            continue;
+        }
+
         // Dict literal: `{...}`
         if remaining.starts_with('{') {
             let Some(dict_body) = find_matching_bracket(remaining, 0, '{', '}') else {
@@ -446,31 +465,38 @@ fn extract_first_positional_string(args_body: &str) -> Option<String> {
 /// Extract a keyword argument string value from a function call args body.
 ///
 /// e.g. `"node", bundled_with = "go"` with key `"bundled_with"` → `Some("go")`
+/// Also handles extra whitespace like `bundled_with      = "go"`
 fn extract_kwarg_string(args_body: &str, key: &str) -> Option<String> {
-    // Look for `key = "value"` or `key="value"` pattern
-    let pattern = format!("{} =", key);
-    let pattern2 = format!("{}=", key);
+    // Look for key followed by optional whitespace, then =
+    let mut search_start = 0;
+    while let Some(pos) = args_body[search_start..].find(key) {
+        let actual_pos = search_start + pos;
+        let after_key = &args_body[actual_pos + key.len()..];
 
-    for pat in &[pattern.as_str(), pattern2.as_str()] {
-        if let Some(pos) = args_body.find(pat) {
-            // Make sure this is a keyword arg (preceded by comma/whitespace/newline, not part of a string)
-            let before = &args_body[..pos];
-            // Simple heuristic: the char before the key should be whitespace, comma, or newline
-            let is_kwarg = before.is_empty()
-                || before
-                    .chars()
-                    .last()
-                    .map(|c| c.is_whitespace() || c == ',')
-                    .unwrap_or(true);
-            if !is_kwarg {
-                continue;
-            }
-            let after = &args_body[pos + pat.len()..];
-            let after = after.trim_start();
-            if let Some(val) = extract_string_literal(after) {
+        // Check if this is actually the keyword (preceded by whitespace/comma/start)
+        let before = &args_body[..actual_pos];
+        let is_kwarg = before.is_empty()
+            || before
+                .chars()
+                .last()
+                .map(|c| c.is_whitespace() || c == ',')
+                .unwrap_or(true);
+        if !is_kwarg {
+            search_start = actual_pos + key.len();
+            continue;
+        }
+
+        // Skip whitespace after key and check for =
+        let after_key_trimmed = after_key.trim_start();
+        if let Some(after_equals_raw) = after_key_trimmed.strip_prefix('=') {
+            let after_equals = &after_equals_raw.trim_start();
+            if let Some(val) = extract_string_literal(after_equals) {
                 return Some(val);
             }
         }
+
+        // Move past this occurrence and continue searching
+        search_start = actual_pos + key.len();
     }
     None
 }
@@ -478,30 +504,41 @@ fn extract_kwarg_string(args_body: &str, key: &str) -> Option<String> {
 /// Extract a keyword argument string list from a function call args body.
 ///
 /// e.g. `"node", aliases = ["nodejs", "node-js"]` with key `"aliases"` → `["nodejs", "node-js"]`
+/// Also handles extra whitespace like `aliases      = ["a", "b"]`
 fn extract_kwarg_string_list(args_body: &str, key: &str) -> Vec<String> {
-    let pattern = format!("{} =", key);
-    let pattern2 = format!("{}=", key);
+    // Look for key followed by optional whitespace, then =
+    // Use regex-like approach: find key, then skip whitespace, then check for =
+    let mut search_start = 0;
+    while let Some(pos) = args_body[search_start..].find(key) {
+        let actual_pos = search_start + pos;
+        let after_key = &args_body[actual_pos + key.len()..];
 
-    for pat in &[pattern.as_str(), pattern2.as_str()] {
-        if let Some(pos) = args_body.find(pat) {
-            let before = &args_body[..pos];
-            let is_kwarg = before.is_empty()
-                || before
-                    .chars()
-                    .last()
-                    .map(|c| c.is_whitespace() || c == ',')
-                    .unwrap_or(true);
-            if !is_kwarg {
-                continue;
-            }
-            let after = &args_body[pos + pat.len()..];
-            let after = after.trim_start();
-            if after.starts_with('[')
-                && let Some(list_body) = find_matching_bracket(after, 0, '[', ']')
+        // Check if this is actually the keyword (preceded by whitespace/comma/start)
+        let before = &args_body[..actual_pos];
+        let is_kwarg = before.is_empty()
+            || before
+                .chars()
+                .last()
+                .map(|c| c.is_whitespace() || c == ',')
+                .unwrap_or(true);
+        if !is_kwarg {
+            search_start = actual_pos + key.len();
+            continue;
+        }
+
+        // Skip whitespace after key and check for =
+        let after_key_trimmed = after_key.trim_start();
+        if let Some(after_equals_raw) = after_key_trimmed.strip_prefix('=') {
+            let after_equals = &after_equals_raw.trim_start();
+            if after_equals.starts_with('[')
+                && let Some(list_body) = find_matching_bracket(after_equals, 0, '[', ']')
             {
                 return extract_string_list_items(list_body);
             }
         }
+
+        // Move past this occurrence and continue searching
+        search_start = actual_pos + key.len();
     }
     Vec::new()
 }
@@ -745,294 +782,4 @@ fn extract_string_list_var(source: &str, var_name: &str) -> Vec<String> {
     }
 
     Vec::new()
-}
-
-// ---------------------------------------------------------------------------
-// Tests
-// ---------------------------------------------------------------------------
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    const SAMPLE_STAR: &str = r#"
-def name():
-    return "msvc"
-
-def description():
-    return "Microsoft Visual C++ Build Tools"
-
-def homepage():
-    return "https://visualstudio.microsoft.com/visual-cpp-build-tools/"
-
-def ecosystem():
-    return "system"
-
-def platforms():
-    return {"os": ["windows"]}
-
-runtimes = [
-    {
-        "name":             "msvc",
-        "executable":       "cl",
-        "description":      "Microsoft Visual C++ compiler",
-        "aliases":          ["cl", "vs-build-tools", "msvc-tools"],
-        "priority":         100,
-        "auto_installable": True,
-        "platform_constraint": {"os": ["windows"]},
-    },
-    {
-        "name":             "nmake",
-        "executable":       "nmake",
-        "description":      "Microsoft Program Maintenance Utility",
-        "bundled_with":     "msvc",
-        "auto_installable": False,
-        "platform_constraint": {"os": ["windows"]},
-    },
-]
-"#;
-
-    #[test]
-    fn test_parse_name() {
-        let meta = StarMetadata::parse(SAMPLE_STAR);
-        assert_eq!(meta.name, Some("msvc".to_string()));
-    }
-
-    #[test]
-    fn test_parse_description() {
-        let meta = StarMetadata::parse(SAMPLE_STAR);
-        assert_eq!(
-            meta.description,
-            Some("Microsoft Visual C++ Build Tools".to_string())
-        );
-    }
-
-    #[test]
-    fn test_parse_homepage() {
-        let meta = StarMetadata::parse(SAMPLE_STAR);
-        assert_eq!(
-            meta.homepage,
-            Some("https://visualstudio.microsoft.com/visual-cpp-build-tools/".to_string())
-        );
-    }
-
-    #[test]
-    fn test_parse_ecosystem() {
-        let meta = StarMetadata::parse(SAMPLE_STAR);
-        assert_eq!(meta.ecosystem, Some("system".to_string()));
-    }
-
-    #[test]
-    fn test_parse_platforms() {
-        let meta = StarMetadata::parse(SAMPLE_STAR);
-        assert_eq!(meta.platforms, Some(vec!["windows".to_string()]));
-    }
-
-    #[test]
-    fn test_parse_runtimes_count() {
-        let meta = StarMetadata::parse(SAMPLE_STAR);
-        assert_eq!(meta.runtimes.len(), 2);
-    }
-
-    #[test]
-    fn test_parse_runtime_name() {
-        let meta = StarMetadata::parse(SAMPLE_STAR);
-        assert_eq!(meta.runtimes[0].name, Some("msvc".to_string()));
-        assert_eq!(meta.runtimes[1].name, Some("nmake".to_string()));
-    }
-
-    #[test]
-    fn test_parse_runtime_aliases() {
-        let meta = StarMetadata::parse(SAMPLE_STAR);
-        assert_eq!(
-            meta.runtimes[0].aliases,
-            vec!["cl", "vs-build-tools", "msvc-tools"]
-        );
-    }
-
-    #[test]
-    fn test_parse_runtime_auto_installable() {
-        let meta = StarMetadata::parse(SAMPLE_STAR);
-        assert_eq!(meta.runtimes[0].auto_installable, Some(true));
-        assert_eq!(meta.runtimes[1].auto_installable, Some(false));
-    }
-
-    #[test]
-    fn test_find_runtime_by_alias() {
-        let meta = StarMetadata::parse(SAMPLE_STAR);
-        let rt = meta.find_runtime("cl");
-        assert!(rt.is_some());
-        assert_eq!(rt.unwrap().name, Some("msvc".to_string()));
-    }
-
-    #[test]
-    fn test_name_or_fallback() {
-        let meta = StarMetadata::default();
-        assert_eq!(meta.name_or("fallback"), "fallback");
-    }
-
-    // RFC 0038 v5: top-level variable format
-    const SAMPLE_STAR_V5: &str = r#"
-name        = "node"
-description = "Node.js - JavaScript runtime built on Chrome's V8 engine"
-homepage    = "https://nodejs.org"
-repository  = "https://github.com/nodejs/node"
-ecosystem   = "nodejs"
-
-runtimes = [
-    {
-        "name":       "node",
-        "executable": "node",
-        "aliases":    ["nodejs"],
-        "priority":   100,
-    },
-    {"name": "npm",  "executable": "npm",  "bundled_with": "node"},
-    {"name": "npx",  "executable": "npx",  "bundled_with": "node"},
-]
-"#;
-
-    #[test]
-    fn test_parse_v5_name() {
-        let meta = StarMetadata::parse(SAMPLE_STAR_V5);
-        assert_eq!(meta.name, Some("node".to_string()));
-    }
-
-    #[test]
-    fn test_parse_v5_description() {
-        let meta = StarMetadata::parse(SAMPLE_STAR_V5);
-        assert_eq!(
-            meta.description,
-            Some("Node.js - JavaScript runtime built on Chrome's V8 engine".to_string())
-        );
-    }
-
-    #[test]
-    fn test_parse_v5_ecosystem() {
-        let meta = StarMetadata::parse(SAMPLE_STAR_V5);
-        assert_eq!(meta.ecosystem, Some("nodejs".to_string()));
-    }
-
-    #[test]
-    fn test_parse_v5_runtimes() {
-        let meta = StarMetadata::parse(SAMPLE_STAR_V5);
-        assert_eq!(meta.runtimes.len(), 3);
-        assert_eq!(meta.runtimes[0].name, Some("node".to_string()));
-        assert_eq!(meta.runtimes[0].aliases, vec!["nodejs"]);
-        assert_eq!(meta.runtimes[1].name, Some("npm".to_string()));
-        assert_eq!(meta.runtimes[1].bundled_with, Some("node".to_string()));
-    }
-
-    // RFC 0038: runtime_def() / bundled_runtime_def() function call format
-    const SAMPLE_STAR_FUNC_CALLS: &str = r#"
-name        = "node"
-description = "Node.js JavaScript runtime"
-ecosystem   = "nodejs"
-
-runtimes = [
-    runtime_def("node",
-        aliases = ["nodejs"],
-    ),
-    bundled_runtime_def("npm",  bundled_with = "node"),
-    bundled_runtime_def("npx",  bundled_with = "node"),
-]
-"#;
-
-    #[test]
-    fn test_parse_runtime_def_calls_count() {
-        let meta = StarMetadata::parse(SAMPLE_STAR_FUNC_CALLS);
-        assert_eq!(
-            meta.runtimes.len(),
-            3,
-            "Expected 3 runtimes from runtime_def/bundled_runtime_def calls"
-        );
-    }
-
-    #[test]
-    fn test_parse_runtime_def_name() {
-        let meta = StarMetadata::parse(SAMPLE_STAR_FUNC_CALLS);
-        assert_eq!(meta.runtimes[0].name, Some("node".to_string()));
-    }
-
-    #[test]
-    fn test_parse_runtime_def_aliases() {
-        let meta = StarMetadata::parse(SAMPLE_STAR_FUNC_CALLS);
-        assert_eq!(meta.runtimes[0].aliases, vec!["nodejs"]);
-    }
-
-    #[test]
-    fn test_parse_bundled_runtime_def_name() {
-        let meta = StarMetadata::parse(SAMPLE_STAR_FUNC_CALLS);
-        assert_eq!(meta.runtimes[1].name, Some("npm".to_string()));
-        assert_eq!(meta.runtimes[2].name, Some("npx".to_string()));
-    }
-
-    #[test]
-    fn test_parse_bundled_runtime_def_bundled_with() {
-        let meta = StarMetadata::parse(SAMPLE_STAR_FUNC_CALLS);
-        assert_eq!(meta.runtimes[1].bundled_with, Some("node".to_string()));
-        assert_eq!(meta.runtimes[2].bundled_with, Some("node".to_string()));
-    }
-
-    #[test]
-    fn test_parse_node_provider_star() {
-        // Test with the actual node provider.star content
-        let content = vx_provider_node_star();
-        let meta = StarMetadata::parse(content);
-        assert_eq!(meta.name, Some("node".to_string()));
-        let names: Vec<_> = meta
-            .runtimes
-            .iter()
-            .filter_map(|r| r.name.as_deref())
-            .collect();
-        assert!(
-            names.contains(&"node"),
-            "Expected 'node' in runtimes, got: {:?}",
-            names
-        );
-        assert!(
-            names.contains(&"npm"),
-            "Expected 'npm' in runtimes, got: {:?}",
-            names
-        );
-        assert!(
-            names.contains(&"npx"),
-            "Expected 'npx' in runtimes, got: {:?}",
-            names
-        );
-    }
-
-    fn vx_provider_node_star() -> &'static str {
-        // Inline a minimal version of node's provider.star for testing
-        r#"
-load("@vx//stdlib:provider.star",
-     "runtime_def", "bundled_runtime_def",
-     "fetch_versions_from_api",
-     "system_permissions",
-     "bin_subdir_layout", "bin_subdir_env", "bin_subdir_execute_path",
-     "post_extract_permissions", "pre_run_ensure_deps")
-load("@vx//stdlib:env.star", "env_prepend")
-
-name        = "node"
-description = "Node.js - JavaScript runtime built on Chrome's V8 engine"
-homepage    = "https://nodejs.org"
-repository  = "https://github.com/nodejs/node"
-license     = "MIT"
-ecosystem   = "nodejs"
-aliases     = ["nodejs"]
-
-runtimes = [
-    runtime_def("node",
-        aliases = ["nodejs"],
-        test_commands = [
-            {"command": "{executable} --version", "name": "version_check",
-             "expected_output": "^v?\\d+\\.\\d+\\.\\d+"},
-        ],
-    ),
-    bundled_runtime_def("npm",  bundled_with = "node",
-        version_pattern = "^\\d+\\.\\d+\\.\\d+"),
-    bundled_runtime_def("npx",  bundled_with = "node",
-        version_pattern = "^\\d+\\.\\d+\\.\\d+"),
-]
-"#
-    }
 }

@@ -357,6 +357,9 @@ impl StarlarkEngine {
             "version":      version,
             "vx_home":      vx_home,
             "install_dir":  install_dir,
+            // Runtime name for multi-runtime providers (e.g. "yazi" within "shell-tools").
+            // Allows providers to dispatch on the specific runtime being queried.
+            "runtime_name": ctx.runtime_name.as_deref().unwrap_or(""),
             // Build tag / release date for the resolved version (e.g. "20240107").
             // Used by providers like python-build-standalone in download_url.
             "version_date": ctx.version_date.as_deref().unwrap_or(""),

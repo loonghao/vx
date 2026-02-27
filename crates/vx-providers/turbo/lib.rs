@@ -1,3 +1,6 @@
-//! Turborepo provider - High-performance build system for monorepos
+//! turbo provider for vx
 //!
-//! This provider is manifest-driven. See provider.star for configuration.
+//! This is a manifest-driven provider defined in `provider.star`.
+
+/// The raw content of `provider.star`, embedded at compile time.
+pub const PROVIDER_STAR: &str = include_str!("provider.star");

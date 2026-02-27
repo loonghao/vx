@@ -6,9 +6,9 @@
 # Uses stdlib templates from @vx//stdlib:provider.star
 
 load("@vx//stdlib:provider.star",
-     "runtime_def", "github_permissions", "dep_def")
+     "runtime_def", "github_permissions", "dep_def",
+     "platform_map")
 load("@vx//stdlib:github.star", "make_fetch_versions")
-load("@vx//stdlib:env.star",    "env_set", "env_prepend")
 
 # ---------------------------------------------------------------------------
 # Provider metadata
@@ -53,7 +53,8 @@ permissions = github_permissions(extra_hosts = [])
 fetch_versions = make_fetch_versions("microsoft", "vcpkg-tool")
 
 # ---------------------------------------------------------------------------
-# download_url — single binary per platform
+# Platform helpers
+# vcpkg asset naming: vcpkg-{arch}-{os}[.exe]
 # ---------------------------------------------------------------------------
 
 _VCPKG_ASSETS = {
@@ -66,7 +67,7 @@ _VCPKG_ASSETS = {
 }
 
 def download_url(ctx, version):
-    asset = _VCPKG_ASSETS.get("{}/{}".format(ctx.platform.os, ctx.platform.arch))
+    asset = platform_map(ctx, _VCPKG_ASSETS)
     if not asset:
         return None
     return "https://github.com/microsoft/vcpkg-tool/releases/download/{}/{}".format(
@@ -77,12 +78,9 @@ def download_url(ctx, version):
 # ---------------------------------------------------------------------------
 
 def install_layout(ctx, _version):
-    asset = _VCPKG_ASSETS.get("{}/{}".format(ctx.platform.os, ctx.platform.arch))
-    exe   = "vcpkg.exe" if ctx.platform.os == "windows" else "vcpkg"
+    exe = "vcpkg.exe" if ctx.platform.os == "windows" else "vcpkg"
     return {
         "type":             "binary",
-        "source_name":      asset,
-        "target_name":      exe,
         "executable_paths": [exe],
     }
 
@@ -100,12 +98,14 @@ def get_execute_path(ctx, _version):
 def post_install(_ctx, _version):
     return None
 
+load("@vx//stdlib:env.star", "env_set", "env_prepend")
+
 def environment(ctx, _version):
     return [
-        env_set("VCPKG_ROOT",                 ctx.install_dir),
-        env_set("VCPKG_DOWNLOADS",            ctx.install_dir + "/.cache/downloads"),
+        env_set("VCPKG_ROOT", ctx.install_dir),
+        env_set("VCPKG_DOWNLOADS", ctx.install_dir + "/.cache/downloads"),
         env_set("VCPKG_DEFAULT_BINARY_CACHE", ctx.install_dir + "/.cache/archives"),
-        env_prepend("PATH",                   ctx.install_dir),
+        env_prepend("PATH", ctx.install_dir),
     ]
 
 # ---------------------------------------------------------------------------

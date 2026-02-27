@@ -111,6 +111,7 @@ members = [
   # Node.js build cache (monorepo tools)
   "crates/vx-providers/nx",
   "crates/vx-providers/turbo",
+  "crates/vx-providers/vite",
   # Python ecosystem tools
   "crates/vx-providers/pre-commit",
   "crates/vx-providers/spack",
@@ -141,15 +142,6 @@ rust-version.workspace = true
 [[bin]]
 name = "vx"
 path = "src/main.rs"
-
-# Examples
-[[example]]
-name = "auto_install_demo"
-path = "examples/auto_install_demo.rs"
-
-[[example]]
-name = "config_management_demo"
-path = "examples/config_management_demo.rs"
 
 [dependencies]
 vx-cli = { workspace = true }
@@ -197,6 +189,7 @@ rust-version = "1.93.0"
 vx-core = { path = "crates/vx-core" }
 vx-cache = { path = "crates/vx-cache" }
 vx-starlark = { path = "crates/vx-starlark" }
+starlark = { version = "0.13" }
 vx-runtime = { path = "crates/vx-runtime" }
 vx-runtime-core = { path = "crates/vx-runtime-core" }
 vx-runtime-archive = { path = "crates/vx-runtime-archive" }
@@ -291,6 +284,7 @@ vx-provider-buildcache = { path = "crates/vx-providers/buildcache" }
 # Node.js build cache (monorepo tools)
 vx-provider-nx = { path = "crates/vx-providers/nx" }
 vx-provider-turbo = { path = "crates/vx-providers/turbo" }
+vx-provider-vite = { path = "crates/vx-providers/vite" }
 # Python ecosystem tools
 vx-provider-pre-commit = { path = "crates/vx-providers/pre-commit" }
 vx-provider-spack = { path = "crates/vx-providers/spack" }

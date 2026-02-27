@@ -7,10 +7,10 @@
 
 load("@vx//stdlib:provider.star",
      "runtime_def", "github_permissions", "post_extract_permissions",
+     "path_fns", "path_env_fns",
      "multi_platform_install", "winget_install", "choco_install",
      "brew_install")
 load("@vx//stdlib:github.star", "make_fetch_versions")
-load("@vx//stdlib:env.star",    "env_prepend")
 
 # ---------------------------------------------------------------------------
 # Provider metadata
@@ -94,21 +94,19 @@ system_install = multi_platform_install(
 )
 
 # ---------------------------------------------------------------------------
-# Path queries + environment
+# Path + env functions (from stdlib)
+# Note: awscli uses install_dir/bin for PATH, not install_dir directly
 # ---------------------------------------------------------------------------
 
-def store_root(ctx):
-    return ctx.vx_home + "/store/awscli"
+_paths           = path_fns("awscli", executable = "aws")
+store_root       = _paths["store_root"]
+get_execute_path = _paths["get_execute_path"]
 
-def get_execute_path(ctx, _version):
-    exe = "aws.exe" if ctx.platform.os == "windows" else "aws"
-    return ctx.install_dir + "/" + exe
+def environment(ctx, _version):
+    return [{"op": "prepend", "name": "PATH", "value": ctx.install_dir + "/bin"}]
 
 def post_install(_ctx, _version):
     return None
-
-def environment(ctx, _version):
-    return [env_prepend("PATH", ctx.install_dir + "/bin")]
 
 def deps(_ctx, _version):
     return []

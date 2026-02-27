@@ -247,9 +247,24 @@ impl StarlarkProvider {
 
     /// Call the `fetch_versions` function
     pub async fn fetch_versions(&self) -> Result<Vec<VersionInfo>> {
-        let ctx = ProviderContext::new(&self.meta.name, self.vx_home.clone())
+        self.fetch_versions_for_runtime(None).await
+    }
+
+    /// Call the `fetch_versions` function for a specific runtime within a multi-runtime provider.
+    ///
+    /// For providers that define multiple runtimes (e.g. shell-tools with starship/atuin/yazi),
+    /// the `fetch_versions(ctx)` function dispatches on `ctx.runtime_name` to fetch versions
+    /// from the correct source. Pass `None` to use the provider name as the runtime name.
+    pub async fn fetch_versions_for_runtime(
+        &self,
+        runtime_name: Option<&str>,
+    ) -> Result<Vec<VersionInfo>> {
+        let mut ctx = ProviderContext::new(&self.meta.name, self.vx_home.clone())
             .with_description(&self.meta.description)
             .with_sandbox(self.sandbox.clone());
+        if let Some(name) = runtime_name {
+            ctx = ctx.with_runtime_name(name);
+        }
         self.execute_fetch_versions(&ctx).await
     }
 
@@ -284,6 +299,18 @@ impl StarlarkProvider {
 
     /// Call the `download_url` function
     pub async fn download_url(&self, version: &str) -> Result<Option<String>> {
+        self.download_url_for_runtime(version, None).await
+    }
+
+    /// Call the `download_url` function for a specific runtime within a multi-runtime provider.
+    ///
+    /// Passes `ctx.runtime_name` so that providers can dispatch to the correct
+    /// download URL for each runtime (e.g. different GitHub repos for yazi vs starship).
+    pub async fn download_url_for_runtime(
+        &self,
+        version: &str,
+        runtime_name: Option<&str>,
+    ) -> Result<Option<String>> {
         // Look up the build tag (date) for this version from the version cache.
         // This is needed by providers like python-build-standalone where the
         // download URL requires a date-based release tag (e.g. "20240107").
@@ -298,16 +325,31 @@ impl StarlarkProvider {
         if let Some(date) = version_date {
             ctx = ctx.with_version_date(date);
         }
+        if let Some(name) = runtime_name {
+            ctx = ctx.with_runtime_name(name);
+        }
 
         self.execute_download_url(&ctx, version).await
     }
 
     /// Call the `install_layout` function and resolve the returned descriptor
     pub async fn install_layout(&self, version: &str) -> Result<Option<InstallLayout>> {
-        let ctx = ProviderContext::new(&self.meta.name, self.vx_home.clone())
+        self.install_layout_for_runtime(version, None).await
+    }
+
+    /// Call the `install_layout` function for a specific runtime within a multi-runtime provider.
+    pub async fn install_layout_for_runtime(
+        &self,
+        version: &str,
+        runtime_name: Option<&str>,
+    ) -> Result<Option<InstallLayout>> {
+        let mut ctx = ProviderContext::new(&self.meta.name, self.vx_home.clone())
             .with_description(&self.meta.description)
             .with_sandbox(self.sandbox.clone())
             .with_version(version);
+        if let Some(name) = runtime_name {
+            ctx = ctx.with_runtime_name(name);
+        }
         self.execute_install_layout(&ctx, version).await
     }
 
@@ -318,10 +360,22 @@ impl StarlarkProvider {
     /// fallback when the Starlark function returns a plain dict without a
     /// `__type` field (e.g. `{ "source_name": ..., "target_name": ... }`).
     pub async fn install_layout_raw(&self, version: &str) -> Result<Option<serde_json::Value>> {
-        let ctx = ProviderContext::new(&self.meta.name, self.vx_home.clone())
+        self.install_layout_raw_for_runtime(version, None).await
+    }
+
+    /// Call the `install_layout` function (raw) for a specific runtime within a multi-runtime provider.
+    pub async fn install_layout_raw_for_runtime(
+        &self,
+        version: &str,
+        runtime_name: Option<&str>,
+    ) -> Result<Option<serde_json::Value>> {
+        let mut ctx = ProviderContext::new(&self.meta.name, self.vx_home.clone())
             .with_description(&self.meta.description)
             .with_sandbox(self.sandbox.clone())
             .with_version(version);
+        if let Some(name) = runtime_name {
+            ctx = ctx.with_runtime_name(name);
+        }
         self.execute_install_layout_raw(&ctx, version).await
     }
 
@@ -468,6 +522,7 @@ impl StarlarkProvider {
                 }
             }),
             package_prefixes: star_meta.package_prefixes,
+            vx_version_req: star_meta.vx_version,
         };
 
         let mut runtimes: Vec<RuntimeMeta> = Vec::new();

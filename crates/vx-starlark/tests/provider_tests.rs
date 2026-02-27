@@ -160,6 +160,7 @@ fn test_provider_meta_defaults() {
         platforms: None,
         package_alias: None,
         package_prefixes: vec![],
+        vx_version_req: None,
     };
 
     assert_eq!(meta.name, "test");
@@ -185,6 +186,7 @@ fn test_provider_meta_with_platforms() {
         platforms: Some(platforms),
         package_alias: None,
         package_prefixes: vec![],
+        vx_version_req: None,
     };
 
     let platforms = meta.platforms.unwrap();
@@ -262,6 +264,7 @@ fn test_provider_meta_with_package_prefixes() {
         platforms: None,
         package_alias: None,
         package_prefixes: vec!["deno".to_string()],
+        vx_version_req: None,
     };
 
     assert_eq!(meta.package_prefixes, vec!["deno"]);
@@ -280,6 +283,7 @@ fn test_provider_meta_package_prefixes_default_empty() {
         platforms: None,
         package_alias: None,
         package_prefixes: vec![],
+        vx_version_req: None,
     };
 
     assert!(meta.package_prefixes.is_empty());

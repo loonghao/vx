@@ -2,7 +2,7 @@
 name = "vx-provider-prek"
 version.workspace = true
 edition.workspace = true
-description = "prek (better pre-commit) provider for vx"
+description = "prek provider for vx"
 license.workspace = true
 repository.workspace = true
 homepage.workspace = true
@@ -10,17 +10,17 @@ authors.workspace = true
 keywords.workspace = true
 categories.workspace = true
 rust-version.workspace = true
+publish = false
+
+[lib]
+name = "vx_provider_prek"
+path = "lib.rs"
 
 [dependencies]
-vx-runtime = { workspace = true }
-vx-starlark = { workspace = true }
-vx-version-fetcher = { workspace = true }
-serde = { workspace = true }
-serde_json = { workspace = true }
-anyhow = { workspace = true }
-async-trait = { workspace = true }
-tokio = { workspace = true }
 workspace-hack = { version = "0.1", path = "../../workspace-hack" }
 
 [dev-dependencies]
+vx-starlark = { workspace = true, features = ["test-mocks"] }
+starlark = { workspace = true }
 rstest = { workspace = true }
+vx-runtime = { workspace = true }

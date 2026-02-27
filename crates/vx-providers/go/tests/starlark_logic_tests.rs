@@ -8,63 +8,27 @@
 
 use starlark::assert::Assert;
 use starlark::syntax::Dialect;
+use vx_starlark::test_mocks::setup_provider_test_mocks;
 
 /// Build an Assert environment with mocked @vx//stdlib modules and
 /// the provider.star pre-loaded as a module.
 fn make_assert() -> Assert<'static> {
     let mut a = Assert::new();
     a.dialect(&Dialect::Standard);
-
-    // Mock @vx//stdlib:http.star — only the symbols used by go/provider.star
-    a.module(
-        "@vx//stdlib:http.star",
-        r#"
-def fetch_json_versions(_ctx, _url, _kind):
-    """Mock: returns an empty descriptor (not used in pure-logic tests)."""
-    return {"kind": _kind, "url": _url}
-"#,
-    );
-
-    // Mock @vx//stdlib:install.star — only the symbols used by go/provider.star
-    a.module(
-        "@vx//stdlib:install.star",
-        r#"
-def ensure_dependencies(_runtime, check_file = None, lock_file = None, install_dir = None):
-    return {"op": "ensure_dependencies", "runtime": _runtime}
-"#,
-    );
-
+    setup_provider_test_mocks(&mut a);
     a.module("provider.star", vx_provider_go::PROVIDER_STAR);
     a
 }
 
-/// Inline the provider.star content for tests that need private symbols.
-fn provider_star_prefix() -> String {
-    // Replace load() statements with mock implementations so Assert can evaluate
-    // the script without a custom FileLoader.
-    let src = vx_provider_go::PROVIDER_STAR;
-
-    // Strip load() lines and prepend mock definitions
-    let stripped: String = src
-        .lines()
-        .filter(|l| !l.trim_start().starts_with("load("))
-        .collect::<Vec<_>>()
-        .join("\n");
-
-    format!(
-        r#"
-# Mock @vx//stdlib:http.star
-def fetch_json_versions(_ctx, _url, _kind):
-    return {{"kind": _kind, "url": _url}}
-
-# Mock @vx//stdlib:install.star
-def ensure_dependencies(_runtime, check_file = None, lock_file = None, install_dir = None):
-    return {{"op": "ensure_dependencies", "runtime": _runtime}}
-
-{}
-"#,
-        stripped
-    )
+/// Build an Assert environment with mocks for testing provider functions directly.
+fn make_assert_with_functions() -> Assert<'static> {
+    use vx_starlark::test_mocks::setup_provider_test_mocks;
+    let mut a = Assert::new();
+    a.dialect(&Dialect::Standard);
+    setup_provider_test_mocks(&mut a);
+    // Load provider.star as a module so its functions are available
+    a.module("provider.star", vx_provider_go::PROVIDER_STAR);
+    a
 }
 
 // ── provider metadata ─────────────────────────────────────────────────────────
@@ -141,188 +105,155 @@ gofmt["bundled_with"] == "go"
 
 #[test]
 fn test_download_url_linux_x64_is_tar_gz() {
-    let mut a = Assert::new();
-    a.dialect(&Dialect::Standard);
-    a.is_true(&format!(
+    make_assert_with_functions().is_true(
         r#"
-{}
+load("provider.star", "download_url")
 ctx = struct(platform = struct(os = "linux", arch = "x64", target = ""))
 url = download_url(ctx, "1.22.0")
 url != None and url.endswith(".tar.gz")
 "#,
-        provider_star_prefix()
-    ));
+    );
 }
 
 #[test]
 fn test_download_url_linux_x64_contains_version() {
-    let mut a = Assert::new();
-    a.dialect(&Dialect::Standard);
-    a.is_true(&format!(
+    make_assert_with_functions().is_true(
         r#"
-{}
+load("provider.star", "download_url")
 ctx = struct(platform = struct(os = "linux", arch = "x64", target = ""))
 url = download_url(ctx, "1.22.0")
 "1.22.0" in url and "linux" in url and "amd64" in url
 "#,
-        provider_star_prefix()
-    ));
+    );
 }
 
 #[test]
 fn test_download_url_windows_x64_is_zip() {
-    let mut a = Assert::new();
-    a.dialect(&Dialect::Standard);
-    a.is_true(&format!(
+    make_assert_with_functions().is_true(
         r#"
-{}
+load("provider.star", "download_url")
 ctx = struct(platform = struct(os = "windows", arch = "x64", target = ""))
 url = download_url(ctx, "1.22.0")
 url != None and url.endswith(".zip")
 "#,
-        provider_star_prefix()
-    ));
+    );
 }
 
 #[test]
 fn test_download_url_macos_arm64_contains_darwin_arm64() {
-    let mut a = Assert::new();
-    a.dialect(&Dialect::Standard);
-    a.is_true(&format!(
+    make_assert_with_functions().is_true(
         r#"
-{}
+load("provider.star", "download_url")
 ctx = struct(platform = struct(os = "macos", arch = "arm64", target = ""))
 url = download_url(ctx, "1.22.0")
 url != None and "darwin" in url and "arm64" in url
 "#,
-        provider_star_prefix()
-    ));
+    );
 }
 
 #[test]
 fn test_download_url_macos_x64_contains_darwin_amd64() {
-    let mut a = Assert::new();
-    a.dialect(&Dialect::Standard);
-    a.is_true(&format!(
+    make_assert_with_functions().is_true(
         r#"
-{}
+load("provider.star", "download_url")
 ctx = struct(platform = struct(os = "macos", arch = "x64", target = ""))
 url = download_url(ctx, "1.22.0")
 url != None and "darwin" in url and "amd64" in url
 "#,
-        provider_star_prefix()
-    ));
+    );
 }
 
 #[test]
 fn test_download_url_uses_go_dev() {
-    let mut a = Assert::new();
-    a.dialect(&Dialect::Standard);
-    a.is_true(&format!(
+    make_assert_with_functions().is_true(
         r#"
-{}
+load("provider.star", "download_url")
 ctx = struct(platform = struct(os = "linux", arch = "x64", target = ""))
 url = download_url(ctx, "1.22.0")
 url.startswith("https://go.dev/dl/")
 "#,
-        provider_star_prefix()
-    ));
+    );
 }
 
 #[test]
 fn test_download_url_unknown_platform_returns_none() {
-    let mut a = Assert::new();
-    a.dialect(&Dialect::Standard);
-    a.is_true(&format!(
+    make_assert_with_functions().is_true(
         r#"
-{}
+load("provider.star", "download_url")
 ctx = struct(platform = struct(os = "freebsd", arch = "x64", target = ""))
 url = download_url(ctx, "1.22.0")
 url == None
 "#,
-        provider_star_prefix()
-    ));
+    );
 }
 
 // ── install_layout logic ──────────────────────────────────────────────────────
 
 #[test]
 fn test_install_layout_returns_archive_type() {
-    let mut a = Assert::new();
-    a.dialect(&Dialect::Standard);
-    a.is_true(&format!(
+    make_assert_with_functions().is_true(
         r#"
-{}
+load("provider.star", "install_layout")
 ctx = struct(platform = struct(os = "linux", arch = "x64", target = ""))
 layout = install_layout(ctx, "1.22.0")
 layout["type"] == "archive"
 "#,
-        provider_star_prefix()
-    ));
+    );
 }
 
 #[test]
 fn test_install_layout_strip_prefix_is_go() {
     // Go archives always have a top-level "go/" directory
-    let mut a = Assert::new();
-    a.dialect(&Dialect::Standard);
-    a.is_true(&format!(
+    make_assert_with_functions().is_true(
         r#"
-{}
+load("provider.star", "install_layout")
 ctx = struct(platform = struct(os = "linux", arch = "x64", target = ""))
 layout = install_layout(ctx, "1.22.0")
 layout["strip_prefix"] == "go"
 "#,
-        provider_star_prefix()
-    ));
+    );
 }
 
 // ── environment logic ─────────────────────────────────────────────────────────
 
 #[test]
 fn test_environment_sets_goroot() {
-    let mut a = Assert::new();
-    a.dialect(&Dialect::Standard);
-    a.is_true(&format!(
+    make_assert_with_functions().is_true(
         r#"
-{}
-ctx = struct(platform = struct(os = "linux", arch = "x64", target = ""))
-env = environment(ctx, "1.22.0", "/home/user/.vx/store/go/1.22.0")
-"GOROOT" in env
+load("provider.star", "environment")
+ctx = struct(platform = struct(os = "linux", arch = "x64", target = ""), install_dir = "/home/user/.vx/store/go/1.22.0")
+env = environment(ctx, "1.22.0")
+# Check that env is a list with 2 entries (GOROOT and PATH)
+type(env) == "list" and len(env) == 2
 "#,
-        provider_star_prefix()
-    ));
+    );
 }
 
 #[test]
 fn test_environment_goroot_equals_install_dir() {
-    let mut a = Assert::new();
-    a.dialect(&Dialect::Standard);
-    a.is_true(&format!(
+    make_assert_with_functions().is_true(
         r#"
-{}
-ctx = struct(platform = struct(os = "linux", arch = "x64", target = ""))
+load("provider.star", "environment")
 install_dir = "/home/user/.vx/store/go/1.22.0"
-env = environment(ctx, "1.22.0", install_dir)
-env["GOROOT"] == install_dir
+ctx = struct(platform = struct(os = "linux", arch = "x64", target = ""), install_dir = install_dir)
+env = environment(ctx, "1.22.0")
+# Check that second entry is env_set for GOROOT with correct value (env_set returns op="set", key=...)
+env[1]["op"] == "set" and env[1]["key"] == "GOROOT" and env[1]["value"] == install_dir
 "#,
-        provider_star_prefix()
-    ));
+    );
 }
 
 #[test]
 fn test_environment_path_contains_bin() {
-    let mut a = Assert::new();
-    a.dialect(&Dialect::Standard);
-    a.is_true(&format!(
+    make_assert_with_functions().is_true(
         r#"
-{}
-ctx = struct(platform = struct(os = "linux", arch = "x64", target = ""))
-env = environment(ctx, "1.22.0", "/opt/go")
-"/bin" in env["PATH"]
+load("provider.star", "environment")
+ctx = struct(platform = struct(os = "linux", arch = "x64", target = ""), install_dir = "/opt/go")
+env = environment(ctx, "1.22.0")
+# Check that first entry is prepend for PATH containing /bin
+env[0]["op"] == "prepend" and env[0]["key"] == "PATH" and "/bin" in env[0]["value"]
 "#,
-        provider_star_prefix()
-    ));
+    );
 }
 
 // ── lint check ────────────────────────────────────────────────────────────────
@@ -341,11 +272,15 @@ fn test_provider_star_lint_clean() {
     .expect("provider.star should parse without errors");
 
     let known_globals: HashSet<String> = [
+        // Provider exports
         "fetch_versions",
         "download_url",
         "install_layout",
         "environment",
-        "pre_run",
+        "store_root",
+        "get_execute_path",
+        "post_install",
+        "deps",
         "ctx",
         "name",
         "description",
@@ -355,9 +290,20 @@ fn test_provider_star_lint_clean() {
         "ecosystem",
         "runtimes",
         "permissions",
-        "requires",
-        "fetch_json_versions",
-        "ensure_dependencies",
+        // Stdlib imports
+        "runtime_def",
+        "bundled_runtime_def",
+        "github_permissions",
+        "dep_def",
+        "bin_subdir_layout",
+        "bin_subdir_env",
+        "bin_subdir_execute_path",
+        "fetch_versions_from_api",
+        "env_set",
+        // Private module-level variables
+        "_GO_PLATFORMS",
+        "_go_platform",
+        // Misc
         "True",
         "False",
         "None",

@@ -22,11 +22,7 @@ ecosystem   = "system"
 # Platform constraint: macOS-only
 # ---------------------------------------------------------------------------
 
-def supported_platforms():
-    return [
-        {"os": "macos", "arch": "x64"},
-        {"os": "macos", "arch": "arm64"},
-    ]
+platforms = {"os": ["macos"]}
 
 # ---------------------------------------------------------------------------
 # Runtime definitions

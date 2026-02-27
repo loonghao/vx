@@ -1,25 +1,26 @@
-# provider.star - cmake provider
+# provider.star - CMake provider
 #
-# CMake: Cross-platform build system generator
-# Asset: cmake-{version}-{os}-{arch}.{ext}
-# Bundled runtimes: ctest, cpack
+# CMake - Cross-platform build system generator
+# Downloads from GitHub releases (Kitware/CMake)
 #
 # Uses stdlib templates from @vx//stdlib:provider.star
 
 load("@vx//stdlib:provider.star",
-     "runtime_def", "bundled_runtime_def", "github_permissions")
+     "runtime_def", "github_permissions",
+     "archive_layout", "path_fns", "path_env_fns",
+     "multi_platform_install", "winget_install", "choco_install",
+     "brew_install", "apt_install")
 load("@vx//stdlib:github.star", "make_fetch_versions", "github_asset_url")
-load("@vx//stdlib:env.star",    "env_prepend")
 
 # ---------------------------------------------------------------------------
 # Provider metadata
 # ---------------------------------------------------------------------------
 name        = "cmake"
-description = "Cross-platform build system generator"
+description = "CMake - Cross-platform build system generator"
 homepage    = "https://cmake.org"
 repository  = "https://github.com/Kitware/CMake"
 license     = "BSD-3-Clause"
-ecosystem   = "devtools"
+ecosystem   = "build"
 
 # ---------------------------------------------------------------------------
 # Runtime definitions
@@ -27,10 +28,11 @@ ecosystem   = "devtools"
 
 runtimes = [
     runtime_def("cmake",
-        version_pattern = "cmake version",
+        test_commands = [
+            {"command": "{executable} --version", "name": "version_check",
+             "expected_output": "cmake version"},
+        ],
     ),
-    bundled_runtime_def("ctest", bundled_with = "cmake"),
-    bundled_runtime_def("cpack", bundled_with = "cmake"),
 ]
 
 # ---------------------------------------------------------------------------
@@ -47,21 +49,21 @@ fetch_versions = make_fetch_versions("Kitware", "CMake")
 
 # ---------------------------------------------------------------------------
 # Platform helpers
-# cmake asset: cmake-{version}-{os}-{arch}.{ext}
-# macOS uses "universal" for both x64 and arm64
+# CMake uses: cmake-{version}-{os}-{arch}.{ext}
 # ---------------------------------------------------------------------------
 
 _CMAKE_PLATFORMS = {
-    "windows/x64":  ("windows", "x86_64",   "zip"),
-    "windows/x86":  ("windows", "i386",     "zip"),
-    "macos/x64":    ("macos",   "universal", "tar.gz"),
-    "macos/arm64":  ("macos",   "universal", "tar.gz"),
-    "linux/x64":    ("linux",   "x86_64",   "tar.gz"),
-    "linux/arm64":  ("linux",   "aarch64",  "tar.gz"),
+    "windows/x64":   ("windows", "x86_64", "zip"),
+    "windows/arm64": ("windows", "arm64",  "zip"),
+    "macos/x64":     ("Darwin",  "x86_64", "tar.gz"),
+    "macos/arm64":   ("Darwin",  "arm64",  "tar.gz"),
+    "linux/x64":     ("linux",   "x86_64", "tar.gz"),
+    "linux/arm64":   ("linux",   "aarch64", "tar.gz"),
 }
 
 def _cmake_platform(ctx):
-    return _CMAKE_PLATFORMS.get("{}/{}".format(ctx.platform.os, ctx.platform.arch))
+    key = "{}/{}".format(ctx.platform.os, ctx.platform.arch)
+    return _CMAKE_PLATFORMS.get(key)
 
 # ---------------------------------------------------------------------------
 # download_url
@@ -93,21 +95,40 @@ def install_layout(ctx, version):
     }
 
 # ---------------------------------------------------------------------------
-# Path queries + environment
+# system_install
 # ---------------------------------------------------------------------------
 
-def store_root(ctx):
-    return ctx.vx_home + "/store/cmake"
+system_install = multi_platform_install(
+    windows_strategies = [
+        winget_install("Kitware.CMake", priority = 90),
+        choco_install("cmake",          priority = 80),
+    ],
+    macos_strategies = [
+        brew_install("cmake"),
+    ],
+    linux_strategies = [
+        brew_install("cmake", priority = 70),
+        apt_install("cmake",  priority = 70),
+    ],
+)
+
+# ---------------------------------------------------------------------------
+# Path + env functions
+# Note: cmake uses bin/ subdirectory
+# ---------------------------------------------------------------------------
+
+_paths           = path_fns("cmake")
+store_root       = _paths["store_root"]
 
 def get_execute_path(ctx, _version):
     exe = "cmake.exe" if ctx.platform.os == "windows" else "cmake"
     return ctx.install_dir + "/bin/" + exe
 
+def environment(ctx, _version):
+    return [{"op": "prepend", "name": "PATH", "value": ctx.install_dir + "/bin"}]
+
 def post_install(_ctx, _version):
     return None
-
-def environment(ctx, _version):
-    return [env_prepend("PATH", ctx.install_dir + "/bin")]
 
 def deps(_ctx, _version):
     return []

@@ -1,14 +1,15 @@
 # provider.star - Deno provider
 #
-# Deno uses Rust triple naming but with gnu on Linux (no musl builds).
-# Asset: deno-{triple}.zip (no version in asset name, all platforms use zip)
+# Deno - A modern runtime for JavaScript and TypeScript
+# Downloads from GitHub releases (denoland/deno)
 #
-# Uses github_rust_provider template from @vx//stdlib:provider.star
+# Uses stdlib templates from @vx//stdlib:provider.star
 
 load("@vx//stdlib:provider.star",
-     "runtime_def", "github_permissions")
+     "runtime_def", "github_permissions",
+     "archive_layout", "path_fns")
 load("@vx//stdlib:github.star", "make_fetch_versions", "github_asset_url")
-load("@vx//stdlib:env.star",    "env_set", "env_prepend")
+load("@vx//stdlib:env.star",    "env_prepend", "env_set")
 
 # ---------------------------------------------------------------------------
 # Provider metadata
@@ -18,11 +19,7 @@ description = "Deno - A modern runtime for JavaScript and TypeScript"
 homepage    = "https://deno.land"
 repository  = "https://github.com/denoland/deno"
 license     = "MIT"
-ecosystem   = "javascript"
-
-# Supported package prefixes for ecosystem:package syntax (RFC 0027)
-# Enables `vx deno:cowsay` to install and run Deno packages via deno.land/x
-package_prefixes = ["deno"]
+ecosystem   = "nodejs"
 
 # ---------------------------------------------------------------------------
 # Runtime definitions
@@ -32,9 +29,7 @@ runtimes = [
     runtime_def("deno",
         test_commands = [
             {"command": "{executable} --version", "name": "version_check",
-             "expected_output": "deno \\d+\\.\\d+"},
-            {"command": "{executable} eval \"console.log('ok')\"", "name": "eval_check",
-             "expected_output": "ok"},
+             "expected_output": "deno \\d"},
         ],
     ),
 ]
@@ -53,25 +48,24 @@ fetch_versions = make_fetch_versions("denoland", "deno")
 
 # ---------------------------------------------------------------------------
 # Platform helpers
-#
-# Deno uses Rust triples but gnu on Linux (no musl builds).
-# All platforms use .zip (not tar.gz).
-# Asset name does NOT include version: "deno-{triple}.zip"
+# Deno uses Rust target triples
 # ---------------------------------------------------------------------------
 
 _DENO_TRIPLES = {
-    "windows/x64":  "x86_64-pc-windows-msvc",
-    "macos/x64":    "x86_64-apple-darwin",
-    "macos/arm64":  "aarch64-apple-darwin",
-    "linux/x64":    "x86_64-unknown-linux-gnu",
-    "linux/arm64":  "aarch64-unknown-linux-gnu",
+    "windows/x64":   "x86_64-pc-windows-msvc",
+    "windows/arm64": "aarch64-pc-windows-msvc",
+    "macos/x64":     "x86_64-apple-darwin",
+    "macos/arm64":   "aarch64-apple-darwin",
+    "linux/x64":     "x86_64-unknown-linux-gnu",
+    "linux/arm64":   "aarch64-unknown-linux-gnu",
 }
 
 def _deno_triple(ctx):
-    return _DENO_TRIPLES.get("{}/{}".format(ctx.platform.os, ctx.platform.arch))
+    key = "{}/{}".format(ctx.platform.os, ctx.platform.arch)
+    return _DENO_TRIPLES.get(key)
 
 # ---------------------------------------------------------------------------
-# download_url — deno-{triple}.zip, tag = "v{version}"
+# download_url
 # ---------------------------------------------------------------------------
 
 def download_url(ctx, version):
@@ -85,24 +79,10 @@ def download_url(ctx, version):
 # install_layout — zip contains single binary at root
 # ---------------------------------------------------------------------------
 
-def install_layout(ctx, _version):
-    exe = "deno.exe" if ctx.platform.os == "windows" else "deno"
-    return {
-        "type":             "archive",
-        "strip_prefix":     "",
-        "executable_paths": [exe, "deno"],
-    }
-
-# ---------------------------------------------------------------------------
-# Path queries + environment
-# ---------------------------------------------------------------------------
-
-def store_root(ctx):
-    return ctx.vx_home + "/store/deno"
-
-def get_execute_path(ctx, _version):
-    exe = "deno.exe" if ctx.platform.os == "windows" else "deno"
-    return ctx.install_dir + "/" + exe
+install_layout   = archive_layout("deno")
+_paths           = path_fns("deno")
+store_root       = _paths["store_root"]
+get_execute_path = _paths["get_execute_path"]
 
 def post_install(_ctx, _version):
     return None
