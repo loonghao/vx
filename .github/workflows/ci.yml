@@ -79,7 +79,7 @@ jobs:
       test_packages: ${{ steps.compute-affected.outputs.test_packages }}
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Detect file changes
         uses: dorny/paths-filter@v3
@@ -382,7 +382,7 @@ jobs:
             binary: vx
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
@@ -453,7 +453,7 @@ jobs:
           ./target/${{ matrix.platform.target }}/release/${{ matrix.platform.binary }} --help
 
       - name: Upload vx binary
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: ${{ matrix.platform.artifact }}
           path: target/${{ matrix.platform.target }}/release/${{ matrix.platform.binary }}
@@ -473,10 +473,10 @@ jobs:
       SCCACHE_DIR: ${{ github.workspace }}/.cache/sccache
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Download vx binary
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v5
         with:
           name: vx-linux-x64
           path: ./bin
@@ -583,10 +583,10 @@ jobs:
             binary: vx
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Download vx binary
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v5
         with:
           name: ${{ matrix.platform.artifact }}
           path: ./bin
@@ -725,10 +725,10 @@ jobs:
             binary: vx
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Download vx binary
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v5
         with:
           name: ${{ matrix.platform.artifact }}
           path: ./bin
@@ -849,10 +849,10 @@ jobs:
           - aarch64-unknown-linux-musl
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Download vx binary
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v5
         with:
           name: vx-linux-x64
           path: ./bin
@@ -889,7 +889,7 @@ jobs:
     if: needs.detect-changes.outputs.should_build == 'true'
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Setup vx
         uses: ./
@@ -923,10 +923,10 @@ jobs:
       SCCACHE_DIR: ${{ github.workspace }}/.cache/sccache
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Download vx binary
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v5
         with:
           name: vx-linux-x64
           path: ./bin
@@ -992,10 +992,10 @@ jobs:
       needs.detect-changes.outputs.should_build == 'true'
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Download vx binary
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v5
         with:
           name: vx-linux-x64
           path: ./bin
@@ -1024,7 +1024,7 @@ jobs:
       needs.detect-changes.outputs.should_build == 'false'
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Setup Node.js
         uses: actions/setup-node@v6
@@ -1073,14 +1073,14 @@ jobs:
             local job_name="$1"
             local result="$2"
             if [[ "$result" == "success" ]]; then
-              echo "- ✅ $job_name" >> $GITHUB_STEP_SUMMARY
+              echo "- �?$job_name" >> $GITHUB_STEP_SUMMARY
             elif [[ "$result" == "skipped" ]]; then
               echo "- ⏭️ $job_name (skipped)" >> $GITHUB_STEP_SUMMARY
             elif [[ "$result" == "cancelled" ]]; then
               # Cancelled jobs are acceptable - usually due to concurrency group
               echo "- ⚠️ $job_name (cancelled)" >> $GITHUB_STEP_SUMMARY
             else
-              echo "- ❌ $job_name ($result)" >> $GITHUB_STEP_SUMMARY
+              echo "- �?$job_name ($result)" >> $GITHUB_STEP_SUMMARY
               # Don't fail on skipped or cancelled jobs
               if [[ "$result" != "skipped" && "$result" != "cancelled" && "$result" != "" ]]; then
                 failed=1
@@ -1109,9 +1109,9 @@ jobs:
 
           if [[ $failed -eq 1 ]]; then
             echo "" >> $GITHUB_STEP_SUMMARY
-            echo "❌ **CI failed**" >> $GITHUB_STEP_SUMMARY
+            echo "�?**CI failed**" >> $GITHUB_STEP_SUMMARY
             exit 1
           fi
 
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "✅ **All CI checks passed!**" >> $GITHUB_STEP_SUMMARY
+          echo "�?**All CI checks passed!**" >> $GITHUB_STEP_SUMMARY

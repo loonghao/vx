@@ -60,7 +60,7 @@ jobs:
 
       - name: Download release tag artifact
         if: github.event_name == 'workflow_run'
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v5
         with:
           name: release-tag
           path: .
@@ -84,14 +84,14 @@ jobs:
           # Check if release exists
           release_url="https://api.github.com/repos/loonghao/vx/releases/tags/$version"
           if curl -s -f -H "Accept: application/vnd.github.v3+json" "$release_url" > /dev/null; then
-            echo "✅ GitHub Release found for $version"
+            echo "�?GitHub Release found for $version"
 
             # List available assets
             echo "📦 Available release assets:"
             curl -s -H "Accept: application/vnd.github.v3+json" "$release_url" | \
               jq -r '.assets[] | "  - \(.name) (\(.size) bytes)"'
           else
-            echo "❌ GitHub Release not found for $version"
+            echo "�?GitHub Release not found for $version"
             echo "Please ensure the Release workflow completed successfully"
             exit 1
           fi
@@ -105,7 +105,7 @@ jobs:
     if: needs.check-release.outputs.should-publish == 'true'
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Download Windows binary from release
         run: |
