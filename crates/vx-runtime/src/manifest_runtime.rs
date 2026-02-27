@@ -788,6 +788,106 @@ impl Runtime for ManifestDrivenRuntime {
         self.bundled_with.as_deref().unwrap_or(&self.name)
     }
 
+    /// Check if this runtime version is directly installable
+    ///
+    /// For bundled runtimes (e.g., npm bundled with node), returns `false`
+    /// because they are not installed separately - they come with the parent runtime.
+    fn is_version_installable(&self, _version: &str) -> bool {
+        self.bundled_with.is_none()
+    }
+
+    /// Prepare execution for bundled runtimes
+    ///
+    /// For bundled runtimes, we need to find the executable in the parent runtime's
+    /// installation directory. The resolver should have already set up the correct
+    /// store directory, so we just need to find the executable there.
+    async fn prepare_execution(
+        &self,
+        version: &str,
+        _ctx: &crate::ExecutionContext,
+    ) -> Result<crate::ExecutionPrep> {
+        // For bundled runtimes, find the executable in the parent's directory
+        if let Some(ref parent) = self.bundled_with {
+            debug!(
+                "Preparing bundled runtime {} (bundled with {}) at version {}",
+                self.name, parent, version
+            );
+
+            // Try to find the executable in the parent's store directory
+            let paths = vx_paths::VxPaths::new()
+                .map_err(|e| anyhow::anyhow!("Failed to get VxPaths: {}", e))?;
+            let store_name = parent;
+            let platform = crate::platform::Platform::current();
+            let version_dir = paths.version_store_dir(store_name, version);
+
+            // Try platform-specific directory first
+            let platform_dir = version_dir.join(platform.as_str());
+
+            // Search for the executable
+            let exe_name = &self.executable;
+            let exe_with_ext = if cfg!(windows) {
+                if exe_name.ends_with(".exe")
+                    || exe_name.ends_with(".cmd")
+                    || exe_name.ends_with(".bat")
+                {
+                    exe_name.to_string()
+                } else {
+                    format!("{}.exe", exe_name)
+                }
+            } else {
+                exe_name.clone()
+            };
+
+            let search_dirs = [&platform_dir, &version_dir];
+
+            for dir in &search_dirs {
+                // Check direct and bin/ subdirectory
+                let candidates = [
+                    dir.join(&exe_with_ext),
+                    dir.join(exe_name),
+                    dir.join("bin").join(&exe_with_ext),
+                    dir.join("bin").join(exe_name),
+                ];
+
+                for path in candidates {
+                    if path.exists() {
+                        debug!(
+                            "Found bundled executable {} at {}",
+                            self.name,
+                            path.display()
+                        );
+                        return Ok(crate::ExecutionPrep {
+                            executable_override: Some(path),
+                            proxy_ready: true,
+                            message: Some(format!(
+                                "Using {} from {} installation",
+                                self.name, parent
+                            )),
+                            ..Default::default()
+                        });
+                    }
+                }
+            }
+
+            // Not found - parent runtime may need to be installed
+            warn!(
+                "Could not find {} executable in {} installation. {} may need to be installed.",
+                self.name, parent, parent
+            );
+            return Ok(crate::ExecutionPrep {
+                use_system_path: true,
+                message: Some(format!(
+                    "{} not found in {} installation, trying system PATH",
+                    self.name, parent
+                )),
+                ..Default::default()
+            });
+        }
+
+        // For non-bundled runtimes, use default behavior
+        Ok(crate::ExecutionPrep::default())
+    }
+
     /// Fetch available versions.
     ///
     /// If a Starlark-driven `fetch_versions_fn` was injected via
