@@ -115,6 +115,7 @@ def environment(ctx, _version):
 
 # ---------------------------------------------------------------------------
 # Path queries (RFC 0037)
+# Note: brew uses system paths, not vx store
 # ---------------------------------------------------------------------------
 
 def store_root(ctx):

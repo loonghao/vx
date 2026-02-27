@@ -1,4 +1,4 @@
-# provider.star - git provider
+# provider.star - Git provider
 #
 # Git - Distributed version control system
 # Windows: portable Git from git-for-windows (7z.exe self-extracting)
@@ -8,6 +8,7 @@
 
 load("@vx//stdlib:provider.star",
      "github_permissions",
+     "archive_layout", "path_fns",
      "system_install_strategies", "pkg_strategy")
 load("@vx//stdlib:github.star", "make_fetch_versions", "github_asset_url")
 load("@vx//stdlib:env.star",    "env_prepend")
@@ -90,12 +91,7 @@ def download_url(ctx, version):
 # install_layout
 # ---------------------------------------------------------------------------
 
-def install_layout(_ctx, _version):
-    return {
-        "type":             "archive",
-        "strip_prefix":     "",
-        "executable_paths": ["bin/git.exe", "bin/git"],
-    }
+install_layout = archive_layout("git")
 
 # ---------------------------------------------------------------------------
 # system_install — package manager strategies
@@ -112,16 +108,12 @@ system_install = system_install_strategies([
 ])
 
 # ---------------------------------------------------------------------------
-# Path queries + environment
+# Path + env functions
 # ---------------------------------------------------------------------------
 
-def store_root(ctx):
-    return ctx.vx_home + "/store/git"
-
-def get_execute_path(ctx, _version):
-    if ctx.platform.os == "windows":
-        return ctx.install_dir + "/git.exe"
-    return ctx.install_dir + "/git"
+_paths           = path_fns("git")
+store_root       = _paths["store_root"]
+get_execute_path = _paths["get_execute_path"]
 
 def post_install(_ctx, _version):
     return None

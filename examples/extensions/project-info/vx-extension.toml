@@ -6,8 +6,22 @@ type = "command"
 authors = ["vx contributors"]
 license = "MIT"
 
+# Runtime dependency: vx will auto-install Node.js via the Node provider
+# if it is not already available.
+#
+# Format: "<runtime-name> <version-constraint>"
+#   runtime-name  - must match a vx provider runtime (e.g. node, python, go)
+#   version-constraint - semver range (>=, >, <, <=, ~, ^, *)
+#
+# vx resolves this by calling the matching Provider (vx-provider-node)
+# and ensuring the requested version is installed before executing the script.
+#
+# Third-party provider example (user-added via `vx provider add`):
+#   requires = "my-tool >= 1.0"   # works if ~/.vx/providers/my-tool/provider.star exists
 [runtime]
-requires = "node >= 16"
+requires = "node >= 18"
+# Optional: npm packages to install before execution (future feature).
+# dependencies = ["chalk@5", "glob"]
 
 [entrypoint]
 main = "main.js"

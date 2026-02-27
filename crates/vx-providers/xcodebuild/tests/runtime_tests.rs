@@ -1,8 +1,7 @@
 //! xcodebuild provider tests
 
 use rstest::rstest;
-use vx_provider_xcodebuild::create_provider;
-use vx_runtime::{Provider, Runtime};
+use vx_runtime::Runtime;
 
 #[test]
 fn test_provider_name() {
@@ -45,7 +44,16 @@ fn test_provider_get_runtime() {
 
 #[test]
 fn test_star_metadata() {
-    let meta = vx_provider_xcodebuild::star_metadata();
+    let meta = vx_starlark::StarMetadata::parse(vx_provider_xcodebuild::PROVIDER_STAR);
     assert!(meta.name.is_some());
     assert!(!meta.runtimes.is_empty());
+}
+fn create_provider() -> std::sync::Arc<dyn vx_runtime::Provider> {
+    let meta = vx_starlark::StarMetadata::parse(vx_provider_xcodebuild::PROVIDER_STAR);
+    let name: &'static str = Box::leak(
+        meta.name
+            .unwrap_or_else(|| "unknown".to_string())
+            .into_boxed_str(),
+    );
+    vx_starlark::create_provider(name, vx_provider_xcodebuild::PROVIDER_STAR)
 }

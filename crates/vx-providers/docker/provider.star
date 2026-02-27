@@ -1,26 +1,26 @@
-# provider.star - Docker provider
+# provider.star - Docker CLI provider
 #
-# Linux/macOS: static binary from download.docker.com
-# Windows: Docker Desktop via system package manager
+# Docker CLI only (not Docker Engine)
+# Downloads from docker.com static binaries
 #
 # Uses stdlib templates from @vx//stdlib:provider.star
 
 load("@vx//stdlib:provider.star",
      "runtime_def", "github_permissions",
+     "archive_layout", "path_fns", "path_env_fns",
      "multi_platform_install", "winget_install", "choco_install",
      "brew_install")
-load("@vx//stdlib:github.star", "make_fetch_versions")
 load("@vx//stdlib:env.star",    "env_prepend")
 
 # ---------------------------------------------------------------------------
 # Provider metadata
 # ---------------------------------------------------------------------------
 name        = "docker"
-description = "Docker - Container platform for building, sharing, and running applications"
+description = "Docker CLI - The command-line interface for Docker"
 homepage    = "https://www.docker.com"
 repository  = "https://github.com/docker/cli"
 license     = "Apache-2.0"
-ecosystem   = "container"
+ecosystem   = "devtools"
 
 # ---------------------------------------------------------------------------
 # Runtime definitions
@@ -31,8 +31,6 @@ runtimes = [
         test_commands = [
             {"command": "{executable} --version", "name": "version_check",
              "expected_output": "Docker version"},
-            {"command": "{executable} info", "name": "daemon_check",
-             "expect_success": True},
         ],
     ),
 ]
@@ -41,16 +39,11 @@ runtimes = [
 # Permissions
 # ---------------------------------------------------------------------------
 
-permissions = github_permissions(extra_hosts = ["download.docker.com"])
+permissions = github_permissions()
 
 # ---------------------------------------------------------------------------
-# fetch_versions
-# ---------------------------------------------------------------------------
-
-fetch_versions = make_fetch_versions("docker", "cli")
-
-# ---------------------------------------------------------------------------
-# download_url — Linux/macOS static binary; Windows uses system_install
+# Platform helpers
+# Docker uses static downloads from download.docker.com
 # ---------------------------------------------------------------------------
 
 _DOCKER_ARCH = {"x64": "x86_64", "arm64": "aarch64", "armv7": "armv7"}
@@ -94,21 +87,16 @@ system_install = multi_platform_install(
 )
 
 # ---------------------------------------------------------------------------
-# Path queries + environment
+# Path + env functions (from stdlib)
 # ---------------------------------------------------------------------------
 
-def store_root(ctx):
-    return ctx.vx_home + "/store/docker"
+_paths           = path_fns("docker")
+store_root       = _paths["store_root"]
+get_execute_path = _paths["get_execute_path"]
 
-def get_execute_path(ctx, _version):
-    exe = "docker.exe" if ctx.platform.os == "windows" else "docker"
-    return ctx.install_dir + "/" + exe
-
-def post_install(_ctx, _version):
-    return None
-
-def environment(ctx, _version):
-    return [env_prepend("PATH", ctx.install_dir)]
+_env             = path_env_fns()
+post_install     = _env["post_install"]
+environment      = _env["environment"]
 
 def deps(_ctx, _version):
     return []

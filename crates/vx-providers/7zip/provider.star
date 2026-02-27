@@ -9,6 +9,7 @@
 load("@vx//stdlib:provider.star",
      "runtime_def",
      "system_permissions",
+     "path_fns",
      "multi_platform_install", "winget_install", "choco_install",
      "brew_install", "apt_install")
 load("@vx//stdlib:github.star", "github_releases", "releases_to_versions")
@@ -84,11 +85,15 @@ def download_url(ctx, version):
 
 # ---------------------------------------------------------------------------
 # install_layout
+# Note: Windows uses MSI which is not supported by vx-installer.
+# Users should use system_install on Windows.
 # ---------------------------------------------------------------------------
 
 def install_layout(ctx, _version):
     os = ctx.platform.os
     if os == "windows":
+        # MSI is not supported; this will fail at install time
+        # Users should use system_install instead
         return {
             "type":             "msi",
             "executable_paths": ["7z.exe"],
@@ -121,6 +126,9 @@ system_install = multi_platform_install(
 
 # ---------------------------------------------------------------------------
 # Path queries + environment
+# Note: 7zip has special executable names:
+#   - Windows: 7z.exe
+#   - Unix: 7zz (create symlink 7z -> 7zz on macOS)
 # ---------------------------------------------------------------------------
 
 def store_root(ctx):

@@ -8,9 +8,9 @@
 # Uses runtime_def + github_permissions from @vx//stdlib:provider.star
 
 load("@vx//stdlib:provider.star",
-     "runtime_def", "github_permissions")
+     "runtime_def", "github_permissions",
+     "binary_layout", "path_fns", "path_env_fns")
 load("@vx//stdlib:github.star", "github_releases", "releases_to_versions")
-load("@vx//stdlib:env.star",    "env_prepend")
 
 # ---------------------------------------------------------------------------
 # Provider metadata
@@ -79,29 +79,17 @@ def download_url(ctx, version):
         version, os_str, arch_str, exe)
 
 # ---------------------------------------------------------------------------
-# install_layout — single binary
+# Layout + path/env functions (from stdlib)
 # ---------------------------------------------------------------------------
 
-def install_layout(ctx, _version):
-    exe = "kubectl.exe" if ctx.platform.os == "windows" else "kubectl"
-    return {"type": "binary", "executable_paths": [exe, "kubectl"]}
+install_layout   = binary_layout("kubectl")
+_paths           = path_fns("kubectl")
+store_root       = _paths["store_root"]
+get_execute_path = _paths["get_execute_path"]
 
-# ---------------------------------------------------------------------------
-# Path queries + environment
-# ---------------------------------------------------------------------------
-
-def store_root(ctx):
-    return ctx.vx_home + "/store/kubectl"
-
-def get_execute_path(ctx, _version):
-    exe = "kubectl.exe" if ctx.platform.os == "windows" else "kubectl"
-    return ctx.install_dir + "/" + exe
-
-def post_install(_ctx, _version):
-    return None
-
-def environment(ctx, _version):
-    return [env_prepend("PATH", ctx.install_dir)]
+_env             = path_env_fns()
+post_install     = _env["post_install"]
+environment      = _env["environment"]
 
 def deps(_ctx, _version):
     return []

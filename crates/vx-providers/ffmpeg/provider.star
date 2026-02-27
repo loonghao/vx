@@ -1,27 +1,29 @@
 # provider.star - FFmpeg provider
 #
-# Windows: GyanD pre-built binaries (GitHub)
-# Linux:   johnvansickle.com static builds (needs flatten)
-# macOS:   evermeet.cx static builds
-# Bundled runtimes: ffprobe, ffplay
+# FFmpeg - A complete, cross-platform solution to record, convert and stream
+# audio and video.
+#
+# Windows: GyanD/codexffmpeg releases (essentials build)
+# Linux:   johnvansickle.com static builds
+# macOS:   evermeet.cx binaries
 #
 # Uses stdlib templates from @vx//stdlib:provider.star
 
 load("@vx//stdlib:provider.star",
-     "runtime_def", "bundled_runtime_def",
-     "github_permissions", "post_extract_flatten")
+     "runtime_def", "github_permissions", "post_extract_flatten",
+     "path_fns", "path_env_fns")
 load("@vx//stdlib:github.star", "make_fetch_versions", "github_asset_url")
-load("@vx//stdlib:env.star",    "env_prepend")
 
 # ---------------------------------------------------------------------------
 # Provider metadata
 # ---------------------------------------------------------------------------
 name        = "ffmpeg"
-description = "FFmpeg - Complete solution for recording, converting and streaming audio and video"
+description = "FFmpeg - A complete, cross-platform solution to record, convert and stream audio and video"
 homepage    = "https://ffmpeg.org"
 repository  = "https://github.com/FFmpeg/FFmpeg"
-license     = "LGPL-2.1-or-later"
-ecosystem   = "system"
+license     = "LGPL-2.1"
+ecosystem   = "media"
+aliases     = ["avconv"]
 
 # ---------------------------------------------------------------------------
 # Runtime definitions
@@ -29,30 +31,28 @@ ecosystem   = "system"
 
 runtimes = [
     runtime_def("ffmpeg",
-        version_pattern = "ffmpeg version",
-        version_cmd     = "{executable} -version",
+        aliases = ["avconv"],
+        test_commands = [
+            {"command": "{executable} -version", "name": "version_check",
+             "expected_output": "ffmpeg version"},
+        ],
     ),
-    bundled_runtime_def("ffprobe", bundled_with = "ffmpeg",
-        version_pattern = "ffprobe version",
-        test_commands   = [{"command": "{executable} -version", "name": "version_check",
-                            "expected_output": "ffprobe version"}]),
-    bundled_runtime_def("ffplay", bundled_with = "ffmpeg"),
 ]
 
 # ---------------------------------------------------------------------------
 # Permissions
 # ---------------------------------------------------------------------------
 
-permissions = github_permissions()
+permissions = github_permissions(extra_hosts = ["johnvansickle.com", "evermeet.cx"])
 
 # ---------------------------------------------------------------------------
-# fetch_versions — GyanD pre-built releases
+# fetch_versions — from GyanD/codexffmpeg (Windows) or johnvansickle.com
 # ---------------------------------------------------------------------------
 
 fetch_versions = make_fetch_versions("GyanD", "codexffmpeg")
 
 # ---------------------------------------------------------------------------
-# download_url
+# Platform helpers
 # ---------------------------------------------------------------------------
 
 def download_url(ctx, version):
@@ -96,23 +96,20 @@ def install_layout(ctx, version):
 post_extract = post_extract_flatten()
 
 # ---------------------------------------------------------------------------
-# Path queries + environment
+# Path + env functions
 # ---------------------------------------------------------------------------
 
-def store_root(ctx):
-    return ctx.vx_home + "/store/ffmpeg"
-
-def get_execute_path(ctx, _version):
-    exe = "ffmpeg.exe" if ctx.platform.os == "windows" else "ffmpeg"
-    return ctx.install_dir + "/" + exe
-
-def post_install(_ctx, _version):
-    return None
+_paths           = path_fns("ffmpeg")
+store_root       = _paths["store_root"]
+get_execute_path = _paths["get_execute_path"]
 
 def environment(ctx, _version):
     if ctx.platform.os == "windows":
-        return [env_prepend("PATH", ctx.install_dir + "/bin")]
-    return [env_prepend("PATH", ctx.install_dir)]
+        return [{"op": "prepend", "name": "PATH", "value": ctx.install_dir + "/bin"}]
+    return [{"op": "prepend", "name": "PATH", "value": ctx.install_dir}]
+
+def post_install(_ctx, _version):
+    return None
 
 def deps(_ctx, _version):
     return []

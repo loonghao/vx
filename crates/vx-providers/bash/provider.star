@@ -7,6 +7,7 @@
 
 load("@vx//stdlib:provider.star",
      "runtime_def", "github_permissions",
+     "archive_layout",
      "multi_platform_install", "winget_install", "choco_install",
      "scoop_install", "brew_install", "apt_install", "dnf_install",
      "pacman_install")
@@ -109,6 +110,7 @@ system_install = multi_platform_install(
 
 # ---------------------------------------------------------------------------
 # Path queries + environment
+# Note: bash on Linux/macOS uses system path, not vx store
 # ---------------------------------------------------------------------------
 
 def store_root(ctx):

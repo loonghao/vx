@@ -23,6 +23,7 @@ use crate::provider::{
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
+use tracing::warn;
 use vx_paths::VxPaths;
 
 // ---------------------------------------------------------------------------
@@ -101,6 +102,10 @@ pub struct VersionFilter {
 pub struct ProviderHandle {
     /// Provider name (e.g. "7zip", "node")
     name: String,
+    /// Runtime name within a multi-runtime provider (e.g. "yazi" within "shell-tools").
+    /// When set, path queries use this name for store directory lookup instead of
+    /// the provider name. This allows each runtime to have its own store directory.
+    runtime_name: Option<String>,
     /// Starlark provider instance
     star: Arc<StarlarkProvider>,
     /// VX paths
@@ -114,11 +119,29 @@ impl ProviderHandle {
     pub async fn from_content(name: impl Into<String>, content: &'static str) -> Result<Self> {
         let name = name.into();
         let star = StarlarkProvider::from_content(&name, content).await?;
+        check_vx_version_requirement(star.meta(), &name);
         let paths = VxPaths::new()
             .map_err(|e| Error::EvalError(format!("Failed to initialize VxPaths: {e}")))?;
 
         Ok(Self {
             name,
+            runtime_name: None,
+            star: Arc::new(star),
+            paths: Arc::new(paths),
+        })
+    }
+
+    /// Create a ProviderHandle from a dynamically-loaded string (e.g. user-defined providers).
+    pub async fn from_string(name: impl Into<String>, content: impl Into<String>) -> Result<Self> {
+        let name = name.into();
+        let star = StarlarkProvider::from_content(&name, content).await?;
+        check_vx_version_requirement(star.meta(), &name);
+        let paths = VxPaths::new()
+            .map_err(|e| Error::EvalError(format!("Failed to initialize VxPaths: {e}")))?;
+
+        Ok(Self {
+            name,
+            runtime_name: None,
             star: Arc::new(star),
             paths: Arc::new(paths),
         })
@@ -129,14 +152,30 @@ impl ProviderHandle {
         let path = path.as_ref();
         let star = StarlarkProvider::load(path).await?;
         let name = star.name().to_string();
+        check_vx_version_requirement(star.meta(), &name);
         let paths = VxPaths::new()
             .map_err(|e| Error::EvalError(format!("Failed to initialize VxPaths: {e}")))?;
 
         Ok(Self {
             name,
+            runtime_name: None,
             star: Arc::new(star),
             paths: Arc::new(paths),
         })
+    }
+
+    /// Create a runtime-specific handle from an existing handle.
+    ///
+    /// For multi-runtime providers (e.g. shell-tools with starship/atuin/yazi),
+    /// this creates a handle that uses the runtime name for store directory lookup
+    /// and passes it as `ctx.runtime_name` to Starlark functions.
+    pub fn for_runtime(&self, runtime_name: impl Into<String>) -> Self {
+        Self {
+            name: self.name.clone(),
+            runtime_name: Some(runtime_name.into()),
+            star: self.star.clone(),
+            paths: self.paths.clone(),
+        }
     }
 
     // ── Metadata ──────────────────────────────────────────────────────────
@@ -167,7 +206,10 @@ impl ProviderHandle {
     ///
     /// Corresponds to `vx versions <tool>`
     pub async fn versions(&self, filter: VersionFilter) -> Result<Vec<VersionInfo>> {
-        let versions = self.star.fetch_versions().await?;
+        let versions = self
+            .star
+            .fetch_versions_for_runtime(self.runtime_name.as_deref())
+            .await?;
 
         let mut filtered: Vec<VersionInfo> = versions
             .into_iter()
@@ -246,13 +288,8 @@ impl ProviderHandle {
         }
 
         // No vx-managed versions found — check if the tool is system-installed.
-        // Use the primary executable name from the first runtime definition.
-        let exe_name = self
-            .star
-            .runtimes()
-            .first()
-            .map(|r| r.executable.clone())
-            .unwrap_or_else(|| self.name.clone());
+        // For multi-runtime providers, look up the executable for the specific runtime.
+        let exe_name = self.runtime_executable_name();
 
         if which::which(&exe_name).is_ok() {
             tracing::debug!(
@@ -269,15 +306,29 @@ impl ProviderHandle {
     /// Check if a specific version is installed
     pub fn is_installed(&self, version: &str) -> bool {
         if version == "system" {
-            let exe_name = self
-                .star
-                .runtimes()
-                .first()
-                .map(|r| r.executable.clone())
-                .unwrap_or_else(|| self.name.clone());
+            let exe_name = self.runtime_executable_name();
             return which::which(&exe_name).is_ok();
         }
         self.store_root().join(version).exists()
+    }
+
+    /// Get the executable name for the current runtime.
+    ///
+    /// For multi-runtime providers, returns the executable for the specific runtime
+    /// (matched by runtime_name). Falls back to the first runtime's executable.
+    fn runtime_executable_name(&self) -> String {
+        if let Some(ref rt_name) = self.runtime_name {
+            // Find the matching runtime definition
+            if let Some(rt) = self.star.runtimes().iter().find(|r| &r.name == rt_name) {
+                return rt.executable.clone();
+            }
+        }
+        // Fallback: use the first runtime's executable
+        self.star
+            .runtimes()
+            .first()
+            .map(|r| r.executable.clone())
+            .unwrap_or_else(|| self.name.clone())
     }
 
     /// Uninstall a specific version.
@@ -455,7 +506,10 @@ impl ProviderHandle {
     ///
     /// Corresponds to `vx where <tool>` (no version)
     pub fn store_root(&self) -> PathBuf {
-        self.paths.store_dir.join(&self.name)
+        // For multi-runtime providers, use the runtime name as the store directory.
+        // e.g. "yazi" within "shell-tools" stores at ~/.vx/store/yazi, not ~/.vx/store/shell-tools
+        let store_name = self.runtime_name.as_deref().unwrap_or(&self.name);
+        self.paths.store_dir.join(store_name)
     }
 
     /// Get the store root directory (convention-based: `{vx_home}/store/{provider_name}`).
@@ -492,14 +546,18 @@ impl ProviderHandle {
     ///
     /// Delegates to provider.star::download_url
     pub async fn download_url(&self, version: &str) -> Result<Option<String>> {
-        self.star.download_url(version).await
+        self.star
+            .download_url_for_runtime(version, self.runtime_name.as_deref())
+            .await
     }
 
     /// Get install layout for a specific version
     ///
     /// Delegates to provider.star::install_layout
     pub async fn install_layout(&self, version: &str) -> Result<Option<InstallLayout>> {
-        self.star.install_layout(version).await
+        self.star
+            .install_layout_for_runtime(version, self.runtime_name.as_deref())
+            .await
     }
 
     /// Get post-install operations for a specific version
@@ -625,25 +683,49 @@ impl ProviderHandle {
             return None;
         }
 
-        // Get executable name from provider metadata
-        let exe_name = self
-            .star
-            .runtimes()
-            .first()
-            .map(|r| r.executable.clone())
-            .unwrap_or_else(|| self.name.clone());
+        // Get executable name for the current runtime
+        let exe_name = self.runtime_executable_name();
 
-        // Try common locations
-        let candidates = vec![
-            // Direct in version dir
+        // Build candidate paths to search
+        let mut candidates = vec![
+            // 1. Direct in version dir
             version_dir.join(vx_paths::with_executable_extension(&exe_name)),
             version_dir.join(&exe_name),
-            // In bin/ subdirectory
+        ];
+
+        // 2. In bin/ subdirectory
+        candidates.push(
             version_dir
                 .join("bin")
                 .join(vx_paths::with_executable_extension(&exe_name)),
-            version_dir.join("bin").join(&exe_name),
-        ];
+        );
+        candidates.push(version_dir.join("bin").join(&exe_name));
+
+        // 3. Platform subdirectory (e.g., windows-x64, linux-x64)
+        // Many tools install with a platform-specific subdirectory
+        let platform_dir_name = vx_paths::platform_dir_name();
+        candidates.push(
+            version_dir
+                .join(platform_dir_name)
+                .join(vx_paths::with_executable_extension(&exe_name)),
+        );
+        candidates.push(version_dir.join(platform_dir_name).join(&exe_name));
+
+        // 4. Platform subdirectory with bin/
+        candidates.push(
+            version_dir
+                .join(platform_dir_name)
+                .join("bin")
+                .join(vx_paths::with_executable_extension(&exe_name)),
+        );
+
+        // 5. Also check for common tool-specific subdirectories
+        // e.g., python/python.exe (from python-build-standalone)
+        candidates.push(
+            version_dir
+                .join(&self.name)
+                .join(vx_paths::with_executable_extension(&exe_name)),
+        );
 
         for candidate in &candidates {
             if candidate.exists() {
@@ -705,6 +787,13 @@ impl ProviderHandleRegistry {
         Ok(())
     }
 
+    /// Register a dynamically-loaded provider (e.g. from user-defined provider.star files)
+    pub async fn register_dynamic(&mut self, name: &str, star_content: String) -> Result<()> {
+        let handle = ProviderHandle::from_string(name, star_content).await?;
+        self.insert(handle);
+        Ok(())
+    }
+
     /// Register a provider from a file path (user-defined providers)
     pub async fn register_from_file(&mut self, path: &Path) -> Result<()> {
         let handle = ProviderHandle::load(path).await?;
@@ -715,23 +804,34 @@ impl ProviderHandleRegistry {
     /// Insert a handle and register all its runtime aliases
     fn insert(&mut self, handle: ProviderHandle) {
         let canonical = handle.name().to_string();
+        let runtimes = handle.runtime_metas().to_vec();
 
-        // Register aliases from all runtimes
-        for runtime in handle.runtime_metas() {
-            for alias in &runtime.aliases {
-                self.aliases
-                    .entry(alias.clone())
-                    .or_insert_with(|| canonical.clone());
+        // Register the provider-level handle (keyed by provider name)
+        self.handles
+            .insert(canonical.clone(), Arc::new(handle.clone()));
+
+        // For multi-runtime providers, register a runtime-specific handle for each runtime.
+        // This ensures that path queries (store_root, installed_versions, etc.) use the
+        // correct runtime name instead of the provider name.
+        for runtime in &runtimes {
+            let rt_name = &runtime.name;
+
+            // Create a runtime-specific handle if the runtime name differs from provider name
+            if rt_name != &canonical {
+                let rt_handle = Arc::new(handle.for_runtime(rt_name.clone()));
+                self.handles.insert(rt_name.clone(), rt_handle);
             }
-            // Also register runtime name as alias if different from provider name
-            if runtime.name != canonical {
-                self.aliases
-                    .entry(runtime.name.clone())
-                    .or_insert_with(|| canonical.clone());
+
+            // Register aliases pointing to the runtime-specific handle
+            for alias in &runtime.aliases {
+                if alias != &canonical && alias != rt_name {
+                    // Alias points to the runtime name (which has its own handle)
+                    self.aliases
+                        .entry(alias.clone())
+                        .or_insert_with(|| rt_name.clone());
+                }
             }
         }
-
-        self.handles.insert(canonical, Arc::new(handle));
     }
 
     /// Get a ProviderHandle by name or alias
@@ -810,4 +910,65 @@ pub async fn global_registry() -> tokio::sync::RwLockReadGuard<'static, Provider
 pub async fn global_registry_mut() -> tokio::sync::RwLockWriteGuard<'static, ProviderHandleRegistry>
 {
     GLOBAL_REGISTRY.write().await
+}
+
+// ---------------------------------------------------------------------------
+// Version compatibility check
+// ---------------------------------------------------------------------------
+
+/// Check whether the running vx version satisfies the provider's `vx_version` requirement.
+///
+/// If the provider declares `vx_version = ">=0.7.0"` in its `provider.star`, this function
+/// parses the constraint and compares it against the current vx binary version
+/// (`CARGO_PKG_VERSION`).
+///
+/// # Behavior
+/// - If no constraint is declared (`vx_version_req` is `None`), this is a no-op.
+/// - If the constraint is satisfied, this is a no-op.
+/// - If the constraint is **not** satisfied, a `warn!` log is emitted.
+///   The provider is still loaded (graceful degradation) so that older vx versions
+///   can continue to work with providers that have been updated for newer APIs.
+/// - If the constraint string is malformed, a `warn!` log is emitted and loading continues.
+fn check_vx_version_requirement(meta: &ProviderMeta, provider_name: &str) {
+    let Some(req_str) = &meta.vx_version_req else {
+        return;
+    };
+
+    let current_version_str = env!("CARGO_PKG_VERSION");
+
+    // Parse the current vx version
+    let current = match semver::Version::parse(current_version_str) {
+        Ok(v) => v,
+        Err(e) => {
+            warn!(
+                provider = %provider_name,
+                vx_version = %current_version_str,
+                "Failed to parse current vx version as semver: {e}"
+            );
+            return;
+        }
+    };
+
+    // Parse the requirement string
+    let req = match semver::VersionReq::parse(req_str) {
+        Ok(r) => r,
+        Err(e) => {
+            warn!(
+                provider = %provider_name,
+                vx_version_req = %req_str,
+                "Provider declares an invalid vx_version constraint '{req_str}': {e}"
+            );
+            return;
+        }
+    };
+
+    if !req.matches(&current) {
+        warn!(
+            provider = %provider_name,
+            vx_version = %current_version_str,
+            vx_version_req = %req_str,
+            "Provider '{provider_name}' requires vx {req_str}, but the current version is {current_version_str}. \
+             Some features may not work correctly. Consider upgrading vx."
+        );
+    }
 }

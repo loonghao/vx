@@ -5,7 +5,16 @@
 //! `ProviderHandle` is the **single source of truth** for vx-managed paths.
 //! All path queries delegate to `provider.star` via `ProviderHandle`.
 //!
-//! Lookup priority:
+//! # Version Priority
+//!
+//! When resolving a tool version, the following priority is used:
+//! 1. **Explicit** - Command-line specified (e.g., `vx where node@20`)
+//! 2. **vx.lock** - Locked version from vx.lock (highest priority in config)
+//! 3. **vx.toml** - Project configuration version
+//! 4. **Latest installed** - The latest version installed in vx store
+//! 5. **Fallback** - System PATH (only when no version is specified and no vx installs)
+//!
+//! Lookup priority for finding the executable:
 //! 1. `ProviderHandle` (provider.star convention-based path scanning)
 //! 2. Global packages (`~/.vx/packages/`)
 //! 3. System PATH
@@ -18,6 +27,7 @@ use crate::ui::UI;
 use anyhow::Result;
 use colored::Colorize;
 use vx_paths::{PackageRegistry, VxPaths};
+use vx_resolver::ProjectToolsConfig;
 use vx_runtime::ProviderRegistry;
 use vx_starlark::handle::global_registry;
 
@@ -101,7 +111,34 @@ pub async fn handle(
         (runtime_part.to_string(), runtime_part.to_string())
     };
 
-    // ── Step 1: ProviderHandle (provider.star) ────────────────────────────
+    // ── Step 1: Resolve version using priority ────────────────────────────────
+    // Priority: explicit@version > vx.lock > vx.toml > latest installed
+    let explicit_version = version;
+    let resolved_version = if let Some(v) = explicit_version {
+        // Explicit version takes highest priority
+        UI::debug(&format!("Using explicit version: {}", v));
+        Some(v.to_string())
+    } else if let Some(config) = ProjectToolsConfig::load() {
+        // Check vx.lock and vx.toml (get_version implements vx.lock > vx.toml priority)
+        if let Some(configured) = config.get_version(&canonical_name) {
+            UI::debug(&format!(
+                "Using configured version from vx.lock/vx.toml: {}",
+                configured
+            ));
+            Some(configured.to_string())
+        } else {
+            UI::debug(&format!(
+                "No version configured for '{}' in vx.lock or vx.toml",
+                canonical_name
+            ));
+            None
+        }
+    } else {
+        UI::debug("No project configuration found (vx.toml/vx.lock)");
+        None
+    };
+
+    // ── Step 2: ProviderHandle (provider.star) ────────────────────────────
     let locations: Vec<(std::path::PathBuf, ToolSource)> = {
         let reg = global_registry().await;
         if let Some(handle) = reg.get(&canonical_name) {
@@ -112,8 +149,8 @@ pub async fn handle(
                     .into_iter()
                     .filter_map(|ver| handle.get_execute_path(&ver).map(|p| (p, ToolSource::Vx)))
                     .collect()
-            } else if let Some(ver) = version {
-                // Specific version requested
+            } else if let Some(ref ver) = resolved_version {
+                // Specific version requested (explicit or from config)
                 handle
                     .get_execute_path(ver)
                     .map(|p| vec![(p, ToolSource::Vx)])
@@ -138,7 +175,10 @@ pub async fn handle(
     let locations: Vec<(std::path::PathBuf, ToolSource)> =
         locations.into_iter().filter(|(p, _)| p.exists()).collect();
 
-    // ── Step 2: Global packages / System PATH / system_paths ─────────────
+    // ── Step 3: Determine final path ─────────────────────────────────────
+    // IMPORTANT: When a version is explicitly specified, we should NOT fallback
+    // to system PATH. This ensures `vx where python@3.14` only returns vx-managed
+    // python 3.14, not the system python.
     let (final_path, final_source, all_paths) = if !locations.is_empty() {
         if all {
             let all_paths = locations
@@ -154,8 +194,23 @@ pub async fn handle(
             let (path, source) = &locations[0];
             (Some(path.display().to_string()), *source, vec![])
         }
+    } else if explicit_version.is_some() {
+        // When version is explicitly specified, don't fallback to system PATH
+        UI::debug(&format!(
+            "Version '{}' explicitly specified but not found in vx store, not falling back to system",
+            explicit_version.unwrap()
+        ));
+        (None, ToolSource::NotFound, vec![])
+    } else if let Some(ref rv) = resolved_version {
+        // When version comes from config (vx.lock/vx.toml), don't fallback either
+        UI::debug(&format!(
+            "Version '{}' from config not found in vx store, not falling back to system",
+            rv
+        ));
+        (None, ToolSource::NotFound, vec![])
     } else {
         // Fallback chain: global packages → system PATH → system_paths
+        // Only when no version was specified at all
         resolve_fallback(tool, &exe_name, &canonical_name, all).await?
     };
 
