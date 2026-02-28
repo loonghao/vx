@@ -4,6 +4,7 @@
 //! keyed by the SHA256 hash of the script content. If the script hasn't
 //! changed (same hash), reuse the cached analysis result without re-executing.
 
+use super::types::{ProviderMeta, RuntimeMeta};
 use crate::engine::FrozenProviderInfo;
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -19,6 +20,10 @@ pub(super) struct AnalysisCacheEntry {
     /// NOTE: Used in Phase 2 when full Starlark execution engine is implemented
     #[allow(dead_code)]
     pub frozen_info: FrozenProviderInfo,
+    /// Parsed provider metadata (cached to avoid redundant parsing on cache hit)
+    pub meta: ProviderMeta,
+    /// Parsed runtime metadata (cached to avoid redundant parsing on cache hit)
+    pub runtimes: Vec<RuntimeMeta>,
     /// When this entry was cached
     /// NOTE: Used in Phase 2 for TTL-based cache expiration
     #[allow(dead_code)]

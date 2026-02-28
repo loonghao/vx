@@ -5932,6 +5932,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "vx-star-metadata"
+version = "0.8.3"
+
+[[package]]
 name = "vx-starlark"
 version = "0.8.3"
 dependencies = [
@@ -5955,6 +5959,7 @@ dependencies = [
  "vx-core",
  "vx-paths",
  "vx-runtime",
+ "vx-star-metadata",
  "vx-version-fetcher",
  "which",
  "workspace-hack",

@@ -5,11 +5,7 @@ use vx_runtime::Runtime;
 
 fn create_provider() -> std::sync::Arc<dyn vx_runtime::Provider> {
     let meta = vx_starlark::StarMetadata::parse(vx_provider_actrun::PROVIDER_STAR);
-    let name: &'static str = Box::leak(
-        meta.name
-            .unwrap_or_else(|| "unknown".to_string())
-            .into_boxed_str(),
-    );
+    let name = meta.name.unwrap_or_else(|| "unknown".to_string());
     vx_starlark::create_provider(name, vx_provider_actrun::PROVIDER_STAR)
 }
 

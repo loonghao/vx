@@ -62,15 +62,12 @@ fn create_static_registry() -> ProviderRegistry {
     // build.rs scans vx-providers/*/provider.star and embeds them all here.
     // No manual list or special cases needed — any provider name works.
     for (name, star_content) in ALL_PROVIDER_STARS {
-        registry.register(vx_starlark::create_provider(name, star_content));
+        registry.register(vx_starlark::create_provider(*name, *star_content));
     }
 
     // User / project-level providers added via `vx provider add`
     for (name, star_content) in load_star_overrides() {
-        registry.register(vx_starlark::create_provider(
-            Box::leak(name.into_boxed_str()),
-            Box::leak(star_content.into_boxed_str()),
-        ));
+        registry.register(vx_starlark::create_provider(name, star_content));
     }
 
     registry
