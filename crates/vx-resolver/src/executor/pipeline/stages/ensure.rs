@@ -183,10 +183,29 @@ impl<'a> Stage<ExecutionPlan, ExecutionPlan> for EnsureStage<'a> {
             };
 
             if let Some(result) = install_result {
-                // Use the executable_path directly from InstallResult.
-                // This is the definitive path from the installation/verification,
-                // eliminating the need for error-prone re-resolve via filesystem scanning.
-                let exe = if result.executable_path.is_absolute() {
+                // For bundled runtimes (e.g., npm bundled with node), the InstallResult
+                // returns the PARENT runtime's executable (node), not the bundled tool (npm).
+                // We must NOT set this as the executable, otherwise PrepareStage will
+                // skip proxy resolution and execute `node ci` instead of `npm ci`.
+                //
+                // Check if this runtime is bundled by asking the registry.
+                let is_bundled = self
+                    .registry
+                    .and_then(|r| r.get_runtime(&plan.primary.name))
+                    .map(|rt| !rt.is_version_installable(
+                        &result.version,
+                    ))
+                    .unwrap_or(false);
+
+                let exe = if is_bundled {
+                    // Bundled runtime: leave executable as None so PrepareStage
+                    // uses proxy execution (RFC 0028) to find the correct tool path
+                    debug!(
+                        "[EnsureStage] {} is bundled — skipping executable from InstallResult to allow proxy resolution",
+                        plan.primary.name
+                    );
+                    None
+                } else if result.executable_path.is_absolute() {
                     Some(result.executable_path)
                 } else {
                     None
