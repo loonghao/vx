@@ -273,20 +273,35 @@ impl<'a> ResolveStage<'a> {
     }
 
     /// Build `PlannedRuntime` entries for missing dependencies from install_order
+    ///
+    /// For bundled runtimes (e.g., npm bundled with node), when the primary
+    /// runtime's version comes from vx.lock via ecosystem fallback, we propagate
+    /// that version to the parent dependency. This ensures `vx npm ci` with
+    /// `node = "22.22.0"` in vx.lock installs node 22.22.0 — not "latest".
     fn build_dependency_runtimes(&self, resolution: &ResolutionResult) -> Vec<PlannedRuntime> {
         resolution
             .install_order
             .iter()
             .filter(|name| *name != &resolution.runtime)
             .map(|name| {
+                // Try to resolve the dependency's version from project config (vx.lock > vx.toml)
+                let dep_version = self
+                    .project_config
+                    .and_then(|pc| pc.get_version_with_fallback(name))
+                    .map(|v| v.to_string());
+
                 if resolution.missing_dependencies.contains(name) {
-                    PlannedRuntime {
-                        name: name.clone(),
-                        version: VersionResolution::Unresolved,
-                        status: InstallStatus::NeedsInstall,
-                        executable: None,
-                        install_dir: None,
-                        command_prefix: Vec::new(),
+                    if let Some(ver) = dep_version {
+                        PlannedRuntime::needs_install(name.clone(), ver)
+                    } else {
+                        PlannedRuntime {
+                            name: name.clone(),
+                            version: VersionResolution::Unresolved,
+                            status: InstallStatus::NeedsInstall,
+                            executable: None,
+                            install_dir: None,
+                            command_prefix: Vec::new(),
+                        }
                     }
                 } else {
                     // Dependency is in install_order but not missing — it's available

@@ -171,9 +171,14 @@ impl RuntimeIndexEntry {
                 if let Some(bundled_path) = root.bundled_tool_path(&self.executable) {
                     return Some(bundled_path);
                 }
+                // IMPORTANT: Do NOT fall back to the parent executable here.
+                // If npm is requested but not found in node's directory, returning
+                // the node binary would cause `node ci` instead of `npm ci`.
+                // Return None so the resolver can try system PATH instead.
+                return None;
             }
 
-            // Return the main executable path
+            // Return the main executable path (only for non-bundled runtimes)
             if root.executable_exists() {
                 return Some(root.executable_path.clone());
             }
