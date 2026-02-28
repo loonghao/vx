@@ -92,13 +92,13 @@ def download_url(ctx, version):
 def install_layout(ctx, version):
     platform = _ccache_platform(ctx)
     if not platform:
-        return {"__type": "archive", "strip_prefix": "", "executable_paths": ["ccache"]}
+        return {"type": "archive", "strip_prefix": "", "executable_paths": ["ccache"]}
 
     platform_name, _ext = platform[0], platform[1]
     exe = "ccache.exe" if ctx.platform.os == "windows" else "ccache"
 
     return {
-        "__type":           "archive",
+        "type":             "archive",
         "strip_prefix":     "ccache-{}-{}/".format(version, platform_name),
         "executable_paths": [exe],
     }

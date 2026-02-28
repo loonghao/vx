@@ -168,7 +168,7 @@ fn test_deps_recommends_cmake_and_ninja() {
 {}
 ctx = struct(platform = struct(os = "windows", arch = "x64", target = ""))
 d = deps(ctx, "system")
-dep_names = [dep["name"] for dep in d]
+dep_names = [dep["runtime"] for dep in d]
 "cmake" in dep_names and "ninja" in dep_names
 "#,
         provider_star_prefix()
