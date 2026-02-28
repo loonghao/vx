@@ -5,7 +5,7 @@ use vx_manifest::ProviderManifest;
 use vx_runtime::constraints::{
     ConstraintRule, ConstraintsRegistry, DependencyConstraint, VersionPattern,
 };
-use vx_runtime::{get_default_constraints, init_constraints_from_star};
+use vx_runtime::init_constraints_from_star;
 
 const SAMPLE_MANIFEST: &str = r#"
 [provider]

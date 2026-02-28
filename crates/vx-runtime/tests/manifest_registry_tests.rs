@@ -1,12 +1,8 @@
-//! Tests for ProviderRegistry (formerly ManifestRegistry)
+//! Tests for ProviderManifest struct construction and usage.
 //!
-//! These tests verify the provider registry functionality using the current API.
+//! Registry behavior tests (supports, aliases, multiple providers) are in registry_tests.rs.
 
-use std::sync::Arc;
-
-use async_trait::async_trait;
 use vx_manifest::{Ecosystem, ProviderManifest, ProviderMeta, RuntimeDef};
-use vx_runtime::{Provider, ProviderRegistry, Runtime, RuntimeContext, VersionInfo};
 
 /// Create a minimal RuntimeDef for testing
 fn make_runtime_def(name: &str) -> RuntimeDef {
@@ -59,113 +55,6 @@ fn make_manifest(name: &str, description: &str) -> ProviderManifest {
         },
         runtimes: vec![make_runtime_def(name)],
     }
-}
-
-struct DummyRuntime {
-    name: &'static str,
-    aliases: &'static [&'static str],
-}
-
-#[async_trait]
-impl Runtime for DummyRuntime {
-    fn name(&self) -> &str {
-        self.name
-    }
-
-    fn aliases(&self) -> &[&str] {
-        self.aliases
-    }
-
-    async fn fetch_versions(&self, _ctx: &RuntimeContext) -> anyhow::Result<Vec<VersionInfo>> {
-        Ok(vec![VersionInfo::new("1.0.0")])
-    }
-}
-
-struct DummyProvider {
-    name: &'static str,
-    runtimes: Vec<Arc<dyn Runtime>>,
-}
-
-impl DummyProvider {
-    fn new(name: &'static str, runtimes: Vec<Arc<dyn Runtime>>) -> Self {
-        Self { name, runtimes }
-    }
-}
-
-impl Provider for DummyProvider {
-    fn name(&self) -> &str {
-        self.name
-    }
-
-    fn description(&self) -> &str {
-        "Dummy provider"
-    }
-
-    fn runtimes(&self) -> Vec<Arc<dyn Runtime>> {
-        self.runtimes.clone()
-    }
-}
-
-#[test]
-fn provider_registry_supports_registered_provider() {
-    let mut registry = ProviderRegistry::new();
-    registry.register(Arc::new(DummyProvider::new(
-        "tool",
-        vec![Arc::new(DummyRuntime {
-            name: "tool",
-            aliases: &[],
-        })],
-    )));
-
-    assert!(registry.supports("tool"));
-    assert!(!registry.supports("other-tool"));
-}
-
-#[test]
-fn provider_registry_supports_alias() {
-    let mut registry = ProviderRegistry::new();
-    registry.register(Arc::new(DummyProvider::new(
-        "tool",
-        vec![Arc::new(DummyRuntime {
-            name: "tool",
-            aliases: &["tool-alias", "t"],
-        })],
-    )));
-
-    assert!(registry.supports("tool"));
-    assert!(registry.supports("tool-alias"));
-    assert!(registry.supports("t"));
-}
-
-#[test]
-fn provider_registry_multiple_providers() {
-    let mut registry = ProviderRegistry::new();
-    registry.register(Arc::new(DummyProvider::new(
-        "node",
-        vec![
-            Arc::new(DummyRuntime {
-                name: "node",
-                aliases: &["nodejs"],
-            }),
-            Arc::new(DummyRuntime {
-                name: "npm",
-                aliases: &[],
-            }),
-        ],
-    )));
-    registry.register(Arc::new(DummyProvider::new(
-        "go",
-        vec![Arc::new(DummyRuntime {
-            name: "go",
-            aliases: &["golang"],
-        })],
-    )));
-
-    assert!(registry.supports("node"));
-    assert!(registry.supports("nodejs"));
-    assert!(registry.supports("npm"));
-    assert!(registry.supports("go"));
-    assert!(registry.supports("golang"));
 }
 
 #[test]
