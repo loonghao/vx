@@ -711,6 +711,65 @@ impl ManifestDrivenRuntime {
 
         Ok(None)
     }
+
+    /// Recursively search for an executable in a directory up to a given depth.
+    ///
+    /// This is used by `prepare_execution` to find bundled executables that may
+    /// be nested inside an extra directory level (e.g., when strip_prefix was
+    /// not applied or the archive has a different nesting structure than expected).
+    fn find_executable_recursive(
+        dir: &std::path::Path,
+        exe_name: &str,
+        exe_with_ext: &str,
+        max_depth: usize,
+    ) -> Option<std::path::PathBuf> {
+        Self::find_exe_recurse(dir, exe_name, exe_with_ext, 0, max_depth)
+    }
+
+    fn find_exe_recurse(
+        dir: &std::path::Path,
+        exe_name: &str,
+        exe_with_ext: &str,
+        current_depth: usize,
+        max_depth: usize,
+    ) -> Option<std::path::PathBuf> {
+        if current_depth > max_depth {
+            return None;
+        }
+        let entries = match std::fs::read_dir(dir) {
+            Ok(e) => e,
+            Err(_) => return None,
+        };
+        for entry in entries.filter_map(|e| e.ok()) {
+            let path = entry.path();
+            if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
+                if path.is_file() && (name == exe_name || name == exe_with_ext) {
+                    return Some(path);
+                }
+            }
+            if path.is_dir() {
+                // Skip known non-target directories
+                if let Some(dir_name) = path.file_name().and_then(|n| n.to_str()) {
+                    if matches!(
+                        dir_name,
+                        "node_modules" | "lib" | "share" | "include" | "man" | "doc" | "docs"
+                    ) {
+                        continue;
+                    }
+                }
+                if let Some(found) = Self::find_exe_recurse(
+                    &path,
+                    exe_name,
+                    exe_with_ext,
+                    current_depth + 1,
+                    max_depth,
+                ) {
+                    return Some(found);
+                }
+            }
+        }
+        None
+    }
 }
 
 #[async_trait]
@@ -841,7 +900,7 @@ impl Runtime for ManifestDrivenRuntime {
             let search_dirs = [&platform_dir, &version_dir];
 
             for dir in &search_dirs {
-                // Check direct and bin/ subdirectory
+                // Phase 1: Check common locations (direct, bin/)
                 let candidates = [
                     dir.join(&exe_with_ext),
                     dir.join(exe_name),
@@ -849,7 +908,7 @@ impl Runtime for ManifestDrivenRuntime {
                     dir.join("bin").join(exe_name),
                 ];
 
-                for path in candidates {
+                for path in &candidates {
                     if path.exists() {
                         debug!(
                             "Found bundled executable {} at {}",
@@ -857,7 +916,31 @@ impl Runtime for ManifestDrivenRuntime {
                             path.display()
                         );
                         return Ok(crate::ExecutionPrep {
-                            executable_override: Some(path),
+                            executable_override: Some(path.clone()),
+                            proxy_ready: true,
+                            message: Some(format!(
+                                "Using {} from {} installation",
+                                self.name, parent
+                            )),
+                            ..Default::default()
+                        });
+                    }
+                }
+
+                // Phase 2: Recursive search — handles archives where strip_prefix
+                // was not applied or the layout has an extra nesting level
+                // (e.g., node-v22.22.0-linux-x64/bin/npm inside platform_dir).
+                if dir.exists() {
+                    if let Some(found) =
+                        Self::find_executable_recursive(dir, exe_name, &exe_with_ext, 4)
+                    {
+                        debug!(
+                            "Found bundled executable {} via recursive search at {}",
+                            self.name,
+                            found.display()
+                        );
+                        return Ok(crate::ExecutionPrep {
+                            executable_override: Some(found),
                             proxy_ready: true,
                             message: Some(format!(
                                 "Using {} from {} installation",
