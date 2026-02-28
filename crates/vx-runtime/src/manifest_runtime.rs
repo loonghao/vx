@@ -742,20 +742,21 @@ impl ManifestDrivenRuntime {
         };
         for entry in entries.filter_map(|e| e.ok()) {
             let path = entry.path();
-            if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
-                if path.is_file() && (name == exe_name || name == exe_with_ext) {
-                    return Some(path);
-                }
+            if let Some(name) = path.file_name().and_then(|n| n.to_str())
+                && path.is_file()
+                && (name == exe_name || name == exe_with_ext)
+            {
+                return Some(path);
             }
             if path.is_dir() {
                 // Skip known non-target directories
-                if let Some(dir_name) = path.file_name().and_then(|n| n.to_str()) {
-                    if matches!(
+                if let Some(dir_name) = path.file_name().and_then(|n| n.to_str())
+                    && matches!(
                         dir_name,
                         "node_modules" | "lib" | "share" | "include" | "man" | "doc" | "docs"
-                    ) {
-                        continue;
-                    }
+                    )
+                {
+                    continue;
                 }
                 if let Some(found) = Self::find_exe_recurse(
                     &path,
@@ -877,10 +878,28 @@ impl Runtime for ManifestDrivenRuntime {
                 .map_err(|e| anyhow::anyhow!("Failed to get VxPaths: {}", e))?;
             let store_name = parent;
             let platform = crate::platform::Platform::current();
-            let version_dir = paths.version_store_dir(store_name, version);
 
-            // Try platform-specific directory first
-            let platform_dir = version_dir.join(platform.as_str());
+            // Build a list of candidate parent-runtime versions to search.
+            //
+            // The `version` string passed here is the *bundled tool*'s resolved
+            // version (e.g. "latest" or the npm semver), which often does NOT
+            // correspond to an actual directory under `store/<parent>/`.
+            // For example, when vx.toml says `node = "latest"`, node is stored
+            // as "22.14.0", but `version` here would be "latest".
+            //
+            // Strategy:
+            //   1. Add the exact `version` string first (fast path when they match).
+            //   2. Append all actually-installed versions of the parent runtime so
+            //      we always find the tool even when the version strings differ.
+            let path_manager = vx_paths::PathManager::from_paths(paths.clone());
+            let mut candidate_versions: Vec<String> = vec![version.to_string()];
+            if let Ok(installed) = path_manager.list_store_versions(store_name) {
+                for v in installed {
+                    if v != version {
+                        candidate_versions.push(v);
+                    }
+                }
+            }
 
             // Search for the executable
             let exe_name = &self.executable;
@@ -897,54 +916,61 @@ impl Runtime for ManifestDrivenRuntime {
                 exe_name.clone()
             };
 
-            let search_dirs = [&platform_dir, &version_dir];
+            for parent_version in &candidate_versions {
+                let version_dir = paths.version_store_dir(store_name, parent_version);
+                // Try platform-specific directory first
+                let platform_dir = version_dir.join(platform.as_str());
 
-            for dir in &search_dirs {
-                // Phase 1: Check common locations (direct, bin/)
-                let candidates = [
-                    dir.join(&exe_with_ext),
-                    dir.join(exe_name),
-                    dir.join("bin").join(&exe_with_ext),
-                    dir.join("bin").join(exe_name),
-                ];
+                let search_dirs = [&platform_dir, &version_dir];
 
-                for path in &candidates {
-                    if path.exists() {
-                        debug!(
-                            "Found bundled executable {} at {}",
-                            self.name,
-                            path.display()
-                        );
-                        return Ok(crate::ExecutionPrep {
-                            executable_override: Some(path.clone()),
-                            proxy_ready: true,
-                            message: Some(format!(
-                                "Using {} from {} installation",
-                                self.name, parent
-                            )),
-                            ..Default::default()
-                        });
+                for dir in &search_dirs {
+                    // Phase 1: Check common locations (direct, bin/)
+                    let candidates = [
+                        dir.join(&exe_with_ext),
+                        dir.join(exe_name),
+                        dir.join("bin").join(&exe_with_ext),
+                        dir.join("bin").join(exe_name),
+                    ];
+
+                    for path in &candidates {
+                        if path.exists() {
+                            debug!(
+                                "Found bundled executable {} at {} (parent version: {})",
+                                self.name,
+                                path.display(),
+                                parent_version
+                            );
+                            return Ok(crate::ExecutionPrep {
+                                executable_override: Some(path.clone()),
+                                proxy_ready: true,
+                                message: Some(format!(
+                                    "Using {} from {} {} installation",
+                                    self.name, parent, parent_version
+                                )),
+                                ..Default::default()
+                            });
+                        }
                     }
-                }
 
-                // Phase 2: Recursive search — handles archives where strip_prefix
-                // was not applied or the layout has an extra nesting level
-                // (e.g., node-v22.22.0-linux-x64/bin/npm inside platform_dir).
-                if dir.exists() {
-                    if let Some(found) =
-                        Self::find_executable_recursive(dir, exe_name, &exe_with_ext, 4)
+                    // Phase 2: Recursive search — handles archives where strip_prefix
+                    // was not applied or the layout has an extra nesting level
+                    // (e.g., node-v22.22.0-linux-x64/bin/npm inside platform_dir).
+                    if dir.exists()
+                        && let Some(found) =
+                            Self::find_executable_recursive(dir, exe_name, &exe_with_ext, 4)
                     {
                         debug!(
-                            "Found bundled executable {} via recursive search at {}",
+                            "Found bundled executable {} via recursive search at {} (parent version: {})",
                             self.name,
-                            found.display()
+                            found.display(),
+                            parent_version
                         );
                         return Ok(crate::ExecutionPrep {
                             executable_override: Some(found),
                             proxy_ready: true,
                             message: Some(format!(
-                                "Using {} from {} installation",
-                                self.name, parent
+                                "Using {} from {} {} installation",
+                                self.name, parent, parent_version
                             )),
                             ..Default::default()
                         });

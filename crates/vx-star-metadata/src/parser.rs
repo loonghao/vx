@@ -500,26 +500,25 @@ fn extract_dict_shells(body: &str) -> Vec<(String, String)> {
         if let Some(pos) = body.find(key_pattern) {
             let after_key = &body[pos + key_pattern.len()..];
             let after_colon = after_key.trim_start().trim_start_matches(':').trim_start();
-            if after_colon.starts_with('[') {
-                if let Some(list_body) = find_matching_bracket(after_colon, 0, '[', ']') {
-                    let mut remaining = list_body;
-                    while let Some(dict_start) = remaining.find('{') {
-                        if let Some(dict_body) =
-                            find_matching_bracket(remaining, dict_start, '{', '}')
-                        {
-                            let name = extract_dict_string_value(dict_body, "name");
-                            let path = extract_dict_string_value(dict_body, "path");
-                            if let (Some(name), Some(path)) = (name, path) {
-                                shells.push((name, path));
-                            }
-                            let end_pos = dict_start + dict_body.len() + 2;
-                            if end_pos >= remaining.len() {
-                                break;
-                            }
-                            remaining = &remaining[end_pos..];
-                        } else {
+            if after_colon.starts_with('[')
+                && let Some(list_body) = find_matching_bracket(after_colon, 0, '[', ']')
+            {
+                let mut remaining = list_body;
+                while let Some(dict_start) = remaining.find('{') {
+                    if let Some(dict_body) = find_matching_bracket(remaining, dict_start, '{', '}')
+                    {
+                        let name = extract_dict_string_value(dict_body, "name");
+                        let path = extract_dict_string_value(dict_body, "path");
+                        if let (Some(name), Some(path)) = (name, path) {
+                            shells.push((name, path));
+                        }
+                        let end_pos = dict_start + dict_body.len() + 2;
+                        if end_pos >= remaining.len() {
                             break;
                         }
+                        remaining = &remaining[end_pos..];
+                    } else {
+                        break;
                     }
                 }
             }

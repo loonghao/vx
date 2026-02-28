@@ -60,6 +60,14 @@ def make_fetch_versions(_owner, _repo):
 def github_asset_url(owner, repo, tag, asset):
     """Mock: returns a GitHub asset URL."""
     return "https://github.com/" + owner + "/" + repo + "/releases/download/" + tag + "/" + asset
+
+def github_releases(ctx, owner = None, repo = None, include_prereleases = False):
+    """Mock: returns an empty list of releases."""
+    return []
+
+def releases_to_versions(releases):
+    """Mock: converts releases list to version strings."""
+    return []
 "#;
 
 /// Standard mock for @vx//stdlib:install.star
@@ -708,6 +716,12 @@ def make_fetch_versions(_owner, _repo):
 
 def github_asset_url(owner, repo, tag, asset):
     return "https://github.com/" + owner + "/" + repo + "/releases/download/" + tag + "/" + asset
+
+def github_releases(ctx, owner = None, repo = None, include_prereleases = False):
+    return []
+
+def releases_to_versions(releases):
+    return []
 
 {}
 "#,

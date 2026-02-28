@@ -529,7 +529,7 @@ impl<'a> InstallationManager<'a> {
     pub async fn ensure_proxy_runtime_installed(
         &self,
         runtime_name: &str,
-        _version: &str,
+        version: &str,
     ) -> Result<()> {
         // Get runtime spec to find dependencies
         if let Some(spec) = self.resolver.get_spec(runtime_name) {
@@ -541,10 +541,22 @@ impl<'a> InstallationManager<'a> {
                         dep.runtime_name, runtime_name, dep.reason
                     );
 
-                    // Use recommended version if available, otherwise "latest"
-                    let dep_version = dep.recommended_version.as_deref().unwrap_or("latest");
+                    // For bundled runtimes (provided_by is set), the parent and child
+                    // share the same version space (e.g., npm@22.22.0 → node@22.22.0).
+                    // We MUST install the parent at the same version so that
+                    // prepare_execution() can find the bundled executable in the
+                    // correct version directory.
+                    let dep_version = if dep.provided_by.is_some() {
+                        version.to_string()
+                    } else {
+                        dep.recommended_version
+                            .as_deref()
+                            .unwrap_or("latest")
+                            .to_string()
+                    };
                     // Use Box::pin for recursive async call
-                    Box::pin(self.ensure_version_installed(&dep.runtime_name, dep_version)).await?;
+                    Box::pin(self.ensure_version_installed(&dep.runtime_name, &dep_version))
+                        .await?;
                 }
             }
         }
