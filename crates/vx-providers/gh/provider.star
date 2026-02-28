@@ -97,16 +97,16 @@ def install_layout(ctx, version):
     os = ctx.platform.os
     if os == "windows":
         return {
-            "__type":           "archive",
+            "type":             "archive",
             "strip_prefix":     "",
             "executable_paths": ["bin/gh.exe", "gh.exe"],
         }
     platform = _gh_platform(ctx)
     if not platform:
-        return {"__type": "archive", "strip_prefix": "", "executable_paths": ["bin/gh"]}
+        return {"type": "archive", "strip_prefix": "", "executable_paths": ["bin/gh"]}
     os_name, arch_name, _ext = platform[0], platform[1], platform[2]
     return {
-        "__type":           "archive",
+        "type":             "archive",
         "strip_prefix":     "gh_{}_{}_{}/".format(version, os_name, arch_name),
         "executable_paths": ["bin/gh"],
     }

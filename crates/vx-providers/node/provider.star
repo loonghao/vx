@@ -108,7 +108,7 @@ def download_url(ctx, version):
 def install_layout(ctx, version):
     platform = _node_platform(ctx)
     if not platform:
-        return {"__type": "archive", "strip_prefix": "", "executable_paths": ["node"]}
+        return {"type": "archive", "strip_prefix": "", "executable_paths": ["node"]}
     os_str, arch_str = platform[0], platform[1]
     strip = "node-v{}-{}-{}".format(version, os_str, arch_str)
     if ctx.platform.os == "windows":
@@ -116,7 +116,7 @@ def install_layout(ctx, version):
     else:
         exe_paths = ["bin/node", "bin/npm", "bin/npx"]
     return {
-        "__type":           "archive",
+        "type":             "archive",
         "strip_prefix":     strip,
         "executable_paths": exe_paths,
     }
