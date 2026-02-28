@@ -29,6 +29,7 @@ vx-paths = { path = "../vx-paths" }
 zip = { workspace = true }
 tar = { workspace = true }
 flate2 = { workspace = true }
+xz2 = { workspace = true }
 zstd = { workspace = true }
 sevenz-rust = { version = "0.6", optional = true }
 

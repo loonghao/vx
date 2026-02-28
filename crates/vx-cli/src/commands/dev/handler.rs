@@ -436,6 +436,10 @@ fn execute_command_in_env(cmd: &[String], env_vars: &HashMap<String, String>) ->
 /// Build environment variables for script execution
 ///
 /// Uses vx-env's ToolEnvironment for consistent environment building.
+///
+/// This function works in both async Tokio contexts and synchronous contexts
+/// (e.g. unit tests). When called outside a Tokio runtime it creates a
+/// temporary single-threaded runtime for the async provider lookups.
 pub fn build_script_environment(config: &ConfigView) -> Result<HashMap<String, String>> {
     // Merge env from vx.toml with setenv from settings
     let mut env_vars = config.env.clone();
@@ -444,33 +448,50 @@ pub fn build_script_environment(config: &ConfigView) -> Result<HashMap<String, S
     // Get registry to query runtime bin directories
     let (registry, context) = get_registry()?;
 
+    // Prepare a local single-threaded Tokio runtime when there is no active
+    // runtime (e.g. called from synchronous test code).  When an active
+    // runtime IS present we use block_in_place / Handle::current() instead.
+    let local_rt: Option<tokio::runtime::Runtime> =
+        tokio::runtime::Handle::try_current().err().map(|_| {
+            tokio::runtime::Builder::new_current_thread()
+                .enable_all()
+                .build()
+                .expect("Failed to build local Tokio runtime for build_script_environment")
+        });
+
     // Create ToolSpecs with proper bin directories from runtime providers
     let mut tool_specs = Vec::new();
     for (tool_name, version) in &config.tools {
-        let (bin_dirs, resolved_bin_dir) =
-            if let Some(provider) = registry.providers().iter().find(|p| p.supports(tool_name)) {
-                if let Some(runtime) = provider.get_runtime(tool_name) {
-                    // Use tokio::task::block_in_place for sync context
-                    let exe_path = tokio::task::block_in_place(|| {
+        let (bin_dirs, resolved_bin_dir) = if let Some(provider) =
+            registry.providers().iter().find(|p| p.supports(tool_name))
+        {
+            if let Some(runtime) = provider.get_runtime(tool_name) {
+                let exe_path = if let Some(ref rt) = local_rt {
+                    // No active Tokio runtime — use our temporary one.
+                    rt.block_on(runtime.get_executable_path_for_version(version, &context))
+                } else {
+                    // Inside an active Tokio runtime — block the thread.
+                    tokio::task::block_in_place(|| {
                         tokio::runtime::Handle::current()
                             .block_on(runtime.get_executable_path_for_version(version, &context))
-                    });
-                    if let Ok(Some(exe_path)) = exe_path {
-                        let dirs = runtime
-                            .possible_bin_dirs()
-                            .into_iter()
-                            .map(|s| s.to_string())
-                            .collect();
-                        (dirs, exe_path.parent().map(|p| p.to_path_buf()))
-                    } else {
-                        (vec!["bin".to_string()], None)
-                    }
+                    })
+                };
+                if let Ok(Some(exe_path)) = exe_path {
+                    let dirs = runtime
+                        .possible_bin_dirs()
+                        .into_iter()
+                        .map(|s| s.to_string())
+                        .collect();
+                    (dirs, exe_path.parent().map(|p| p.to_path_buf()))
                 } else {
                     (vec!["bin".to_string()], None)
                 }
             } else {
                 (vec!["bin".to_string()], None)
-            };
+            }
+        } else {
+            (vec!["bin".to_string()], None)
+        };
 
         let mut spec = ToolSpec::with_bin_dirs(tool_name.clone(), version.clone(), bin_dirs);
         if let Some(bin_dir) = resolved_bin_dir {
