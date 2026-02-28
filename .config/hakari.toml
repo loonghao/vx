@@ -27,7 +27,9 @@ platforms = [
 [traversal-excludes]
 # Exclude dev-only crates from the workspace-hack
 # (they don't affect production builds)
-# workspace-members = []
+# vx-star-metadata MUST remain zero-dependency (pure std) so it can be used
+# by low-level crates without pulling in heavy transitive deps.
+workspace-members = ["vx-star-metadata"]
 
 [final-excludes]
 # Exclude specific third-party crates from unification if they cause issues
