@@ -227,9 +227,48 @@ impl<'a> Stage<ExecutionPlan, PreparedExecution> for PrepareStage<'a> {
 
         // Step 2: Resolve executable — try direct path first, then proxy execution (RFC 0028)
         let (executable, command_prefix) = if let Some(exe) = plan.primary.executable.clone() {
-            // Executable already resolved (normal runtimes)
-            // Use command_prefix from the plan (e.g., ["x"] for bunx -> bun x)
-            (exe, plan.primary.command_prefix.clone())
+            // Safety net: verify the executable filename matches the requested runtime.
+            // This prevents silent misresolution where a bundled tool (npm) gets the
+            // parent runtime's binary (node), which would execute `node ci` instead of `npm ci`.
+            let exe_stem = exe
+                .file_stem()
+                .and_then(|s| s.to_str())
+                .unwrap_or("");
+            let runtime_name = &plan.primary.name;
+
+            if exe_stem.eq_ignore_ascii_case(runtime_name) {
+                // Normal case: executable matches runtime name
+                (exe, plan.primary.command_prefix.clone())
+            } else if !plan.primary.command_prefix.is_empty() {
+                // Command prefix runtimes (e.g., bunx -> bun x) are expected to have
+                // a different executable name, so this is fine.
+                debug!(
+                    "[PrepareStage] Executable {} has prefix {:?} for runtime {}",
+                    exe.display(),
+                    plan.primary.command_prefix,
+                    runtime_name
+                );
+                (exe, plan.primary.command_prefix.clone())
+            } else {
+                // Mismatch without command_prefix — likely a bundled runtime bug.
+                // Fall through to proxy execution instead of using the wrong binary.
+                tracing::warn!(
+                    "[PrepareStage] Executable mismatch: {} (stem={}) != runtime {}, falling back to proxy",
+                    exe.display(),
+                    exe_stem,
+                    runtime_name
+                );
+                if let Some(result) = self.try_proxy_execution(&plan, &runtime_env).await? {
+                    result
+                } else {
+                    // Proxy also failed — use the original executable as last resort
+                    tracing::warn!(
+                        "[PrepareStage] Proxy resolution also failed for {}, using original executable",
+                        runtime_name
+                    );
+                    (exe, plan.primary.command_prefix.clone())
+                }
+            }
         } else {
             // No executable path — this is expected for bundled runtimes (e.g., msbuild).
             // Try proxy execution: the runtime's prepare_execution() can provide
