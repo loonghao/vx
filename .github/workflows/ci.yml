@@ -1005,8 +1005,8 @@ jobs:
           chmod +x ./bin/vx
           echo "${{ github.workspace }}/bin" >> $GITHUB_PATH
 
-      - name: Install Node.js via vx
-        run: vx install node
+      # vx automatically installs Node.js (from vx.lock) when running npm commands
+      # No need for explicit "vx install node" step
 
       - name: Install dependencies
         run: vx just docs-install
