@@ -51,23 +51,12 @@ names = [r["name"] for r in runtimes]
 }
 
 #[test]
-fn test_runtimes_has_docker_compose() {
-    make_assert().is_true(
-        r#"
-load("provider.star", "runtimes")
-names = [r["name"] for r in runtimes]
-"docker-compose" in names
-"#,
-    );
-}
-
-#[test]
-fn test_docker_runtime_has_system_paths() {
+fn test_docker_runtime_has_test_commands() {
     make_assert().is_true(
         r#"
 load("provider.star", "runtimes")
 rt = [r for r in runtimes if r["name"] == "docker"][0]
-len(rt.get("system_paths", [])) > 0
+len(rt.get("test_commands", [])) > 0
 "#,
     );
 }
@@ -76,13 +65,13 @@ len(rt.get("system_paths", [])) > 0
 
 #[test]
 fn test_download_url_returns_none() {
-    // docker is installed via system package manager, not direct download
+    // Windows has no direct download URL for docker
     let mut a = Assert::new();
     a.dialect(&Dialect::Standard);
     a.is_true(&format!(
         r#"
 {}
-ctx = struct(platform = struct(os = "linux", arch = "x64", target = ""))
+ctx = struct(platform = struct(os = "windows", arch = "x64", target = ""), install_dir = "/tmp", vx_home = "/home/user/.vx")
 url = download_url(ctx, "25.0.0")
 url == None
 "#,
@@ -105,15 +94,15 @@ system_install != None
 // ── environment logic ─────────────────────────────────────────────────────────
 
 #[test]
-fn test_environment_returns_empty_for_system_install() {
+fn test_environment_prepends_path() {
     let mut a = Assert::new();
     a.dialect(&Dialect::Standard);
     a.is_true(&format!(
         r#"
 {}
-ctx = struct(platform = struct(os = "linux", arch = "x64", target = ""), install_dir = "/usr", vx_home = "/home/user/.vx")
+ctx = struct(platform = struct(os = "linux", arch = "x64", target = ""), install_dir = "/opt/docker", vx_home = "/home/user/.vx")
 env = environment(ctx, "25.0.0")
-len(env) == 0
+len(env) > 0
 "#,
         provider_star_prefix()
     ));
