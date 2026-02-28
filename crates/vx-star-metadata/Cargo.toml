@@ -1,0 +1,11 @@
+[package]
+name = "vx-star-metadata"
+version.workspace = true
+edition.workspace = true
+description = "Zero-dependency static metadata parser for provider.star files"
+license.workspace = true
+repository.workspace = true
+
+# No dependencies — this crate is pure std so it can be used by low-level
+# crates (e.g. vx-manifest) without pulling in heavy transitive deps.
+

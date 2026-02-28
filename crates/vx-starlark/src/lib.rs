@@ -56,6 +56,8 @@ pub use provider::{
 };
 pub use sandbox::SandboxConfig;
 
+use std::sync::Arc;
+
 /// Starlark provider file extension
 pub const STARLARK_EXTENSION: &str = "star";
 
@@ -88,23 +90,27 @@ pub const PROVIDER_FILENAME: &str = "provider.star";
 ///     .with_fetch_versions(make_fetch_versions_fn("go", crate::PROVIDER_STAR));
 /// ```
 pub fn make_fetch_versions_fn(
-    name: &'static str,
-    content: &'static str,
+    name: impl Into<String>,
+    content: impl Into<String>,
 ) -> impl Fn() -> std::pin::Pin<
     Box<dyn std::future::Future<Output = anyhow::Result<Vec<vx_runtime::VersionInfo>>> + Send>,
 > + Send
 + Sync
 + 'static {
+    let name: Arc<str> = Arc::from(name.into());
+    let content: Arc<str> = Arc::from(content.into());
     move || {
+        let name = Arc::clone(&name);
+        let content = Arc::clone(&content);
         Box::pin(async move {
-            let provider = StarlarkProvider::from_content(name, content)
+            let provider = StarlarkProvider::from_content(&*name, &*content)
                 .await
-                .map_err(|e| anyhow::anyhow!("Failed to load {name} provider.star: {e}"))?;
+                .map_err(|e| anyhow::anyhow!("Failed to load {} provider.star: {e}", name))?;
 
             let versions = provider
                 .fetch_versions()
                 .await
-                .map_err(|e| anyhow::anyhow!("{name} fetch_versions failed: {e}"))?;
+                .map_err(|e| anyhow::anyhow!("{} fetch_versions failed: {e}", name))?;
 
             Ok(versions
                 .into_iter()
@@ -136,8 +142,8 @@ pub fn make_fetch_versions_fn(
 /// * `name` – Provider name used as a virtual script label.
 /// * `content` – The raw Starlark source (`PROVIDER_STAR`).
 pub fn make_download_url_fn(
-    name: &'static str,
-    content: &'static str,
+    name: impl Into<String>,
+    content: impl Into<String>,
 ) -> impl Fn(
     String,
 ) -> std::pin::Pin<
@@ -145,16 +151,20 @@ pub fn make_download_url_fn(
 > + Send
 + Sync
 + 'static {
+    let name: Arc<str> = Arc::from(name.into());
+    let content: Arc<str> = Arc::from(content.into());
     move |version: String| {
+        let name = Arc::clone(&name);
+        let content = Arc::clone(&content);
         Box::pin(async move {
-            let provider = StarlarkProvider::from_content(name, content)
+            let provider = StarlarkProvider::from_content(&*name, &*content)
                 .await
-                .map_err(|e| anyhow::anyhow!("Failed to load {name} provider.star: {e}"))?;
+                .map_err(|e| anyhow::anyhow!("Failed to load {} provider.star: {e}", name))?;
 
             provider
                 .download_url(&version)
                 .await
-                .map_err(|e| anyhow::anyhow!("{name} download_url failed: {e}"))
+                .map_err(|e| anyhow::anyhow!("{} download_url failed: {e}", name))
         })
     }
 }
@@ -270,8 +280,8 @@ fn install_layout_to_flat_json(layout: crate::provider::types::InstallLayout) ->
 /// * `name` – Provider name used as a virtual script label.
 /// * `content` – The raw Starlark source (`PROVIDER_STAR`).
 pub fn make_install_layout_fn(
-    name: &'static str,
-    content: &'static str,
+    name: impl Into<String>,
+    content: impl Into<String>,
 ) -> impl Fn(
     String,
 ) -> std::pin::Pin<
@@ -279,17 +289,21 @@ pub fn make_install_layout_fn(
 > + Send
 + Sync
 + 'static {
+    let name: Arc<str> = Arc::from(name.into());
+    let content: Arc<str> = Arc::from(content.into());
     move |version: String| {
+        let name = Arc::clone(&name);
+        let content = Arc::clone(&content);
         Box::pin(async move {
-            let provider = StarlarkProvider::from_content(name, content)
+            let provider = StarlarkProvider::from_content(&*name, &*content)
                 .await
-                .map_err(|e| anyhow::anyhow!("Failed to load {name} provider.star: {e}"))?;
+                .map_err(|e| anyhow::anyhow!("Failed to load {} provider.star: {e}", name))?;
 
             // First try the typed InstallLayout path (handles msi_install, archive_install, etc.)
             let layout = provider
                 .install_layout(&version)
                 .await
-                .map_err(|e| anyhow::anyhow!("{name} install_layout failed: {e}"))?;
+                .map_err(|e| anyhow::anyhow!("{} install_layout failed: {e}", name))?;
 
             if let Some(l) = layout {
                 // Convert to flat JSON so manifest_runtime can read strip_prefix /
@@ -303,7 +317,7 @@ pub fn make_install_layout_fn(
             let raw = provider
                 .install_layout_raw(&version)
                 .await
-                .map_err(|e| anyhow::anyhow!("{name} install_layout (raw) failed: {e}"))?;
+                .map_err(|e| anyhow::anyhow!("{} install_layout (raw) failed: {e}", name))?;
 
             Ok(raw)
         })
@@ -323,8 +337,8 @@ pub fn make_install_layout_fn(
 /// with the correct `ctx.runtime_name` so that `fetch_versions(ctx)` can
 /// dispatch to the right GitHub repo / version source.
 fn make_fetch_versions_fn_owned(
-    provider_name: &'static str,
-    content: &'static str,
+    provider_name: Arc<str>,
+    content: Arc<str>,
     runtime_name: String,
 ) -> impl Fn() -> std::pin::Pin<
     Box<dyn std::future::Future<Output = anyhow::Result<Vec<vx_runtime::VersionInfo>>> + Send>,
@@ -332,18 +346,20 @@ fn make_fetch_versions_fn_owned(
 + Sync
 + 'static {
     move || {
+        let provider_name = Arc::clone(&provider_name);
+        let content = Arc::clone(&content);
         let rt_name = runtime_name.clone();
         Box::pin(async move {
-            let provider = StarlarkProvider::from_content(provider_name, content)
+            let provider = StarlarkProvider::from_content(&*provider_name, &*content)
                 .await
                 .map_err(|e| {
-                    anyhow::anyhow!("Failed to load {provider_name} provider.star: {e}")
+                    anyhow::anyhow!("Failed to load {} provider.star: {e}", provider_name)
                 })?;
 
             let versions = provider
                 .fetch_versions_for_runtime(Some(&rt_name))
                 .await
-                .map_err(|e| anyhow::anyhow!("{provider_name} fetch_versions failed: {e}"))?;
+                .map_err(|e| anyhow::anyhow!("{} fetch_versions failed: {e}", provider_name))?;
 
             Ok(versions
                 .into_iter()
@@ -367,8 +383,8 @@ fn make_fetch_versions_fn_owned(
 
 /// Like `make_download_url_fn` but accepts an owned runtime name.
 fn make_download_url_fn_owned(
-    provider_name: &'static str,
-    content: &'static str,
+    provider_name: Arc<str>,
+    content: Arc<str>,
     runtime_name: String,
 ) -> impl Fn(
     String,
@@ -378,26 +394,28 @@ fn make_download_url_fn_owned(
 + Sync
 + 'static {
     move |version: String| {
+        let provider_name = Arc::clone(&provider_name);
+        let content = Arc::clone(&content);
         let rt_name = runtime_name.clone();
         Box::pin(async move {
-            let provider = StarlarkProvider::from_content(provider_name, content)
+            let provider = StarlarkProvider::from_content(&*provider_name, &*content)
                 .await
                 .map_err(|e| {
-                    anyhow::anyhow!("Failed to load {provider_name} provider.star: {e}")
+                    anyhow::anyhow!("Failed to load {} provider.star: {e}", provider_name)
                 })?;
 
             provider
                 .download_url_for_runtime(&version, Some(&rt_name))
                 .await
-                .map_err(|e| anyhow::anyhow!("{provider_name} download_url failed: {e}"))
+                .map_err(|e| anyhow::anyhow!("{} download_url failed: {e}", provider_name))
         })
     }
 }
 
 /// Like `make_install_layout_fn` but accepts an owned runtime name.
 fn make_install_layout_fn_owned(
-    provider_name: &'static str,
-    content: &'static str,
+    provider_name: Arc<str>,
+    content: Arc<str>,
     runtime_name: String,
 ) -> impl Fn(
     String,
@@ -407,18 +425,20 @@ fn make_install_layout_fn_owned(
 + Sync
 + 'static {
     move |version: String| {
+        let provider_name = Arc::clone(&provider_name);
+        let content = Arc::clone(&content);
         let rt_name = runtime_name.clone();
         Box::pin(async move {
-            let provider = StarlarkProvider::from_content(provider_name, content)
+            let provider = StarlarkProvider::from_content(&*provider_name, &*content)
                 .await
                 .map_err(|e| {
-                    anyhow::anyhow!("Failed to load {provider_name} provider.star: {e}")
+                    anyhow::anyhow!("Failed to load {} provider.star: {e}", provider_name)
                 })?;
 
             let layout = provider
                 .install_layout_for_runtime(&version, Some(&rt_name))
                 .await
-                .map_err(|e| anyhow::anyhow!("{provider_name} install_layout failed: {e}"))?;
+                .map_err(|e| anyhow::anyhow!("{} install_layout failed: {e}", provider_name))?;
 
             if let Some(l) = layout {
                 return Ok(Some(install_layout_to_flat_json(l)));
@@ -427,7 +447,9 @@ fn make_install_layout_fn_owned(
             let raw = provider
                 .install_layout_raw_for_runtime(&version, Some(&rt_name))
                 .await
-                .map_err(|e| anyhow::anyhow!("{provider_name} install_layout (raw) failed: {e}"))?;
+                .map_err(|e| {
+                    anyhow::anyhow!("{} install_layout (raw) failed: {e}", provider_name)
+                })?;
 
             Ok(raw)
         })
@@ -452,18 +474,18 @@ fn make_install_layout_fn_owned(
 /// registry.register(create_provider("cmake", vx_provider_cmake::PROVIDER_STAR));
 /// ```
 pub fn create_provider(
-    provider_name: &'static str,
-    content: &'static str,
+    provider_name: impl Into<String>,
+    content: impl Into<String>,
 ) -> std::sync::Arc<dyn vx_runtime::Provider> {
     struct StarOnlyProvider {
-        name: &'static str,
+        name: String,
         description: String,
         runtimes: Vec<std::sync::Arc<dyn vx_runtime::Runtime>>,
     }
 
     impl vx_runtime::Provider for StarOnlyProvider {
         fn name(&self) -> &str {
-            self.name
+            &self.name
         }
 
         fn description(&self) -> &str {
@@ -475,13 +497,15 @@ pub fn create_provider(
         }
     }
 
-    let meta = StarMetadata::parse(content);
+    let provider_name = provider_name.into();
+    let content = content.into();
+    let meta = StarMetadata::parse(&content);
     let description = meta
         .description
         .clone()
         .unwrap_or_else(|| format!("{} provider", provider_name));
 
-    let runtimes = build_runtimes(provider_name, content, None);
+    let runtimes = build_runtimes(provider_name.clone(), content, None::<String>);
 
     std::sync::Arc::new(StarOnlyProvider {
         name: provider_name,
@@ -518,13 +542,16 @@ pub fn create_provider(
 /// }
 /// ```
 pub fn build_runtimes(
-    provider_name: &'static str,
-    content: &'static str,
-    primary_name: Option<&'static str>,
-) -> Vec<std::sync::Arc<dyn vx_runtime::Runtime>> {
+    provider_name: impl Into<String>,
+    content: impl Into<String>,
+    primary_name: Option<impl Into<String>>,
+) -> Vec<Arc<dyn vx_runtime::Runtime>> {
     use vx_runtime::{Ecosystem, ManifestDrivenRuntime, ProviderSource};
 
-    let meta = StarMetadata::parse(content);
+    let provider_name: Arc<str> = Arc::from(provider_name.into());
+    let content: Arc<str> = Arc::from(content.into());
+    let _primary_name: Option<String> = primary_name.map(|s| s.into());
+    let meta = StarMetadata::parse(&content);
 
     // Parse ecosystem from provider metadata
     let ecosystem = match meta.ecosystem.as_deref() {
@@ -545,28 +572,38 @@ pub fn build_runtimes(
     if meta.runtimes.is_empty() {
         // Fallback: create a single runtime with the provider name
         let mut rt =
-            ManifestDrivenRuntime::new(provider_name, provider_name, ProviderSource::BuiltIn)
+            ManifestDrivenRuntime::new(&*provider_name, &*provider_name, ProviderSource::BuiltIn)
                 .with_ecosystem(ecosystem);
         if let Some(ref pkg) = pip_package {
             rt = rt.with_pip_package(pkg.clone());
         } else {
             rt = rt
-                .with_fetch_versions(make_fetch_versions_fn(provider_name, content))
-                .with_download_url(make_download_url_fn(provider_name, content))
-                .with_install_layout(make_install_layout_fn(provider_name, content));
+                .with_fetch_versions(make_fetch_versions_fn(
+                    Arc::clone(&provider_name).to_string(),
+                    Arc::clone(&content).to_string(),
+                ))
+                .with_download_url(make_download_url_fn(
+                    Arc::clone(&provider_name).to_string(),
+                    Arc::clone(&content).to_string(),
+                ))
+                .with_install_layout(make_install_layout_fn(
+                    Arc::clone(&provider_name).to_string(),
+                    Arc::clone(&content).to_string(),
+                ));
         }
-        return vec![std::sync::Arc::new(rt)];
+        return vec![Arc::new(rt)];
     }
 
     // Provider-level platform OS constraint (from `platforms = {"os": [...]}`)
     let provider_platform_os: Vec<String> = meta.platforms.unwrap_or_default();
 
-    let _primary = primary_name.unwrap_or_else(|| {
+    let _primary = _primary_name.unwrap_or_else(|| {
         // Use the first runtime's name as primary if not specified
         meta.runtimes
             .first()
             .and_then(|rt| rt.name.as_deref())
-            .unwrap_or(provider_name)
+            .unwrap_or(&provider_name)
+            .to_string()
     });
 
     meta.runtimes
@@ -577,7 +614,7 @@ pub fn build_runtimes(
             let description = rt.description.clone().unwrap_or_default();
 
             let mut runtime =
-                ManifestDrivenRuntime::new(name.clone(), provider_name, ProviderSource::BuiltIn)
+                ManifestDrivenRuntime::new(name.clone(), &*provider_name, ProviderSource::BuiltIn)
                     .with_executable(executable)
                     .with_description(description)
                     .with_aliases(rt.aliases.clone())
@@ -619,37 +656,29 @@ pub fn build_runtimes(
             }
 
             // Wire fetch_versions, download_url, install_layout for all runtimes.
-            //
-            // Multi-runtime providers (e.g. shell-tools with starship/atuin/yazi) define a
-            // single `fetch_versions(ctx)` function that dispatches on `ctx.runtime_name`.
-            // Every runtime in the provider must have these functions wired so that version
-            // resolution and installation work correctly for each individual tool.
             if let Some(ref pkg) = pip_package {
-                // pip package: use PyPI version fetching and pip installation
                 runtime = runtime.with_pip_package(pkg.clone());
             } else {
-                // Pass the runtime name so that multi-runtime providers can dispatch correctly.
-                // For single-runtime providers, runtime_name == provider_name, which is fine.
                 let rt_name_owned = name.clone();
                 runtime = runtime
                     .with_fetch_versions(make_fetch_versions_fn_owned(
-                        provider_name,
-                        content,
+                        Arc::clone(&provider_name),
+                        Arc::clone(&content),
                         rt_name_owned.clone(),
                     ))
                     .with_download_url(make_download_url_fn_owned(
-                        provider_name,
-                        content,
+                        Arc::clone(&provider_name),
+                        Arc::clone(&content),
                         rt_name_owned.clone(),
                     ))
                     .with_install_layout(make_install_layout_fn_owned(
-                        provider_name,
-                        content,
+                        Arc::clone(&provider_name),
+                        Arc::clone(&content),
                         rt_name_owned,
                     ));
             }
 
-            std::sync::Arc::new(runtime) as std::sync::Arc<dyn vx_runtime::Runtime>
+            Arc::new(runtime) as Arc<dyn vx_runtime::Runtime>
         })
         .collect()
 }

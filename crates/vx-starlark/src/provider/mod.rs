@@ -91,11 +91,10 @@ impl StarlarkProvider {
             if let Some(entry) = cache.get(&script_hash) {
                 debug!(path = %path.display(), "Using cached analysis result (content hash match)");
                 let vx_home = Self::resolve_vx_home();
-                let (meta, runtimes) = Self::parse_metadata(&content)?;
                 return Ok(Self {
                     script_path: path,
-                    meta,
-                    runtimes,
+                    meta: entry.meta.clone(),
+                    runtimes: entry.runtimes.clone(),
                     sandbox: SandboxConfig::default(),
                     vx_home,
                     script_content: Arc::new(content),
@@ -110,7 +109,7 @@ impl StarlarkProvider {
         let provider = Self {
             script_path: path.clone(),
             meta: meta.clone(),
-            runtimes,
+            runtimes: runtimes.clone(),
             sandbox: SandboxConfig::default(),
             vx_home,
             script_content: Arc::new(content),
@@ -129,6 +128,8 @@ impl StarlarkProvider {
                         env_template: HashMap::new(),
                         metadata: HashMap::new(),
                     },
+                    meta,
+                    runtimes,
                     cached_at: SystemTime::now(),
                 },
             );
@@ -167,11 +168,10 @@ impl StarlarkProvider {
             if let Some(entry) = cache.get(&script_hash) {
                 debug!(provider = %name, "Using cached analysis result for built-in provider (content hash match)");
                 let vx_home = Self::resolve_vx_home();
-                let (meta, runtimes) = Self::parse_metadata(&content)?;
                 return Ok(Self {
                     script_path: virtual_path,
-                    meta,
-                    runtimes,
+                    meta: entry.meta.clone(),
+                    runtimes: entry.runtimes.clone(),
                     sandbox: SandboxConfig::default(),
                     vx_home,
                     script_content: Arc::new(content),
@@ -186,7 +186,7 @@ impl StarlarkProvider {
         let provider = Self {
             script_path: virtual_path,
             meta: meta.clone(),
-            runtimes,
+            runtimes: runtimes.clone(),
             sandbox: SandboxConfig::default(),
             vx_home,
             script_content: Arc::new(content),
@@ -205,6 +205,8 @@ impl StarlarkProvider {
                         env_template: HashMap::new(),
                         metadata: HashMap::new(),
                     },
+                    meta,
+                    runtimes,
                     cached_at: SystemTime::now(),
                 },
             );
