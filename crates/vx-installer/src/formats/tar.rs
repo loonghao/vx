@@ -96,8 +96,10 @@ impl FormatHandler for TarHandler {
                     .await?;
             }
             CompressionType::Xz => {
-                // Note: xz support would require additional dependency
-                return Err(Error::unsupported_format("tar.xz"));
+                use xz2::read::XzDecoder;
+                let decoder = XzDecoder::new(file);
+                self.extract_tar(decoder, target_dir, &mut extracted_files)
+                    .await?;
             }
             CompressionType::Bzip2 => {
                 // Note: bzip2 support would require additional dependency
