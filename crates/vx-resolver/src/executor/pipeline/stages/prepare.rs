@@ -230,10 +230,7 @@ impl<'a> Stage<ExecutionPlan, PreparedExecution> for PrepareStage<'a> {
             // Safety net: verify the executable filename matches the requested runtime.
             // This prevents silent misresolution where a bundled tool (npm) gets the
             // parent runtime's binary (node), which would execute `node ci` instead of `npm ci`.
-            let exe_stem = exe
-                .file_stem()
-                .and_then(|s| s.to_str())
-                .unwrap_or("");
+            let exe_stem = exe.file_stem().and_then(|s| s.to_str()).unwrap_or("");
             let runtime_name = &plan.primary.name;
 
             if exe_stem.eq_ignore_ascii_case(runtime_name) {
@@ -258,16 +255,14 @@ impl<'a> Stage<ExecutionPlan, PreparedExecution> for PrepareStage<'a> {
                     exe_stem,
                     runtime_name
                 );
-                if let Some(result) = self.try_proxy_execution(&plan, &runtime_env).await? {
-                    result
-                } else {
-                    // Proxy also failed — use the original executable as last resort
-                    tracing::warn!(
-                        "[PrepareStage] Proxy resolution also failed for {}, using original executable",
-                        runtime_name
-                    );
-                    (exe, plan.primary.command_prefix.clone())
-                }
+                // NEVER fall back to the mismatched executable — that causes
+                // `node ci` instead of `npm ci`.  If proxy also fails, return
+                // a clear error so the user knows what happened.
+                self.try_proxy_execution(&plan, &runtime_env)
+                    .await?
+                    .ok_or_else(|| PrepareError::NoExecutable {
+                        runtime: runtime_name.clone(),
+                    })?
             }
         } else {
             // No executable path — this is expected for bundled runtimes (e.g., msbuild).

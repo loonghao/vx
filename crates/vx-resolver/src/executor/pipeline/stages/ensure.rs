@@ -192,9 +192,7 @@ impl<'a> Stage<ExecutionPlan, ExecutionPlan> for EnsureStage<'a> {
                 let is_bundled = self
                     .registry
                     .and_then(|r| r.get_runtime(&plan.primary.name))
-                    .map(|rt| !rt.is_version_installable(
-                        &result.version,
-                    ))
+                    .map(|rt| !rt.is_version_installable(&result.version))
                     .unwrap_or(false);
 
                 let exe = if is_bundled {
