@@ -46,8 +46,8 @@ pub use config::{DEFAULT_RESOLUTION_CACHE_TTL, ResolverConfig};
 pub use executor::{
     BUNDLE_DIR, BUNDLE_MANIFEST, BundleContext, BundleManifest, BundledToolInfo, Executor,
     ProjectToolsConfig, clear_bin_dir_cache, execute_bundle, execute_system_runtime,
-    exit_code_from_status, has_bundle, init_bin_dir_cache, invalidate_bin_dir_cache,
-    is_ctrl_c_exit, is_online, save_bin_dir_cache, try_get_bundle_context,
+    exit_code_from_status, has_bundle, invalidate_bin_dir_cache, is_ctrl_c_exit, is_online,
+    try_get_bundle_context,
 };
 
 // Pipeline types (RFC 0029)
@@ -61,8 +61,7 @@ pub use resolution_cache::{
     RESOLUTION_CACHE_DIR_NAME, RESOLUTION_CACHE_SCHEMA_VERSION, ResolutionCache, ResolutionCacheKey,
 };
 pub use resolver::{
-    IncompatibleDependency, ResolutionResult, ResolvedGraph, Resolver, RuntimeStatus,
-    UnsupportedPlatformRuntime,
+    IncompatibleDependency, ResolutionResult, Resolver, RuntimeStatus, UnsupportedPlatformRuntime,
 };
 pub use runtime_index::{
     DEFAULT_INDEX_TTL, IndexData, IndexMetadata, RUNTIME_INDEX_DIR, RUNTIME_INDEX_SCHEMA_VERSION,

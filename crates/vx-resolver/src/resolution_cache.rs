@@ -7,7 +7,7 @@
 //! - Cache is guarded by `CacheMode` (Normal/Refresh/Offline/NoCache)
 //! - Cache value is validated lightly before use
 
-use crate::{ResolvedGraph, ResolverConfig, Result};
+use crate::{ResolutionResult, ResolverConfig, Result};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::path::{Path, PathBuf};
@@ -139,8 +139,8 @@ impl ResolutionCache {
     ///
     /// Returns:
     /// - `None` on miss / invalid / unreadable
-    /// - `Some(ResolvedGraph)` on hit
-    pub fn get(&self, key: &ResolutionCacheKey) -> Option<ResolvedGraph> {
+    /// - `Some(ResolutionResult)` on hit
+    pub fn get(&self, key: &ResolutionCacheKey) -> Option<ResolutionResult> {
         if self.mode == CacheMode::NoCache || self.mode == CacheMode::Refresh {
             return None;
         }
@@ -168,7 +168,7 @@ impl ResolutionCache {
     }
 
     /// Write a cache entry.
-    pub fn set(&self, key: &ResolutionCacheKey, value: &ResolvedGraph) -> Result<()> {
+    pub fn set(&self, key: &ResolutionCacheKey, value: &ResolutionResult) -> Result<()> {
         if self.mode == CacheMode::NoCache {
             return Ok(());
         }
@@ -277,11 +277,11 @@ struct CacheEntry {
     created_at: u64,
     ttl_secs: u64,
     key: ResolutionCacheKey,
-    value: ResolvedGraph,
+    value: ResolutionResult,
 }
 
 impl CacheEntry {
-    fn new(value: ResolvedGraph, ttl: Duration, key: ResolutionCacheKey) -> Self {
+    fn new(value: ResolutionResult, ttl: Duration, key: ResolutionCacheKey) -> Self {
         Self {
             schema_version: RESOLUTION_CACHE_SCHEMA_VERSION,
             created_at: now_epoch_secs(),
