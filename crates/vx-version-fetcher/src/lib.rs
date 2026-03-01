@@ -52,5 +52,5 @@ pub use fetchers::{
 };
 pub use utils::version_utils;
 
-// Re-export VersionInfo from vx-runtime for convenience
-pub use vx_runtime::VersionInfo;
+// Re-export VersionInfo from vx-versions for convenience
+pub use vx_versions::VersionInfo;

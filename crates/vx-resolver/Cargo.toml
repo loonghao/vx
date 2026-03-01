@@ -9,6 +9,7 @@ repository = { workspace = true }
 [dependencies]
 vx-core = { workspace = true }
 vx-runtime = { workspace = true }
+vx-versions = { workspace = true }
 vx-cache = { workspace = true }
 vx-paths = { workspace = true }
 vx-config = { workspace = true }
@@ -36,3 +37,4 @@ workspace-hack = { version = "0.1", path = "../workspace-hack" }
 rstest = { workspace = true }
 tokio-test = { workspace = true }
 tempfile = { workspace = true }
+vx-runtime = { workspace = true, features = ["testing"] }

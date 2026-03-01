@@ -2,7 +2,7 @@
 
 use crate::error::FetchResult;
 use async_trait::async_trait;
-use vx_runtime::{RuntimeContext, VersionInfo};
+use vx_versions::{FetchContext, VersionInfo};
 
 /// Core trait for version fetchers
 ///
@@ -11,7 +11,7 @@ use vx_runtime::{RuntimeContext, VersionInfo};
 #[async_trait]
 pub trait VersionFetcher: Send + Sync {
     /// Fetch version list from the data source
-    async fn fetch(&self, ctx: &RuntimeContext) -> FetchResult<Vec<VersionInfo>>;
+    async fn fetch(&self, ctx: &dyn FetchContext) -> FetchResult<Vec<VersionInfo>>;
 
     /// Get the fetcher name (for debugging and logging)
     fn name(&self) -> &str;

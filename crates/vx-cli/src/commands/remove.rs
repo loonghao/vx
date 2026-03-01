@@ -345,6 +345,20 @@ fn matches_constraint(
             version.major == v.major && version.minor == v.minor && version >= v
         }
         VersionConstraint::Range(constraints) => constraints.iter().all(|c| c.satisfies(version)),
+        VersionConstraint::CompatibleRelease {
+            version: target,
+            parts,
+        } => {
+            if version < target {
+                return false;
+            }
+            if *parts <= 2 {
+                version.major == target.major
+            } else {
+                version.major == target.major && version.minor == target.minor
+            }
+        }
+        VersionConstraint::Invalid(_) => false,
     }
 }
 

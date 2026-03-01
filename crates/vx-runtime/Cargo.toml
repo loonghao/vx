@@ -32,6 +32,7 @@ toml = { workspace = true }
 # Internal dependencies
 vx-core = { path = "../vx-core" }
 vx-cache = { workspace = true }
+vx-versions = { workspace = true }
 vx-paths = { path = "../vx-paths" }
 vx-runtime-core = { path = "../vx-runtime-core" }
 vx-manifest = { path = "../vx-manifest" }
@@ -48,6 +49,8 @@ workspace-hack = { version = "0.1", path = "../workspace-hack" }
 default = ["plugin"]
 # Plugin system for dynamic provider loading
 plugin = ["libloading"]
+# Testing utilities (mock implementations) - only needed in test builds
+testing = []
 
 [dev-dependencies]
 rstest = { workspace = true }

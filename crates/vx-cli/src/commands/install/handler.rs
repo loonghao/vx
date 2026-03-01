@@ -287,7 +287,7 @@ fn update_lockfile_if_exists(
 
     // Convert ecosystem
     let resolver_ecosystem = match ecosystem {
-        vx_runtime::Ecosystem::NodeJs => vx_resolver::Ecosystem::Node,
+        vx_runtime::Ecosystem::NodeJs => vx_resolver::Ecosystem::NodeJs,
         vx_runtime::Ecosystem::Python => vx_resolver::Ecosystem::Python,
         vx_runtime::Ecosystem::Rust => vx_resolver::Ecosystem::Rust,
         vx_runtime::Ecosystem::Go => vx_resolver::Ecosystem::Go,

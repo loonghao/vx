@@ -6,7 +6,7 @@ use crate::error::{FetchError, FetchResult};
 use crate::fetcher::VersionFetcher;
 use async_trait::async_trait;
 use std::sync::Arc;
-use vx_runtime::{RuntimeContext, VersionInfo};
+use vx_versions::{FetchContext, VersionInfo};
 
 /// Parser function type for custom API responses
 pub type ParserFn =
@@ -76,12 +76,10 @@ impl CustomApiFetcher {
 
 #[async_trait]
 impl VersionFetcher for CustomApiFetcher {
-    async fn fetch(&self, ctx: &RuntimeContext) -> FetchResult<Vec<VersionInfo>> {
+    async fn fetch(&self, ctx: &dyn FetchContext) -> FetchResult<Vec<VersionInfo>> {
         // Use caching if available
         let response = ctx
-            .get_cached_or_fetch_with_url(&self.cache_key, &self.url, || async {
-                ctx.http.get_json_value(&self.url).await
-            })
+            .get_cached_or_fetch(&self.cache_key, &self.url)
             .await
             .map_err(|e| FetchError::network(e.to_string()))?;
 

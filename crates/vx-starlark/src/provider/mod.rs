@@ -15,6 +15,8 @@
 //! - [`hooks`]   — Hook action parsing (post_extract, pre_run)
 //! - [`store`]   — Store path query functions (store_root, get_execute_path, post_install)
 
+pub mod bridge;
+pub mod builder;
 mod cache;
 mod execute;
 mod hooks;
@@ -23,21 +25,22 @@ pub mod types;
 pub mod version_cache;
 mod versions;
 
-pub use types::{
-    EnvOp, InstallLayout, PostExtractAction, PreRunAction, ProviderMeta, RuntimeMeta,
-    apply_env_ops, has_starlark_provider, is_starlark_provider,
-};
-
 use crate::context::{InstallResult, ProviderContext, VersionInfo};
 use crate::engine::{FrozenProviderInfo, StarlarkEngine};
 use crate::error::{Error, Result};
 use crate::sandbox::SandboxConfig;
+pub use bridge::{make_download_url_fn, make_fetch_versions_fn, make_install_layout_fn};
+pub use builder::{build_runtimes, create_provider};
 use cache::{ANALYSIS_CACHE, AnalysisCacheEntry, sha256_bytes};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::SystemTime;
 use tracing::{debug, info};
+pub use types::{
+    EnvOp, InstallLayout, PostExtractAction, PreRunAction, ProviderMeta, RuntimeMeta,
+    apply_env_ops, has_starlark_provider, is_starlark_provider,
+};
 
 /// A loaded Starlark provider
 #[derive(Debug, Clone)]
@@ -503,7 +506,7 @@ impl StarlarkProvider {
         // Use the static metadata parser (StarMetadata) to extract name/description/etc.
         // This handles both `name = "..."` (top-level variable) and
         // `def name(): return "..."` (function return) formats.
-        let star_meta = crate::metadata::StarMetadata::parse(content);
+        let star_meta = vx_star_metadata::StarMetadata::parse(content);
 
         let meta = ProviderMeta {
             name: star_meta.name.unwrap_or_else(|| "unknown".to_string()),

@@ -186,3 +186,4 @@ pretty_assertions = { workspace = true }
 anyhow = { workspace = true }
 vx-paths = { workspace = true }
 serial_test = { workspace = true }
+vx-runtime = { workspace = true, features = ["testing"] }

@@ -1,10 +1,10 @@
 //! Version resolution strategies for different ecosystems
 
-use super::constraint::{RangeConstraint, Version, VersionConstraint};
+use super::constraint::{RangeConstraint, RangeOp, Version, VersionConstraint};
 use super::resolved::ResolvedVersion;
 use crate::runtime_spec::Ecosystem;
 use std::cmp::Ordering;
-use vx_runtime::VersionInfo;
+use vx_versions::VersionInfo;
 
 /// Version resolution strategy trait
 ///
@@ -45,7 +45,7 @@ impl SemverStrategy {
     /// Create a strategy for a generic ecosystem
     pub fn generic() -> Self {
         Self {
-            ecosystem: Ecosystem::Node,
+            ecosystem: Ecosystem::NodeJs,
         }
     }
 }
@@ -58,7 +58,7 @@ impl Default for SemverStrategy {
 
 impl VersionStrategy for SemverStrategy {
     fn ecosystem(&self) -> Ecosystem {
-        self.ecosystem
+        self.ecosystem.clone()
     }
 
     fn satisfies(&self, version: &Version, constraint: &VersionConstraint) -> bool {
@@ -77,16 +77,28 @@ impl VersionStrategy for SemverStrategy {
                 version.major == *major && version.minor == *minor
             }
             VersionConstraint::Caret(base) => {
-                let constraint =
-                    RangeConstraint::new(super::constraint::RangeOp::Caret, base.clone());
+                let constraint = RangeConstraint::new(RangeOp::Caret, base.clone());
                 constraint.satisfies(version)
             }
             VersionConstraint::Tilde(base) => {
-                let constraint =
-                    RangeConstraint::new(super::constraint::RangeOp::Tilde, base.clone());
+                let constraint = RangeConstraint::new(RangeOp::Tilde, base.clone());
                 constraint.satisfies(version)
             }
             VersionConstraint::Any => true,
+            VersionConstraint::Invalid(_) => false,
+            VersionConstraint::CompatibleRelease {
+                version: target,
+                parts,
+            } => {
+                if version < target {
+                    return false;
+                }
+                if *parts <= 2 {
+                    version.major == target.major
+                } else {
+                    version.major == target.major && version.minor == target.minor
+                }
+            }
         }
     }
 

@@ -1,6 +1,6 @@
 //! Tests for StarMetadata parsing
 
-use vx_starlark::metadata::StarMetadata;
+use vx_starlark::StarMetadata;
 
 // RFC 0038 v4: function-based format
 const SAMPLE_STAR: &str = r#"

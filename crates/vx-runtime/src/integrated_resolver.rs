@@ -8,12 +8,12 @@
 use crate::{
     Ecosystem, VersionInfo,
     provider_env::{ProviderEnvironment, ResolvedVersionInfo},
-    version_resolver::VersionResolver,
 };
 use anyhow::{Context, Result};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use vx_paths::PathManager;
+use vx_versions::VersionResolver;
 
 /// Integrated resolver that uses vx's existing infrastructure
 pub struct IntegratedVersionResolver {
@@ -80,7 +80,7 @@ impl IntegratedVersionResolver {
             let entry = entry?;
             if entry.path().is_dir()
                 && let Some(version_str) = entry.file_name().to_str()
-                && let Some(version) = crate::version_resolver::Version::parse(version_str)
+                && let Some(version) = vx_versions::Version::parse(version_str)
             {
                 available_versions.push(VersionInfo::new(version.to_string()));
             }

@@ -6,7 +6,7 @@ use crate::error::{FetchError, FetchResult};
 use crate::fetcher::VersionFetcher;
 use crate::utils::{VersionInfoExt, version_utils};
 use async_trait::async_trait;
-use vx_runtime::{RuntimeContext, VersionInfo};
+use vx_versions::{FetchContext, VersionInfo};
 
 /// Configuration for npm fetcher
 #[derive(Debug, Clone)]
@@ -143,14 +143,12 @@ impl NpmFetcher {
 
 #[async_trait]
 impl VersionFetcher for NpmFetcher {
-    async fn fetch(&self, ctx: &RuntimeContext) -> FetchResult<Vec<VersionInfo>> {
+    async fn fetch(&self, ctx: &dyn FetchContext) -> FetchResult<Vec<VersionInfo>> {
         let url = self.api_url();
 
         // Use caching if available
         let response = ctx
-            .get_cached_or_fetch_with_url(&self.package, &url, || async {
-                ctx.http.get_json_value(&url).await
-            })
+            .get_cached_or_fetch(&self.package, &url)
             .await
             .map_err(|e| FetchError::network(e.to_string()))?;
 

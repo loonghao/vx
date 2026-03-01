@@ -45,6 +45,106 @@ pub enum InstallLayout {
     },
 }
 
+impl InstallLayout {
+    /// Convert into a flat JSON dict that `manifest_runtime` expects.
+    ///
+    /// `serde_json::to_value` on an untagged enum produces `{"Archive": {...}}`
+    /// which `manifest_runtime` cannot read directly. This helper flattens it
+    /// to `{"strip_prefix": "...", "executable_paths": [...], ...}`.
+    pub fn to_flat_json(self) -> serde_json::Value {
+        match self {
+            InstallLayout::Archive {
+                url,
+                strip_prefix,
+                executable_paths,
+            } => {
+                let mut map = serde_json::Map::new();
+                if let Some(u) = url {
+                    map.insert("url".into(), serde_json::Value::String(u));
+                }
+                if let Some(sp) = strip_prefix {
+                    map.insert("strip_prefix".into(), serde_json::Value::String(sp));
+                }
+                map.insert(
+                    "executable_paths".into(),
+                    serde_json::Value::Array(
+                        executable_paths
+                            .into_iter()
+                            .map(serde_json::Value::String)
+                            .collect(),
+                    ),
+                );
+                serde_json::Value::Object(map)
+            }
+            InstallLayout::Binary {
+                url,
+                executable_name,
+                permissions,
+            } => {
+                let mut map = serde_json::Map::new();
+                map.insert("url".into(), serde_json::Value::String(url));
+                if let Some(n) = executable_name {
+                    map.insert("executable_name".into(), serde_json::Value::String(n));
+                }
+                map.insert("permissions".into(), serde_json::Value::String(permissions));
+                serde_json::Value::Object(map)
+            }
+            InstallLayout::Msi {
+                url,
+                executable_paths,
+                strip_prefix,
+                extra_args,
+            } => {
+                let mut map = serde_json::Map::new();
+                map.insert("url".into(), serde_json::Value::String(url));
+                map.insert(
+                    "executable_paths".into(),
+                    serde_json::Value::Array(
+                        executable_paths
+                            .into_iter()
+                            .map(serde_json::Value::String)
+                            .collect(),
+                    ),
+                );
+                if let Some(sp) = strip_prefix {
+                    map.insert("strip_prefix".into(), serde_json::Value::String(sp));
+                }
+                map.insert(
+                    "extra_args".into(),
+                    serde_json::Value::Array(
+                        extra_args
+                            .into_iter()
+                            .map(serde_json::Value::String)
+                            .collect(),
+                    ),
+                );
+                serde_json::Value::Object(map)
+            }
+            InstallLayout::SystemFind {
+                executable,
+                system_paths,
+                hint,
+            } => {
+                let mut map = serde_json::Map::new();
+                map.insert("executable".into(), serde_json::Value::String(executable));
+                map.insert(
+                    "system_paths".into(),
+                    serde_json::Value::Array(
+                        system_paths
+                            .into_iter()
+                            .map(serde_json::Value::String)
+                            .collect(),
+                    ),
+                );
+                if let Some(h) = hint {
+                    map.insert("hint".into(), serde_json::Value::String(h));
+                }
+                serde_json::Value::Object(map)
+            }
+        }
+    }
+}
+
 /// Actions returned by `post_extract()` hook in Starlark provider scripts
 ///
 /// The `post_extract()` function returns a list of these action descriptors.

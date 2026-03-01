@@ -370,7 +370,7 @@ async fn resolve_tool_version(
     // Get ecosystem from runtime and convert to vx_resolver::Ecosystem
     let runtime_ecosystem = runtime.ecosystem();
     let ecosystem = match runtime_ecosystem {
-        vx_runtime::Ecosystem::NodeJs => Ecosystem::Node,
+        vx_runtime::Ecosystem::NodeJs => Ecosystem::NodeJs,
         vx_runtime::Ecosystem::Python => Ecosystem::Python,
         vx_runtime::Ecosystem::Rust => Ecosystem::Rust,
         vx_runtime::Ecosystem::Go => Ecosystem::Go,
