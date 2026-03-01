@@ -7,6 +7,7 @@ use anyhow::Result;
 use std::collections::HashMap;
 use std::path::PathBuf;
 use vx_paths::PathManager;
+use vx_runtime_core::Platform;
 
 /// Tool specification for environment building
 #[derive(Debug, Clone)]
@@ -332,8 +333,7 @@ impl ToolEnvironment {
         let store_dir = path_manager.version_store_dir(&tool.name, &actual_version);
         if store_dir.exists() {
             // Try platform-specific subdirectory first (new structure)
-            let platform_str = get_current_platform_str();
-            let platform_dir = store_dir.join(&platform_str);
+            let platform_dir = store_dir.join(Platform::current().as_str());
             if platform_dir.exists() {
                 return Ok(Some(find_bin_dir(&platform_dir, tool)));
             }
@@ -589,33 +589,6 @@ fn resolve_version_prefix(
 
     // Fallback to original version spec
     version_spec.to_string()
-}
-
-/// Get the current platform string (e.g., "windows-x64", "darwin-arm64", "linux-x64")
-///
-/// This matches the format used by vx-runtime's Platform::as_str()
-fn get_current_platform_str() -> String {
-    let os = if cfg!(target_os = "windows") {
-        "windows"
-    } else if cfg!(target_os = "macos") {
-        "darwin"
-    } else if cfg!(target_os = "linux") {
-        "linux"
-    } else {
-        "unknown"
-    };
-
-    let arch = if cfg!(target_arch = "x86_64") {
-        "x64"
-    } else if cfg!(target_arch = "aarch64") {
-        "arm64"
-    } else if cfg!(target_arch = "x86") {
-        "x86"
-    } else {
-        "unknown"
-    };
-
-    format!("{}-{}", os, arch)
 }
 
 /// Find a tool's directory from the system PATH
