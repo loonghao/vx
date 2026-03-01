@@ -16,8 +16,8 @@ impl Runtime for TestRuntime {
         self.name
     }
 
-    fn aliases(&self) -> &[&str] {
-        self.aliases
+    fn aliases(&self) -> Vec<&str> {
+        self.aliases.to_vec()
     }
 
     async fn fetch_versions(&self, _ctx: &RuntimeContext) -> anyhow::Result<Vec<VersionInfo>> {

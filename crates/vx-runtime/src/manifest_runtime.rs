@@ -787,14 +787,8 @@ impl Runtime for ManifestDrivenRuntime {
         }
     }
 
-    fn aliases(&self) -> &[&str] {
-        // This is a limitation - we can't return borrowed slices from owned Vec
-        // In practice, this method might need to be redesigned
-        &[]
-    }
-
-    fn aliases_owned(&self) -> Vec<String> {
-        self.aliases.clone()
+    fn aliases(&self) -> Vec<&str> {
+        self.aliases.iter().map(|s| s.as_str()).collect()
     }
 
     fn ecosystem(&self) -> Ecosystem {

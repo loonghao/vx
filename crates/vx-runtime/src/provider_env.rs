@@ -5,14 +5,10 @@
 //! - Environment variable building (inspired by REZ)
 //! - Path resolution for resolved versions
 
-use crate::{Ecosystem, VersionInfo, context::RuntimeContext};
+use crate::{Ecosystem, context::RuntimeContext};
 use anyhow::Result;
 use std::collections::HashMap;
 use std::path::PathBuf;
-use std::time::Duration;
-
-/// Version fetcher function type for resolving versions
-pub type VersionFetcherFn = Box<dyn Fn(&str, &[VersionInfo]) -> Option<String> + Send + Sync>;
 
 /// Resolved version information with paths
 #[derive(Debug, Clone)]
@@ -282,110 +278,6 @@ pub trait ProviderEnvironmentResolver: Send + Sync {
 
     /// Get the bin directory for PATH
     fn get_bin_dir(&self, version: &str) -> Result<PathBuf>;
-}
-
-/// Simple version resolver with caching
-pub struct VersionResolverCache {
-    /// Cache of resolved versions
-    cache: HashMap<String, ResolvedVersionInfo>,
-    #[allow(dead_code)]
-    /// Cache TTL (for future use)
-    ttl: Duration,
-    /// Version resolution function
-    version_fetcher: VersionFetcherFn,
-}
-
-impl VersionResolverCache {
-    /// Create a new version resolver cache
-    pub fn new(ttl: Duration) -> Self {
-        Self {
-            cache: HashMap::new(),
-            ttl,
-            version_fetcher: Box::new(|_request, _available| None),
-        }
-    }
-
-    /// Set the version fetcher function
-    pub fn with_fetcher(
-        mut self,
-        fetcher: impl Fn(&str, &[VersionInfo]) -> Option<String> + Send + Sync + 'static,
-    ) -> Self {
-        self.version_fetcher = Box::new(fetcher);
-        self
-    }
-
-    /// Get cached version if not expired
-    pub fn get(&self, key: &str) -> Option<&ResolvedVersionInfo> {
-        self.cache.get(key)
-    }
-
-    /// Cache a resolved version
-    pub fn set(&mut self, key: String, value: ResolvedVersionInfo) {
-        self.cache.insert(key, value);
-    }
-
-    /// Clear all cached entries
-    pub fn clear(&mut self) {
-        self.cache.clear();
-    }
-
-    /// Resolve a version request with caching
-    pub fn resolve(
-        &mut self,
-        runtime_name: &str,
-        version_request: &str,
-        available_versions: &[VersionInfo],
-    ) -> Result<ResolvedVersionInfo> {
-        let cache_key = format!("{}@{}", runtime_name, version_request);
-
-        // Check cache first
-        if let Some(cached) = self.get(&cache_key) {
-            tracing::debug!(
-                runtime = %runtime_name,
-                version_request = %version_request,
-                resolved_version = %cached.version,
-                "Version resolved from cache"
-            );
-            return Ok(cached.clone());
-        }
-
-        // Resolve using fetcher
-        let resolved_version = (self.version_fetcher)(version_request, available_versions)
-            .ok_or_else(|| {
-                anyhow::anyhow!(
-                    "Failed to resolve version '{}' for runtime '{}'",
-                    version_request,
-                    runtime_name
-                )
-            })?;
-
-        tracing::debug!(
-            runtime = %runtime_name,
-            version_request = %version_request,
-            resolved_version = %resolved_version,
-            "Version resolved from available versions"
-        );
-
-        // TODO: Build actual paths based on resolved version
-        // For now, create placeholder paths
-        let install_dir =
-            PathBuf::from(format!("/.vx/store/{}/{}", runtime_name, resolved_version));
-        let bin_dir = install_dir.join("bin");
-        let executable_path = bin_dir.join(runtime_name);
-
-        let version_info = ResolvedVersionInfo::new(
-            resolved_version.clone(),
-            version_request.to_string(),
-            install_dir,
-            executable_path,
-            bin_dir,
-        );
-
-        // Cache the result
-        self.set(cache_key, version_info.clone());
-
-        Ok(version_info)
-    }
 }
 
 #[cfg(test)]
