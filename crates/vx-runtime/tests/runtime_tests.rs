@@ -43,8 +43,8 @@ impl Runtime for TestRuntime {
         self.ecosystem.clone()
     }
 
-    fn aliases(&self) -> &[&str] {
-        self.aliases
+    fn aliases(&self) -> Vec<&str> {
+        self.aliases.to_vec()
     }
 
     async fn fetch_versions(&self, _ctx: &RuntimeContext) -> anyhow::Result<Vec<VersionInfo>> {
@@ -67,7 +67,7 @@ fn test_runtime_ecosystem() {
 #[test]
 fn test_runtime_aliases() {
     let runtime = TestRuntime::new("node").with_aliases(&["nodejs"]);
-    assert_eq!(runtime.aliases(), &["nodejs"]);
+    assert_eq!(runtime.aliases(), vec!["nodejs"]);
 }
 
 #[tokio::test]

@@ -73,20 +73,16 @@ pub trait Provider: Send + Sync {
 
     /// Check if this provider supports a runtime by name or alias
     fn supports(&self, name: &str) -> bool {
-        self.runtimes().iter().any(|r| {
-            r.name() == name
-                || r.aliases().contains(&name)
-                || r.aliases_owned().iter().any(|a| a == name)
-        })
+        self.runtimes()
+            .iter()
+            .any(|r| r.name() == name || r.aliases().contains(&name))
     }
 
     /// Get a specific runtime by name or alias
     fn get_runtime(&self, name: &str) -> Option<Arc<dyn Runtime>> {
-        self.runtimes().into_iter().find(|r| {
-            r.name() == name
-                || r.aliases().contains(&name)
-                || r.aliases_owned().iter().any(|a| a == name)
-        })
+        self.runtimes()
+            .into_iter()
+            .find(|r| r.name() == name || r.aliases().contains(&name))
     }
 
     /// Check if this provider supports the given platform

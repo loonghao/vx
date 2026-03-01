@@ -2,6 +2,24 @@
 //!
 //! The `Runtime` trait is the core abstraction for executable runtimes in vx.
 //!
+//! # ISP Sub-traits
+//!
+//! [`Runtime`] is large by necessity, but callers that only need a subset of its
+//! capabilities can use the narrower sub-traits defined in [`subtrait`]:
+//!
+//! - [`subtrait::RuntimeIdentity`] — name, description, aliases, ecosystem, …
+//! - [`subtrait::RuntimePlatform`] — platform support checks
+//! - [`subtrait::RuntimeVersioning`] — fetch, resolve and list versions
+//! - [`subtrait::RuntimeExecutable`] — executable path configuration
+//! - [`subtrait::RuntimeInstallable`] — download, install, uninstall
+//! - [`subtrait::RuntimeHooks`] — lifecycle hooks (pre/post install, execute, …)
+//! - [`subtrait::RuntimeEnvironment`] — environment variable preparation
+//! - [`subtrait::RuntimeExecuteOps`] — command execution
+//! - [`subtrait::RuntimeShell`] — shell provider (RFC 0038)
+//!
+//! Every type that implements `Runtime` satisfies all sub-traits automatically via
+//! blanket implementations — no changes needed to existing implementors.
+//!
 //! # Executable Path Resolution
 //!
 //! The framework provides a unified approach to handle executable paths across platforms:
@@ -15,6 +33,12 @@
 //! - Platform-specific extensions (`.exe`, `.cmd`, `.bat` on Windows)
 //! - Searching for executables in install directories
 //! - Verification of installations
+
+pub mod subtrait;
+pub use subtrait::{
+    RuntimeEnvironment, RuntimeExecutable, RuntimeExecuteOps, RuntimeHooks, RuntimeIdentity,
+    RuntimeInstallable, RuntimePlatform, RuntimeShell, RuntimeVersioning,
+};
 
 use crate::context::{ExecutionContext, RuntimeContext};
 use crate::ecosystem::Ecosystem;
@@ -117,8 +141,8 @@ impl VerificationResult {
 ///         Ecosystem::NodeJs
 ///     }
 ///
-///     fn aliases(&self) -> &[&str] {
-///         &["nodejs"]
+///     fn aliases(&self) -> Vec<&str> {
+///         vec!["nodejs"]
 ///     }
 ///
 ///     async fn fetch_versions(&self, ctx: &RuntimeContext) -> anyhow::Result<Vec<VersionInfo>> {
@@ -155,22 +179,15 @@ pub trait Runtime: Send + Sync {
         "A runtime"
     }
 
-    /// Aliases for this runtime (e.g., "nodejs" for "node")
-    fn aliases(&self) -> &[&str] {
-        &[]
-    }
-
-    /// Aliases as owned strings.
+    /// Aliases for this runtime (e.g., "nodejs" for "node").
     ///
-    /// This is an alternative to `aliases()` for runtimes that store aliases
-    /// as `Vec<String>` (e.g. `ManifestDrivenRuntime`) and cannot return a
-    /// `&[&str]` due to lifetime constraints.
-    ///
-    /// The default implementation converts `aliases()` to owned strings.
-    /// Override this method when `aliases()` always returns `&[]` but you
-    /// have aliases stored as `Vec<String>`.
-    fn aliases_owned(&self) -> Vec<String> {
-        self.aliases().iter().map(|s| s.to_string()).collect()
+    /// Returns a `Vec<&str>` borrowed from self, which works for both
+    /// compile-time static aliases and runtime-dynamic aliases (e.g., loaded
+    /// from a manifest file). Override with `vec!["alias1", "alias2"]` for
+    /// static aliases, or `self.aliases.iter().map(|s| s.as_str()).collect()`
+    /// for dynamically stored aliases.
+    fn aliases(&self) -> Vec<&str> {
+        vec![]
     }
 
     /// Ecosystem this runtime belongs to
@@ -543,7 +560,7 @@ pub trait Runtime: Send + Sync {
     /// - Moving files to expected locations
     ///
     /// Unlike `post_install`, this runs before verification and is synchronous.
-    fn post_extract(&self, _version: &str, _install_path: &std::path::PathBuf) -> Result<()> {
+    fn post_extract(&self, _version: &str, _install_path: &std::path::Path) -> Result<()> {
         Ok(())
     }
 
