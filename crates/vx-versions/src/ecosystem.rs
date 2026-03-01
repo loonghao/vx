@@ -13,12 +13,18 @@ pub enum Ecosystem {
     Rust,
     /// Go ecosystem (go, gofmt)
     Go,
+    /// Git ecosystem (git)
+    Git,
+    /// Java ecosystem (java, javac, jar)
+    Java,
     /// .NET ecosystem (dotnet, nuget, msbuild)
     Dotnet,
     /// System tools
     System,
     /// Custom ecosystem with a name
     Custom(String),
+    /// Generic/standalone runtimes
+    Generic,
     /// Unknown ecosystem
     #[default]
     Unknown,
@@ -26,12 +32,13 @@ pub enum Ecosystem {
 
 impl Ecosystem {
     /// Get the primary runtime for this ecosystem
-    pub fn primary_runtime(&self) -> Option<&'static str> {
+    pub fn primary_runtime(&self) -> Option<&str> {
         match self {
             Ecosystem::NodeJs => Some("node"),
             Ecosystem::Python => Some("uv"),
             Ecosystem::Rust => Some("rust"),
             Ecosystem::Go => Some("go"),
+            Ecosystem::Git => Some("git"),
             Ecosystem::Dotnet => Some("dotnet"),
             _ => None,
         }
@@ -55,6 +62,12 @@ impl Ecosystem {
             Ecosystem::Go => {
                 matches!(name, "go" | "golang" | "gofmt")
             }
+            Ecosystem::Git => {
+                matches!(name, "git")
+            }
+            Ecosystem::Java => {
+                matches!(name, "java" | "javac" | "jar" | "mvn" | "gradle")
+            }
             Ecosystem::Dotnet => {
                 matches!(name, "dotnet" | "dotnet-sdk" | "nuget" | "msbuild")
             }
@@ -70,9 +83,12 @@ impl std::fmt::Display for Ecosystem {
             Ecosystem::Python => write!(f, "python"),
             Ecosystem::Rust => write!(f, "rust"),
             Ecosystem::Go => write!(f, "go"),
+            Ecosystem::Git => write!(f, "git"),
+            Ecosystem::Java => write!(f, "java"),
             Ecosystem::Dotnet => write!(f, "dotnet"),
             Ecosystem::System => write!(f, "system"),
             Ecosystem::Custom(name) => write!(f, "{}", name),
+            Ecosystem::Generic => write!(f, "generic"),
             Ecosystem::Unknown => write!(f, "unknown"),
         }
     }

@@ -39,7 +39,7 @@ semver = { workspace = true }
 # Internal dependencies
 vx-core = { path = "../vx-core" }
 vx-paths = { path = "../vx-paths" }
-vx-runtime = { path = "../vx-runtime" }
+vx-runtime = { path = "../vx-runtime", features = ["testing"] }
 vx-star-metadata = { path = "../vx-star-metadata" }
 vx-version-fetcher = { path = "../vx-version-fetcher" }
 workspace-hack = { version = "0.1", path = "../workspace-hack" }

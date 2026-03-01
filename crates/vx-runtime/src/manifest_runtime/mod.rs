@@ -1,0 +1,769 @@
+//! Manifest-Driven Runtime implementation.
+//!
+//! This module provides a [`ManifestDrivenRuntime`] that is driven entirely by
+//! `provider.star` configuration. It is designed for system tools that don't
+//! require strict version management (git, cmake, curl, etc.) as well as for
+//! Starlark-driven providers that inject `fetch_versions`, `download_url`, and
+//! `install_layout` closures.
+//!
+//! # Sub-modules
+//!
+//! - [`types`] — All data types (`InstallStrategy`, `DetectionConfig`, …)
+//! - [`detection`] — Version detection and executable search
+//! - [`shell`] — Shell path resolution (RFC 0038)
+//! - [`install`] — `install()` strategy dispatch
+
+pub mod detection;
+pub mod install;
+pub mod shell;
+pub mod types;
+
+pub use types::{
+    DetectionConfig, InstallStrategy, ProvidedTool, ProviderSource, ScriptType, ShellDefinition,
+    SystemDepType, SystemDependency, SystemDepsConfig,
+};
+
+use std::collections::HashMap;
+use std::path::PathBuf;
+use std::sync::Arc;
+
+use anyhow::Result;
+use async_trait::async_trait;
+use tracing::{debug, warn};
+
+use crate::{Ecosystem, InstallResult, Platform, Runtime, RuntimeContext, VersionInfo};
+use vx_runtime_core::{MirrorConfig, NormalizeConfig};
+
+/// Type alias for an async `fetch_versions` function injected from Starlark providers.
+///
+/// Allows `ManifestDrivenRuntime` to delegate `fetch_versions` to a Starlark-driven
+/// implementation without creating a circular dependency between `vx-runtime` and
+/// `vx-starlark`.
+pub type FetchVersionsFn = Arc<
+    dyn Fn()
+            -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<Vec<VersionInfo>>> + Send>>
+        + Send
+        + Sync,
+>;
+
+/// Type alias for an async `download_url` function injected from Starlark providers.
+///
+/// Signature: `(version: String) -> Option<String>`
+pub type DownloadUrlFn = Arc<
+    dyn Fn(
+            String,
+        )
+            -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<Option<String>>> + Send>>
+        + Send
+        + Sync,
+>;
+
+/// Type alias for an async `install_layout` function injected from Starlark providers.
+///
+/// Returns a serialized JSON value describing the install layout, or `None`.
+pub type InstallLayoutFn = Arc<
+    dyn Fn(
+            String,
+        ) -> std::pin::Pin<
+            Box<dyn std::future::Future<Output = Result<Option<serde_json::Value>>> + Send>,
+        > + Send
+        + Sync,
+>;
+
+/// A runtime driven by manifest configuration (`provider.star`).
+///
+/// For Starlark-driven providers, the `fetch_versions_fn`, `download_url_fn`, and
+/// `install_layout_fn` fields can be set to delegate to the Starlark engine.
+#[derive(Clone)]
+pub struct ManifestDrivenRuntime {
+    pub name: String,
+    pub description: String,
+    pub executable: String,
+    pub aliases: Vec<String>,
+    pub ecosystem_override: Option<Ecosystem>,
+    pub bundled_with: Option<String>,
+    pub provider_name: String,
+    pub source: ProviderSource,
+    pub install_strategies: Vec<InstallStrategy>,
+    pub provides: Vec<ProvidedTool>,
+    pub detection: Option<DetectionConfig>,
+    pub system_deps: Option<SystemDepsConfig>,
+    pub normalize: Option<NormalizeConfig>,
+    pub mirrors: Vec<MirrorConfig>,
+    /// Optional Starlark-driven `fetch_versions` implementation.
+    pub fetch_versions_fn: Option<FetchVersionsFn>,
+    /// Optional Starlark-driven `download_url` implementation.
+    pub download_url_fn: Option<DownloadUrlFn>,
+    /// Optional Starlark-driven `install_layout` implementation.
+    pub install_layout_fn: Option<InstallLayoutFn>,
+    /// Optional pip package name for Python-based tools.
+    pub pip_package: Option<String>,
+    /// Shells provided by this runtime (RFC 0038).
+    pub shells: Vec<ShellDefinition>,
+    /// Platform OS constraint (e.g. `["macos"]` for macOS-only tools).
+    pub platform_os: Vec<String>,
+}
+
+impl std::fmt::Debug for ManifestDrivenRuntime {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ManifestDrivenRuntime")
+            .field("name", &self.name)
+            .field("description", &self.description)
+            .field("executable", &self.executable)
+            .field("aliases", &self.aliases)
+            .field("provider_name", &self.provider_name)
+            .field(
+                "fetch_versions_fn",
+                &self.fetch_versions_fn.as_ref().map(|_| "<fn>"),
+            )
+            .finish()
+    }
+}
+
+// ============================================================================
+// Constructor & Builder
+// ============================================================================
+
+impl ManifestDrivenRuntime {
+    /// Create a new manifest-driven runtime.
+    pub fn new(
+        name: impl Into<String>,
+        provider_name: impl Into<String>,
+        source: ProviderSource,
+    ) -> Self {
+        let name = name.into();
+        Self {
+            executable: name.clone(),
+            name,
+            description: String::new(),
+            aliases: Vec::new(),
+            ecosystem_override: None,
+            bundled_with: None,
+            provider_name: provider_name.into(),
+            source,
+            install_strategies: Vec::new(),
+            provides: Vec::new(),
+            detection: None,
+            system_deps: None,
+            normalize: None,
+            mirrors: Vec::new(),
+            fetch_versions_fn: None,
+            download_url_fn: None,
+            install_layout_fn: None,
+            pip_package: None,
+            shells: Vec::new(),
+            platform_os: Vec::new(),
+        }
+    }
+
+    pub fn with_description(mut self, description: impl Into<String>) -> Self {
+        self.description = description.into();
+        self
+    }
+
+    pub fn with_mirrors(mut self, mirrors: Vec<MirrorConfig>) -> Self {
+        self.mirrors = mirrors;
+        self
+    }
+
+    pub fn with_bundled_with(mut self, bundled_with: impl Into<String>) -> Self {
+        self.bundled_with = Some(bundled_with.into());
+        self
+    }
+
+    pub fn with_platform_os(mut self, platform_os: Vec<String>) -> Self {
+        self.platform_os = platform_os;
+        self
+    }
+
+    pub fn with_executable(mut self, executable: impl Into<String>) -> Self {
+        self.executable = executable.into();
+        self
+    }
+
+    pub fn with_alias(mut self, alias: impl Into<String>) -> Self {
+        self.aliases.push(alias.into());
+        self
+    }
+
+    pub fn with_aliases(mut self, aliases: Vec<String>) -> Self {
+        self.aliases.extend(aliases);
+        self
+    }
+
+    pub fn with_ecosystem(mut self, ecosystem: Ecosystem) -> Self {
+        self.ecosystem_override = Some(ecosystem);
+        self
+    }
+
+    pub fn with_strategy(mut self, strategy: InstallStrategy) -> Self {
+        self.install_strategies.push(strategy);
+        self
+    }
+
+    pub fn with_pip_package(mut self, package: impl Into<String>) -> Self {
+        self.pip_package = Some(package.into());
+        self
+    }
+
+    pub fn with_shells(mut self, shells: Vec<ShellDefinition>) -> Self {
+        self.shells = shells;
+        self
+    }
+
+    pub fn with_shell(mut self, name: impl Into<String>, path: impl Into<String>) -> Self {
+        self.shells.push(ShellDefinition {
+            name: name.into(),
+            path: path.into(),
+        });
+        self
+    }
+
+    pub fn with_detection(mut self, detection: DetectionConfig) -> Self {
+        self.detection = Some(detection);
+        self
+    }
+
+    pub fn with_normalize(mut self, normalize: NormalizeConfig) -> Self {
+        self.normalize = Some(normalize);
+        self
+    }
+
+    /// Set install dependencies (vx-managed runtimes that must be installed first).
+    pub fn with_install_deps(mut self, deps: Vec<String>) -> Self {
+        if deps.is_empty() {
+            return self;
+        }
+
+        let pre_depends: Vec<SystemDependency> = deps
+            .into_iter()
+            .map(|dep| {
+                let (id, version) = if let Some(gt_pos) = dep.find(">=") {
+                    (
+                        dep[..gt_pos].to_string(),
+                        Some(dep[gt_pos + 2..].to_string()),
+                    )
+                } else if let Some(eq_pos) = dep.find('=') {
+                    (
+                        dep[..eq_pos].to_string(),
+                        Some(dep[eq_pos + 1..].to_string()),
+                    )
+                } else {
+                    (dep, None)
+                };
+
+                SystemDependency {
+                    dep_type: SystemDepType::Runtime,
+                    id,
+                    version,
+                    reason: Some("Install dependency".to_string()),
+                    platforms: vec![],
+                    optional: false,
+                }
+            })
+            .collect();
+
+        self.system_deps = Some(SystemDepsConfig {
+            pre_depends,
+            depends: vec![],
+            recommends: vec![],
+            suggests: vec![],
+        });
+        self
+    }
+
+    /// Inject a Starlark-driven `fetch_versions` implementation.
+    pub fn with_fetch_versions<F>(mut self, f: F) -> Self
+    where
+        F: Fn() -> std::pin::Pin<
+                Box<dyn std::future::Future<Output = Result<Vec<VersionInfo>>> + Send>,
+            > + Send
+            + Sync
+            + 'static,
+    {
+        self.fetch_versions_fn = Some(Arc::new(f));
+        self
+    }
+
+    /// Inject a Starlark-driven `download_url` implementation.
+    pub fn with_download_url<F>(mut self, f: F) -> Self
+    where
+        F: Fn(
+                String,
+            ) -> std::pin::Pin<
+                Box<dyn std::future::Future<Output = Result<Option<String>>> + Send>,
+            > + Send
+            + Sync
+            + 'static,
+    {
+        self.download_url_fn = Some(Arc::new(f));
+        self
+    }
+
+    /// Inject a Starlark-driven `install_layout` implementation.
+    pub fn with_install_layout<F>(mut self, f: F) -> Self
+    where
+        F: Fn(
+                String,
+            ) -> std::pin::Pin<
+                Box<dyn std::future::Future<Output = Result<Option<serde_json::Value>>> + Send>,
+            > + Send
+            + Sync
+            + 'static,
+    {
+        self.install_layout_fn = Some(Arc::new(f));
+        self
+    }
+
+    // ========== Internal helpers ==========
+
+    /// Resolve the executable path from a Starlark install_layout descriptor.
+    pub(crate) fn resolve_exe_path_from_layout(
+        &self,
+        install_dir: &std::path::Path,
+        layout: &serde_json::Value,
+    ) -> PathBuf {
+        if let Some(paths) = layout.get("executable_paths").and_then(|p| p.as_array()) {
+            for p in paths {
+                if let Some(rel) = p.as_str() {
+                    let candidate = install_dir.join(rel);
+                    if candidate.exists() {
+                        return candidate;
+                    }
+                }
+            }
+            if let Some(first) = paths.first().and_then(|p| p.as_str()) {
+                return install_dir.join(first);
+            }
+        }
+        install_dir.join(vx_paths::with_executable_extension(&self.executable))
+    }
+
+    /// Select the best available installation strategy for the current platform.
+    pub async fn select_best_strategy(&self, platform: &Platform) -> Option<&InstallStrategy> {
+        let mut candidates: Vec<_> = self
+            .install_strategies
+            .iter()
+            .filter(|s| s.matches_platform(platform))
+            .collect();
+
+        candidates.sort_by_key(|b| std::cmp::Reverse(b.priority()));
+
+        for strategy in candidates {
+            if self.is_strategy_available(strategy).await {
+                return Some(strategy);
+            }
+        }
+
+        None
+    }
+
+    async fn is_strategy_available(&self, strategy: &InstallStrategy) -> bool {
+        match strategy {
+            InstallStrategy::PackageManager { manager, .. } => {
+                is_package_manager_available(manager).await
+            }
+            InstallStrategy::DirectDownload { .. } => true,
+            InstallStrategy::Script { .. } => true,
+            InstallStrategy::ProvidedBy { provider, .. } => which::which(provider).is_ok(),
+        }
+    }
+}
+
+// ============================================================================
+// Runtime trait implementation
+// ============================================================================
+
+#[async_trait]
+impl Runtime for ManifestDrivenRuntime {
+    fn name(&self) -> &str {
+        &self.name
+    }
+
+    fn description(&self) -> &str {
+        if self.description.is_empty() {
+            "System tool"
+        } else {
+            &self.description
+        }
+    }
+
+    fn aliases(&self) -> Vec<&str> {
+        self.aliases.iter().map(|s| s.as_str()).collect()
+    }
+
+    fn ecosystem(&self) -> Ecosystem {
+        self.ecosystem_override.clone().unwrap_or(Ecosystem::System)
+    }
+
+    fn supported_platforms(&self) -> Vec<crate::platform::Platform> {
+        if self.platform_os.is_empty() {
+            return crate::platform::Platform::all_common();
+        }
+        let mut platforms = Vec::new();
+        for os_name in &self.platform_os {
+            match os_name.to_lowercase().as_str() {
+                "windows" => platforms.extend(crate::platform::Platform::windows_only()),
+                "macos" | "darwin" | "osx" => {
+                    platforms.extend(crate::platform::Platform::macos_only())
+                }
+                "linux" => platforms.extend(crate::platform::Platform::linux_only()),
+                "unix" => platforms.extend(crate::platform::Platform::unix_only()),
+                _ => {}
+            }
+        }
+        if platforms.is_empty() {
+            crate::platform::Platform::all_common()
+        } else {
+            platforms
+        }
+    }
+
+    fn metadata(&self) -> HashMap<String, String> {
+        let mut meta = HashMap::new();
+        meta.insert("provider".to_string(), self.provider_name.clone());
+        meta.insert("source".to_string(), self.source.to_string());
+        meta.insert("manifest_driven".to_string(), "true".to_string());
+        if let Some(ref bundled) = self.bundled_with {
+            meta.insert("bundled_with".to_string(), bundled.clone());
+        }
+        meta
+    }
+
+    fn mirror_urls(&self) -> Vec<MirrorConfig> {
+        self.mirrors.clone()
+    }
+
+    fn store_name(&self) -> &str {
+        self.bundled_with.as_deref().unwrap_or(&self.name)
+    }
+
+    fn is_version_installable(&self, _version: &str) -> bool {
+        self.bundled_with.is_none()
+    }
+
+    async fn prepare_execution(
+        &self,
+        version: &str,
+        _ctx: &crate::ExecutionContext,
+    ) -> Result<crate::ExecutionPrep> {
+        if let Some(ref parent) = self.bundled_with {
+            debug!(
+                "Preparing bundled runtime {} (bundled with {}) at version {}",
+                self.name, parent, version
+            );
+
+            let paths = vx_paths::VxPaths::new()
+                .map_err(|e| anyhow::anyhow!("Failed to get VxPaths: {}", e))?;
+            let store_name = parent;
+            let platform = crate::platform::Platform::current();
+
+            let path_manager = vx_paths::PathManager::from_paths(paths.clone());
+            let mut candidate_versions: Vec<String> = vec![version.to_string()];
+            if let Ok(installed) = path_manager.list_store_versions(store_name) {
+                for v in installed {
+                    if v != version {
+                        candidate_versions.push(v);
+                    }
+                }
+            }
+
+            let exe_name = &self.executable;
+            let exe_with_ext = if cfg!(windows) {
+                if exe_name.ends_with(".exe")
+                    || exe_name.ends_with(".cmd")
+                    || exe_name.ends_with(".bat")
+                {
+                    exe_name.to_string()
+                } else {
+                    format!("{}.exe", exe_name)
+                }
+            } else {
+                exe_name.clone()
+            };
+
+            for parent_version in &candidate_versions {
+                let version_dir = paths.version_store_dir(store_name, parent_version);
+                let platform_dir = version_dir.join(platform.as_str());
+                let search_dirs = [&platform_dir, &version_dir];
+
+                for dir in &search_dirs {
+                    let candidates = [
+                        dir.join(&exe_with_ext),
+                        dir.join(exe_name),
+                        dir.join("bin").join(&exe_with_ext),
+                        dir.join("bin").join(exe_name),
+                    ];
+
+                    for path in &candidates {
+                        if path.exists() {
+                            debug!(
+                                "Found bundled executable {} at {} (parent version: {})",
+                                self.name,
+                                path.display(),
+                                parent_version
+                            );
+                            return Ok(crate::ExecutionPrep {
+                                executable_override: Some(path.clone()),
+                                proxy_ready: true,
+                                message: Some(format!(
+                                    "Using {} from {} {} installation",
+                                    self.name, parent, parent_version
+                                )),
+                                ..Default::default()
+                            });
+                        }
+                    }
+
+                    if dir.exists()
+                        && let Some(found) =
+                            detection::find_executable_recursive(dir, exe_name, &exe_with_ext, 4)
+                    {
+                        debug!(
+                            "Found bundled executable {} via recursive search at {} (parent version: {})",
+                            self.name,
+                            found.display(),
+                            parent_version
+                        );
+                        return Ok(crate::ExecutionPrep {
+                            executable_override: Some(found),
+                            proxy_ready: true,
+                            message: Some(format!(
+                                "Using {} from {} {} installation",
+                                self.name, parent, parent_version
+                            )),
+                            ..Default::default()
+                        });
+                    }
+                }
+            }
+
+            warn!(
+                "Could not find {} executable in {} installation. {} may need to be installed.",
+                self.name, parent, parent
+            );
+            return Ok(crate::ExecutionPrep {
+                use_system_path: true,
+                message: Some(format!(
+                    "{} not found in {} installation, trying system PATH",
+                    self.name, parent
+                )),
+                ..Default::default()
+            });
+        }
+
+        Ok(crate::ExecutionPrep::default())
+    }
+
+    async fn fetch_versions(&self, ctx: &RuntimeContext) -> Result<Vec<VersionInfo>> {
+        if let Some(ref f) = self.fetch_versions_fn {
+            return f().await;
+        }
+        // pip package: query PyPI for available versions
+        if let Some(ref pkg) = self.pip_package {
+            return fetch_pypi_versions(pkg, ctx).await;
+        }
+        Ok(vec![VersionInfo {
+            version: "system".to_string(),
+            released_at: None,
+            prerelease: false,
+            lts: true,
+            download_url: None,
+            checksum: None,
+            metadata: HashMap::new(),
+        }])
+    }
+
+    async fn is_installed(&self, _version: &str, _ctx: &RuntimeContext) -> Result<bool> {
+        Ok(which::which(&self.executable).is_ok())
+    }
+
+    async fn installed_versions(&self, _ctx: &RuntimeContext) -> Result<Vec<String>> {
+        if which::which(&self.executable).is_ok() {
+            if let Ok(Some(version)) = detection::detect_version(
+                &self.executable,
+                self.detection.as_ref().unwrap_or(&DetectionConfig {
+                    command: format!("{} --version", self.executable),
+                    pattern: String::new(),
+                    system_paths: vec![],
+                    env_hints: vec![],
+                }),
+            )
+            .await
+            {
+                return Ok(vec![version]);
+            }
+            Ok(vec!["system".to_string()])
+        } else {
+            Ok(vec![])
+        }
+    }
+
+    async fn download_url(&self, version: &str, platform: &Platform) -> Result<Option<String>> {
+        if let Some(ref f) = self.download_url_fn {
+            return f(version.to_string()).await;
+        }
+
+        for strategy in &self.install_strategies {
+            if let InstallStrategy::DirectDownload { url, platforms, .. } = strategy
+                && (platforms.is_empty()
+                    || platforms
+                        .iter()
+                        .any(|p| p.eq_ignore_ascii_case(platform.os_name())))
+            {
+                let url = url.replace("{version}", version);
+                return Ok(Some(url));
+            }
+        }
+        Ok(None)
+    }
+
+    async fn install(&self, version: &str, ctx: &RuntimeContext) -> Result<InstallResult> {
+        self.install_impl(version, ctx).await
+    }
+
+    fn normalize_config(&self) -> Option<&NormalizeConfig> {
+        self.normalize.as_ref()
+    }
+
+    fn get_shell_path(
+        &self,
+        shell_name: &str,
+        version: &str,
+        ctx: &RuntimeContext,
+    ) -> Option<std::path::PathBuf> {
+        shell::get_shell_path(
+            shell_name,
+            &self.shells,
+            &self.executable,
+            self.store_name(),
+            version,
+            self.detection.as_ref(),
+            ctx,
+        )
+    }
+
+    fn provided_shells(&self) -> Vec<&'static str> {
+        vec![]
+    }
+}
+
+// ============================================================================
+// Private helpers
+// ============================================================================
+
+/// Check if a package manager is available on the system.
+async fn is_package_manager_available(manager: &str) -> bool {
+    match manager {
+        "choco" | "chocolatey" => which::which("choco").is_ok(),
+        "winget" => which::which("winget").is_ok(),
+        "scoop" => which::which("scoop").is_ok(),
+        "brew" | "homebrew" => which::which("brew").is_ok(),
+        "apt" | "apt-get" => which::which("apt").is_ok() || which::which("apt-get").is_ok(),
+        "yum" => which::which("yum").is_ok(),
+        "dnf" => which::which("dnf").is_ok(),
+        "pacman" => which::which("pacman").is_ok(),
+        "zypper" => which::which("zypper").is_ok(),
+        "apk" => which::which("apk").is_ok(),
+        _ => false,
+    }
+}
+
+/// Fetch available versions from PyPI for a pip package.
+async fn fetch_pypi_versions(pkg: &str, ctx: &RuntimeContext) -> Result<Vec<VersionInfo>> {
+    let url = format!("https://pypi.org/pypi/{}/json", pkg);
+    if let Ok(resp) = ctx.http.get_json_value(&url).await {
+        let mut versions = Vec::new();
+        if let Some(releases) = resp.get("releases").and_then(|v| v.as_object()) {
+            for (ver, files) in releases {
+                if files.as_array().map(|a| a.is_empty()).unwrap_or(true) {
+                    continue;
+                }
+                let prerelease = ver.contains('a')
+                    || ver.contains('b')
+                    || ver.contains("rc")
+                    || ver.contains("dev");
+                versions.push(VersionInfo {
+                    version: ver.clone(),
+                    released_at: None,
+                    prerelease,
+                    lts: false,
+                    download_url: None,
+                    checksum: None,
+                    metadata: HashMap::new(),
+                });
+            }
+        }
+        versions.sort_by(|a, b| {
+            let parse = |v: &str| -> Vec<u64> {
+                v.split(|c: char| !c.is_ascii_digit())
+                    .filter(|s| !s.is_empty())
+                    .filter_map(|s| s.parse::<u64>().ok())
+                    .collect()
+            };
+            parse(&b.version).cmp(&parse(&a.version))
+        });
+        return Ok(versions);
+    }
+    Ok(vec![])
+}
+
+// ============================================================================
+// Tests
+// ============================================================================
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_install_strategy_priority() {
+        let strategy = InstallStrategy::PackageManager {
+            manager: "choco".to_string(),
+            package: "git".to_string(),
+            params: None,
+            install_args: None,
+            priority: 80,
+            platforms: vec!["windows".to_string()],
+        };
+        assert_eq!(strategy.priority(), 80);
+    }
+
+    #[test]
+    fn test_install_strategy_platform_filter() {
+        let strategy = InstallStrategy::PackageManager {
+            manager: "brew".to_string(),
+            package: "git".to_string(),
+            params: None,
+            install_args: None,
+            priority: 90,
+            platforms: vec!["macos".to_string(), "linux".to_string()],
+        };
+
+        let macos = Platform::new(crate::Os::MacOS, crate::Arch::Aarch64);
+        let windows = Platform::new(crate::Os::Windows, crate::Arch::X86_64);
+
+        assert!(strategy.matches_platform(&macos));
+        assert!(!strategy.matches_platform(&windows));
+    }
+
+    #[test]
+    fn test_manifest_runtime_builder() {
+        let runtime = ManifestDrivenRuntime::new("fd", "mytools", ProviderSource::BuiltIn)
+            .with_description("A simple, fast alternative to find")
+            .with_executable("fd")
+            .with_alias("fd-find")
+            .with_strategy(InstallStrategy::PackageManager {
+                manager: "brew".to_string(),
+                package: "fd".to_string(),
+                params: None,
+                install_args: None,
+                priority: 90,
+                platforms: vec![],
+            });
+
+        assert_eq!(runtime.name(), "fd");
+        assert_eq!(runtime.description(), "A simple, fast alternative to find");
+        assert_eq!(runtime.install_strategies.len(), 1);
+    }
+}

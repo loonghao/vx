@@ -53,9 +53,9 @@ mod constraint_tests {
     }
 
     #[rstest]
-    #[case(RangeOp::Ge, "1.0.0", "1.0.0", true)]
-    #[case(RangeOp::Ge, "1.0.0", "1.0.1", true)]
-    #[case(RangeOp::Ge, "1.0.0", "0.9.0", false)]
+    #[case(RangeOp::Gte, "1.0.0", "1.0.0", true)]
+    #[case(RangeOp::Gte, "1.0.0", "1.0.1", true)]
+    #[case(RangeOp::Gte, "1.0.0", "0.9.0", false)]
     #[case(RangeOp::Lt, "2.0.0", "1.9.9", true)]
     #[case(RangeOp::Lt, "2.0.0", "2.0.0", false)]
     #[case(RangeOp::Tilde, "1.2.0", "1.2.5", true)]
@@ -163,7 +163,7 @@ mod solver_tests {
         let available = make_versions(&["1.0.0", "1.1.0", "2.0.0"]);
         let request = VersionRequest::parse("latest");
 
-        let result = solver.resolve("test", &request, &available, &Ecosystem::Node);
+        let result = solver.resolve("test", &request, &available, &Ecosystem::NodeJs);
         assert!(result.is_ok());
         assert_eq!(result.unwrap().version_string(), "2.0.0");
     }
@@ -185,7 +185,7 @@ mod solver_tests {
         let available = make_versions(&["18.0.0", "18.10.0", "20.0.0", "20.10.0", "22.0.0"]);
         let request = VersionRequest::parse("20");
 
-        let result = solver.resolve("node", &request, &available, &Ecosystem::Node);
+        let result = solver.resolve("node", &request, &available, &Ecosystem::NodeJs);
         assert!(result.is_ok());
         assert_eq!(result.unwrap().version_string(), "20.10.0");
     }
@@ -196,7 +196,7 @@ mod solver_tests {
         let available = make_versions(&["1.0.0", "1.1.0", "2.0.0"]);
         let request = VersionRequest::parse("1.1.0");
 
-        let result = solver.resolve("test", &request, &available, &Ecosystem::Node);
+        let result = solver.resolve("test", &request, &available, &Ecosystem::NodeJs);
         assert!(result.is_ok());
         assert_eq!(result.unwrap().version_string(), "1.1.0");
     }
@@ -218,7 +218,7 @@ mod solver_tests {
         let available = make_versions(&["1.0.0", "1.1.0", "1.9.0", "2.0.0"]);
         let request = VersionRequest::parse("^1.0.0");
 
-        let result = solver.resolve("test", &request, &available, &Ecosystem::Node);
+        let result = solver.resolve("test", &request, &available, &Ecosystem::NodeJs);
         assert!(result.is_ok());
         assert_eq!(result.unwrap().version_string(), "1.9.0");
     }
@@ -229,7 +229,7 @@ mod solver_tests {
         let available = make_versions(&["1.2.0", "1.2.5", "1.2.9", "1.3.0"]);
         let request = VersionRequest::parse("~1.2.0");
 
-        let result = solver.resolve("test", &request, &available, &Ecosystem::Node);
+        let result = solver.resolve("test", &request, &available, &Ecosystem::NodeJs);
         assert!(result.is_ok());
         assert_eq!(result.unwrap().version_string(), "1.2.9");
     }
@@ -240,7 +240,7 @@ mod solver_tests {
         let available = make_versions(&["1.0.0", "1.1.0"]);
         let request = VersionRequest::parse("2.0.0");
 
-        let result = solver.resolve("test", &request, &available, &Ecosystem::Node);
+        let result = solver.resolve("test", &request, &available, &Ecosystem::NodeJs);
         assert!(result.is_err());
     }
 
@@ -256,7 +256,7 @@ mod solver_tests {
             make_versions_with_lts(&[("18.0.0", true), ("20.0.0", true), ("22.0.0", false)]);
         let request = VersionRequest::parse("latest");
 
-        let result = solver.resolve("node", &request, &available, &Ecosystem::Node);
+        let result = solver.resolve("node", &request, &available, &Ecosystem::NodeJs);
         assert!(result.is_ok());
         // Should prefer LTS version 20.0.0 over non-LTS 22.0.0
         assert_eq!(result.unwrap().version_string(), "20.0.0");
@@ -272,7 +272,7 @@ mod solver_tests {
         ];
         let request = VersionRequest::parse("latest");
 
-        let result = solver.resolve("test", &request, &available, &Ecosystem::Node);
+        let result = solver.resolve("test", &request, &available, &Ecosystem::NodeJs);
         assert!(result.is_ok());
         assert_eq!(result.unwrap().version_string(), "2.0.0");
     }
@@ -285,7 +285,7 @@ mod solver_tests {
             (
                 "node".to_string(),
                 VersionRequest::parse("20"),
-                Ecosystem::Node,
+                Ecosystem::NodeJs,
                 make_versions(&["18.0.0", "20.0.0", "20.10.0", "22.0.0"]),
             ),
             (
@@ -309,9 +309,9 @@ mod solver_tests {
         let solver = VersionSolver::new();
 
         // Caret
-        assert!(solver.version_satisfies("1.2.3", "^1.0.0", &Ecosystem::Node));
-        assert!(solver.version_satisfies("1.9.9", "^1.0.0", &Ecosystem::Node));
-        assert!(!solver.version_satisfies("2.0.0", "^1.0.0", &Ecosystem::Node));
+        assert!(solver.version_satisfies("1.2.3", "^1.0.0", &Ecosystem::NodeJs));
+        assert!(solver.version_satisfies("1.9.9", "^1.0.0", &Ecosystem::NodeJs));
+        assert!(!solver.version_satisfies("2.0.0", "^1.0.0", &Ecosystem::NodeJs));
 
         // Partial
         assert!(solver.version_satisfies("3.11.5", "3.11", &Ecosystem::Python));

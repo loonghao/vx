@@ -58,7 +58,9 @@ pub use security::{
 };
 pub use setup_pipeline::{SetupHookResult, SetupPipeline, SetupPipelineResult};
 pub use team::{TeamManager, generate_codeowners};
-pub use telemetry::{BuildTiming, BuildTracker, Metric, OtlpExporter, Span, TelemetryCollector};
+pub use telemetry::{
+    BuildTiming, BuildTracker, Metric, OtlpExporter, Span, SpanStatus, TelemetryCollector,
+};
 pub use testing::{CoverageReporter, TestFramework, TestResult, TestRunner};
 pub use types::*;
 pub use validation::{ValidationResult, validate_config};

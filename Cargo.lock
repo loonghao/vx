@@ -5795,6 +5795,7 @@ dependencies = [
  "vx-manifest",
  "vx-paths",
  "vx-runtime",
+ "vx-versions",
  "walkdir",
  "which",
  "workspace-hack",
@@ -5827,6 +5828,7 @@ dependencies = [
  "vx-paths",
  "vx-runtime-core",
  "vx-system-pm",
+ "vx-versions",
  "which",
  "workspace-hack",
 ]
@@ -5863,6 +5865,7 @@ dependencies = [
  "thiserror 2.0.18",
  "tokio",
  "tracing",
+ "vx-versions",
  "workspace-hack",
 ]
 
@@ -6004,7 +6007,25 @@ dependencies = [
  "tokio-test",
  "tracing",
  "vx-core",
- "vx-runtime",
+ "vx-versions",
+ "workspace-hack",
+]
+
+[[package]]
+name = "vx-versions"
+version = "0.8.3"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "bincode",
+ "chrono",
+ "rstest",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "thiserror 2.0.18",
+ "tracing",
+ "vx-cache",
  "workspace-hack",
 ]
 

@@ -23,7 +23,7 @@ use crate::RuntimeDependency;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::OnceLock;
-use vx_runtime_core::{RangeOp, VersionConstraint, VersionRequest};
+use vx_versions::{RangeOp, VersionConstraint, VersionRequest};
 
 /// Version range pattern for matching runtime versions
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
@@ -361,10 +361,10 @@ fn extract_min_max_from_constraint(req: &VersionRequest) -> (Option<String>, Opt
             let mut max = None;
             for c in constraints {
                 match c.op {
-                    RangeOp::Ge | RangeOp::Gt => {
+                    RangeOp::Gte | RangeOp::Gt => {
                         min = Some(c.version.to_string());
                     }
-                    RangeOp::Le | RangeOp::Lt => {
+                    RangeOp::Lte | RangeOp::Lt => {
                         max = Some(c.version.to_string());
                     }
                     _ => {}

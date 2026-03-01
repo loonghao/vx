@@ -8,7 +8,7 @@
 
 use std::cmp::Ordering;
 use vx_core::version_utils as core_vu;
-use vx_runtime::VersionInfo;
+use vx_versions::VersionInfo;
 
 /// Version processing utility functions
 pub mod version_utils {
@@ -35,7 +35,7 @@ pub mod version_utils {
     /// # Examples
     /// ```
     /// use vx_version_fetcher::version_utils::sort_versions_desc;
-    /// use vx_runtime::VersionInfo;
+    /// use vx_versions::VersionInfo;
     ///
     /// let mut versions = vec![
     ///     VersionInfo::new("1.0.0"),

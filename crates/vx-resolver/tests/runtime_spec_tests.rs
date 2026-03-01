@@ -7,7 +7,7 @@ use vx_resolver::{Ecosystem, RuntimeDependency, RuntimeSpec};
 fn test_runtime_spec_creation() {
     let spec = RuntimeSpec::new("npm", "Node.js package manager")
         .with_alias("npm-cli")
-        .with_ecosystem(Ecosystem::Node)
+        .with_ecosystem(Ecosystem::NodeJs)
         .with_dependency(RuntimeDependency::required(
             "node",
             "npm requires Node.js runtime",
@@ -17,7 +17,7 @@ fn test_runtime_spec_creation() {
     assert!(spec.matches("npm"));
     assert!(spec.matches("npm-cli"));
     assert!(!spec.matches("yarn"));
-    assert_eq!(spec.ecosystem, Ecosystem::Node);
+    assert_eq!(spec.ecosystem, Ecosystem::NodeJs);
     assert_eq!(spec.required_dependencies().len(), 1);
 }
 
@@ -43,7 +43,7 @@ fn test_optional_dependency() {
 
 #[rstest]
 fn test_ecosystem_display() {
-    assert_eq!(format!("{}", Ecosystem::Node), "node");
+    assert_eq!(format!("{}", Ecosystem::NodeJs), "node");
     assert_eq!(format!("{}", Ecosystem::Python), "python");
     assert_eq!(format!("{}", Ecosystem::Rust), "rust");
     assert_eq!(format!("{}", Ecosystem::Go), "go");

@@ -93,3 +93,138 @@ fn test_from_string() {
     assert_eq!(req.name, "node");
     assert_eq!(req.version, Some("20".to_string()));
 }
+
+// --- executable override ---
+
+#[test]
+fn test_parse_executable_override() {
+    let req = RuntimeRequest::parse("msvc::cl");
+    assert_eq!(req.name, "msvc");
+    assert_eq!(req.executable, Some("cl".to_string()));
+    assert_eq!(req.version, None);
+    assert_eq!(req.shell, None);
+}
+
+#[test]
+fn test_parse_executable_override_with_version() {
+    let req = RuntimeRequest::parse("msvc::cl@14.42");
+    assert_eq!(req.name, "msvc");
+    assert_eq!(req.executable, Some("cl".to_string()));
+    assert_eq!(req.version, Some("14.42".to_string()));
+}
+
+#[test]
+fn test_parse_executable_override_empty_exe() {
+    let req = RuntimeRequest::parse("msvc::@14.42");
+    assert_eq!(req.name, "msvc");
+    assert_eq!(req.executable, None);
+    assert_eq!(req.version, Some("14.42".to_string()));
+}
+
+#[test]
+fn test_parse_executable_override_empty_all() {
+    let req = RuntimeRequest::parse("msvc::");
+    assert_eq!(req.name, "msvc");
+    assert_eq!(req.executable, None);
+    assert_eq!(req.version, None);
+}
+
+#[test]
+fn test_display_with_executable_override() {
+    let req = RuntimeRequest {
+        name: "msvc".to_string(),
+        executable: Some("cl".to_string()),
+        version: Some("14.42".to_string()),
+        shell: None,
+    };
+    assert_eq!(format!("{}", req), "msvc::cl@14.42");
+
+    let req = RuntimeRequest {
+        name: "msvc".to_string(),
+        executable: Some("cl".to_string()),
+        version: None,
+        shell: None,
+    };
+    assert_eq!(format!("{}", req), "msvc::cl");
+}
+
+// --- shell syntax (runtime::shell) ---
+
+#[test]
+fn test_parse_git_bash_shell() {
+    let req = RuntimeRequest::parse("git::git-bash");
+    assert_eq!(req.name, "git");
+    assert_eq!(req.shell, Some("git-bash".to_string()));
+    assert_eq!(req.executable, None);
+    assert_eq!(req.version, None);
+    assert!(req.is_shell_request());
+    assert_eq!(req.shell_name(), Some("git-bash"));
+}
+
+#[test]
+fn test_parse_cmd_shell() {
+    let req = RuntimeRequest::parse("git::cmd");
+    assert_eq!(req.name, "git");
+    assert_eq!(req.shell, Some("cmd".to_string()));
+    assert_eq!(req.executable, None);
+    assert!(req.is_shell_request());
+}
+
+#[test]
+fn test_parse_powershell_shell() {
+    let req = RuntimeRequest::parse("node::powershell");
+    assert_eq!(req.name, "node");
+    assert_eq!(req.shell, Some("powershell".to_string()));
+    assert!(req.is_shell_request());
+}
+
+#[test]
+fn test_parse_bash_shell() {
+    let req = RuntimeRequest::parse("go::bash");
+    assert_eq!(req.name, "go");
+    assert_eq!(req.shell, Some("bash".to_string()));
+    assert!(req.is_shell_request());
+}
+
+#[test]
+fn test_parse_shell_with_version() {
+    let req = RuntimeRequest::parse("git::git-bash@2.43");
+    assert_eq!(req.name, "git");
+    assert_eq!(req.shell, Some("git-bash".to_string()));
+    assert_eq!(req.version, Some("2.43".to_string()));
+    assert!(req.is_shell_request());
+}
+
+#[test]
+fn test_executable_vs_shell_distinction() {
+    // "cl" is NOT a known shell → executable
+    let req = RuntimeRequest::parse("msvc::cl");
+    assert_eq!(req.executable, Some("cl".to_string()));
+    assert_eq!(req.shell, None);
+    assert!(!req.is_shell_request());
+
+    // "cmd" IS a known shell
+    let req = RuntimeRequest::parse("msvc::cmd");
+    assert_eq!(req.executable, None);
+    assert_eq!(req.shell, Some("cmd".to_string()));
+    assert!(req.is_shell_request());
+}
+
+#[test]
+fn test_display_with_shell() {
+    let req = RuntimeRequest {
+        name: "git".to_string(),
+        shell: Some("git-bash".to_string()),
+        version: Some("2.43".to_string()),
+        executable: None,
+    };
+    assert_eq!(format!("{}", req), "git::git-bash@2.43");
+
+    let req = RuntimeRequest {
+        name: "git".to_string(),
+        shell: Some("git-bash".to_string()),
+        version: None,
+        executable: None,
+    };
+    assert_eq!(format!("{}", req), "git::git-bash");
+}

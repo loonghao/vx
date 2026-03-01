@@ -74,28 +74,10 @@ pub struct RuntimeDependency {
     pub provided_by: Option<String>,
 }
 
-/// Ecosystem categorization for runtimes
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Default)]
-pub enum Ecosystem {
-    /// Node.js ecosystem (npm, yarn, pnpm, bun)
-    Node,
-    /// Python ecosystem (uv, pip, poetry)
-    Python,
-    /// Rust ecosystem (cargo, rustup)
-    Rust,
-    /// Go ecosystem (go)
-    Go,
-    /// Git ecosystem (git)
-    Git,
-    /// Java ecosystem (java, javac, jar)
-    Java,
-    /// Generic/standalone runtimes
-    #[default]
-    Generic,
-}
+// Re-export Ecosystem from vx-versions to avoid duplication
+pub use vx_versions::Ecosystem;
 
 impl RuntimeSpec {
-    /// Create a new runtime specification
     pub fn new(name: impl Into<String>, description: impl Into<String>) -> Self {
         Self {
             name: name.into(),
@@ -282,19 +264,5 @@ impl RuntimeDependency {
             }
         }
         true // Equal
-    }
-}
-
-impl std::fmt::Display for Ecosystem {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Ecosystem::Node => write!(f, "node"),
-            Ecosystem::Python => write!(f, "python"),
-            Ecosystem::Rust => write!(f, "rust"),
-            Ecosystem::Go => write!(f, "go"),
-            Ecosystem::Git => write!(f, "git"),
-            Ecosystem::Java => write!(f, "java"),
-            Ecosystem::Generic => write!(f, "generic"),
-        }
     }
 }

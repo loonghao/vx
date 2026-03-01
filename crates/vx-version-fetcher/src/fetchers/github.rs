@@ -7,7 +7,7 @@ use crate::fetcher::VersionFetcher;
 use crate::fetchers::JsDelivrFetcher;
 use crate::utils::version_utils;
 use async_trait::async_trait;
-use vx_runtime::{RuntimeContext, VersionInfo};
+use vx_versions::{FetchContext, VersionInfo};
 
 /// Configuration for GitHub Releases fetcher
 #[derive(Debug, Clone)]
@@ -170,11 +170,10 @@ impl GitHubReleasesFetcher {
     }
 
     /// Fetch versions from GitHub API
-    async fn fetch_from_github(&self, ctx: &RuntimeContext) -> FetchResult<Vec<VersionInfo>> {
+    async fn fetch_from_github(&self, ctx: &dyn FetchContext) -> FetchResult<Vec<VersionInfo>> {
         let url = self.api_url();
 
         let response = ctx
-            .http
             .get_json_value(&url)
             .await
             .map_err(|e| FetchError::network(e.to_string()))?;
@@ -258,7 +257,7 @@ impl GitHubReleasesFetcher {
 
 #[async_trait]
 impl VersionFetcher for GitHubReleasesFetcher {
-    async fn fetch(&self, ctx: &RuntimeContext) -> FetchResult<Vec<VersionInfo>> {
+    async fn fetch(&self, ctx: &dyn FetchContext) -> FetchResult<Vec<VersionInfo>> {
         // Try GitHub API first
         match self.fetch_from_github(ctx).await {
             Ok(versions) => Ok(versions),
