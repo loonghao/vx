@@ -10,6 +10,7 @@ use vx_runtime::{Provider, Runtime, RuntimeContext, VersionInfo};
 
 // ========== Test helpers ==========
 
+#[allow(dead_code)]
 struct DummyRuntime {
     name: &'static str,
 }
@@ -25,6 +26,7 @@ impl Runtime for DummyRuntime {
     }
 }
 
+#[allow(dead_code)]
 struct DummyProvider {
     name: &'static str,
 }

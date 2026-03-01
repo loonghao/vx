@@ -1,6 +1,6 @@
 //! Real path provider implementation
 
-use crate::traits::PathProvider;
+use crate::traits::{CorePathProvider, PathProvider};
 use anyhow::Result;
 use std::path::{Path, PathBuf};
 use vx_paths::VxPaths;
@@ -32,7 +32,7 @@ impl Default for RealPathProvider {
     }
 }
 
-impl PathProvider for RealPathProvider {
+impl CorePathProvider for RealPathProvider {
     fn vx_home(&self) -> PathBuf {
         self.paths.base_dir.clone()
     }
@@ -75,7 +75,9 @@ impl PathProvider for RealPathProvider {
     fn env_dir(&self, env_name: &str) -> PathBuf {
         self.paths.env_dir(env_name)
     }
+}
 
+impl PathProvider for RealPathProvider {
     // ========== npm-tools paths ==========
 
     fn npm_tools_dir(&self) -> PathBuf {

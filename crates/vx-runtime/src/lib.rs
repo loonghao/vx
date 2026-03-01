@@ -46,6 +46,7 @@
 pub mod constraints;
 pub mod context;
 pub mod ecosystem;
+pub mod github;
 pub mod impls;
 pub mod integrated_resolver;
 pub mod layout;
@@ -69,8 +70,11 @@ pub mod version_cache;
 pub mod version_resolver;
 
 // Re-exports
-pub use context::{ExecutionContext, GitHubReleaseOptions, RuntimeContext};
+pub use context::{ExecutionContext, RuntimeContext};
 pub use ecosystem::Ecosystem;
+/// Deprecated: use `vx_version_fetcher::GitHubReleasesConfig` instead.
+#[allow(deprecated)]
+pub use github::GitHubReleaseOptions;
 pub use impls::{RealCommandExecutor, RealFileSystem, RealPathProvider};
 // Note: RealHttpClient, RealInstaller, create_runtime_context* have moved to vx-runtime-http
 pub use layout::{
@@ -81,9 +85,24 @@ pub use package_runtime::{InstallMethod, PackageRuntime};
 pub use platform::{Arch, Libc, Os, Platform, compare_semver};
 pub use provider::Provider;
 pub use registry::{PlatformError, ProviderRegistry};
-pub use runtime::{Runtime, VerificationResult};
+pub use runtime::{
+    Runtime,
+    // ISP sub-traits (blanket-implemented for all Runtime types)
+    RuntimeEnvironment,
+    RuntimeExecutable,
+    RuntimeExecuteOps,
+    RuntimeHooks,
+    RuntimeIdentity,
+    RuntimeInstallable,
+    RuntimePlatform,
+    RuntimeShell,
+    RuntimeVersioning,
+    VerificationResult,
+};
 pub use shim::{Shim, ShimBuilder, ShimType, create_shim};
-pub use traits::{CommandExecutor, FileSystem, HttpClient, Installer, PathProvider};
+pub use traits::{
+    CommandExecutor, CorePathProvider, FileSystem, HttpClient, Installer, PathProvider,
+};
 pub use types::{
     ExecutionPrep, ExecutionResult, InstallResult, RuntimeDependency, RuntimeSpec, VersionInfo,
 };
@@ -98,9 +117,7 @@ pub use version_cache::{CacheEntry, CacheMode, CacheStats, DEFAULT_CACHE_TTL, Ve
 pub use version_resolver::VersionResolver;
 
 // Provider environment and version resolution (REZ-like environment)
-pub use provider_env::{
-    ProviderEnvironment, ProviderEnvironmentResolver, ResolvedVersionInfo, VersionResolverCache,
-};
+pub use provider_env::{ProviderEnvironment, ProviderEnvironmentResolver, ResolvedVersionInfo};
 
 // Integrated resolver using existing vx infrastructure
 pub use integrated_resolver::{IntegratedVersionResolver, ProviderEnvBuilder};

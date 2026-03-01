@@ -21,7 +21,9 @@
 //! ```
 
 use crate::context::{ExecutionContext, RuntimeConfig, RuntimeContext};
-use crate::traits::{CommandExecutor, FileSystem, HttpClient, Installer, PathProvider};
+use crate::traits::{
+    CommandExecutor, CorePathProvider, FileSystem, HttpClient, Installer, PathProvider,
+};
 use crate::types::ExecutionResult;
 use anyhow::Result;
 use async_trait::async_trait;
@@ -47,7 +49,7 @@ impl MockPathProvider {
     }
 }
 
-impl PathProvider for MockPathProvider {
+impl CorePathProvider for MockPathProvider {
     fn vx_home(&self) -> PathBuf {
         self.base_dir.clone()
     }
@@ -94,7 +96,9 @@ impl PathProvider for MockPathProvider {
     fn env_dir(&self, env_name: &str) -> PathBuf {
         self.envs_dir().join(env_name)
     }
+}
 
+impl PathProvider for MockPathProvider {
     // ========== npm-tools paths ==========
 
     fn npm_tools_dir(&self) -> PathBuf {

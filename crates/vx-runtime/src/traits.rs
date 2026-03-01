@@ -111,8 +111,12 @@ pub trait CommandExecutor: Send + Sync {
     fn which(&self, program: &str) -> Option<PathBuf>;
 }
 
-/// Path provider abstraction for testability
-pub trait PathProvider: Send + Sync {
+/// Core path provider with essential vx directory paths.
+///
+/// This trait contains only the fundamental paths needed by most components.
+/// Implement this when you don't need ecosystem-specific paths (e.g., in unit
+/// tests that only touch the store or cache directories).
+pub trait CorePathProvider: Send + Sync {
     /// Get the VX home directory (~/.vx)
     fn vx_home(&self) -> PathBuf;
 
@@ -142,7 +146,14 @@ pub trait PathProvider: Send + Sync {
 
     /// Get the environment directory
     fn env_dir(&self, env_name: &str) -> PathBuf;
+}
 
+/// Full path provider extending [`CorePathProvider`] with ecosystem-specific paths.
+///
+/// Implement this for production path providers. Components that only need core
+/// paths should accept `impl CorePathProvider` to avoid coupling to ecosystem
+/// details (npm, pip, global packages).
+pub trait PathProvider: CorePathProvider {
     // ========== npm-tools paths ==========
 
     /// Get the npm-tools directory (~/.vx/npm-tools)
