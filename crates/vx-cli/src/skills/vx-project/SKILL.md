@@ -1,8 +1,6 @@
 ---
 name: vx-project
-description: |
-  Project management guide for vx. Use this skill when setting up a new project,
-  configuring vx.toml, or managing project-level tool versions and scripts.
+description: "Project management guide for vx. Use when setting up a new project, configuring vx.toml, or managing project-level tool versions and scripts."
 ---
 
 # VX Project Management Guide
