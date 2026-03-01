@@ -149,8 +149,8 @@ impl VersionRequest {
 
         // Try each operator from longest to shortest
         let operators = [
-            (">=", RangeOp::Ge),
-            ("<=", RangeOp::Le),
+            (">=", RangeOp::Gte),
+            ("<=", RangeOp::Lte),
             ("!=", RangeOp::Ne),
             ("~=", RangeOp::Tilde),
             (">", RangeOp::Gt),
@@ -159,7 +159,6 @@ impl VersionRequest {
             ("^", RangeOp::Caret),
             ("~", RangeOp::Tilde),
         ];
-
         for (prefix, op) in operators {
             if let Some(version_str) = s.strip_prefix(prefix)
                 && let Some(version) = Version::parse(version_str.trim())
@@ -288,7 +287,7 @@ mod tests {
         let req = VersionRequest::parse(">=3.9,<3.12");
         if let VersionConstraint::Range(constraints) = req.constraint {
             assert_eq!(constraints.len(), 2);
-            assert!(matches!(constraints[0].op, RangeOp::Ge));
+            assert!(matches!(constraints[0].op, RangeOp::Gte));
             assert!(matches!(constraints[1].op, RangeOp::Lt));
         } else {
             panic!("Expected Range constraint");

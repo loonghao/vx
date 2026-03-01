@@ -10,7 +10,7 @@ use crate::fetchers::{
 };
 use async_trait::async_trait;
 use std::sync::Arc;
-use vx_runtime::{RuntimeContext, VersionInfo};
+use vx_versions::{FetchContext, VersionInfo};
 
 /// Type alias for custom version parser function
 type VersionParser = dyn Fn(&serde_json::Value) -> anyhow::Result<Vec<VersionInfo>> + Send + Sync;
@@ -424,7 +424,7 @@ struct StaticVersionFetcher {
 
 #[async_trait]
 impl VersionFetcher for StaticVersionFetcher {
-    async fn fetch(&self, _ctx: &RuntimeContext) -> FetchResult<Vec<VersionInfo>> {
+    async fn fetch(&self, _ctx: &dyn FetchContext) -> FetchResult<Vec<VersionInfo>> {
         Ok(self.versions.clone())
     }
 

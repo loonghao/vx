@@ -34,23 +34,27 @@
 //! - Searching for executables in install directories
 //! - Verification of installations
 
+pub mod install_impl;
 pub mod subtrait;
+pub mod verify;
+
 pub use subtrait::{
     RuntimeEnvironment, RuntimeExecutable, RuntimeExecuteOps, RuntimeHooks, RuntimeIdentity,
     RuntimeInstallable, RuntimePlatform, RuntimeShell, RuntimeVersioning,
 };
+pub use verify::VerificationResult;
 
 use crate::context::{ExecutionContext, RuntimeContext};
 use crate::ecosystem::Ecosystem;
-use crate::platform::{Os, Platform};
+use crate::platform::Platform;
 use crate::region;
 use crate::types::{ExecutionPrep, ExecutionResult, InstallResult, RuntimeDependency, VersionInfo};
-use crate::version_resolver::VersionResolver;
 use anyhow::Result;
 use async_trait::async_trait;
 use std::collections::HashMap;
 use std::path::Path;
 use vx_runtime_core::{MirrorConfig, NormalizeConfig};
+use vx_versions::VersionResolver;
 
 /// Detect the download region for mirror selection
 ///
@@ -59,54 +63,6 @@ fn detect_download_region() -> &'static str {
     match region::detect_region() {
         region::Region::China => "cn",
         region::Region::Global => "global",
-    }
-}
-
-/// Installation verification result
-#[derive(Debug, Clone)]
-pub struct VerificationResult {
-    /// Whether the installation is valid
-    pub valid: bool,
-    /// Path to the executable if found
-    pub executable_path: Option<std::path::PathBuf>,
-    /// List of issues found during verification
-    pub issues: Vec<String>,
-    /// Suggested fixes for the issues
-    pub suggestions: Vec<String>,
-}
-
-impl VerificationResult {
-    /// Create a successful verification result
-    pub fn success(executable_path: std::path::PathBuf) -> Self {
-        Self {
-            valid: true,
-            executable_path: Some(executable_path),
-            issues: vec![],
-            suggestions: vec![],
-        }
-    }
-
-    /// Create a failed verification result
-    pub fn failure(issues: Vec<String>, suggestions: Vec<String>) -> Self {
-        Self {
-            valid: false,
-            executable_path: None,
-            issues,
-            suggestions,
-        }
-    }
-
-    /// Create a successful verification result for system-installed tools
-    ///
-    /// Used for tools installed via system package managers (winget, brew, apt, etc.)
-    /// where the executable is available in the system PATH rather than a specific install path.
-    pub fn success_system_installed() -> Self {
-        Self {
-            valid: true,
-            executable_path: None, // System-installed, no specific path
-            issues: vec![],
-            suggestions: vec![],
-        }
     }
 }
 
@@ -576,14 +532,10 @@ pub trait Runtime: Send + Sync {
         Ok(())
     }
 
-    /// Verify that an installation is valid and complete
+    /// Verify that an installation is valid and complete.
     ///
-    /// This method checks:
-    /// 1. The executable exists at the expected path
-    /// 2. The executable is actually executable (has correct permissions)
-    /// 3. Any other runtime-specific requirements
-    ///
-    /// Override this for custom verification logic.
+    /// Checks that the executable exists at the expected path (supports glob patterns)
+    /// and is executable on Unix. Override for custom verification logic.
     fn verify_installation(
         &self,
         version: &str,
@@ -591,115 +543,24 @@ pub trait Runtime: Send + Sync {
         platform: &Platform,
     ) -> VerificationResult {
         let exe_relative = self.executable_relative_path(version, platform);
-
-        let mut issues = Vec::new();
-        let mut suggestions = Vec::new();
-
-        // Handle glob patterns in executable path (e.g., "*/bin/java.exe")
-        let exe_path = if exe_relative.contains('*') {
-            let pattern = install_path.join(&exe_relative);
-            let pattern_str = pattern.to_string_lossy();
-            match glob::glob(&pattern_str) {
-                Ok(paths) => {
-                    let matches: Vec<_> = paths.filter_map(|p| p.ok()).collect();
-                    if matches.is_empty() {
-                        None
-                    } else {
-                        Some(matches[0].clone())
-                    }
-                }
-                Err(_) => None,
-            }
-        } else {
-            let path = install_path.join(&exe_relative);
-            if path.exists() { Some(path) } else { None }
-        };
-
-        // Check if executable exists
-        let exe_path = match exe_path {
-            Some(path) if path.exists() => path,
-            _ => {
-                issues.push(format!(
-                    "Executable not found at expected path: {}",
-                    install_path.join(&exe_relative).display()
-                ));
-
-                // Try to find the executable in the install directory
-                if let Some(found_path) = self.find_executable_in_install_dir(install_path) {
-                    suggestions.push(format!(
-                        "Found executable at: {}. Consider overriding executable_relative_path() \
-                         to return the correct relative path.",
-                        found_path.display()
-                    ));
-
-                    // Calculate what the relative path should be
-                    if let Ok(relative) = found_path.strip_prefix(install_path) {
-                        suggestions.push(format!(
-                            "Suggested executable_relative_path: \"{}\"",
-                            relative.display()
-                        ));
-                    }
-                } else {
-                    // List top-level contents for debugging
-                    if let Ok(entries) = std::fs::read_dir(install_path) {
-                        let contents: Vec<_> = entries
-                            .filter_map(|e| e.ok())
-                            .map(|e| {
-                                let path = e.path();
-                                let is_dir = path.is_dir();
-                                format!(
-                                    "{}{}",
-                                    e.file_name().to_string_lossy(),
-                                    if is_dir { "/" } else { "" }
-                                )
-                            })
-                            .collect();
-                        suggestions.push(format!(
-                            "Install directory contents: [{}]",
-                            contents.join(", ")
-                        ));
-                    }
-                }
-
-                return VerificationResult::failure(issues, suggestions);
-            }
-        };
-
-        // Check if file is executable (Unix only)
-        #[cfg(unix)]
-        {
-            use std::os::unix::fs::PermissionsExt;
-            if let Ok(metadata) = std::fs::metadata(&exe_path) {
-                let mode = metadata.permissions().mode();
-                if mode & 0o111 == 0 {
-                    issues.push(format!(
-                        "File exists but is not executable: {}",
-                        exe_path.display()
-                    ));
-                    suggestions.push("Try: chmod +x <path>".to_string());
-                    return VerificationResult::failure(issues, suggestions);
-                }
-            }
-        }
-
-        VerificationResult::success(exe_path)
+        verify::verify_installation_default(
+            &exe_relative,
+            install_path,
+            self.executable_name(),
+            self.executable_extensions(),
+        )
     }
 
-    /// Helper to find executable in install directory (searches up to 3 levels deep)
+    /// Helper to find executable in install directory (searches up to 3 levels deep).
     fn find_executable_in_install_dir(&self, install_path: &Path) -> Option<std::path::PathBuf> {
-        let platform = Platform::current();
-        let exe_names =
-            platform.all_executable_names(self.executable_name(), self.executable_extensions());
-
-        for exe_name in &exe_names {
-            if let Some(path) = self.search_for_executable(install_path, exe_name, 0, 3) {
-                return Some(path);
-            }
-        }
-        None
+        verify::find_executable_in_install_dir(
+            install_path,
+            self.executable_name(),
+            self.executable_extensions(),
+        )
     }
 
-    /// Recursively search for an executable
+    /// Recursively search for an executable.
     fn search_for_executable(
         &self,
         dir: &Path,
@@ -707,31 +568,7 @@ pub trait Runtime: Send + Sync {
         current_depth: usize,
         max_depth: usize,
     ) -> Option<std::path::PathBuf> {
-        if current_depth > max_depth || !dir.exists() {
-            return None;
-        }
-
-        let entries = std::fs::read_dir(dir).ok()?;
-
-        for entry in entries.filter_map(|e| e.ok()) {
-            let path = entry.path();
-
-            if path.is_file() {
-                if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
-                    // Check for exact match or match without extension
-                    if name == exe_name || name == self.name() {
-                        return Some(path);
-                    }
-                }
-            } else if path.is_dir()
-                && let Some(found) =
-                    self.search_for_executable(&path, exe_name, current_depth + 1, max_depth)
-            {
-                return Some(found);
-            }
-        }
-
-        None
+        verify::search_for_executable(dir, exe_name, self.name(), current_depth, max_depth)
     }
 
     // --- Uninstall Hooks ---
@@ -862,275 +699,60 @@ pub trait Runtime: Send + Sync {
 
     // ========== Core Operations ==========
 
-    /// Install a specific version
+    /// Install a specific version.
     ///
     /// Default implementation downloads and extracts to the store.
+    /// See [`install_impl::default_install_inner`] for the full logic.
     async fn install(&self, version: &str, ctx: &RuntimeContext) -> Result<InstallResult> {
-        use tracing::{debug, info};
+        use install_impl::{
+            InstallParams, build_layout_metadata, default_install_inner,
+            is_url_plausible_for_platform,
+        };
 
         // Fail early with a clear message when the provider doesn't support this platform.
         if let Err(msg) = self.check_platform_support() {
             return Err(anyhow::anyhow!(msg));
         }
 
-        // Use store_name() which handles aliases and bundled runtimes
-        // e.g., "npm" -> "node", "uvx" -> "uv", "vscode" -> "code"
-        let store_name = self.store_name();
         let platform = Platform::current();
         let exe_relative = self.executable_relative_path(version, &platform);
 
-        // Get base version directory, then append platform-specific subdirectory
-        // This implements platform redirection: <provider>/<version>/<platform>/
-        let base_install_path = ctx.paths.version_store_dir(store_name, version);
-        let install_path = base_install_path.join(platform.as_str());
-
-        debug!(
-            "Install path for {} (store: {}) {}: {} (platform: {})",
-            self.name(),
-            store_name,
-            version,
-            install_path.display(),
-            platform.as_str()
-        );
-        debug!("Executable relative path: {}", exe_relative);
-
-        // Check if already installed
-        if ctx.fs.exists(&install_path) {
-            // Use verify_installation to check if the executable exists (supports glob patterns)
-            let verification = self.verify_installation(version, &install_path, &platform);
-            if verification.valid {
-                let exe_path = verification
-                    .executable_path
-                    .unwrap_or_else(|| install_path.join(&exe_relative));
-                debug!("Already installed: {}", exe_path.display());
-                return Ok(InstallResult::already_installed(
-                    install_path,
-                    exe_path,
-                    version.to_string(),
-                ));
-            } else {
-                // Directory exists but executable doesn't - clean up and reinstall
-                debug!(
-                    "Install directory exists but executable missing, cleaning up: {}",
-                    install_path.display()
-                );
-                if let Err(e) = std::fs::remove_dir_all(&install_path) {
-                    debug!("Failed to clean up directory: {}", e);
-                }
-            }
-        }
-
-        // Get download URL
-        debug!("Platform: {:?}", platform);
-
-        // Try to use cached URL from lock file first
-        // Try tool_name first, then store_name (for bundled tools like npm -> node)
-        // NOTE: Cached URLs may be platform-specific (e.g., from vx.lock generated on
-        // a different OS). We validate that the cached URL is plausible for the current
-        // platform before using it.
+        // Resolve download URL (cached lock file → runtime method)
         let url = if let Some(cached_url) = ctx
             .get_cached_download_url(self.name())
             .filter(|u| is_url_plausible_for_platform(u, &platform))
         {
-            debug!(
-                "Using cached download URL from lock file for {}: {}",
-                self.name(),
-                cached_url
-            );
             cached_url
         } else if let Some(cached_url) = ctx
             .get_cached_download_url(self.store_name())
             .filter(|u| is_url_plausible_for_platform(u, &platform))
         {
-            debug!(
-                "Using cached download URL from lock file for {}: {}",
-                self.store_name(),
-                cached_url
-            );
             cached_url
         } else {
-            // Fall back to runtime's download_url method
             self.download_url(version, &platform)
                 .await?
                 .ok_or_else(|| anyhow::anyhow!("No download URL for {} {}", self.name(), version))?
         };
 
-        // Build mirror URL list: try region-matching mirrors first, then original URL
         let download_urls = self
             .build_download_url_chain(&url, version, &platform)
             .await;
+        let layout = self.executable_layout();
+        let layout_metadata =
+            build_layout_metadata(layout.as_ref(), version, self.name(), &platform);
 
-        info!(
-            "Downloading {} {} ({})",
-            self.name(),
-            version,
-            if download_urls.len() > 1 {
-                format!("{} sources available", download_urls.len())
-            } else {
-                "direct".to_string()
-            }
-        );
+        let params = InstallParams {
+            name: self.name(),
+            store_name: self.store_name(),
+            exe_relative,
+            exe_name: self.executable_name(),
+            exe_extensions: self.executable_extensions(),
+            layout_metadata,
+            download_urls,
+            normalize_config: self.normalize_config(),
+        };
 
-        // Prepare layout metadata if available
-        let mut layout_metadata = std::collections::HashMap::new();
-        if let Some(layout) = self.executable_layout() {
-            use crate::layout::LayoutContext;
-
-            let layout_ctx = LayoutContext {
-                version: version.to_string(),
-                name: self.name().to_string(),
-                platform: platform.clone(),
-            };
-
-            if let Ok(resolved) = layout.resolve(&layout_ctx) {
-                match resolved {
-                    crate::layout::ResolvedLayout::Binary {
-                        source_name,
-                        target_name,
-                        target_dir,
-                        permissions,
-                    } => {
-                        layout_metadata.insert("source_name".to_string(), source_name);
-                        layout_metadata.insert("target_name".to_string(), target_name);
-                        layout_metadata.insert("target_dir".to_string(), target_dir);
-                        if let Some(perms) = permissions {
-                            layout_metadata.insert("target_permissions".to_string(), perms);
-                        }
-                    }
-                    crate::layout::ResolvedLayout::Archive {
-                        strip_prefix,
-                        permissions,
-                        ..
-                    } => {
-                        // Pass strip_prefix to installer for archive extraction
-                        if let Some(prefix) = strip_prefix {
-                            layout_metadata.insert("strip_prefix".to_string(), prefix);
-                        }
-                        if let Some(perms) = permissions {
-                            layout_metadata.insert("target_permissions".to_string(), perms);
-                        }
-                    }
-                }
-            }
-        }
-
-        // Download with mirror fallback chain
-        let mut last_error = None;
-        for (i, download_url) in download_urls.iter().enumerate() {
-            let is_mirror = i < download_urls.len() - 1 || download_urls.len() == 1;
-            if i > 0 {
-                info!(
-                    "Mirror failed, trying {} (source {}/{})",
-                    download_url,
-                    i + 1,
-                    download_urls.len()
-                );
-                // Clean up failed partial download
-                if ctx.fs.exists(&install_path)
-                    && let Err(e) = std::fs::remove_dir_all(&install_path)
-                {
-                    debug!("Failed to clean up partial download: {}", e);
-                }
-            } else {
-                info!("Downloading from {}", download_url);
-            }
-
-            let result = if !layout_metadata.is_empty() {
-                ctx.installer
-                    .download_with_layout(download_url, &install_path, &layout_metadata)
-                    .await
-            } else {
-                ctx.installer
-                    .download_and_extract(download_url, &install_path)
-                    .await
-            };
-
-            match result {
-                Ok(()) => {
-                    if i > 0 {
-                        info!(
-                            "Successfully downloaded {} {} from fallback source",
-                            self.name(),
-                            version
-                        );
-                    }
-                    last_error = None;
-                    break;
-                }
-                Err(e) => {
-                    if is_mirror && download_urls.len() > 1 {
-                        debug!(
-                            "Download from {} failed: {}, will try next source",
-                            download_url, e
-                        );
-                    }
-                    last_error = Some(e);
-                }
-            }
-        }
-
-        if let Some(err) = last_error {
-            return Err(err);
-        }
-
-        // Run post-extract hook
-        self.post_extract(version, &install_path)?;
-
-        // RFC 0022: Post-install normalization
-        if let Some(normalize_config) = self.normalize_config() {
-            use crate::normalizer::{NormalizeContext, Normalizer};
-
-            let normalize_ctx = NormalizeContext::new(self.name(), version);
-            match Normalizer::normalize(&install_path, normalize_config, &normalize_ctx) {
-                Ok(result) => {
-                    if result.has_changes() {
-                        debug!("Normalization completed: {}", result.summary());
-                    }
-                }
-                Err(e) => {
-                    // Normalization errors are warnings, not failures
-                    debug!("Normalization warning: {}", e);
-                }
-            }
-        }
-
-        debug!("Expected executable path pattern: {}", exe_relative);
-
-        // Use the verification framework to check installation
-        let verification = self.verify_installation(version, &install_path, &platform);
-
-        if !verification.valid {
-            // Build a detailed error message
-            let mut error_msg = format!(
-                "Installation of {} {} failed verification.\n",
-                self.name(),
-                version
-            );
-
-            error_msg.push_str("\nIssues found:\n");
-            for issue in &verification.issues {
-                error_msg.push_str(&format!("  - {}\n", issue));
-            }
-
-            if !verification.suggestions.is_empty() {
-                error_msg.push_str("\nSuggestions:\n");
-                for suggestion in &verification.suggestions {
-                    error_msg.push_str(&format!("  - {}\n", suggestion));
-                }
-            }
-
-            return Err(anyhow::anyhow!(error_msg));
-        }
-
-        let verified_exe_path = verification
-            .executable_path
-            .unwrap_or_else(|| install_path.join(&exe_relative));
-
-        Ok(InstallResult::success(
-            install_path,
-            verified_exe_path,
-            version.to_string(),
-        ))
+        default_install_inner(params, version, ctx, |v, p| self.post_extract(v, p)).await
     }
 
     /// Check if a version is installed
@@ -1587,36 +1209,5 @@ pub trait Runtime: Send + Sync {
     /// For example, Git provides ["git-bash", "git-cmd"].
     fn provided_shells(&self) -> Vec<&'static str> {
         vec![] // Default: no shells provided
-    }
-}
-
-/// Check if a download URL is plausible for the given platform.
-///
-/// This is a defensive check to avoid using a cached URL that was recorded for
-/// a different platform (e.g., a Windows `.zip` URL on Linux). We look for
-/// platform-specific markers in the URL.
-fn is_url_plausible_for_platform(url: &str, platform: &Platform) -> bool {
-    let url_lower = url.to_lowercase();
-
-    // Platform markers that indicate a URL is for a specific OS
-    let windows_markers = ["windows", "win32", "win64", "-msvc", ".msi"];
-    let macos_markers = ["darwin", "macos", "osx", ".dmg"];
-    let linux_markers = ["linux", "gnu", "musl"];
-
-    let url_is_windows = windows_markers.iter().any(|m| url_lower.contains(m));
-    let url_is_macos = macos_markers.iter().any(|m| url_lower.contains(m));
-    let url_is_linux = linux_markers.iter().any(|m| url_lower.contains(m));
-
-    // If we can't detect any platform markers, assume the URL is universal
-    if !url_is_windows && !url_is_macos && !url_is_linux {
-        return true;
-    }
-
-    // Check that the URL's platform matches the current platform
-    match platform.os {
-        Os::Windows => url_is_windows,
-        Os::MacOS => url_is_macos,
-        Os::Linux => url_is_linux,
-        _ => true, // Unknown platform — allow any URL
     }
 }

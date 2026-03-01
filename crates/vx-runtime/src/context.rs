@@ -3,14 +3,13 @@
 //! These contexts provide all external dependencies needed by runtimes,
 //! allowing for easy testing through mock implementations.
 
-use crate::github::{GitHubFetcher, GitHubReleaseOptions};
 use crate::traits::{CommandExecutor, FileSystem, HttpClient, Installer, PathProvider};
 use crate::types::VersionInfo;
-use crate::version_cache::{CacheMode, VersionCache};
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Duration;
+use vx_versions::{CacheMode, VersionCache};
 
 /// Configuration for runtime operations
 #[derive(Debug, Clone)]
@@ -268,69 +267,6 @@ impl RuntimeContext {
         }
     }
 
-    /// Build a [`GitHubFetcher`] borrowing this context's HTTP client and version cache.
-    ///
-    /// # Deprecated
-    ///
-    /// Use [`vx_version_fetcher::GitHubReleasesFetcher`] implementing the unified
-    /// [`vx_version_fetcher::VersionFetcher`] trait instead.
-    #[deprecated(
-        since = "0.8.3",
-        note = "Use `vx_version_fetcher::GitHubReleasesFetcher` instead, \
-                which implements the unified `VersionFetcher` trait."
-    )]
-    pub fn github_fetcher(&self) -> GitHubFetcher<'_> {
-        GitHubFetcher {
-            http: Arc::clone(&self.http),
-            cache: self.version_cache.as_ref(),
-        }
-    }
-
-    /// Fetch versions from GitHub Releases API with caching and jsDelivr fallback.
-    ///
-    /// # Deprecated
-    ///
-    /// Use `vx_version_fetcher::GitHubReleasesFetcher::fetch(ctx)` instead.
-    #[deprecated(
-        since = "0.8.3",
-        note = "Use `vx_version_fetcher::GitHubReleasesFetcher` instead."
-    )]
-    #[allow(deprecated)]
-    pub async fn fetch_github_releases(
-        &self,
-        tool_name: &str,
-        owner: &str,
-        repo: &str,
-        options: GitHubReleaseOptions,
-    ) -> anyhow::Result<Vec<VersionInfo>> {
-        self.github_fetcher()
-            .fetch_releases(tool_name, owner, repo, options)
-            .await
-    }
-
-    /// Fetch versions from GitHub Tags API with caching.
-    ///
-    /// # Deprecated
-    ///
-    /// Use `vx_version_fetcher::GitHubReleasesFetcher` (releases) or implement
-    /// custom tag fetching via `vx_version_fetcher::CustomApiFetcher` instead.
-    #[deprecated(
-        since = "0.8.3",
-        note = "Use `vx_version_fetcher::GitHubReleasesFetcher` or `CustomApiFetcher` instead."
-    )]
-    #[allow(deprecated)]
-    pub async fn fetch_github_tags(
-        &self,
-        tool_name: &str,
-        owner: &str,
-        repo: &str,
-        options: GitHubReleaseOptions,
-    ) -> anyhow::Result<Vec<VersionInfo>> {
-        self.github_fetcher()
-            .fetch_tags(tool_name, owner, repo, options)
-            .await
-    }
-
     /// Fetch versions from any JSON API endpoint with caching.
     ///
     /// The caller provides a parser that converts the JSON response into versions.
@@ -386,8 +322,67 @@ impl RuntimeContext {
             }
         }
     }
+}
 
-    // End of GitHub fetch delegation methods.
+// ---------------------------------------------------------------------------
+// FetchContext implementation for RuntimeContext
+// ---------------------------------------------------------------------------
+
+#[async_trait::async_trait]
+impl vx_versions::FetchContext for RuntimeContext {
+    async fn get_json_value(&self, url: &str) -> anyhow::Result<serde_json::Value> {
+        self.http.get_json_value(url).await
+    }
+
+    async fn get_cached_or_fetch(
+        &self,
+        cache_key: &str,
+        url: &str,
+    ) -> anyhow::Result<serde_json::Value> {
+        // Try cache first
+        if let Some(cache) = &self.version_cache {
+            if let Some(cached) = cache.get_json(cache_key) {
+                tracing::debug!("Using cached data for {}", cache_key);
+                return Ok(cached);
+            }
+            if cache.mode() == CacheMode::Offline {
+                return Err(anyhow::anyhow!(
+                    "Offline mode: no cached data available for {}.",
+                    cache_key
+                ));
+            }
+        }
+
+        let stale_json = self
+            .version_cache
+            .as_ref()
+            .and_then(|c| c.get_stale_json(cache_key));
+
+        match self.http.get_json_value(url).await {
+            Ok(response) => {
+                if let Some(cache) = &self.version_cache {
+                    let url_opt = if url.is_empty() { None } else { Some(url) };
+                    if let Err(e) =
+                        cache.set_json_with_options(cache_key, response.clone(), url_opt, None)
+                    {
+                        tracing::warn!("Failed to cache data for {}: {}", cache_key, e);
+                    }
+                }
+                Ok(response)
+            }
+            Err(fetch_error) => {
+                if let Some(stale) = stale_json {
+                    tracing::warn!(
+                        "Error fetching data for {}, using stale cache: {}",
+                        cache_key,
+                        fetch_error
+                    );
+                    return Ok(stale);
+                }
+                Err(fetch_error)
+            }
+        }
+    }
 }
 
 /// Context for command execution

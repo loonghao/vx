@@ -46,7 +46,6 @@
 pub mod constraints;
 pub mod context;
 pub mod ecosystem;
-pub mod github;
 pub mod impls;
 pub mod integrated_resolver;
 pub mod layout;
@@ -63,18 +62,14 @@ pub mod region;
 pub mod registry;
 pub mod runtime;
 pub mod shim;
+#[cfg(any(feature = "testing", test))]
 pub mod testing;
 pub mod traits;
 pub mod types;
-pub mod version_cache;
-pub mod version_resolver;
 
 // Re-exports
 pub use context::{ExecutionContext, RuntimeContext};
 pub use ecosystem::Ecosystem;
-/// Deprecated: use `vx_version_fetcher::GitHubReleasesConfig` instead.
-#[allow(deprecated)]
-pub use github::GitHubReleaseOptions;
 pub use impls::{RealCommandExecutor, RealFileSystem, RealPathProvider};
 // Note: RealHttpClient, RealInstaller, create_runtime_context* have moved to vx-runtime-http
 pub use layout::{
@@ -107,14 +102,19 @@ pub use types::{
     ExecutionPrep, ExecutionResult, InstallResult, RuntimeDependency, RuntimeSpec, VersionInfo,
 };
 
-// Re-export testing utilities
+// Re-export testing utilities (only available with "testing" feature or in test builds)
+#[cfg(any(feature = "testing", test))]
 pub use testing::{
     MockCommandExecutor, MockFileSystem, MockHttpClient, MockInstaller, MockPathProvider,
     RuntimeTestResult, RuntimeTester, TestCaseResult, TestCheckType, TestCommand, TestConfig,
     mock_context, mock_execution_context,
 };
-pub use version_cache::{CacheEntry, CacheMode, CacheStats, DEFAULT_CACHE_TTL, VersionCache};
-pub use version_resolver::VersionResolver;
+// Version cache and resolver - re-exported directly from vx-versions
+pub use vx_versions::{
+    CACHE_SCHEMA_VERSION, CacheData, CacheEntry, CacheMetadata, CacheMode, CacheStats,
+    CompactVersion, DEFAULT_CACHE_TTL, VersionCache, github_release_to_compact,
+};
+pub use vx_versions::{RangeConstraint, RangeOp, Version, VersionConstraint, VersionResolver};
 
 // Provider environment and version resolution (REZ-like environment)
 pub use provider_env::{ProviderEnvironment, ProviderEnvironmentResolver, ResolvedVersionInfo};
@@ -136,7 +136,8 @@ pub use plugin::{PluginLoader, ProviderLoader, ProviderPlugin, default_plugin_pa
 // Manifest-driven runtimes (RFC 0021)
 pub use manifest_runtime::{
     DetectionConfig as ManifestDetectionConfig, InstallStrategy, ManifestDrivenRuntime,
-    ProvidedTool, ProviderSource, ScriptType, SystemDepType, SystemDependency, SystemDepsConfig,
+    ProvidedTool, ProviderSource, ScriptType, ShellDefinition, SystemDepType, SystemDependency,
+    SystemDepsConfig,
 };
 pub use provider_loader::{
     LoadedProvider, ProviderLoader as ManifestProviderLoader, ProviderLoaderConfig,

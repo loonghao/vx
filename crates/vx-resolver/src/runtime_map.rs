@@ -50,7 +50,7 @@ impl RuntimeMap {
                 .unwrap_or_default();
 
             for runtime in &manifest.runtimes {
-                let spec = Self::runtime_def_to_spec(runtime, ecosystem);
+                let spec = Self::runtime_def_to_spec(runtime, ecosystem.clone());
                 // Store the original RuntimeDef for version-specific constraint queries
                 map.runtime_defs
                     .insert(runtime.name.clone(), runtime.clone());
@@ -174,7 +174,7 @@ impl RuntimeMap {
     }
 
     /// Extract minimum version from a version constraint like ">=12" or ">=12, <23"
-    fn extract_min_version(constraint: &str) -> Option<String> {
+    pub fn extract_min_version(constraint: &str) -> Option<String> {
         // Simple parsing for common patterns
         for part in constraint.split(',') {
             let part = part.trim();
@@ -208,7 +208,7 @@ impl RuntimeMap {
     /// Convert vx_manifest::Ecosystem to vx_resolver::Ecosystem
     fn convert_ecosystem(eco: vx_manifest::Ecosystem) -> Ecosystem {
         match eco {
-            vx_manifest::Ecosystem::NodeJs => Ecosystem::Node,
+            vx_manifest::Ecosystem::NodeJs => Ecosystem::NodeJs,
             vx_manifest::Ecosystem::Python => Ecosystem::Python,
             vx_manifest::Ecosystem::Rust => Ecosystem::Rust,
             vx_manifest::Ecosystem::Go => Ecosystem::Go,
@@ -399,169 +399,5 @@ impl RuntimeMap {
             // Then add this runtime
             order.push(&spec.name);
         }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_from_manifests_basic() {
-        let toml = r#"
-[provider]
-name = "node"
-ecosystem = "nodejs"
-
-[[runtimes]]
-name = "node"
-description = "Node.js runtime"
-executable = "node"
-aliases = ["nodejs"]
-priority = 100
-
-[[runtimes]]
-name = "npm"
-description = "Node Package Manager"
-executable = "npm"
-bundled_with = "node"
-"#;
-        let manifest = ProviderManifest::parse(toml).unwrap();
-        let map = RuntimeMap::from_manifests(&[manifest]);
-
-        // Check node was registered
-        assert!(map.contains("node"));
-        assert!(map.contains("nodejs")); // alias
-
-        let node_spec = map.get("node").unwrap();
-        assert_eq!(node_spec.name, "node");
-        assert_eq!(node_spec.ecosystem, Ecosystem::Node);
-        assert_eq!(node_spec.priority, 100);
-
-        // Check npm was registered with dependency
-        assert!(map.contains("npm"));
-        let npm_spec = map.get("npm").unwrap();
-        assert_eq!(npm_spec.dependencies.len(), 1);
-        assert_eq!(npm_spec.dependencies[0].runtime_name, "node");
-        assert!(npm_spec.dependencies[0].required);
-    }
-
-    #[test]
-    fn test_from_manifests_with_constraints() {
-        let toml = r#"
-[provider]
-name = "yarn"
-ecosystem = "nodejs"
-
-[[runtimes]]
-name = "yarn"
-description = "Yarn package manager"
-executable = "yarn"
-
-[[runtimes.constraints]]
-when = "*"
-requires = [
-    { runtime = "node", version = ">=12", recommended = "20", reason = "Yarn requires Node.js" }
-]
-"#;
-        let manifest = ProviderManifest::parse(toml).unwrap();
-        let map = RuntimeMap::from_manifests(&[manifest]);
-
-        let yarn_spec = map.get("yarn").unwrap();
-        assert_eq!(yarn_spec.dependencies.len(), 1);
-        assert_eq!(yarn_spec.dependencies[0].runtime_name, "node");
-        assert_eq!(
-            yarn_spec.dependencies[0].min_version,
-            Some("12".to_string())
-        );
-        assert_eq!(
-            yarn_spec.dependencies[0].recommended_version,
-            Some("20".to_string())
-        );
-    }
-
-    #[test]
-    fn test_from_manifests_multiple_providers() {
-        let node_toml = r#"
-[provider]
-name = "node"
-ecosystem = "nodejs"
-
-[[runtimes]]
-name = "node"
-executable = "node"
-"#;
-        let python_toml = r#"
-[provider]
-name = "python"
-ecosystem = "python"
-
-[[runtimes]]
-name = "python"
-executable = "python"
-aliases = ["python3", "py"]
-"#;
-        let node_manifest = ProviderManifest::parse(node_toml).unwrap();
-        let python_manifest = ProviderManifest::parse(python_toml).unwrap();
-        let map = RuntimeMap::from_manifests(&[node_manifest, python_manifest]);
-
-        assert!(map.contains("node"));
-        assert!(map.contains("python"));
-        assert!(map.contains("python3")); // alias
-        assert!(map.contains("py")); // alias
-
-        assert_eq!(map.get("node").unwrap().ecosystem, Ecosystem::Node);
-        assert_eq!(map.get("python").unwrap().ecosystem, Ecosystem::Python);
-    }
-
-    #[test]
-    fn test_from_manifests_managed_by() {
-        let toml = r#"
-[provider]
-name = "rust"
-ecosystem = "rust"
-
-[[runtimes]]
-name = "rustup"
-executable = "rustup"
-
-[[runtimes]]
-name = "rustc"
-executable = "rustc"
-managed_by = "rustup"
-
-[[runtimes]]
-name = "cargo"
-executable = "cargo"
-managed_by = "rustup"
-"#;
-        let manifest = ProviderManifest::parse(toml).unwrap();
-        let map = RuntimeMap::from_manifests(&[manifest]);
-
-        let rustc_spec = map.get("rustc").unwrap();
-        assert_eq!(rustc_spec.dependencies.len(), 1);
-        assert_eq!(rustc_spec.dependencies[0].runtime_name, "rustup");
-
-        let cargo_spec = map.get("cargo").unwrap();
-        assert_eq!(cargo_spec.dependencies.len(), 1);
-        assert_eq!(cargo_spec.dependencies[0].runtime_name, "rustup");
-    }
-
-    #[test]
-    fn test_extract_min_version() {
-        assert_eq!(
-            RuntimeMap::extract_min_version(">=12"),
-            Some("12".to_string())
-        );
-        assert_eq!(
-            RuntimeMap::extract_min_version(">=12, <23"),
-            Some("12".to_string())
-        );
-        assert_eq!(
-            RuntimeMap::extract_min_version(">=18.0.0"),
-            Some("18.0.0".to_string())
-        );
-        assert_eq!(RuntimeMap::extract_min_version("*"), None);
-        assert_eq!(RuntimeMap::extract_min_version("<20"), None);
     }
 }
