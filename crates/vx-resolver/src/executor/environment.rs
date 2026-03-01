@@ -29,8 +29,8 @@ static BIN_DIR_CACHE: Mutex<Option<BinDirCache>> = Mutex::new(None);
 
 /// Initialize the bin directory cache from disk (if not already loaded).
 ///
-/// Call this early in the execution pipeline to pre-warm the cache.
-pub fn init_bin_dir_cache(cache_dir: &std::path::Path) {
+/// Called by the Executor during construction to pre-warm the cache.
+pub(crate) fn init_bin_dir_cache(cache_dir: &std::path::Path) {
     let mut cache = BIN_DIR_CACHE.lock().unwrap();
     if cache.is_none() {
         *cache = Some(BinDirCache::load(cache_dir));
@@ -39,8 +39,8 @@ pub fn init_bin_dir_cache(cache_dir: &std::path::Path) {
 
 /// Save the bin directory cache to disk.
 ///
-/// Call this after command execution to persist newly discovered entries.
-pub fn save_bin_dir_cache(cache_dir: &std::path::Path) {
+/// Called by the Executor after command execution to persist new entries.
+pub(crate) fn save_bin_dir_cache(cache_dir: &std::path::Path) {
     let cache = BIN_DIR_CACHE.lock().unwrap();
     if let Some(ref c) = *cache
         && let Err(e) = c.save(cache_dir)

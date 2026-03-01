@@ -18,7 +18,7 @@ use async_trait::async_trait;
 use tracing::{debug, trace};
 
 use crate::executor::project_config::ProjectToolsConfig;
-use crate::{ResolutionResult, Resolver, ResolverConfig};
+use crate::{ResolutionCache, ResolutionCacheKey, ResolutionResult, Resolver, ResolverConfig};
 
 use crate::executor::pipeline::error::ResolveError;
 use crate::executor::pipeline::plan::{
@@ -121,9 +121,11 @@ pub struct ResolveStage<'a> {
     /// The underlying resolver for dependency analysis
     resolver: &'a Resolver,
 
-    /// Resolver configuration (reserved for future stage options)
-    #[allow(dead_code)]
+    /// Resolver configuration
     config: &'a ResolverConfig,
+
+    /// Optional disk-backed resolution cache for skipping repeated resolver calls
+    resolution_cache: Option<&'a ResolutionCache>,
 
     /// Optional project config for version fallback
     project_config: Option<&'a ProjectToolsConfig>,
@@ -139,9 +141,16 @@ impl<'a> ResolveStage<'a> {
         Self {
             resolver,
             config,
+            resolution_cache: None,
             project_config: None,
             store_base: None,
         }
+    }
+
+    /// Enable the disk-backed resolution cache for this stage
+    pub fn with_resolution_cache(mut self, cache: &'a ResolutionCache) -> Self {
+        self.resolution_cache = Some(cache);
+        self
     }
 
     /// Set the project configuration for version fallback
@@ -359,7 +368,42 @@ impl<'a> Stage<ResolveRequest, ExecutionPlan> for ResolveStage<'a> {
             resolved_version, source
         );
 
-        // Step 2: Resolve dependencies via the Resolver
+        // Step 2: Check resolution cache (only when no executable override, since overrides
+        // are rare and their cache keys would be harder to invalidate correctly)
+        let cache_key = if self.resolution_cache.is_some() && input.executable_override.is_none() {
+            Some(ResolutionCacheKey::from_context(
+                &input.runtime_name,
+                input.version.as_deref(),
+                &input.args,
+                self.config,
+            ))
+        } else {
+            None
+        };
+
+        if let (Some(cache), Some(key)) = (self.resolution_cache, &cache_key)
+            && let Some(cached) = cache.get(key)
+        {
+            debug!(
+                "[ResolveStage] Resolution cache hit for {}",
+                input.runtime_name
+            );
+            // Run the same platform-support check so cache hits are consistent with misses
+            if let Some(unsupported) = cached
+                .unsupported_platform_runtimes
+                .iter()
+                .find(|u| u.is_primary)
+            {
+                return Err(ResolveError::PlatformNotSupported {
+                    runtime: unsupported.runtime_name.clone(),
+                    required: unsupported.supported_platforms.clone(),
+                    current: unsupported.current_platform.clone(),
+                });
+            }
+            return Ok(self.build_plan(&input, &cached, resolved_version.as_deref(), source));
+        }
+
+        // Step 3: Resolve dependencies via the Resolver
         // If an executable override is provided (e.g., msvc::cl), use it for resolution
         let resolution = if let Some(ref exe_override) = input.executable_override {
             self.resolver
@@ -423,7 +467,22 @@ impl<'a> Stage<ResolveRequest, ExecutionPlan> for ResolveStage<'a> {
             // The EnsureStage or the pipeline orchestrator decides whether to fail.
         }
 
-        // Step 5: Build the ExecutionPlan
+        // Step 5: Cache the resolution result (only when supported platform, so hits are clean)
+        if let (Some(cache), Some(key)) = (self.resolution_cache, &cache_key) {
+            if let Err(e) = cache.set(key, &resolution) {
+                debug!(
+                    "[ResolveStage] Failed to write resolution cache for {}: {}",
+                    input.runtime_name, e
+                );
+            } else {
+                debug!(
+                    "[ResolveStage] Resolution cached for {}",
+                    input.runtime_name
+                );
+            }
+        }
+
+        // Step 6: Build the ExecutionPlan
         let plan = self.build_plan(&input, &resolution, resolved_version.as_deref(), source);
 
         debug!(

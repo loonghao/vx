@@ -27,8 +27,7 @@ pub struct Executor<'a> {
     /// Runtime resolver
     resolver: Resolver,
 
-    /// Optional disk-backed resolution cache
-    #[allow(dead_code)]
+    /// Optional disk-backed resolution cache (skips repeated resolver work)
     resolution_cache: Option<ResolutionCache>,
 
     /// Optional provider registry for installation
@@ -202,6 +201,9 @@ impl<'a> Executor<'a> {
         }
         if let Some(ref base) = store_base {
             resolve_stage = resolve_stage.with_store_base(base.clone());
+        }
+        if let Some(ref cache) = self.resolution_cache {
+            resolve_stage = resolve_stage.with_resolution_cache(cache);
         }
 
         let mut ensure_stage =

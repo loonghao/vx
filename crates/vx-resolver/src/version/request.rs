@@ -43,7 +43,10 @@ impl VersionRequest {
 
         // Handle special keywords
         match raw.to_lowercase().as_str() {
-            "latest" | "stable" => return VersionConstraint::Latest,
+            // "lts" is treated the same as "latest" — the solver will prefer LTS
+            // versions when `prefer_lts` is configured (e.g. nodejs.org API returns
+            // per-version LTS metadata).
+            "latest" | "stable" | "lts" | "lts-latest" => return VersionConstraint::Latest,
             "latest-prerelease" | "prerelease" | "pre" => {
                 return VersionConstraint::LatestPrerelease;
             }

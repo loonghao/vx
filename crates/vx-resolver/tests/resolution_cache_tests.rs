@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use std::time::Duration;
 use tempfile::TempDir;
 use vx_resolver::{
-    RESOLUTION_CACHE_SCHEMA_VERSION, ResolutionCache, ResolutionCacheKey, ResolvedGraph,
+    RESOLUTION_CACHE_SCHEMA_VERSION, ResolutionCache, ResolutionCacheKey, ResolutionResult,
 };
 use vx_runtime::CacheMode;
 
@@ -24,8 +24,8 @@ fn make_key(cwd: PathBuf) -> ResolutionCacheKey {
     }
 }
 
-fn make_graph() -> ResolvedGraph {
-    ResolvedGraph {
+fn make_graph() -> ResolutionResult {
+    ResolutionResult {
         runtime: "npm".to_string(),
         // Keep this relative so tests don't depend on filesystem executability.
         executable: PathBuf::from("npm"),

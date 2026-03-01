@@ -7,10 +7,25 @@
 //! - Checking dependency version constraints
 
 use crate::{ResolverConfig, Result, RuntimeDependency, RuntimeMap, RuntimeSpec};
+use regex::Regex;
 use std::collections::HashSet;
 use std::path::PathBuf;
+use std::sync::OnceLock;
 use tracing::{trace, warn};
 use vx_paths::PathResolver as VxPathResolver;
+
+/// Matches full semver: 1.2.3 or v1.2.3
+static VERSION_REGEX: OnceLock<Regex> = OnceLock::new();
+/// Matches major.minor: 1.2 or v1.2
+static VERSION_REGEX_SIMPLE: OnceLock<Regex> = OnceLock::new();
+
+fn version_regex() -> &'static Regex {
+    VERSION_REGEX.get_or_init(|| Regex::new(r"v?(\d+\.\d+\.\d+)").expect("valid regex"))
+}
+
+fn version_regex_simple() -> &'static Regex {
+    VERSION_REGEX_SIMPLE.get_or_init(|| Regex::new(r"v?(\d+\.\d+)").expect("valid regex"))
+}
 
 /// Status of a runtime
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -98,68 +113,6 @@ pub struct ResolutionResult {
     pub unsupported_platform_runtimes: Vec<UnsupportedPlatformRuntime>,
 }
 
-/// Resolved dependency graph for a runtime execution request.
-///
-/// Phase 1 keeps this structure intentionally close to `ResolutionResult`.
-/// In later phases, we may remove machine-specific fields (like absolute paths)
-/// and cache a more stable representation.
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub struct ResolvedGraph {
-    /// The primary runtime to execute
-    pub runtime: String,
-
-    /// The actual executable to run (may be a bare name if not installed)
-    pub executable: PathBuf,
-
-    /// Command prefix to add before user arguments
-    pub command_prefix: Vec<String>,
-
-    /// Runtimes that need to be installed before execution
-    pub missing_dependencies: Vec<String>,
-
-    /// Installation order for missing dependencies
-    pub install_order: Vec<String>,
-
-    /// Whether the runtime itself needs installation
-    pub runtime_needs_install: bool,
-
-    /// Dependencies that are installed but don't meet version constraints
-    pub incompatible_dependencies: Vec<IncompatibleDependency>,
-
-    /// Runtimes that are not supported on the current platform
-    pub unsupported_platform_runtimes: Vec<UnsupportedPlatformRuntime>,
-}
-
-impl From<ResolutionResult> for ResolvedGraph {
-    fn from(value: ResolutionResult) -> Self {
-        Self {
-            runtime: value.runtime,
-            executable: value.executable,
-            command_prefix: value.command_prefix,
-            missing_dependencies: value.missing_dependencies,
-            install_order: value.install_order,
-            runtime_needs_install: value.runtime_needs_install,
-            incompatible_dependencies: value.incompatible_dependencies,
-            unsupported_platform_runtimes: value.unsupported_platform_runtimes,
-        }
-    }
-}
-
-impl From<ResolvedGraph> for ResolutionResult {
-    fn from(value: ResolvedGraph) -> Self {
-        Self {
-            runtime: value.runtime,
-            executable: value.executable,
-            command_prefix: value.command_prefix,
-            missing_dependencies: value.missing_dependencies,
-            install_order: value.install_order,
-            runtime_needs_install: value.runtime_needs_install,
-            incompatible_dependencies: value.incompatible_dependencies,
-            unsupported_platform_runtimes: value.unsupported_platform_runtimes,
-        }
-    }
-}
-
 /// Runtime resolver that handles dependency detection and resolution
 pub struct Resolver {
     /// Runtime map for runtime specifications
@@ -194,41 +147,42 @@ impl Resolver {
         self.path_resolver.save_cache();
     }
 
-    /// Check the status of a runtime
+    /// Check the status of a runtime.
+    ///
+    /// Probes locations in a fixed priority order determined by config:
+    /// 1. vx-managed store  (when `prefer_vx_managed`)
+    /// 2. system PATH        (when `fallback_to_system`)
+    /// 3. vx-managed store  (when *not* `prefer_vx_managed`)
+    /// 4. detection paths    (glob patterns from provider.toml, e.g. MSVC)
     pub fn check_runtime_status(&self, runtime_name: &str) -> RuntimeStatus {
-        // Get the runtime specification if known
         let spec = self.runtime_map.get(runtime_name);
         let resolved_name = spec.map(|s| s.name.as_str()).unwrap_or(runtime_name);
         let executable_name = spec.map(|s| s.get_executable()).unwrap_or(runtime_name);
-
-        // For bundled runtimes, we need to look in the parent runtime's directory
-        // e.g., rez-env is bundled with rez, so we look in rez's directory for rez-env executable
         let store_dir_name = self.get_store_directory_name(spec, resolved_name);
 
-        // Check vx-managed installation first if preferred
+        // vx-managed (high priority)
         if self.config.prefer_vx_managed
             && let Some(status) = self.check_vx_managed(store_dir_name, executable_name)
         {
             return status;
         }
 
-        // Check system PATH
+        // system PATH
         if self.config.fallback_to_system {
-            let system_status = self.check_system_path(executable_name);
-            if system_status.is_available() {
-                return system_status;
+            let status = self.check_system_path(executable_name);
+            if status.is_available() {
+                return status;
             }
         }
 
-        // Check vx-managed if not preferred but fallback enabled
+        // vx-managed (low priority)
         if !self.config.prefer_vx_managed
             && let Some(status) = self.check_vx_managed(store_dir_name, executable_name)
         {
             return status;
         }
 
-        // Check detection system_paths (glob patterns from provider.toml)
-        // This handles runtimes like MSVC where executables are in known system locations
+        // detection glob paths (last resort)
         if let Some(status) = self.check_detection_paths(runtime_name, executable_name) {
             return status;
         }
@@ -355,11 +309,6 @@ impl Resolver {
     /// 3. Returns a resolution result with execution details
     pub fn resolve(&self, runtime_name: &str) -> Result<ResolutionResult> {
         self.resolve_with_version(runtime_name, None)
-    }
-
-    /// Resolve a runtime into a serializable dependency graph.
-    pub fn resolve_graph(&self, runtime_name: &str) -> Result<ResolvedGraph> {
-        Ok(self.resolve(runtime_name)?.into())
     }
 
     /// Resolve a runtime for execution with a specific version
@@ -512,15 +461,6 @@ impl Resolver {
         })
     }
 
-    /// Resolve a runtime into a serializable dependency graph with optional version.
-    pub fn resolve_graph_with_version(
-        &self,
-        runtime_name: &str,
-        version: Option<&str>,
-    ) -> Result<ResolvedGraph> {
-        Ok(self.resolve_with_version(runtime_name, version)?.into())
-    }
-
     /// Resolve a runtime with an executable override.
     ///
     /// This supports the `runtime::executable` syntax (e.g., `vx msvc::cl`).
@@ -570,44 +510,59 @@ impl Resolver {
         let spec = self.runtime_map.get(runtime_name);
         let store_dir_name = self.get_store_directory_name(spec, runtime_name);
 
-        // Try to find the overridden executable in vx store
-        if self.config.prefer_vx_managed
-            && let Some(status) = self.check_vx_managed(store_dir_name, executable_name)
-            && let Some(path) = status.executable_path()
-        {
-            result.executable = path.clone();
-            result.runtime_needs_install = false;
-            return Ok(result);
-        }
+        // Probe locations in priority order and return on first match.
+        let candidates: [(&str, Option<PathBuf>); 4] = [
+            // 1. vx-managed store (when preferred)
+            (
+                "vx-store (preferred)",
+                if self.config.prefer_vx_managed {
+                    self.check_vx_managed(store_dir_name, executable_name)
+                        .and_then(|s| s.executable_path().cloned())
+                } else {
+                    None
+                },
+            ),
+            // 2. system PATH
+            (
+                "system PATH",
+                if self.config.fallback_to_system {
+                    self.check_system_path(executable_name)
+                        .executable_path()
+                        .cloned()
+                } else {
+                    None
+                },
+            ),
+            // 3. vx-managed store (fallback when not preferred)
+            (
+                "vx-store (fallback)",
+                if !self.config.prefer_vx_managed {
+                    self.check_vx_managed(store_dir_name, executable_name)
+                        .and_then(|s| s.executable_path().cloned())
+                } else {
+                    None
+                },
+            ),
+            // 4. detection system_paths (glob patterns from provider.toml, e.g. MSVC)
+            (
+                "detection paths",
+                self.check_detection_paths(runtime_name, executable_name)
+                    .and_then(|s| s.executable_path().cloned()),
+            ),
+        ];
 
-        // Try system PATH for the overridden executable
-        if self.config.fallback_to_system {
-            let system_status = self.check_system_path(executable_name);
-            if let Some(path) = system_status.executable_path() {
-                result.executable = path.clone();
+        for (label, found) in candidates {
+            if let Some(path) = found {
+                trace!(
+                    "Resolved '{}' via {}: {}",
+                    executable_name,
+                    label,
+                    path.display()
+                );
+                result.executable = path;
                 result.runtime_needs_install = false;
                 return Ok(result);
             }
-        }
-
-        // Fallback: if not preferred vx, try vx store
-        if !self.config.prefer_vx_managed
-            && let Some(status) = self.check_vx_managed(store_dir_name, executable_name)
-            && let Some(path) = status.executable_path()
-        {
-            result.executable = path.clone();
-            result.runtime_needs_install = false;
-            return Ok(result);
-        }
-
-        // Try detection system_paths (glob patterns from provider.toml)
-        // This handles cases like MSVC where cl.exe is in known VS directories
-        if let Some(status) = self.check_detection_paths(runtime_name, executable_name)
-            && let Some(path) = status.executable_path()
-        {
-            result.executable = path.clone();
-            result.runtime_needs_install = false;
-            return Ok(result);
         }
 
         // Executable override not found — set bare name as fallback
@@ -660,15 +615,13 @@ impl Resolver {
 
     /// Extract version number from command output
     fn extract_version_from_output(&self, output: &str, _runtime_name: &str) -> Option<String> {
-        // Try to find version patterns
-        let version_regex = regex::Regex::new(r"v?(\d+\.\d+\.\d+)").ok()?;
-        if let Some(captures) = version_regex.captures(output) {
+        // Try full semver pattern first: 1.2.3 or v1.2.3
+        if let Some(captures) = version_regex().captures(output) {
             return Some(captures.get(1)?.as_str().to_string());
         }
 
-        // Try simpler pattern (just major.minor)
-        let simple_regex = regex::Regex::new(r"v?(\d+\.\d+)").ok()?;
-        if let Some(captures) = simple_regex.captures(output) {
+        // Fall back to major.minor only
+        if let Some(captures) = version_regex_simple().captures(output) {
             return Some(captures.get(1)?.as_str().to_string());
         }
 
