@@ -1,8 +1,6 @@
 ---
 name: vx-best-practices
-description: |
-  Best practices for using vx effectively. Use this skill when you want to
-  follow recommended patterns for tool management, project setup, and team workflows.
+description: "Best practices for using vx effectively. Use when following recommended patterns for tool management, project setup, and team workflows with vx."
 ---
 
 # VX Best Practices

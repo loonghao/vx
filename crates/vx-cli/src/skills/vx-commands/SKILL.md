@@ -1,9 +1,6 @@
 ---
 name: vx-commands
-description: |
-  Complete command reference for vx CLI. Use this skill when you need
-  to look up specific command syntax, flags, or output formats.
-  All commands support `--json` for structured output and `--format toon` for token-optimized output.
+description: "Complete vx CLI command reference. Use when looking up specific vx command syntax, flags, or output formats. All commands support --json for structured output and --format toon for token-optimized output."
 ---
 
 # VX Command Reference

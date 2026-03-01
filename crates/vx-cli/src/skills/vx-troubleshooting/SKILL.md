@@ -1,8 +1,6 @@
 ---
 name: vx-troubleshooting
-description: |
-  Troubleshooting guide for vx issues. Use this skill when encountering
-  installation failures, version conflicts, PATH issues, or other problems.
+description: "Troubleshooting guide for vx issues. Use when encountering installation failures, version conflicts, PATH issues, or other vx problems."
 ---
 
 # VX Troubleshooting Guide
