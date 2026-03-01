@@ -333,22 +333,18 @@ pub fn check_tool_status(
     Ok((ToolStatus::NotInstalled, None, None))
 }
 
-/// Check the installation status of multiple tools
-///
-/// This is a convenience function that checks all tools in a HashMap
-/// and returns a sorted list of status tuples.
-///
-/// # Arguments
-/// * `tools` - HashMap of tool names to versions
-///
-/// # Returns
-/// Sorted vector of tool status tuples
-pub fn check_tools_status(tools: &HashMap<String, String>) -> Result<Vec<ToolStatusTuple>> {
-    let path_manager = PathManager::new()?;
+/// Internal implementation: check status for any iterable of (name, version) pairs.
+fn check_tools_status_impl<'a, I>(
+    path_manager: &PathManager,
+    tools: I,
+) -> Result<Vec<ToolStatusTuple>>
+where
+    I: IntoIterator<Item = (&'a String, &'a String)>,
+{
     let mut statuses = Vec::new();
 
     for (name, version) in tools {
-        let (status, path, detected_version) = check_tool_status(&path_manager, name, version)?;
+        let (status, path, detected_version) = check_tool_status(path_manager, name, version)?;
         statuses.push((
             name.clone(),
             version.clone(),
@@ -358,15 +354,24 @@ pub fn check_tools_status(tools: &HashMap<String, String>) -> Result<Vec<ToolSta
         ));
     }
 
-    // Sort by name for consistent output
     statuses.sort_by(|a, b| a.0.cmp(&b.0));
     Ok(statuses)
 }
 
-/// Check the installation status of multiple tools (BTreeMap version)
+/// Check the installation status of multiple tools (HashMap variant)
 ///
-/// This is a convenience function that checks all tools in a BTreeMap
-/// and returns a sorted list of status tuples.
+/// # Arguments
+/// * `tools` - HashMap of tool names to versions
+///
+/// # Returns
+/// Sorted vector of tool status tuples
+pub fn check_tools_status(tools: &HashMap<String, String>) -> Result<Vec<ToolStatusTuple>> {
+    let path_manager = PathManager::new()?;
+    check_tools_status_impl(&path_manager, tools)
+}
+
+/// Check the installation status of multiple tools (BTreeMap variant)
+///
 /// Using BTreeMap ensures deterministic ordering for lock file operations.
 ///
 /// # Arguments
@@ -378,22 +383,7 @@ pub fn check_tools_status_ordered(
     tools: &BTreeMap<String, String>,
 ) -> Result<Vec<ToolStatusTuple>> {
     let path_manager = PathManager::new()?;
-    let mut statuses = Vec::new();
-
-    for (name, version) in tools {
-        let (status, path, detected_version) = check_tool_status(&path_manager, name, version)?;
-        statuses.push((
-            name.clone(),
-            version.clone(),
-            status,
-            path,
-            detected_version,
-        ));
-    }
-
-    // BTreeMap is already sorted, but we still sort the output for consistency
-    statuses.sort_by(|a, b| a.0.cmp(&b.0));
-    Ok(statuses)
+    check_tools_status_impl(&path_manager, tools)
 }
 
 /// Get the vx-managed path for a tool
@@ -547,7 +537,7 @@ pub fn find_system_tool(tool: &str) -> Option<PathBuf> {
 }
 
 /// Find the bin directory within a tool installation
-pub fn find_tool_bin_dir(store_dir: &PathBuf, tool: &str) -> PathBuf {
+pub fn find_tool_bin_dir(store_dir: &std::path::Path, tool: &str) -> PathBuf {
     // Check bin/ subdirectory
     let bin_dir = store_dir.join("bin");
     if bin_dir.exists() {
@@ -568,7 +558,7 @@ pub fn find_tool_bin_dir(store_dir: &PathBuf, tool: &str) -> PathBuf {
     }
 
     // Return store_dir as fallback
-    store_dir.clone()
+    store_dir.to_path_buf()
 }
 
 // =============================================================================

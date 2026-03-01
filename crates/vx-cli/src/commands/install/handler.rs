@@ -251,6 +251,17 @@ async fn install_single(
     Ok(())
 }
 
+/// Find the lock file path for the current project, if any.
+///
+/// Searches from `current_dir` upwards for `vx.toml` and returns the path to
+/// `vx.lock` next to it. Returns `None` if no project config can be located.
+fn find_lock_path() -> Option<std::path::PathBuf> {
+    let current_dir = env::current_dir().ok()?;
+    let config_path = find_vx_config(&current_dir).ok()?;
+    let project_root = config_path.parent()?;
+    Some(project_root.join(LOCK_FILE_NAME))
+}
+
 /// Update lock file if it exists in the current project
 fn update_lockfile_if_exists(
     tool_name: &str,
@@ -258,23 +269,10 @@ fn update_lockfile_if_exists(
     resolved_from: &str,
     ecosystem: vx_runtime::Ecosystem,
 ) {
-    // Try to find project root with vx.toml
-    let current_dir = match env::current_dir() {
-        Ok(d) => d,
-        Err(_) => return,
-    };
-
-    let config_path = match find_vx_config(&current_dir) {
-        Ok(p) => p,
-        Err(_) => return, // No project config, skip lock file update
-    };
-
-    let project_root = match config_path.parent() {
+    let lock_path = match find_lock_path() {
         Some(p) => p,
         None => return,
     };
-
-    let lock_path = project_root.join(LOCK_FILE_NAME);
 
     // Only update if lock file already exists
     if !lock_path.exists() {
@@ -329,11 +327,7 @@ fn get_download_url_from_lock(
     tool_name: &str,
     _requested_version: &str,
 ) -> Option<(String, String)> {
-    // Try to find project root with vx.toml
-    let current_dir = env::current_dir().ok()?;
-    let config_path = find_vx_config(&current_dir).ok()?;
-    let project_root = config_path.parent()?;
-    let lock_path = project_root.join(LOCK_FILE_NAME);
+    let lock_path = find_lock_path()?;
 
     // Load lock file
     let lockfile = LockFile::load(&lock_path).ok()?;

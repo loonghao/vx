@@ -65,7 +65,6 @@ pub async fn handle(args: &Args) -> Result<()> {
                 false, // dry_run: false
                 args.verbose,
                 false, // no_parallel: false - dev prefers parallel
-                false, // no_auto_install: false
             )
             .await?;
         }

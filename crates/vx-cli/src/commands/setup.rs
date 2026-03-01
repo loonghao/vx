@@ -186,7 +186,6 @@ pub async fn handle(
         dry_run,     // dry_run: pass through
         verbose,     // verbose: pass through (sync will show status when verbose)
         no_parallel, // no_parallel: pass through
-        false,       // no_auto_install: false - we want auto install
     )
     .await?;
 

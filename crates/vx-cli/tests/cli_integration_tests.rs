@@ -704,7 +704,6 @@ mod sync_tests {
             false, // dry_run
             false, // verbose
             false, // no_parallel
-            false, // no_auto_install
         )
         .await;
 
@@ -744,7 +743,6 @@ node = "20"
             true,  // dry_run
             true,  // verbose
             false, // no_parallel
-            false, // no_auto_install
         )
         .await;
 
