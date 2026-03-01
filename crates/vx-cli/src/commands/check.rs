@@ -323,14 +323,10 @@ fn render_text_output(output: &CheckOutput, detailed: bool) -> Result<()> {
             output.errors.len(),
             output.warnings.len()
         ));
-        if detailed {
-            for err in &output.errors {
-                println!("  - {}", err);
-            }
-        } else {
-            for err in &output.errors {
-                println!("  - {}", err);
-            }
+        for err in &output.errors {
+            println!("  - {}", err);
+        }
+        if !detailed {
             UI::hint("Run 'vx check --detailed' for more information");
         }
     }

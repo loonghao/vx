@@ -4826,6 +4826,7 @@ dependencies = [
  "vx-config",
  "vx-paths",
  "vx-resolver",
+ "vx-runtime-core",
  "which",
  "workspace-hack",
 ]
@@ -6002,6 +6003,7 @@ dependencies = [
  "tokio",
  "tokio-test",
  "tracing",
+ "vx-core",
  "vx-runtime",
  "workspace-hack",
 ]

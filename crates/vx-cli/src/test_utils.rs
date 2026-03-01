@@ -57,8 +57,8 @@ impl Runtime for MockRuntime {
         Ecosystem::Unknown
     }
 
-    fn aliases(&self) -> &[&str] {
-        &[]
+    fn aliases(&self) -> Vec<&str> {
+        vec![]
     }
 
     fn dependencies(&self) -> &[RuntimeDependency] {
