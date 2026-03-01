@@ -1,10 +1,6 @@
 ---
 name: vx-usage
-description: |
-  This skill teaches AI coding agents how to use vx - the universal development tool manager.
-  Use this skill whenever the user's project uses vx (has vx.toml or .vx/ directory),
-  or when the user mentions vx, tool version management, or cross-platform development setup.
-  vx transparently manages Node.js, Python, Go, Rust, and 50+ other tools with zero-config.
+description: "Teaches AI agents how to use vx, the universal dev tool manager. Use when the project has vx.toml or .vx/, or when the user mentions vx, tool version management, or cross-platform setup. vx auto-manages Node.js, Python, Go, Rust, and 50+ tools."
 ---
 
 # VX - Universal Development Tool Manager

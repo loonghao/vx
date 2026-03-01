@@ -10,8 +10,6 @@
 //! - `vx ai context` - Generate AI-friendly project context (RFC 0035)
 //! - `vx ai session` - Manage AI session state (RFC 0035)
 
-#![allow(clippy::collapsible_if)]
-
 use crate::cli::{OutputFormat, SessionCommand};
 use crate::commands::CommandContext;
 use crate::output::{
@@ -22,25 +20,104 @@ use anyhow::{Context, Result};
 use std::collections::HashMap;
 use std::path::PathBuf;
 
-/// Supported AI agent targets: (name, project_skills_dir, global_skills_dir)
-const SUPPORTED_AGENTS: &[(&str, &str, &str)] = &[
-    ("codebuddy", ".codebuddy/skills", ".codebuddy/skills"),
-    ("claude-code", ".claude/skills", ".claude/skills"),
-    ("cursor", ".cursor/skills", ".cursor/skills"),
-    ("codex", ".agents/skills", ".codex/skills"),
-    ("windsurf", ".windsurf/skills", ".codeium/windsurf/skills"),
-    ("copilot", ".agents/skills", ".copilot/skills"),
-    ("opencode", ".opencode/skills", ".config/opencode/skills"),
-    ("trae", ".trae/skills", ".trae/skills"),
-    ("gemini-cli", ".agents/skills", ".gemini/skills"),
-    ("amp", ".agents/skills", ".config/agents/skills"),
-    ("roo", ".roo/skills", ".roo/skills"),
-    ("cline", ".cline/skills", ".cline/skills"),
-    ("kiro-cli", ".kiro/skills", ".kiro/skills"),
+/// Configuration for a single supported AI agent
+struct AgentConfig {
+    /// Agent identifier used in CLI arguments
+    name: &'static str,
+    /// Skills directory relative to the project root
+    project_skills_dir: &'static str,
+    /// Skills directory relative to the home directory
+    global_skills_dir: &'static str,
+}
+
+/// All supported AI agent targets
+const SUPPORTED_AGENTS: &[AgentConfig] = &[
+    AgentConfig {
+        name: "codebuddy",
+        project_skills_dir: ".codebuddy/skills",
+        global_skills_dir: ".codebuddy/skills",
+    },
+    AgentConfig {
+        name: "claude-code",
+        project_skills_dir: ".claude/skills",
+        global_skills_dir: ".claude/skills",
+    },
+    AgentConfig {
+        name: "cursor",
+        project_skills_dir: ".cursor/skills",
+        global_skills_dir: ".cursor/skills",
+    },
+    AgentConfig {
+        name: "codex",
+        project_skills_dir: ".agents/skills",
+        global_skills_dir: ".codex/skills",
+    },
+    AgentConfig {
+        name: "windsurf",
+        project_skills_dir: ".windsurf/skills",
+        global_skills_dir: ".codeium/windsurf/skills",
+    },
+    AgentConfig {
+        name: "copilot",
+        project_skills_dir: ".agents/skills",
+        global_skills_dir: ".copilot/skills",
+    },
+    AgentConfig {
+        name: "opencode",
+        project_skills_dir: ".opencode/skills",
+        global_skills_dir: ".config/opencode/skills",
+    },
+    AgentConfig {
+        name: "trae",
+        project_skills_dir: ".trae/skills",
+        global_skills_dir: ".trae/skills",
+    },
+    AgentConfig {
+        name: "gemini-cli",
+        project_skills_dir: ".agents/skills",
+        global_skills_dir: ".gemini/skills",
+    },
+    AgentConfig {
+        name: "amp",
+        project_skills_dir: ".agents/skills",
+        global_skills_dir: ".config/agents/skills",
+    },
+    AgentConfig {
+        name: "roo",
+        project_skills_dir: ".roo/skills",
+        global_skills_dir: ".roo/skills",
+    },
+    AgentConfig {
+        name: "cline",
+        project_skills_dir: ".cline/skills",
+        global_skills_dir: ".cline/skills",
+    },
+    AgentConfig {
+        name: "kiro-cli",
+        project_skills_dir: ".kiro/skills",
+        global_skills_dir: ".kiro/skills",
+    },
 ];
 
-/// Embedded vx-usage SKILL.md content for AI agents
-const VX_USAGE_SKILL: &str = include_str!("../skills/vx-usage/SKILL.md");
+/// All built-in vx skills, embedded at compile time.
+///
+/// Each tuple is `(skill_name, skill_content)`.
+const VX_SKILLS: &[(&str, &str)] = &[
+    ("vx-usage", include_str!("../skills/vx-usage/SKILL.md")),
+    (
+        "vx-commands",
+        include_str!("../skills/vx-commands/SKILL.md"),
+    ),
+    ("vx-project", include_str!("../skills/vx-project/SKILL.md")),
+    (
+        "vx-troubleshooting",
+        include_str!("../skills/vx-troubleshooting/SKILL.md"),
+    ),
+    (
+        "vx-best-practices",
+        include_str!("../skills/vx-best-practices/SKILL.md"),
+    ),
+];
 
 /// Handle `vx ai setup` command
 ///
@@ -57,54 +134,70 @@ pub async fn handle_setup(agents: &[String], global: bool, force: bool) -> Resul
 
     let mut installed_count = 0;
 
-    for (agent_name, project_dir, global_dir) in &target_agents {
+    for agent in &target_agents {
         let dirs_to_install: Vec<PathBuf> = if global {
-            vec![home_dir.join(global_dir)]
+            vec![home_dir.join(agent.global_skills_dir)]
         } else {
             // Install to project-level directory by default
-            vec![cwd.join(project_dir)]
+            vec![cwd.join(agent.project_skills_dir)]
         };
 
         for target_dir in dirs_to_install {
-            let skill_dir = target_dir.join("vx-usage");
-            let skill_file = skill_dir.join("SKILL.md");
+            let mut all_up_to_date = true;
 
-            if skill_file.exists() && !force {
-                UI::info(&format!(
-                    "  {} - vx-usage already installed at {}",
-                    agent_name,
+            for (skill_name, skill_content) in VX_SKILLS {
+                let skill_dir = target_dir.join(skill_name);
+                let skill_file = skill_dir.join("SKILL.md");
+
+                if skill_file.exists() && !force {
+                    UI::info(&format!(
+                        "  {} - {} already installed",
+                        agent.name, skill_name
+                    ));
+                    continue;
+                }
+
+                // Create directory and write SKILL.md
+                std::fs::create_dir_all(&skill_dir).with_context(|| {
+                    format!("Failed to create directory: {}", skill_dir.display())
+                })?;
+
+                std::fs::write(&skill_file, skill_content).with_context(|| {
+                    format!("Failed to write SKILL.md to {}", skill_file.display())
+                })?;
+
+                UI::success(&format!(
+                    "  {} - installed {} to {}",
+                    agent.name,
+                    skill_name,
                     skill_dir.display()
                 ));
-                continue;
+                all_up_to_date = false;
+                installed_count += 1;
             }
 
-            // Create directory and write SKILL.md
-            std::fs::create_dir_all(&skill_dir)
-                .with_context(|| format!("Failed to create directory: {}", skill_dir.display()))?;
-
-            std::fs::write(&skill_file, VX_USAGE_SKILL)
-                .with_context(|| format!("Failed to write SKILL.md to {}", skill_file.display()))?;
-
-            UI::success(&format!(
-                "  {} - installed vx-usage to {}",
-                agent_name,
-                skill_dir.display()
-            ));
-            installed_count += 1;
+            if all_up_to_date {
+                UI::info(&format!(
+                    "  {} - all skills up to date at {}",
+                    agent.name,
+                    target_dir.display()
+                ));
+            }
         }
     }
 
     println!();
     if installed_count > 0 {
         UI::success(&format!(
-            "Installed vx-usage skill to {} location(s)",
-            installed_count
+            "Installed {} skill file(s) across {} skill(s)",
+            installed_count,
+            VX_SKILLS.len()
         ));
     } else {
         UI::info("All skills already up to date. Use --force to reinstall.");
     }
 
-    UI::hint("AI agents will now have access to vx usage instructions.");
+    UI::hint("AI agents will now have access to all vx skills.");
 
     Ok(())
 }
@@ -117,8 +210,11 @@ pub async fn handle_agents() -> Result<()> {
     println!("{header}");
     println!("  {}", "-".repeat(68));
 
-    for (name, project_path, global_path) in SUPPORTED_AGENTS {
-        println!("  {:<16} {:<24} ~/{}", name, project_path, global_path);
+    for agent in SUPPORTED_AGENTS {
+        println!(
+            "  {:<16} {:<24} ~/{}",
+            agent.name, agent.project_skills_dir, agent.global_skills_dir
+        );
     }
 
     println!();
@@ -139,7 +235,7 @@ pub async fn handle_skills(_ctx: &CommandContext, args: &[String]) -> Result<()>
     // Find the vx binary itself to use `vx npx`
     let vx_exe = std::env::current_exe().context("Could not determine vx executable path")?;
 
-    let mut cmd_args = vec!["npx".to_string(), "skills".to_string()];
+    let mut cmd_args = vec!["npx".to_string(), "-y".to_string(), "skills".to_string()];
     cmd_args.extend_from_slice(args);
 
     let status = std::process::Command::new(&vx_exe)
@@ -156,20 +252,17 @@ pub async fn handle_skills(_ctx: &CommandContext, args: &[String]) -> Result<()>
 }
 
 /// Resolve agent names: if empty, use all agents; otherwise validate names
-fn resolve_agents(agents: &[String]) -> Result<Vec<(&'static str, &'static str, &'static str)>> {
+fn resolve_agents(agents: &[String]) -> Result<Vec<&'static AgentConfig>> {
     if agents.is_empty() {
-        return Ok(SUPPORTED_AGENTS.to_vec());
+        return Ok(SUPPORTED_AGENTS.iter().collect());
     }
 
     let mut result = Vec::new();
     for name in agents {
-        let found = SUPPORTED_AGENTS
-            .iter()
-            .find(|(n, _, _)| *n == name.as_str());
-        match found {
-            Some(agent) => result.push(*agent),
+        match SUPPORTED_AGENTS.iter().find(|a| a.name == name.as_str()) {
+            Some(agent) => result.push(agent),
             None => {
-                let available: Vec<&str> = SUPPORTED_AGENTS.iter().map(|(n, _, _)| *n).collect();
+                let available: Vec<&str> = SUPPORTED_AGENTS.iter().map(|a| a.name).collect();
                 anyhow::bail!(
                     "Unknown agent '{}'. Available agents: {}",
                     name,
@@ -298,60 +391,44 @@ async fn collect_installed_tools(ctx: &CommandContext) -> Result<Vec<ToolInfo>> 
     Ok(tools)
 }
 
-/// Collect project scripts
+/// Collect project scripts from vx.toml and package.json
 async fn collect_project_scripts(project_root: &std::path::Path) -> Result<Vec<ScriptInfo>> {
     let mut scripts = Vec::new();
 
-    // Check for vx.toml scripts
+    // Check for vx.toml scripts using the proper config parser
     let vx_toml = project_root.join("vx.toml");
-    if vx_toml.exists() {
-        if let Ok(content) = std::fs::read_to_string(&vx_toml) {
-            // Simple parsing - look for [scripts] section
-            let mut in_scripts = false;
-            for line in content.lines() {
-                let line = line.trim();
-                if line == "[scripts]" {
-                    in_scripts = true;
-                    continue;
-                }
-                if line.starts_with('[') {
-                    in_scripts = false;
-                }
-                if in_scripts && line.contains('=') {
-                    if let Some((name, command)) = line.split_once('=') {
-                        let name = name.trim().to_string();
-                        let command = command.trim().trim_matches('"').to_string();
-                        scripts.push(ScriptInfo {
-                            name,
-                            command,
-                            description: None,
-                            tools: vec![],
-                        });
-                    }
-                }
-            }
+    if vx_toml.exists()
+        && let Ok(config) = vx_config::parse_config(&vx_toml)
+    {
+        for (name, script) in &config.scripts {
+            let command = match script {
+                vx_config::ScriptConfig::Simple(cmd) => cmd.clone(),
+                vx_config::ScriptConfig::Detailed(d) => d.command.clone(),
+            };
+            scripts.push(ScriptInfo {
+                name: name.clone(),
+                command,
+                description: None,
+                tools: vec![],
+            });
         }
     }
 
     // Check for package.json scripts
     let package_json = project_root.join("package.json");
-    if package_json.exists() {
-        if let Ok(content) = std::fs::read_to_string(&package_json) {
-            if let Ok(json) = serde_json::from_str::<serde_json::Value>(&content) {
-                if let Some(obj) = json.as_object() {
-                    if let Some(scripts_obj) = obj.get("scripts").and_then(|s| s.as_object()) {
-                        for (name, cmd_value) in scripts_obj {
-                            if let Some(command) = cmd_value.as_str() {
-                                scripts.push(ScriptInfo {
-                                    name: name.clone(),
-                                    command: command.to_string(),
-                                    description: None,
-                                    tools: vec![],
-                                });
-                            }
-                        }
-                    }
-                }
+    if package_json.exists()
+        && let Ok(content) = std::fs::read_to_string(&package_json)
+        && let Ok(json) = serde_json::from_str::<serde_json::Value>(&content)
+        && let Some(scripts_obj) = json.get("scripts").and_then(|s| s.as_object())
+    {
+        for (name, cmd_value) in scripts_obj {
+            if let Some(command) = cmd_value.as_str() {
+                scripts.push(ScriptInfo {
+                    name: name.clone(),
+                    command: command.to_string(),
+                    description: None,
+                    tools: vec![],
+                });
             }
         }
     }
@@ -359,41 +436,26 @@ async fn collect_project_scripts(project_root: &std::path::Path) -> Result<Vec<S
     Ok(scripts)
 }
 
-/// Collect tool constraints from vx.toml
+/// Collect tool constraints from vx.toml using the proper config parser
 fn collect_tool_constraints(project_root: &std::path::Path) -> Result<Vec<ConstraintInfo>> {
-    let mut constraints = Vec::new();
-
     let vx_toml = project_root.join("vx.toml");
     if !vx_toml.exists() {
-        return Ok(constraints);
+        return Ok(vec![]);
     }
 
-    let content = std::fs::read_to_string(&vx_toml).context("Failed to read vx.toml")?;
+    let config =
+        vx_config::parse_config(&vx_toml).context("Failed to parse vx.toml for constraints")?;
 
-    // Simple parsing - look for [tools] section
-    let mut in_tools = false;
-    for line in content.lines() {
-        let line = line.trim();
-        if line == "[tools]" {
-            in_tools = true;
-            continue;
-        }
-        if line.starts_with('[') {
-            in_tools = false;
-        }
-        if in_tools && line.contains('=') {
-            if let Some((tool, version)) = line.split_once('=') {
-                let tool = tool.trim().to_string();
-                let version = version.trim().trim_matches('"').to_string();
-                constraints.push(ConstraintInfo {
-                    tool,
-                    constraint: version,
-                    reason: None,
-                    satisfied: true, // TODO: Check if actually satisfied
-                });
-            }
-        }
-    }
+    let constraints = config
+        .tools_as_hashmap()
+        .into_iter()
+        .map(|(tool, version)| ConstraintInfo {
+            tool,
+            constraint: version,
+            reason: None,
+            satisfied: true, // TODO: Check if actually satisfied
+        })
+        .collect();
 
     Ok(constraints)
 }
@@ -504,25 +566,24 @@ fn detect_languages_and_frameworks(
         languages.push("JavaScript/TypeScript".to_string());
 
         // Try to detect framework
-        if let Ok(content) = std::fs::read_to_string(project_root.join("package.json")) {
-            if let Ok(json) = serde_json::from_str::<serde_json::Value>(&content) {
-                if let Some(deps) = json.get("dependencies").and_then(|d| d.as_object()) {
-                    if deps.contains_key("next") {
-                        frameworks.push("Next.js".to_string());
-                    }
-                    if deps.contains_key("react") {
-                        frameworks.push("React".to_string());
-                    }
-                    if deps.contains_key("vue") {
-                        frameworks.push("Vue.js".to_string());
-                    }
-                    if deps.contains_key("svelte") {
-                        frameworks.push("Svelte".to_string());
-                    }
-                    if deps.contains_key("express") {
-                        frameworks.push("Express".to_string());
-                    }
-                }
+        if let Ok(content) = std::fs::read_to_string(project_root.join("package.json"))
+            && let Ok(json) = serde_json::from_str::<serde_json::Value>(&content)
+            && let Some(deps) = json.get("dependencies").and_then(|d| d.as_object())
+        {
+            if deps.contains_key("next") {
+                frameworks.push("Next.js".to_string());
+            }
+            if deps.contains_key("react") {
+                frameworks.push("React".to_string());
+            }
+            if deps.contains_key("vue") {
+                frameworks.push("Vue.js".to_string());
+            }
+            if deps.contains_key("svelte") {
+                frameworks.push("Svelte".to_string());
+            }
+            if deps.contains_key("express") {
+                frameworks.push("Express".to_string());
             }
         }
 
@@ -598,13 +659,14 @@ async fn handle_session_init(_ctx: &CommandContext) -> Result<()> {
     std::fs::create_dir_all(session_dir).context("Failed to create vx session directory")?;
 
     let current_dir = std::env::current_dir().context("Failed to get current directory")?;
+    let now = chrono::Utc::now().to_rfc3339();
 
     let session = serde_json::json!({
         "session_id": uuid::Uuid::new_v4().to_string(),
         "project_root": current_dir.display().to_string(),
-        "created_at": chrono::Utc::now().to_rfc3339(),
+        "created_at": now,
         "active_tools": {},
-        "last_check": chrono::Utc::now().to_rfc3339(),
+        "last_check": now,
     });
 
     let content = serde_json::to_string_pretty(&session)?;
