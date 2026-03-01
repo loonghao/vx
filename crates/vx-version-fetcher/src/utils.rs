@@ -1,47 +1,36 @@
 //! Version processing utilities
 //!
 //! Common functions for parsing, sorting, and filtering versions.
+//!
+//! String-level parsing and comparison is delegated to `vx-core::version_utils`.
+//! This module adds `VersionInfo`-level helpers (sorting, creation) and extended
+//! prerelease markers for ecosystem-specific tags like `canary` and `-snapshot`.
 
+use std::cmp::Ordering;
+use vx_core::version_utils as core_vu;
 use vx_runtime::VersionInfo;
 
 /// Version processing utility functions
 pub mod version_utils {
     use super::*;
 
-    /// Default prerelease markers
+    /// Extended prerelease markers for ecosystem fetchers.
+    ///
+    /// Superset of `vx-core`'s built-in markers, adding `canary` (Deno/Chrome)
+    /// and `-snapshot` (Maven/JVM ecosystem).
     pub const DEFAULT_PRERELEASE_MARKERS: &[&str] = &[
         "-alpha",
         "-beta",
         "-rc",
         "-dev",
-        "canary",
         "-pre",
+        "canary",
         "-snapshot",
     ];
 
-    /// Parse semver to tuple (major, minor, patch)
+    /// Sort `VersionInfo` list descending (newest first).
     ///
-    /// # Examples
-    /// ```
-    /// use vx_version_fetcher::version_utils::parse_semver_tuple;
-    /// assert_eq!(parse_semver_tuple("1.2.3"), (1, 2, 3));
-    /// assert_eq!(parse_semver_tuple("1.2"), (1, 2, 0));
-    /// assert_eq!(parse_semver_tuple("1.2.3-alpha"), (1, 2, 3));
-    /// ```
-    pub fn parse_semver_tuple(v: &str) -> (u64, u64, u64) {
-        let parts: Vec<&str> = v.split('.').collect();
-        let major = parts.first().and_then(|s| s.parse().ok()).unwrap_or(0);
-        let minor = parts.get(1).and_then(|s| s.parse().ok()).unwrap_or(0);
-        let patch = parts
-            .get(2)
-            .and_then(|s| s.split('-').next())
-            .and_then(|s| s.split('+').next())
-            .and_then(|s| s.parse().ok())
-            .unwrap_or(0);
-        (major, minor, patch)
-    }
-
-    /// Sort versions descending (newest first)
+    /// Uses `vx-core`'s `ParsedVersion` for correct semver ordering.
     ///
     /// # Examples
     /// ```
@@ -57,11 +46,21 @@ pub mod version_utils {
     /// assert_eq!(versions[0].version, "2.0.0");
     /// ```
     pub fn sort_versions_desc(versions: &mut [VersionInfo]) {
-        versions
-            .sort_by(|a, b| parse_semver_tuple(&b.version).cmp(&parse_semver_tuple(&a.version)));
+        versions.sort_by(|a, b| {
+            let pa = core_vu::parse_version(&a.version);
+            let pb = core_vu::parse_version(&b.version);
+            match (pb, pa) {
+                (Some(b), Some(a)) => b.cmp(&a),
+                (Some(_), None) => Ordering::Less,
+                (None, Some(_)) => Ordering::Greater,
+                (None, None) => Ordering::Equal,
+            }
+        });
     }
 
-    /// Check if version is prerelease using default markers
+    /// Check if a version string represents a prerelease, using default markers.
+    ///
+    /// Covers `-alpha`, `-beta`, `-rc`, `-dev`, `-pre`, `canary`, `-snapshot`.
     ///
     /// # Examples
     /// ```
@@ -69,13 +68,14 @@ pub mod version_utils {
     /// assert!(is_prerelease("1.0.0-alpha"));
     /// assert!(is_prerelease("1.0.0-beta.1"));
     /// assert!(is_prerelease("1.0.0-rc.1"));
+    /// assert!(is_prerelease("1.0.0-canary"));
     /// assert!(!is_prerelease("1.0.0"));
     /// ```
     pub fn is_prerelease(version: &str) -> bool {
         is_prerelease_with_markers(version, DEFAULT_PRERELEASE_MARKERS)
     }
 
-    /// Check if version is prerelease with custom markers
+    /// Check if version is prerelease with custom markers.
     ///
     /// # Examples
     /// ```
@@ -88,7 +88,9 @@ pub mod version_utils {
         markers.iter().any(|m| lower.contains(m))
     }
 
-    /// Validate basic semver format (at least major.minor)
+    /// Validate that a string is a parseable semver (at least `major.minor`).
+    ///
+    /// Delegates to `vx-core::version_utils::parse_version`.
     ///
     /// # Examples
     /// ```
@@ -99,11 +101,10 @@ pub mod version_utils {
     /// assert!(!is_valid_semver("abc"));
     /// ```
     pub fn is_valid_semver(version: &str) -> bool {
-        let parts: Vec<&str> = version.split('.').collect();
-        parts.len() >= 2 && parts[0].parse::<u32>().is_ok()
+        core_vu::parse_version(version).is_some()
     }
 
-    /// Strip version prefix
+    /// Strip a version prefix, or trim a leading `v` if prefix is empty.
     ///
     /// # Examples
     /// ```
@@ -121,9 +122,10 @@ pub mod version_utils {
         }
     }
 
-    /// Compare two version strings
+    /// Compare two version strings, returning semver ordering.
     ///
-    /// Returns Ordering::Greater if a > b, Ordering::Less if a < b, Ordering::Equal if equal
+    /// Delegates to `vx-core::version_utils::compare_versions_str`.
+    /// Returns `Ordering::Equal` when either string cannot be parsed.
     ///
     /// # Examples
     /// ```
@@ -133,16 +135,12 @@ pub mod version_utils {
     /// assert_eq!(compare_versions("1.0.0", "2.0.0"), Ordering::Less);
     /// assert_eq!(compare_versions("1.0.0", "1.0.0"), Ordering::Equal);
     /// ```
-    pub fn compare_versions(a: &str, b: &str) -> std::cmp::Ordering {
-        parse_semver_tuple(a).cmp(&parse_semver_tuple(b))
+    pub fn compare_versions(a: &str, b: &str) -> Ordering {
+        core_vu::compare_versions_str(a, b).unwrap_or(Ordering::Equal)
     }
 
-    /// Filter and transform versions with common operations
-    ///
-    /// This is a helper that applies common filtering operations:
-    /// - Strip prefix
-    /// - Skip prereleases
-    /// - Validate semver
+    /// Filter and transform raw version strings with common operations:
+    /// strip prefix, skip prereleases, validate semver.
     pub fn filter_versions<'a>(
         versions: impl Iterator<Item = &'a str>,
         prefix: Option<&str>,
@@ -151,18 +149,15 @@ pub mod version_utils {
     ) -> Vec<String> {
         versions
             .filter_map(|v| {
-                // Strip prefix
                 let version = match prefix {
                     Some(p) if !p.is_empty() => v.strip_prefix(p)?,
                     _ => v.trim_start_matches('v'),
                 };
 
-                // Skip prereleases if requested
                 if skip_prereleases && is_prerelease_with_markers(version, prerelease_markers) {
                     return None;
                 }
 
-                // Validate basic semver
                 if !is_valid_semver(version) {
                     return None;
                 }
@@ -172,7 +167,7 @@ pub mod version_utils {
             .collect()
     }
 
-    /// Create VersionInfo from version string with optional release date
+    /// Create a `VersionInfo` from a version string with optional metadata.
     pub fn create_version_info(
         version: &str,
         release_date: Option<&str>,
