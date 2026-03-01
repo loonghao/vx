@@ -8,7 +8,7 @@ use crate::installer::RealInstaller;
 use anyhow::Result;
 use std::path::Path;
 use std::sync::Arc;
-use vx_runtime::PathProvider;
+use vx_runtime::CorePathProvider;
 use vx_runtime::RuntimeContext;
 use vx_runtime::VersionCache;
 use vx_runtime::impls::{RealFileSystem, RealPathProvider};

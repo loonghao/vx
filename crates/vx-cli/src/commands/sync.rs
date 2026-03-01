@@ -71,16 +71,15 @@ fn check_lock_status(
 
 /// Handle the sync command
 pub async fn handle(
-    _registry: &ProviderRegistry,
+    registry: &ProviderRegistry,
     check: bool,
     force: bool,
     dry_run: bool,
     verbose: bool,
     no_parallel: bool,
-    _no_auto_install: bool,
 ) -> Result<()> {
     handle_with_options(
-        _registry,
+        registry,
         SyncOptions {
             check,
             force,
@@ -359,67 +358,56 @@ fn run_lock_command() -> Result<()> {
     Ok(())
 }
 
+/// Build environment variables from a single ToolConfig for install subprocesses.
+///
+/// Extracts VX_MSVC_COMPONENTS, VX_MSVC_EXCLUDE_PATTERNS, and any custom install_env vars.
+fn build_env_vars_for_tool(tool_config: &vx_config::ToolConfig) -> InstallEnvVars {
+    let mut env_vars = HashMap::new();
+
+    if let Some(components) = &tool_config.components
+        && !components.is_empty()
+    {
+        env_vars.insert("VX_MSVC_COMPONENTS".to_string(), components.join(","));
+    }
+
+    if let Some(patterns) = &tool_config.exclude_patterns
+        && !patterns.is_empty()
+    {
+        env_vars.insert("VX_MSVC_EXCLUDE_PATTERNS".to_string(), patterns.join(","));
+    }
+
+    if let Some(install_env) = &tool_config.install_env {
+        env_vars.extend(install_env.clone());
+    }
+
+    env_vars
+}
+
 /// Build environment variables from ToolConfig metadata for install subprocesses.
 ///
 /// For tools with detailed configuration (e.g., [tools.msvc] with components),
 /// this generates the appropriate env vars that the runtime's install() method reads.
+/// The `[tools]` section takes precedence over `[runtimes]`.
 fn build_install_env_vars(config: &vx_config::VxConfig) -> HashMap<String, InstallEnvVars> {
     let mut tool_envs = HashMap::new();
 
-    // Check all tools for detailed config
+    // Check [tools] section first (higher priority)
     for name in config.tools.keys() {
         if let Some(tool_config) = config.get_tool_config(name) {
-            let mut env_vars = HashMap::new();
-
-            // Pass components as VX_MSVC_COMPONENTS
-            if let Some(components) = &tool_config.components
-                && !components.is_empty()
-            {
-                env_vars.insert("VX_MSVC_COMPONENTS".to_string(), components.join(","));
-            }
-
-            // Pass exclude patterns as VX_MSVC_EXCLUDE_PATTERNS
-            if let Some(patterns) = &tool_config.exclude_patterns
-                && !patterns.is_empty()
-            {
-                env_vars.insert("VX_MSVC_EXCLUDE_PATTERNS".to_string(), patterns.join(","));
-            }
-
-            // Pass install_env vars directly
-            if let Some(install_env) = &tool_config.install_env {
-                env_vars.extend(install_env.clone());
-            }
-
+            let env_vars = build_env_vars_for_tool(tool_config);
             if !env_vars.is_empty() {
                 tool_envs.insert(name.clone(), env_vars);
             }
         }
     }
 
-    // Also check runtimes section
+    // Check [runtimes] section, skipping names already handled by [tools]
     for name in config.runtimes.keys() {
         if tool_envs.contains_key(name) {
             continue; // tools section takes precedence
         }
         if let Some(tool_config) = config.get_tool_config(name) {
-            let mut env_vars = HashMap::new();
-
-            if let Some(components) = &tool_config.components
-                && !components.is_empty()
-            {
-                env_vars.insert("VX_MSVC_COMPONENTS".to_string(), components.join(","));
-            }
-
-            if let Some(patterns) = &tool_config.exclude_patterns
-                && !patterns.is_empty()
-            {
-                env_vars.insert("VX_MSVC_EXCLUDE_PATTERNS".to_string(), patterns.join(","));
-            }
-
-            if let Some(install_env) = &tool_config.install_env {
-                env_vars.extend(install_env.clone());
-            }
-
+            let env_vars = build_env_vars_for_tool(tool_config);
             if !env_vars.is_empty() {
                 tool_envs.insert(name.clone(), env_vars);
             }
