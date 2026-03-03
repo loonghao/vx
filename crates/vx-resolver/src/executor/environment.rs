@@ -337,6 +337,50 @@ impl<'a> EnvironmentManager<'a> {
             }
         };
 
+        // For bundled runtimes (e.g., npm bundled with node), we must also call the
+        // parent runtime's execution_environment() so that the parent's bin/ directory
+        // is added to PATH. Without this, npm's shell script (#!/usr/bin/env node)
+        // cannot find `node`, causing `node ci` to be executed instead of `npm ci`.
+        if let Some(ref provider_name) = effective_runtime_name
+            && provider_name != runtime_name
+            && let Some(provider_runtime) = registry.get_runtime(provider_name)
+        {
+            // Find the installed version of the parent runtime
+            let provider_version = match provider_runtime.installed_versions(context).await {
+                Ok(versions) if !versions.is_empty() => {
+                    let mut sorted = versions;
+                    sorted.sort_by(|a, b| self.compare_versions(a, b));
+                    sorted
+                        .last()
+                        .cloned()
+                        .unwrap_or_else(|| "latest".to_string())
+                }
+                _ => "latest".to_string(),
+            };
+            debug!(
+                "[prepare_env] Bundled runtime {} → injecting parent {} ({}) environment",
+                runtime_name, provider_name, provider_version
+            );
+            match provider_runtime
+                .execution_environment(&provider_version, context)
+                .await
+            {
+                Ok(parent_env) => {
+                    // Parent env provides PATH with bin/ dir; don't override
+                    // vars already set by the bundled runtime itself
+                    for (key, value) in parent_env {
+                        env.entry(key).or_insert(value);
+                    }
+                }
+                Err(e) => {
+                    warn!(
+                        "Failed to prepare parent environment for {} (provider {}): {}",
+                        runtime_name, provider_name, e
+                    );
+                }
+            }
+        }
+
         // Call execution_environment for the primary runtime being invoked
         // This uses execution_environment() which may provide additional env vars
         // needed only when the tool is directly invoked (e.g., MSVC's LIB/INCLUDE/PATH

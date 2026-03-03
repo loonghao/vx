@@ -111,19 +111,13 @@ impl SystemPackageManager for ScoopManager {
         debug!("Installing package via Scoop: {}", spec.package);
         self.report_progress(&format!("Installing {} via Scoop...", spec.package));
 
-        let mut args = vec!["install".to_string(), spec.package.clone()];
-        // Note: args is mutated below, so vec! is intentional
-        #[allow(clippy::useless_vec)]
-
-        // Scoop doesn't support version pinning in the same way as other package managers
-        // but we can try to install a specific version if available
-        if let Some(version) = &spec.version {
+        let package_arg = if let Some(version) = &spec.version {
             // Try bucket/package@version format
-            args[1] = format!("{}@{}", spec.package, version);
-        }
-
-        let args_ref: Vec<&str> = args.iter().map(|s| s.as_str()).collect();
-        let output = self.run_scoop_with_progress(&args_ref)?;
+            format!("{}@{}", spec.package, version)
+        } else {
+            spec.package.clone()
+        };
+        let output = self.run_scoop_with_progress(&["install", package_arg.as_str()])?;
 
         let _stdout = String::from_utf8_lossy(&output.stdout);
         let stderr = String::from_utf8_lossy(&output.stderr);
