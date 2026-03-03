@@ -1,23 +1,60 @@
 //! Scoop package manager implementation
 
-use super::{InstallResult, PackageInstallSpec, SystemPackageManager};
+use super::{
+    InstallResult, PackageInstallSpec, ProgressCallback, SystemPackageManager,
+    run_command_with_progress,
+};
 use crate::{Result, SystemPmError};
 use async_trait::async_trait;
 use std::process::Command;
+use std::sync::Arc;
 use tracing::{debug, info, warn};
 
 /// Scoop package manager (Windows)
-pub struct ScoopManager;
+pub struct ScoopManager {
+    /// Optional progress callback
+    progress_callback: Option<ProgressCallback>,
+}
 
 impl ScoopManager {
     /// Create a new Scoop manager
     pub fn new() -> Self {
-        Self
+        Self {
+            progress_callback: None,
+        }
+    }
+
+    /// Create a Scoop manager with progress callback
+    pub fn with_progress<F>(callback: F) -> Self
+    where
+        F: Fn(&str) + Send + Sync + 'static,
+    {
+        Self {
+            progress_callback: Some(Arc::new(callback)),
+        }
+    }
+
+    /// Report progress through callback
+    fn report_progress(&self, message: &str) {
+        if let Some(ref callback) = self.progress_callback {
+            callback(message);
+        }
     }
 
     /// Get the scoop executable path
     fn scoop_path() -> Option<std::path::PathBuf> {
         which::which("scoop").ok()
+    }
+
+    /// Run a scoop command with streaming progress output
+    fn run_scoop_with_progress(&self, args: &[&str]) -> std::io::Result<std::process::Output> {
+        let mut cmd = Command::new("scoop");
+        cmd.args(args);
+        if let Some(callback) = &self.progress_callback {
+            run_command_with_progress(cmd, callback)
+        } else {
+            cmd.output()
+        }
     }
 }
 
@@ -72,8 +109,11 @@ impl SystemPackageManager for ScoopManager {
 
     async fn install_package(&self, spec: &PackageInstallSpec) -> Result<InstallResult> {
         debug!("Installing package via Scoop: {}", spec.package);
+        self.report_progress(&format!("Installing {} via Scoop...", spec.package));
 
         let mut args = vec!["install".to_string(), spec.package.clone()];
+        // Note: args is mutated below, so vec! is intentional
+        #[allow(clippy::useless_vec)]
 
         // Scoop doesn't support version pinning in the same way as other package managers
         // but we can try to install a specific version if available
@@ -82,12 +122,15 @@ impl SystemPackageManager for ScoopManager {
             args[1] = format!("{}@{}", spec.package, version);
         }
 
-        let output = Command::new("scoop").args(&args).output()?;
+        let args_ref: Vec<&str> = args.iter().map(|s| s.as_str()).collect();
+        let output = self.run_scoop_with_progress(&args_ref)?;
 
         let _stdout = String::from_utf8_lossy(&output.stdout);
         let stderr = String::from_utf8_lossy(&output.stderr);
 
         if output.status.success() {
+            info!("Package {} installed successfully via Scoop", spec.package);
+            self.report_progress(&format!("{} installed successfully", spec.package));
             let version = self.get_installed_version(&spec.package).await?;
             Ok(InstallResult::success()
                 .with_version(version.unwrap_or_else(|| "unknown".to_string())))

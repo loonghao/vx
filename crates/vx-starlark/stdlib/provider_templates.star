@@ -30,78 +30,28 @@
 
 load("@vx//stdlib:github.star",   "make_fetch_versions", "github_asset_url")
 load("@vx//stdlib:env.star",      "env_prepend")
-load("@vx//stdlib:platform.star", "os_to_go", "arch_to_go")
+load("@vx//stdlib:platform.star", "rust_triple", "go_os_arch", "archive_ext",
+                                   "exe_suffix", "expand_asset")
 
 # ---------------------------------------------------------------------------
-# Internal: platform helpers
+# Internal aliases (keep private names for backward compat within this file)
 # ---------------------------------------------------------------------------
-
-# Rust target triples — musl on Linux (portable, no glibc version dependency)
-_RUST_TRIPLES_MUSL = {
-    "windows/x64":   "x86_64-pc-windows-msvc",
-    "windows/arm64": "aarch64-pc-windows-msvc",
-    "macos/x64":     "x86_64-apple-darwin",
-    "macos/arm64":   "aarch64-apple-darwin",
-    "linux/x64":     "x86_64-unknown-linux-musl",
-    "linux/arm64":   "aarch64-unknown-linux-musl",
-}
-
-# Rust target triples — gnu on Linux
-_RUST_TRIPLES_GNU = {
-    "windows/x64":   "x86_64-pc-windows-msvc",
-    "windows/arm64": "aarch64-pc-windows-msvc",
-    "macos/x64":     "x86_64-apple-darwin",
-    "macos/arm64":   "aarch64-apple-darwin",
-    "linux/x64":     "x86_64-unknown-linux-gnu",
-    "linux/arm64":   "aarch64-unknown-linux-gnu",
-}
 
 def _rust_triple(ctx, linux_libc):
-    """Resolve the Rust target triple for the current platform."""
-    key = "{}/{}".format(ctx.platform.os, ctx.platform.arch)
-    if linux_libc == "gnu":
-        return _RUST_TRIPLES_GNU.get(key)
-    return _RUST_TRIPLES_MUSL.get(key)
+    return rust_triple(ctx, linux_libc)
 
 def _go_os_arch(ctx):
-    """Resolve Go-style (os, arch) for the current platform."""
-    return (os_to_go(ctx.platform.os), arch_to_go(ctx.platform.arch))
+    return go_os_arch(ctx)
 
 def _archive_ext(ctx):
-    """'zip' on Windows, 'tar.gz' elsewhere."""
-    return "zip" if ctx.platform.os == "windows" else "tar.gz"
+    return archive_ext(ctx)
 
 def _exe_suffix(ctx):
-    """'.exe' on Windows, '' elsewhere."""
-    return ".exe" if ctx.platform.os == "windows" else ""
+    return exe_suffix(ctx)
 
 def _expand_asset(template, ctx, version, triple = None, go_os = None, go_arch = None):
-    """Expand an asset filename template with platform-specific values.
-
-    Placeholders:
-        {version}  - version without 'v' prefix  (e.g. "1.0.0")
-        {vversion} - version with 'v' prefix      (e.g. "v1.0.0")
-        {triple}   - Rust target triple           (e.g. "x86_64-unknown-linux-musl")
-        {os}       - Go GOOS                      (e.g. "linux", "darwin", "windows")
-        {arch}     - Go GOARCH                    (e.g. "amd64", "arm64")
-        {ext}      - archive extension            (e.g. "zip" or "tar.gz")
-        {exe}      - executable suffix            (e.g. ".exe" or "")
-    """
-    ext = _archive_ext(ctx)
-    exe = _exe_suffix(ctx)
-
-    s = template
-    s = s.replace("{version}",  version)
-    s = s.replace("{vversion}", "v" + version)
-    s = s.replace("{ext}",      ext)
-    s = s.replace("{exe}",      exe)
-    if triple != None:
-        s = s.replace("{triple}", triple)
-    if go_os != None:
-        s = s.replace("{os}",   go_os)
-    if go_arch != None:
-        s = s.replace("{arch}", go_arch)
-    return s
+    return expand_asset(template, ctx, version, triple = triple,
+                        go_os = go_os, go_arch = go_arch)
 
 # ---------------------------------------------------------------------------
 # Internal: standard provider function set

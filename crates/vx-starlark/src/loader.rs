@@ -1,11 +1,10 @@
 //! Module loader for Starlark provider scripts
 //!
-//! Implements the `@vx//stdlib` virtual module system, inspired by Buck2's `load()` mechanism.
+//! Implements the `@vx//` virtual module system, inspired by Buck2's `load()` mechanism.
 //! Provider scripts can import shared utilities via:
 //!
 //! ```python
 //! load("@vx//stdlib:semver.star", "semver_compare", "semver_strip_v")
-//! load("@vx//stdlib:platform.star", "platform_triple", "is_windows")
 //! ```
 
 use starlark::environment::FrozenModule;
@@ -29,75 +28,76 @@ const SCRIPT_INSTALL_STAR: &str = include_str!("../stdlib/script_install.star");
 const SYSTEM_INSTALL_STAR: &str = include_str!("../stdlib/system_install.star");
 const TEST_STAR: &str = include_str!("../stdlib/test.star");
 
-/// Module loader for `@vx//stdlib:*.star` virtual modules
+/// Module loader for `@vx//stdlib:*` virtual modules.
 ///
 /// Inspired by Buck2's prelude module system. Allows provider scripts to
 /// share common utilities without duplicating code.
 pub struct VxModuleLoader {
-    /// Map from module path to source code
-    modules: HashMap<String, &'static str>,
+    /// Map from stdlib module path to source code
+    stdlib_modules: HashMap<String, &'static str>,
 }
 
 impl VxModuleLoader {
-    /// Create a new module loader with all built-in stdlib modules
+    /// Create a new module loader with all built-in modules.
     pub fn new() -> Self {
-        let mut modules = HashMap::new();
-        modules.insert("@vx//stdlib:semver.star".to_string(), SEMVER_STAR);
-        modules.insert("@vx//stdlib:platform.star".to_string(), PLATFORM_STAR);
-        modules.insert("@vx//stdlib:http.star".to_string(), HTTP_STAR);
-        modules.insert("@vx//stdlib:github.star".to_string(), GITHUB_STAR);
-        modules.insert("@vx//stdlib:install.star".to_string(), INSTALL_STAR);
-        modules.insert("@vx//stdlib:env.star".to_string(), ENV_STAR);
-        modules.insert("@vx//stdlib:layout.star".to_string(), LAYOUT_STAR);
-        modules.insert("@vx//stdlib:permissions.star".to_string(), PERMISSIONS_STAR);
-        modules.insert("@vx//stdlib:provider.star".to_string(), PROVIDER_STAR);
-        modules.insert(
+        let mut stdlib_modules = HashMap::new();
+        stdlib_modules.insert("@vx//stdlib:semver.star".to_string(), SEMVER_STAR);
+        stdlib_modules.insert("@vx//stdlib:platform.star".to_string(), PLATFORM_STAR);
+        stdlib_modules.insert("@vx//stdlib:http.star".to_string(), HTTP_STAR);
+        stdlib_modules.insert("@vx//stdlib:github.star".to_string(), GITHUB_STAR);
+        stdlib_modules.insert("@vx//stdlib:install.star".to_string(), INSTALL_STAR);
+        stdlib_modules.insert("@vx//stdlib:env.star".to_string(), ENV_STAR);
+        stdlib_modules.insert("@vx//stdlib:layout.star".to_string(), LAYOUT_STAR);
+        stdlib_modules.insert("@vx//stdlib:permissions.star".to_string(), PERMISSIONS_STAR);
+        stdlib_modules.insert("@vx//stdlib:provider.star".to_string(), PROVIDER_STAR);
+        stdlib_modules.insert(
             "@vx//stdlib:provider_templates.star".to_string(),
             PROVIDER_TEMPLATES_STAR,
         );
-        modules.insert("@vx//stdlib:runtime.star".to_string(), RUNTIME_STAR);
-        modules.insert(
+        stdlib_modules.insert("@vx//stdlib:runtime.star".to_string(), RUNTIME_STAR);
+        stdlib_modules.insert(
             "@vx//stdlib:script_install.star".to_string(),
             SCRIPT_INSTALL_STAR,
         );
-        modules.insert(
+        stdlib_modules.insert(
             "@vx//stdlib:system_install.star".to_string(),
             SYSTEM_INSTALL_STAR,
         );
-        modules.insert("@vx//stdlib:test.star".to_string(), TEST_STAR);
-        Self { modules }
+        stdlib_modules.insert("@vx//stdlib:test.star".to_string(), TEST_STAR);
+
+        Self { stdlib_modules }
     }
 
-    /// Check if a module path is a vx stdlib module
+    /// Check if a module path is a vx virtual module.
     pub fn is_vx_module(path: &str) -> bool {
         path.starts_with("@vx//")
     }
 
-    /// Get the source code for a module
+    /// Get the source code for a stdlib module.
     pub fn get_source(&self, path: &str) -> Option<&'static str> {
-        self.modules.get(path).copied()
+        self.stdlib_modules.get(path).copied()
     }
 
-    /// Load and evaluate a stdlib module, returning a FrozenModule
+    /// Load and evaluate a vx virtual module, returning a FrozenModule.
     ///
     /// Supports recursive loading: `github.star` can `load("@vx//stdlib:http.star", ...)`
     /// because the evaluator is given a self-referential loader.
     pub fn load_module(&self, path: &str, dialect: &Dialect) -> anyhow::Result<FrozenModule> {
         let source = self.get_source(path).ok_or_else(|| {
             anyhow::anyhow!(
-                "Unknown vx stdlib module: '{}'. Available modules: {}",
+                "Unknown vx module: '{}'. Available modules: {}",
                 path,
                 self.available_modules().join(", ")
             )
         })?;
 
         let ast = AstModule::parse(path, source.to_string(), dialect)
-            .map_err(|e| anyhow::anyhow!("Failed to parse stdlib module '{}': {}", path, e))?;
+            .map_err(|e| anyhow::anyhow!("Failed to parse vx module '{}': {}", path, e))?;
 
         let globals = starlark::environment::GlobalsBuilder::standard().build();
         let module = starlark::environment::Module::new();
         {
-            // Use a recursive loader so that github.star can load http.star / platform.star
+            // Use a recursive loader so modules can load each other.
             let recursive_loader = VxModuleLoader::new();
             let dialect_clone = dialect.clone();
             let file_loader = RecursiveVxLoader {
@@ -106,19 +106,18 @@ impl VxModuleLoader {
             };
             let mut eval = starlark::eval::Evaluator::new(&module);
             eval.set_loader(&file_loader);
-            eval.eval_module(ast, &globals).map_err(|e| {
-                anyhow::anyhow!("Failed to evaluate stdlib module '{}': {}", path, e)
-            })?;
+            eval.eval_module(ast, &globals)
+                .map_err(|e| anyhow::anyhow!("Failed to evaluate vx module '{}': {}", path, e))?;
         }
 
         module
             .freeze()
-            .map_err(|e| anyhow::anyhow!("Failed to freeze stdlib module '{}': {:?}", path, e))
+            .map_err(|e| anyhow::anyhow!("Failed to freeze vx module '{}': {:?}", path, e))
     }
 
-    /// List all available stdlib modules
+    /// List all available stdlib vx modules.
     pub fn available_modules(&self) -> Vec<&str> {
-        self.modules.keys().map(|s| s.as_str()).collect()
+        self.stdlib_modules.keys().map(|s| s.as_str()).collect()
     }
 }
 
@@ -128,8 +127,8 @@ impl Default for VxModuleLoader {
     }
 }
 
-/// Internal recursive loader used when evaluating stdlib modules that themselves
-/// contain `load()` statements (e.g. `github.star` loads `http.star`).
+/// Internal recursive loader used when evaluating vx modules that themselves
+/// contain `load()` statements.
 struct RecursiveVxLoader {
     loader: VxModuleLoader,
     dialect: Dialect,
@@ -143,7 +142,7 @@ impl FileLoader for RecursiveVxLoader {
                 .map_err(starlark::Error::new_other)
         } else {
             Err(starlark::Error::new_other(anyhow::anyhow!(
-                "External module loading is not supported in stdlib: '{}'",
+                "External module loading is not supported in vx modules: '{}'",
                 path
             )))
         }

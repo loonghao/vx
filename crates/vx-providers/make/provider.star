@@ -7,6 +7,7 @@
 # On macOS/Linux, make is typically pre-installed or available via system package manager.
 
 load("@vx//stdlib:provider.star",
+     "runtime_def",
      "system_permissions",
      "multi_platform_install", "brew_install", "apt_install",
      "dnf_install", "pacman_install")
@@ -37,21 +38,10 @@ def supported_platforms():
 # ---------------------------------------------------------------------------
 
 runtimes = [
-    {
-        "name":        "make",
-        "executable":  "make",
-        "description": "GNU Make build automation tool",
-        "aliases":     ["gmake", "gnumake"],
-        "priority":    100,
-        "system_paths": [
-            "/usr/bin/make",
-            "/usr/local/bin/make",
-            "/opt/homebrew/bin/make",
-        ],
-        "test_commands": [
-            {"command": "{executable} --version", "name": "version_check", "expected_output": "GNU Make"},
-        ],
-    },
+    runtime_def("make",
+        aliases     = ["gmake", "gnumake"],
+        description = "GNU Make build automation tool",
+    ),
 ]
 
 # ---------------------------------------------------------------------------

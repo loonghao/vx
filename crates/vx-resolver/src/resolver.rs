@@ -260,7 +260,37 @@ impl Resolver {
         runtime_name: &str,
         executable_name: &str,
     ) -> Option<RuntimeStatus> {
-        let system_paths = self.runtime_map.get_detection_system_paths(runtime_name);
+        // When executable_name differs from runtime_name, we are in the
+        // `runtime::executable` override scenario (e.g. `vx msvc::ildasm`).
+        //
+        // Priority:
+        //   1. If `executable_name` is itself a known runtime with its own
+        //      system_paths (e.g. `ildasm`), use those paths.
+        //   2. If `executable_name` equals `runtime_name` (normal case), use
+        //      the runtime's own system_paths.
+        //   3. Otherwise the executable is unknown — return None so the caller
+        //      can report a proper "not found" error instead of silently
+        //      resolving to the parent runtime's binary (e.g. cl.exe).
+        let system_paths = if executable_name == runtime_name {
+            // Normal case: look up the runtime's own detection paths.
+            self.runtime_map.get_detection_system_paths(runtime_name)
+        } else if self.runtime_map.get(executable_name).is_some() {
+            // executable_name is a known runtime — prefer its own system_paths.
+            let exe_paths = self.runtime_map.get_detection_system_paths(executable_name);
+            if !exe_paths.is_empty() {
+                exe_paths
+            } else {
+                // Known runtime but no dedicated system_paths — fall back to
+                // the parent runtime's paths (bundled tool in the same directory).
+                self.runtime_map.get_detection_system_paths(runtime_name)
+            }
+        } else {
+            // executable_name is NOT a known runtime.  Do NOT fall back to the
+            // parent runtime's system_paths — that would silently resolve an
+            // unknown tool (e.g. `sigtools`) to the parent's binary (cl.exe).
+            return None;
+        };
+
         if system_paths.is_empty() {
             return None;
         }

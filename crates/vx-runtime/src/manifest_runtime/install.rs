@@ -216,7 +216,14 @@ impl ManifestDrivenRuntime {
                         match pm.install_package(&spec).await {
                             Ok(_) => {
                                 info!("Successfully installed {} via {}", self.name, manager);
-                                let exe_path = which::which(&self.executable).ok();
+                                // For tools like MSVC cl.exe that are not on PATH,
+                                // search system_paths glob patterns first, then fall back to which.
+                                let exe_path = if !self.system_paths.is_empty() {
+                                    super::find_first_glob_match(&self.system_paths)
+                                        .or_else(|| which::which(&self.executable).ok())
+                                } else {
+                                    which::which(&self.executable).ok()
+                                };
                                 return Ok(InstallResult::system_installed(
                                     format!("system ({})", manager),
                                     exe_path,

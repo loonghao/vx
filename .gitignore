@@ -29,6 +29,10 @@ Thumbs.db
 test-env/
 *.log
 
+# examples work directories (contain cloned repos / nested git repos)
+examples/msvc/work/
+examples/msvc/aionui
+
 # Temporary files
 *.tmp
 *.temp

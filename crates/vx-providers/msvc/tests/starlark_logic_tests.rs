@@ -73,6 +73,28 @@ names = [r["name"] for r in runtimes]
 }
 
 #[test]
+fn test_runtimes_has_managed_tools() {
+    make_assert().is_true(
+        r#"
+load("provider.star", "runtimes")
+names = [r["name"] for r in runtimes]
+"csc" in names and "ilasm" in names and "ildasm" in names
+"#,
+    );
+}
+
+#[test]
+fn test_managed_tools_are_bundled_with_msvc() {
+    make_assert().is_true(
+        r#"
+load("provider.star", "runtimes")
+managed = [r for r in runtimes if r["name"] in ["csc", "ilasm", "ildasm"]]
+len(managed) == 3 and all([r["bundled_with"] == "msvc" for r in managed])
+"#,
+    );
+}
+
+#[test]
 fn test_msvc_runtime_has_cl_alias() {
     make_assert().is_true(
         r#"
@@ -173,6 +195,36 @@ dep_names = [dep["runtime"] for dep in d]
 "#,
         provider_star_prefix()
     ));
+}
+
+// ── system_install logic ──────────────────────────────────────────────────────
+
+#[test]
+fn test_system_install_has_both_winget_and_choco() {
+    make_assert().is_true(
+        r#"
+load("provider.star", "system_install")
+strategies = system_install["strategies"]
+managers = [s["manager"] for s in strategies]
+"winget" in managers and "choco" in managers
+"#,
+    );
+}
+
+#[test]
+fn test_system_install_includes_required_workloads() {
+    make_assert().is_true(
+        r#"
+load("provider.star", "system_install")
+strategies = system_install["strategies"]
+args = " ".join([s.get("install_args", "") for s in strategies])
+"Microsoft.VisualStudio.Workload.VCTools" in args and
+"Microsoft.VisualStudio.Workload.ManagedDesktopBuildTools" in args and
+"Microsoft.VisualStudio.Workload.NetCoreBuildTools" in args and
+"Microsoft.VisualStudio.Workload.NativeGame" in args and
+"Microsoft.VisualStudio.Workload.ManagedGame" in args
+"#,
+    );
 }
 
 // ── lint check ────────────────────────────────────────────────────────────────

@@ -9,7 +9,7 @@
 # App Installer on Windows 10.
 
 load("@vx//stdlib:github.star", "make_fetch_versions", "github_asset_url")
-load("@vx//stdlib:provider.star", "github_permissions", "irm_install")
+load("@vx//stdlib:provider.star", "runtime_def", "github_permissions", "irm_install")
 
 # ---------------------------------------------------------------------------
 # Provider metadata
@@ -36,21 +36,11 @@ def supported_platforms():
 # ---------------------------------------------------------------------------
 
 runtimes = [
-    {
-        "name":        "winget",
-        "executable":  "winget",
-        "description": "Windows Package Manager command-line tool",
-        "aliases":     ["winget-cli"],
-        "priority":    100,
-        "system_paths": [
-            "C:/Users/*/AppData/Local/Microsoft/WindowsApps/winget.exe",
-        ],
-        "test_commands": [
-            {"command": "{executable} --version", "name": "version_check", "expected_output": "v\\d+\\.\\d+"},
-        ],
-    },
+    runtime_def("winget",
+        aliases     = ["winget-cli"],
+        description = "Windows Package Manager command-line tool",
+    ),
 ]
-
 # ---------------------------------------------------------------------------
 # Permissions
 # ---------------------------------------------------------------------------
