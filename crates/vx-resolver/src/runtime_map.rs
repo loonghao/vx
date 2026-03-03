@@ -21,6 +21,12 @@ pub struct RuntimeMap {
     aliases: HashMap<String, String>,
     /// Map of runtime name to original RuntimeDef (for version-specific constraint queries)
     runtime_defs: HashMap<String, RuntimeDef>,
+    /// Map of runtime name to system_paths glob patterns
+    ///
+    /// Populated from `provider.star` `system_paths` fields via `register_system_paths()`.
+    /// Used by `get_detection_system_paths()` when `runtime_defs` is not populated
+    /// (e.g., when the RuntimeMap is built from `build_runtime_map()` in vx-cli).
+    system_paths_map: HashMap<String, Vec<String>>,
 }
 
 impl RuntimeMap {
@@ -349,17 +355,42 @@ impl RuntimeMap {
             .and_then(|dep| dep.provided_by.clone())
     }
 
+    /// Register system_paths glob patterns for a runtime.
+    ///
+    /// Called by `build_runtime_map()` in vx-cli to populate system_paths from
+    /// `provider.star` metadata when `runtime_defs` is not available.
+    pub fn register_system_paths(&mut self, runtime_name: impl Into<String>, paths: Vec<String>) {
+        if !paths.is_empty() {
+            self.system_paths_map.insert(runtime_name.into(), paths);
+        }
+    }
+
     /// Get detection system_paths for a runtime (from provider.toml detection config)
     ///
     /// These are glob patterns pointing to known installation locations
     /// (e.g., Visual Studio paths for cl.exe). Used by the Resolver to
     /// find executables that are not in the vx store or system PATH.
+    ///
+    /// Checks both `runtime_defs` (populated from provider.toml) and
+    /// `system_paths_map` (populated from provider.star via `build_runtime_map()`).
     pub fn get_detection_system_paths(&self, runtime_name: &str) -> Vec<String> {
         let resolved_name = self.resolve_name(runtime_name).unwrap_or(runtime_name);
-        self.runtime_defs
+
+        // First try runtime_defs (populated from provider.toml)
+        if let Some(paths) = self
+            .runtime_defs
             .get(resolved_name)
             .and_then(|def| def.detection.as_ref())
             .map(|detection| detection.system_paths.clone())
+            .filter(|p| !p.is_empty())
+        {
+            return paths;
+        }
+
+        // Fall back to system_paths_map (populated from provider.star)
+        self.system_paths_map
+            .get(resolved_name)
+            .cloned()
             .unwrap_or_default()
     }
 

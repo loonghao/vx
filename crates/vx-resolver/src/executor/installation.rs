@@ -191,9 +191,16 @@ impl<'a> InstallationManager<'a> {
         // Run pre-install hook
         runtime.pre_install(version, effective_ctx).await?;
 
-        // Install the runtime
+        // Install the runtime with timeout protection
         debug!("Calling runtime.install() for {} {}", runtime_name, version);
-        let result = runtime.install(version, effective_ctx).await?;
+        let install_timeout = effective_ctx.config.install_timeout;
+        let result = tokio::time::timeout(install_timeout, runtime.install(version, effective_ctx))
+            .await
+            .map_err(|_| EnsureError::Timeout {
+                runtime: runtime_name.to_string(),
+                version: version.to_string(),
+                seconds: install_timeout.as_secs(),
+            })??;
         debug!(
             "Install result: path={}, exe={}, already_installed={}",
             result.install_path.display(),
@@ -201,8 +208,16 @@ impl<'a> InstallationManager<'a> {
             result.already_installed
         );
 
-        // Verify the installation actually succeeded
-        if !effective_ctx.fs.exists(&result.executable_path) {
+        // Verify the installation actually succeeded.
+        //
+        // For system-installed tools (e.g. MSVC via winget), install_path is the
+        // placeholder "system" and executable_path may be either a real glob-resolved
+        // path or the same "system" placeholder (when the tool is not on PATH).
+        // In both cases we skip the file-existence check: the system package manager
+        // already reported success, and the tool will be found via system_paths at
+        // runtime.  For all other install strategies we keep the strict check.
+        let is_system_install = result.install_path == std::path::Path::new("system");
+        if !is_system_install && !effective_ctx.fs.exists(&result.executable_path) {
             return Err(EnsureError::PostInstallVerificationFailed {
                 runtime: runtime_name.to_string(),
                 path: result.executable_path.clone(),

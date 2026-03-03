@@ -12,8 +12,7 @@
 
 load("@vx//stdlib:github.star", "make_fetch_versions")
 load("@vx//stdlib:env.star", "env_set", "env_prepend")
-load("@vx//stdlib:test.star", "cmd", "check_path", "check_env")
-load("@vx//stdlib:provider.star", "system_permissions", "irm_iex_install", "path_fns")
+load("@vx//stdlib:provider.star", "runtime_def", "system_permissions", "irm_iex_install", "path_fns")
 
 # ---------------------------------------------------------------------------
 # Provider metadata
@@ -41,29 +40,11 @@ def supported_platforms():
 # ---------------------------------------------------------------------------
 
 runtimes = [
-    {
-        "name":        "choco",
-        "executable":  "choco",
-        "description": "Chocolatey package manager",
-        "aliases":     ["chocolatey"],
-        "priority":    100,
-        "system_paths": [
-            "C:/ProgramData/chocolatey/bin/choco.exe",
-            "C:/ProgramData/chocolatey/choco.exe",
-        ],
-        "test_commands": [
-            cmd("{executable} --version",
-                name="version_check",
-                expected_output="^\\d+\\.\\d+"),
-            check_path("{install_dir}/choco.exe",
-                       name="binary_exists"),
-            check_env("ChocolateyInstall",
-                      name="install_dir_set",
-                      expected_output=".+"),
-        ],
-    },
+    runtime_def("choco",
+        aliases     = ["chocolatey"],
+        description = "Chocolatey package manager",
+    ),
 ]
-
 # ---------------------------------------------------------------------------
 # Permissions
 # ---------------------------------------------------------------------------

@@ -280,7 +280,7 @@ impl Store {
 ### 项目环境配置
 
 ```toml
-# .vx.toml（项目根目录）
+# vx.toml（项目根目录）
 [environment]
 name = "my-project"  # 可选，默认使用目录名
 
@@ -309,7 +309,7 @@ vx env use my-project
 # 或
 eval $(vx env activate my-project)
 
-# 在项目目录自动检测 .vx.toml 并使用对应环境
+# 在项目目录自动检测 vx.toml 并使用对应环境
 cd /path/to/project
 vx node --version  # 自动使用项目配置的版本
 

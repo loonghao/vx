@@ -5,15 +5,14 @@
 //! - **Non-interactive mode**: Avoids all user prompts in CI/automated environments
 //! - **Progress reporting**: Provides status callbacks during installation
 
-use super::{InstallResult, PackageInstallSpec, SystemPackageManager};
+use super::{
+    InstallResult, PackageInstallSpec, ProgressCallback, SystemPackageManager,
+    run_command_with_progress,
+};
 use crate::{Result, SystemPmError};
 use async_trait::async_trait;
-use std::io::{BufRead, BufReader};
-use std::process::{Command, Stdio};
+use std::process::Command;
 use tracing::{debug, info, trace, warn};
-
-/// Progress callback type for installation status updates
-pub type ProgressCallback = Box<dyn Fn(&str) + Send + Sync>;
 
 /// winget package manager
 pub struct WingetManager {
@@ -35,7 +34,7 @@ impl WingetManager {
         F: Fn(&str) + Send + Sync + 'static,
     {
         Self {
-            progress_callback: Some(Box::new(callback)),
+            progress_callback: Some(std::sync::Arc::new(callback)),
         }
     }
 
@@ -55,22 +54,13 @@ impl WingetManager {
     /// Run a winget command with streaming output for progress tracking
     fn run_winget_with_progress(&self, args: &[&str]) -> std::io::Result<std::process::Output> {
         let mut cmd = Command::new("winget");
-        cmd.args(args).stdout(Stdio::piped()).stderr(Stdio::piped());
+        cmd.args(args);
 
-        let mut child = cmd.spawn()?;
-
-        // Read stdout in a separate thread to provide progress updates
-        if let Some(stdout) = child.stdout.take() {
-            let reader = BufReader::new(stdout);
-            for line in reader.lines().map_while(|r| r.ok()) {
-                // Parse and report progress from winget output
-                if !line.trim().is_empty() {
-                    self.report_progress(&line);
-                }
-            }
+        if let Some(callback) = &self.progress_callback {
+            run_command_with_progress(cmd, callback)
+        } else {
+            self.run_winget(args)
         }
-
-        child.wait_with_output()
     }
 }
 
@@ -139,6 +129,14 @@ impl SystemPackageManager for WingetManager {
         if let Some(dir) = &spec.install_dir {
             location_str = dir.to_string_lossy().to_string();
             args.extend(["--location", &location_str]);
+        }
+
+        // Forward installer-specific arguments from provider strategy
+        // (e.g. Visual Studio workloads and passive mode flags)
+        let install_args_override;
+        if let Some(install_args) = &spec.install_args {
+            install_args_override = install_args.clone();
+            args.extend(["--override", &install_args_override]);
         }
 
         debug!("Running: winget {}", args.join(" "));

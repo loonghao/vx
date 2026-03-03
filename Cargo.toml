@@ -51,6 +51,12 @@ members = [
   "crates/vx-providers/hadolint",
   # Meson build system (PyPI package alias)
   "crates/vx-providers/meson",
+  # Conan C/C++ package manager (PyPI package alias)
+  "crates/vx-providers/conan",
+  # xmake build system
+  "crates/vx-providers/xmake",
+  # WiX Toolset (Windows installer)
+  "crates/vx-providers/wix",
   # curl (system detection only)
   "crates/vx-providers/curl",
   # Rez package manager (Python-based)
@@ -227,6 +233,9 @@ vx-provider-7zip = { path = "crates/vx-providers/7zip" }
 vx-provider-actrun = { path = "crates/vx-providers/actrun" }
 vx-provider-hadolint = { path = "crates/vx-providers/hadolint" }
 vx-provider-meson = { path = "crates/vx-providers/meson" }
+vx-provider-conan = { path = "crates/vx-providers/conan" }
+vx-provider-xmake = { path = "crates/vx-providers/xmake" }
+vx-provider-wix = { path = "crates/vx-providers/wix" }
 vx-provider-curl = { path = "crates/vx-providers/curl" }
 vx-provider-rez = { path = "crates/vx-providers/rez" }
 # Cloud CLI tools

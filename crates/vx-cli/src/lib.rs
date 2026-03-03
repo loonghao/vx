@@ -170,7 +170,25 @@ async fn execute_tool(
     }
 
     // Parse as runtime request (supports runtime@version and runtime::executable syntax)
-    let request = RuntimeRequest::parse(tool_spec);
+    let mut request = RuntimeRequest::parse(tool_spec);
+
+    // When the `::` syntax is used (e.g. `msvc::ildasm`), check if the right-hand side
+    // is itself a known runtime name.  If so, treat it as a direct runtime invocation
+    // rather than an executable override — `vx msvc::ildasm` becomes `vx ildasm`.
+    // This mirrors the logic in `where_cmd.rs`.
+    if let Some(exe_override) = request.executable.clone() {
+        let rhs_is_runtime = ctx.registry().get_runtime(&exe_override).is_some();
+        if rhs_is_runtime {
+            tracing::debug!(
+                "execute_tool: '{}::{}' — rhs '{}' is a known runtime, redirecting",
+                request.name,
+                exe_override,
+                exe_override
+            );
+            request.name = exe_override;
+            request.executable = None;
+        }
+    }
 
     // Check if it's a known runtime first
     let is_known_runtime = ctx.registry().get_runtime(&request.name).is_some();

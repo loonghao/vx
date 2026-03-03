@@ -4,11 +4,31 @@
 # Usage:
 #   load("@vx//stdlib:platform.star", "is_windows", "platform_triple", "arch_to_gnu")
 #   load("@vx//stdlib:platform.star", "platform_map", "platform_select")
+#   load("@vx//stdlib:platform.star", "rust_triple", "go_os_arch", "archive_ext",
+#                                      "exe_suffix", "expand_asset")
 #
 # Note: ctx is a struct injected by the vx runtime:
 #   ctx.platform.os     -> "windows" | "macos" | "linux"
 #   ctx.platform.arch   -> "x64" | "arm64" | "x86"
 #   ctx.platform.target -> "x86_64-pc-windows-msvc" | ...
+#
+# ┌─────────────────────────────────────────────────────────────────────────┐
+# │  Detection helpers                                                      │
+# │  is_windows/is_macos/is_linux/is_x64/is_arm64                          │
+# │  platform_triple()    Rust-style target triple from ctx                 │
+# │  arch_to_gnu/arch_to_go/os_to_go  Arch/OS name conversions             │
+# │  platform_ext/exe_ext  Archive/exe extension helpers                   │
+# │  platform_map()       Look up value from {os}/{arch} keyed dict        │
+# │  platform_select()    Select value by OS                               │
+# ├─────────────────────────────────────────────────────────────────────────┤
+# │  Asset template helpers (shared by layout.star & provider_templates)   │
+# │  RUST_TRIPLES_MUSL / RUST_TRIPLES_GNU  Target triple dicts             │
+# │  rust_triple(ctx, linux_libc)  Resolve Rust target triple              │
+# │  go_os_arch(ctx)      Resolve Go-style (os, arch) tuple                │
+# │  archive_ext(ctx)     "zip" on Windows, "tar.gz" elsewhere             │
+# │  exe_suffix(ctx)      ".exe" on Windows, "" elsewhere                  │
+# │  expand_asset(template, ctx, version, ...)  Expand asset template      │
+# └─────────────────────────────────────────────────────────────────────────┘
 
 def is_windows(ctx):
     """Return True if running on Windows."""
@@ -177,3 +197,116 @@ def platform_select(ctx, windows = None, macos = None, linux = None,
     if os == "linux" and linux != None:
         return linux
     return fallback
+
+# ---------------------------------------------------------------------------
+# Rust target triple helpers
+# ---------------------------------------------------------------------------
+
+# Rust target triples — musl on Linux (portable, no glibc version dependency)
+RUST_TRIPLES_MUSL = {
+    "windows/x64":   "x86_64-pc-windows-msvc",
+    "windows/arm64": "aarch64-pc-windows-msvc",
+    "macos/x64":     "x86_64-apple-darwin",
+    "macos/arm64":   "aarch64-apple-darwin",
+    "linux/x64":     "x86_64-unknown-linux-musl",
+    "linux/arm64":   "aarch64-unknown-linux-musl",
+}
+
+# Rust target triples — gnu on Linux
+RUST_TRIPLES_GNU = {
+    "windows/x64":   "x86_64-pc-windows-msvc",
+    "windows/arm64": "aarch64-pc-windows-msvc",
+    "macos/x64":     "x86_64-apple-darwin",
+    "macos/arm64":   "aarch64-apple-darwin",
+    "linux/x64":     "x86_64-unknown-linux-gnu",
+    "linux/arm64":   "aarch64-unknown-linux-gnu",
+}
+
+def rust_triple(ctx, linux_libc = "musl"):
+    """Resolve the Rust target triple for the current platform.
+
+    Args:
+        ctx:        Provider context
+        linux_libc: Linux C library: "musl" (default, portable) or "gnu"
+
+    Returns:
+        Rust target triple string, or None if platform is unsupported.
+
+    Example:
+        triple = rust_triple(ctx)           # musl (default)
+        triple = rust_triple(ctx, "gnu")    # gnu
+    """
+    key = "{}/{}".format(ctx.platform.os, ctx.platform.arch)
+    if linux_libc == "gnu":
+        return RUST_TRIPLES_GNU.get(key)
+    return RUST_TRIPLES_MUSL.get(key)
+
+def go_os_arch(ctx):
+    """Resolve Go-style (os, arch) tuple for the current platform.
+
+    Returns:
+        A tuple (go_os, go_arch), e.g. ("linux", "amd64").
+
+    Example:
+        go_os, go_arch = go_os_arch(ctx)
+    """
+    return (os_to_go(ctx.platform.os), arch_to_go(ctx.platform.arch))
+
+def archive_ext(ctx):
+    """Return the archive extension for the current platform.
+
+    Returns:
+        "zip" on Windows, "tar.gz" elsewhere.
+    """
+    return "zip" if ctx.platform.os == "windows" else "tar.gz"
+
+def exe_suffix(ctx):
+    """Return the executable suffix for the current platform.
+
+    Returns:
+        ".exe" on Windows, "" elsewhere.
+    """
+    return ".exe" if ctx.platform.os == "windows" else ""
+
+def expand_asset(template, ctx, version, triple = None, go_os = None, go_arch = None):
+    """Expand an asset filename template with platform-specific values.
+
+    Placeholders:
+        {version}  - version without 'v' prefix  (e.g. "1.0.0")
+        {vversion} - version with 'v' prefix      (e.g. "v1.0.0")
+        {triple}   - Rust target triple           (e.g. "x86_64-unknown-linux-musl")
+        {os}       - Go GOOS                      (e.g. "linux", "darwin", "windows")
+        {arch}     - Go GOARCH                    (e.g. "amd64", "arm64")
+        {ext}      - archive extension            (e.g. "zip" or "tar.gz")
+        {exe}      - executable suffix            (e.g. ".exe" or "")
+
+    Args:
+        template:  Asset filename template string
+        ctx:       Provider context
+        version:   Version string (without 'v' prefix)
+        triple:    Rust target triple (optional)
+        go_os:     Go GOOS string (optional)
+        go_arch:   Go GOARCH string (optional)
+
+    Returns:
+        Expanded asset filename string.
+
+    Example:
+        fname = expand_asset("mytool-{vversion}-{triple}.{ext}", ctx, "1.0.0",
+                             triple=rust_triple(ctx))
+    """
+    ext = archive_ext(ctx)
+    exe = exe_suffix(ctx)
+
+    s = template
+    s = s.replace("{version}",  version)
+    s = s.replace("{vversion}", "v" + version)
+    s = s.replace("{ext}",      ext)
+    s = s.replace("{exe}",      exe)
+    if triple != None:
+        s = s.replace("{triple}", triple)
+    if go_os != None:
+        s = s.replace("{os}",   go_os)
+    if go_arch != None:
+        s = s.replace("{arch}", go_arch)
+    return s

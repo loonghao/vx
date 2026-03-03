@@ -31,6 +31,23 @@ use anyhow::Result;
 use async_trait::async_trait;
 use tracing::{debug, warn};
 
+/// Search a list of glob patterns and return the first matching path.
+///
+/// Used to locate system-installed tools (e.g. MSVC `cl.exe`) that are not
+/// on the system PATH but reside in well-known directories.
+pub fn find_first_glob_match(patterns: &[String]) -> Option<PathBuf> {
+    for pattern in patterns {
+        if let Ok(mut paths) = glob::glob(pattern) {
+            if let Some(Ok(path)) = paths.next() {
+                if path.exists() {
+                    return Some(path);
+                }
+            }
+        }
+    }
+    None
+}
+
 use crate::{Ecosystem, InstallResult, Platform, Runtime, RuntimeContext, VersionInfo};
 use vx_runtime_core::{MirrorConfig, NormalizeConfig};
 
@@ -102,6 +119,11 @@ pub struct ManifestDrivenRuntime {
     pub shells: Vec<ShellDefinition>,
     /// Platform OS constraint (e.g. `["macos"]` for macOS-only tools).
     pub platform_os: Vec<String>,
+    /// Known system paths (glob patterns) for system-installed tools.
+    ///
+    /// Used after system package manager installation to locate the executable
+    /// (e.g. MSVC cl.exe which is not on PATH).
+    pub system_paths: Vec<String>,
 }
 
 impl std::fmt::Debug for ManifestDrivenRuntime {
@@ -153,6 +175,7 @@ impl ManifestDrivenRuntime {
             pip_package: None,
             shells: Vec::new(),
             platform_os: Vec::new(),
+            system_paths: Vec::new(),
         }
     }
 
@@ -201,6 +224,11 @@ impl ManifestDrivenRuntime {
         self
     }
 
+    pub fn with_install_strategies(mut self, strategies: Vec<InstallStrategy>) -> Self {
+        self.install_strategies.extend(strategies);
+        self
+    }
+
     pub fn with_pip_package(mut self, package: impl Into<String>) -> Self {
         self.pip_package = Some(package.into());
         self
@@ -216,6 +244,11 @@ impl ManifestDrivenRuntime {
             name: name.into(),
             path: path.into(),
         });
+        self
+    }
+
+    pub fn with_system_paths(mut self, paths: Vec<String>) -> Self {
+        self.system_paths = paths;
         self
     }
 
@@ -542,6 +575,29 @@ impl Runtime for ManifestDrivenRuntime {
                 "Could not find {} executable in {} installation. {} may need to be installed.",
                 self.name, parent, parent
             );
+
+            // Before falling back to system PATH, try system_paths glob patterns.
+            // This handles tools like `csc` that are bundled with MSVC but live in
+            // well-known directories that are NOT on the system PATH.
+            if !self.system_paths.is_empty() {
+                if let Some(found) = find_first_glob_match(&self.system_paths) {
+                    debug!(
+                        "Found {} via system_paths glob at {}",
+                        self.name,
+                        found.display()
+                    );
+                    return Ok(crate::ExecutionPrep {
+                        executable_override: Some(found),
+                        proxy_ready: true,
+                        message: Some(format!(
+                            "Using {} from system installation (via system_paths)",
+                            self.name
+                        )),
+                        ..Default::default()
+                    });
+                }
+            }
+
             return Ok(crate::ExecutionPrep {
                 use_system_path: true,
                 message: Some(format!(
@@ -550,6 +606,28 @@ impl Runtime for ManifestDrivenRuntime {
                 )),
                 ..Default::default()
             });
+        }
+
+        // Non-bundled runtime: try system_paths glob patterns before giving up.
+        // This handles system-installed tools (e.g. MSVC cl.exe) that are not on PATH
+        // but reside in well-known directories defined in system_paths.
+        if !self.system_paths.is_empty() {
+            if let Some(found) = find_first_glob_match(&self.system_paths) {
+                debug!(
+                    "Found {} via system_paths glob at {}",
+                    self.name,
+                    found.display()
+                );
+                return Ok(crate::ExecutionPrep {
+                    executable_override: Some(found),
+                    proxy_ready: true,
+                    message: Some(format!(
+                        "Using {} from system installation (via system_paths)",
+                        self.name
+                    )),
+                    ..Default::default()
+                });
+            }
         }
 
         Ok(crate::ExecutionPrep::default())
@@ -575,7 +653,15 @@ impl Runtime for ManifestDrivenRuntime {
     }
 
     async fn is_installed(&self, _version: &str, _ctx: &RuntimeContext) -> Result<bool> {
-        Ok(which::which(&self.executable).is_ok())
+        // First try PATH lookup
+        if which::which(&self.executable).is_ok() {
+            return Ok(true);
+        }
+        // Fall back to system_paths glob search (for tools like MSVC cl.exe not on PATH)
+        if !self.system_paths.is_empty() {
+            return Ok(find_first_glob_match(&self.system_paths).is_some());
+        }
+        Ok(false)
     }
 
     async fn installed_versions(&self, _ctx: &RuntimeContext) -> Result<Vec<String>> {

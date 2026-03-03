@@ -6,7 +6,7 @@
 # systemd is Linux-only and cannot be installed by vx.
 # vx only detects the system installation.
 
-load("@vx//stdlib:provider.star", "system_permissions")
+load("@vx//stdlib:provider.star", "runtime_def", "bundled_runtime_def", "system_permissions")
 
 description = "systemd system and service manager"
 homepage    = "https://systemd.io"
@@ -29,51 +29,18 @@ def supported_platforms():
 # ---------------------------------------------------------------------------
 
 runtimes = [
-    {
-        "name":             "systemctl",
-        "executable":       "systemctl",
-        "description":      "Control systemd services and units",
-        "aliases":          [],
-        "priority":         100,
-        "auto_installable": False,
-        "system_paths":     ["/usr/bin/systemctl", "/bin/systemctl"],
-        "test_commands": [
-            {"command": "{executable} --version", "name": "version_check", "expected_output": "systemd \\d+"},
-        ],
-    },
-    {
-        "name":             "journalctl",
-        "executable":       "journalctl",
-        "description":      "View systemd journal logs",
-        "bundled_with":     "systemctl",
-        "auto_installable": False,
-        "system_paths":     ["/usr/bin/journalctl", "/bin/journalctl"],
-        "test_commands": [
-            {"command": "{executable} --version", "name": "version_check"},
-        ],
-    },
-    {
-        "name":             "systemd-analyze",
-        "executable":       "systemd-analyze",
-        "description":      "Analyze systemd boot performance",
-        "bundled_with":     "systemctl",
-        "auto_installable": False,
-        "system_paths":     ["/usr/bin/systemd-analyze", "/bin/systemd-analyze"],
-        "test_commands": [
-            {"command": "{executable} --version", "name": "version_check"},
-        ],
-    },
-    {
-        "name":             "loginctl",
-        "executable":       "loginctl",
-        "description":      "Control systemd login manager",
-        "bundled_with":     "systemctl",
-        "auto_installable": False,
-        "system_paths":     ["/usr/bin/loginctl", "/bin/loginctl"],
-        "test_commands": [
-            {"command": "{executable} --version", "name": "version_check"},
-        ],
-    },
+    runtime_def("systemctl",
+        description = "Control systemd services and units",
+    ),
+    bundled_runtime_def("journalctl", "systemctl",
+        description = "View systemd journal logs",
+    ),
+    bundled_runtime_def("systemd-analyze", "systemctl",
+        description = "Analyze systemd boot performance",
+    ),
+    bundled_runtime_def("loginctl", "systemctl",
+        description = "Control systemd login manager",
+    ),
 ]
 
 # ---------------------------------------------------------------------------
