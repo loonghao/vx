@@ -361,22 +361,43 @@ impl<'a> EnvironmentManager<'a> {
                 "[prepare_env] Bundled runtime {} → injecting parent {} ({}) environment",
                 runtime_name, provider_name, provider_version
             );
-            match provider_runtime
-                .execution_environment(&provider_version, context)
-                .await
+            // ManifestDrivenRuntime::execution_environment() returns an empty HashMap,
+            // so we must read the parent runtime's PATH directly from its spec's
+            // env_config.advanced.path_prepend and expand the templates ourselves.
+            if let Some(parent_spec) = self.resolver.get_spec(provider_name)
+                && let Some(parent_env_config) = &parent_spec.env_config
+                && let Some(parent_advanced) = &parent_env_config.advanced
             {
-                Ok(parent_env) => {
-                    // Parent env provides PATH with bin/ dir; don't override
-                    // vars already set by the bundled runtime itself
-                    for (key, value) in parent_env {
-                        env.entry(key).or_insert(value);
+                let mut extra_paths: Vec<String> = Vec::new();
+                for entry in &parent_advanced.path_prepend {
+                    match self.expand_template(entry, provider_name, Some(&provider_version)) {
+                        Ok(expanded) => {
+                            debug!("[prepare_env]   parent PATH entry: {}", expanded);
+                            extra_paths.push(expanded);
+                        }
+                        Err(e) => {
+                            warn!(
+                                "Failed to expand parent PATH template '{}' for {}: {}",
+                                entry, provider_name, e
+                            );
+                        }
                     }
                 }
-                Err(e) => {
-                    warn!(
-                        "Failed to prepare parent environment for {} (provider {}): {}",
-                        runtime_name, provider_name, e
-                    );
+                if !extra_paths.is_empty() {
+                    // Prepend parent bin dirs to the PATH already in env
+                    let current_path = env
+                        .get("PATH")
+                        .cloned()
+                        .unwrap_or_else(|| std::env::var("PATH").unwrap_or_default());
+                    let mut all_parts = extra_paths;
+                    if !current_path.is_empty() {
+                        for part in vx_paths::split_path(&current_path) {
+                            all_parts.push(part.to_string());
+                        }
+                    }
+                    if let Ok(new_path) = std::env::join_paths(&all_parts) {
+                        env.insert("PATH".to_string(), new_path.to_string_lossy().to_string());
+                    }
                 }
             }
         }
