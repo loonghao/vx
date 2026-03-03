@@ -638,7 +638,9 @@ fn extract_star_platform_os(content: &str) -> Option<Vec<String>> {
                 while let Some(pos) = remaining.find("\"os\"") {
                     let after = &remaining[pos + 4..];
                     let after = after.trim_start().trim_start_matches(':').trim_start();
-                    if let Some(val) = extract_quoted_string(after) && !os_values.contains(&val) {
+                    if let Some(val) = extract_quoted_string(after)
+                        && !os_values.contains(&val)
+                    {
                         os_values.push(val);
                     }
                     remaining = &remaining[pos + 4..];

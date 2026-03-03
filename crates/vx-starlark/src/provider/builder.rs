@@ -167,7 +167,7 @@ pub fn build_runtimes(
                     .with_executable(executable)
                     .with_description(description)
                     .with_aliases(rt.aliases.clone())
-                    .with_ecosystem(ecosystem.clone());
+                    .with_ecosystem(ecosystem);
 
             if let Some(ref bundled) = rt.bundled_with {
                 runtime = runtime.with_bundled_with(bundled.clone());

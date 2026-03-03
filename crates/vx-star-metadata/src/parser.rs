@@ -484,7 +484,9 @@ fn extract_kwarg_string_list_or_var(args_body: &str, key: &str, source: &str) ->
             let after_equals = after_equals_raw.trim_start();
 
             // Case 1: Direct list `[...]`
-            if after_equals.starts_with('[') && let Some(list_body) = find_matching_bracket(after_equals, 0, '[', ']') {
+            if after_equals.starts_with('[')
+                && let Some(list_body) = find_matching_bracket(after_equals, 0, '[', ']')
+            {
                 return extract_string_list_items(list_body);
             }
 
