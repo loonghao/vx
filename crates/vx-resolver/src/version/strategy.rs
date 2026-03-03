@@ -45,7 +45,7 @@ impl SemverStrategy {
     /// Create a strategy for a generic ecosystem
     pub fn generic() -> Self {
         Self {
-            ecosystem: Ecosystem::NodeJs,
+            ecosystem: Ecosystem::Generic,
         }
     }
 }
@@ -58,7 +58,7 @@ impl Default for SemverStrategy {
 
 impl VersionStrategy for SemverStrategy {
     fn ecosystem(&self) -> Ecosystem {
-        self.ecosystem.clone()
+        self.ecosystem
     }
 
     fn satisfies(&self, version: &Version, constraint: &VersionConstraint) -> bool {
@@ -328,7 +328,8 @@ impl VersionStrategy for GitVersionStrategy {
                 matches.sort_by(|a, b| b.version.cmp(&a.version));
 
                 let best = matches.first()?;
-                let resolved_version = Version::parse(&best.version)?;
+                let normalized = Self::normalize_version(&best.version);
+                let resolved_version = Version::parse(&normalized)?;
                 Some(ResolvedVersion::with_original(
                     resolved_version,
                     &best.version,
@@ -362,7 +363,8 @@ impl VersionStrategy for GitVersionStrategy {
                 });
 
                 let best = matches.first()?;
-                let resolved_version = Version::parse(&best.version)?;
+                let norm = Self::normalize_version(&best.version);
+                let resolved_version = Version::parse(&norm)?;
                 Some(ResolvedVersion::with_original(
                     resolved_version,
                     &best.version,
@@ -396,7 +398,8 @@ impl VersionStrategy for GitVersionStrategy {
                 });
 
                 let best = matches.first()?;
-                let resolved_version = Version::parse(&best.version)?;
+                let norm = Self::normalize_version(&best.version);
+                let resolved_version = Version::parse(&norm)?;
                 Some(ResolvedVersion::with_original(
                     resolved_version,
                     &best.version,
@@ -424,7 +427,8 @@ impl VersionStrategy for GitVersionStrategy {
                 });
 
                 let best = stable.first()?;
-                let resolved_version = Version::parse(&best.version)?;
+                let norm = Self::normalize_version(&best.version);
+                let resolved_version = Version::parse(&norm)?;
                 Some(ResolvedVersion::with_original(
                     resolved_version,
                     &best.version,
@@ -471,150 +475,5 @@ impl VersionStrategy for GitVersionStrategy {
 
     fn normalize(&self, version: &str) -> String {
         Self::normalize_version(version)
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    fn make_version_info(version: &str) -> VersionInfo {
-        VersionInfo::new(version)
-    }
-
-    #[test]
-    fn test_semver_satisfies_exact() {
-        let strategy = SemverStrategy::generic();
-        let v = Version::new(1, 2, 3);
-        let constraint = VersionConstraint::Exact(Version::new(1, 2, 3));
-        assert!(strategy.satisfies(&v, &constraint));
-
-        let constraint = VersionConstraint::Exact(Version::new(1, 2, 4));
-        assert!(!strategy.satisfies(&v, &constraint));
-    }
-
-    #[test]
-    fn test_semver_satisfies_partial() {
-        let strategy = SemverStrategy::generic();
-        let v = Version::new(3, 11, 5);
-        let constraint = VersionConstraint::Partial {
-            major: 3,
-            minor: 11,
-        };
-        assert!(strategy.satisfies(&v, &constraint));
-
-        let v = Version::new(3, 12, 0);
-        assert!(!strategy.satisfies(&v, &constraint));
-    }
-
-    #[test]
-    fn test_semver_select_best_match_latest() {
-        let strategy = SemverStrategy::generic();
-        let available = vec![
-            make_version_info("1.0.0"),
-            make_version_info("1.1.0"),
-            make_version_info("2.0.0"),
-            VersionInfo::new("3.0.0-alpha").with_prerelease(true),
-        ];
-
-        let result = strategy.select_best_match(&VersionConstraint::Latest, &available);
-        assert!(result.is_some());
-        assert_eq!(result.unwrap().version, Version::new(2, 0, 0));
-    }
-
-    #[test]
-    fn test_semver_select_best_match_partial() {
-        let strategy = SemverStrategy::generic();
-        let available = vec![
-            make_version_info("3.10.0"),
-            make_version_info("3.11.0"),
-            make_version_info("3.11.5"),
-            make_version_info("3.11.11"),
-            make_version_info("3.12.0"),
-        ];
-
-        let result = strategy.select_best_match(
-            &VersionConstraint::Partial {
-                major: 3,
-                minor: 11,
-            },
-            &available,
-        );
-        assert!(result.is_some());
-        assert_eq!(result.unwrap().version, Version::new(3, 11, 11));
-    }
-
-    #[test]
-    fn test_go_normalize() {
-        let strategy = GoVersionStrategy::new();
-        assert_eq!(strategy.normalize("go1.22"), "1.22");
-        assert_eq!(strategy.normalize("1.22"), "1.22");
-    }
-
-    #[test]
-    fn test_git_normalize() {
-        let strategy = GitVersionStrategy::new();
-        assert_eq!(strategy.normalize("2.53.0.windows.1"), "2.53.0");
-        assert_eq!(strategy.normalize("v2.53.0.windows.1"), "2.53.0");
-        assert_eq!(strategy.normalize("2.47.1.windows.2"), "2.47.1");
-        assert_eq!(strategy.normalize("2.53.0"), "2.53.0");
-    }
-
-    #[test]
-    fn test_git_select_best_match_exact() {
-        let strategy = GitVersionStrategy::new();
-        let available = vec![
-            make_version_info("2.52.0.windows.1"),
-            make_version_info("2.53.0.windows.1"),
-            make_version_info("2.53.0.windows.2"),
-            make_version_info("2.54.0.windows.1"),
-        ];
-
-        // Request "2.53.0" should match "2.53.0.windows.2" (latest windows build)
-        let result = strategy.select_best_match(
-            &VersionConstraint::Exact(Version::new(2, 53, 0)),
-            &available,
-        );
-        assert!(result.is_some());
-        let resolved = result.unwrap();
-        assert_eq!(resolved.version_string(), "2.53.0.windows.2");
-    }
-
-    #[test]
-    fn test_git_select_best_match_partial() {
-        let strategy = GitVersionStrategy::new();
-        let available = vec![
-            make_version_info("2.52.0.windows.1"),
-            make_version_info("2.53.0.windows.1"),
-            make_version_info("2.53.1.windows.1"),
-            make_version_info("2.54.0.windows.1"),
-        ];
-
-        // Request "2.53" should match "2.53.1.windows.1" (latest 2.53.x)
-        let result = strategy.select_best_match(
-            &VersionConstraint::Partial {
-                major: 2,
-                minor: 53,
-            },
-            &available,
-        );
-        assert!(result.is_some());
-        let resolved = result.unwrap();
-        assert_eq!(resolved.version_string(), "2.53.1.windows.1");
-    }
-
-    #[test]
-    fn test_git_select_best_match_latest() {
-        let strategy = GitVersionStrategy::new();
-        let available = vec![
-            make_version_info("2.52.0.windows.1"),
-            make_version_info("2.53.0.windows.1"),
-            make_version_info("2.54.0.windows.1"),
-        ];
-
-        let result = strategy.select_best_match(&VersionConstraint::Latest, &available);
-        assert!(result.is_some());
-        let resolved = result.unwrap();
-        assert_eq!(resolved.version_string(), "2.54.0.windows.1");
     }
 }

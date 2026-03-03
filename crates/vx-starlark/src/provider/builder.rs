@@ -4,6 +4,7 @@
 //! - [`create_provider`] — build a single `Arc<dyn Provider>` from a star file.
 //! - [`build_runtimes`]  — build a `Vec<Arc<dyn Runtime>>` from a star file.
 
+use std::path::Path;
 use std::sync::Arc;
 
 use vx_star_metadata::StarMetadata;
@@ -12,6 +13,8 @@ use super::bridge::{
     make_download_url_fn, make_download_url_fn_owned, make_fetch_versions_fn,
     make_fetch_versions_fn_owned, make_install_layout_fn, make_install_layout_fn_owned,
 };
+use crate::context::ProviderContext;
+use crate::engine::StarlarkEngine;
 
 /// Create an `Arc<dyn Provider>` from embedded `provider.star` content.
 ///
@@ -100,9 +103,17 @@ pub fn build_runtimes(
         Some("rust") => Ecosystem::Rust,
         Some("go") => Ecosystem::Go,
         Some("git") => Ecosystem::Git,
-        Some("dotnet") => Ecosystem::Dotnet,
+        Some("dotnet") | Some(".net") => Ecosystem::DotNet,
+        Some("java") => Ecosystem::Java,
+        Some("ruby") => Ecosystem::Ruby,
+        Some("devtools") => Ecosystem::DevTools,
+        Some("container") => Ecosystem::Container,
+        Some("cloud") => Ecosystem::Cloud,
+        Some("ai") => Ecosystem::Ai,
+        Some("cpp") | Some("c++") => Ecosystem::Cpp,
+        Some("zig") => Ecosystem::Zig,
         Some("system") => Ecosystem::System,
-        Some(other) => Ecosystem::Custom(other.to_string()),
+        Some("generic") | Some("custom") | Some(_) => Ecosystem::Generic,
         None => Ecosystem::Unknown,
     };
 
@@ -211,7 +222,119 @@ pub fn build_runtimes(
                     ));
             }
 
+            // Wire up system_paths glob patterns (for tools like MSVC cl.exe that are
+            // not on PATH — used to locate the executable after system installation)
+            if !rt.system_paths.is_empty() {
+                runtime = runtime.with_system_paths(rt.system_paths.clone());
+            }
+
+            // Wire up system_install strategies (for tools like msvc, cmake, etc.
+            // that are installed via system package managers rather than direct download)
+            let strategies = parse_system_install_strategies(&provider_name, &content);
+            if !strategies.is_empty() {
+                runtime = runtime.with_install_strategies(strategies);
+            }
+
             Arc::new(runtime) as Arc<dyn vx_runtime::Runtime>
+        })
+        .collect()
+}
+
+/// Parse `system_install` from a provider.star script and return a list of
+/// [`InstallStrategy`] values.
+///
+/// Handles two forms:
+/// 1. **Static dict** — `system_install = system_install_strategies([...])`
+///    The variable is a plain `{"strategies": [...]}` dict.
+/// 2. **Function** — `system_install = cross_platform_install(...)` or
+///    `def system_install(ctx): ...`
+///    The variable is a callable; we call it with the current platform context.
+fn parse_system_install_strategies(
+    provider_name: &str,
+    content: &str,
+) -> Vec<vx_runtime::manifest_runtime::InstallStrategy> {
+    let engine = StarlarkEngine::new();
+    let script_path = Path::new(provider_name);
+
+    // First try: read as a static variable (covers `system_install = system_install_strategies([...])`)
+    let json = match engine.get_variable(script_path, content, "system_install") {
+        Ok(Some(v)) => v,
+        Ok(None) => return vec![],
+        Err(e) => {
+            tracing::debug!(provider = %provider_name, "system_install variable read failed: {}", e);
+            return vec![];
+        }
+    };
+
+    // If the value is a dict with "strategies" key, parse it directly
+    if let Some(strategies_arr) = json.get("strategies").and_then(|s| s.as_array()) {
+        return parse_strategies_array(strategies_arr);
+    }
+
+    // If the value is a callable (function), call it with the current platform context
+    // The engine returns a string like "<function ...>" for callables — we need to call it
+    if json
+        .as_str()
+        .map(|s| s.starts_with("<function"))
+        .unwrap_or(false)
+        || json.get("__type").and_then(|t| t.as_str()) == Some("function")
+    {
+        let vx_home = vx_paths::VxPaths::new()
+            .map(|p| p.base_dir)
+            .unwrap_or_else(|_| dirs::home_dir().unwrap_or_default().join(".vx"));
+        let ctx = ProviderContext::new(provider_name, vx_home);
+        let result = engine.call_function(script_path, content, "system_install", &ctx, &[]);
+        match result {
+            Ok(v) => {
+                if let Some(strategies_arr) = v.get("strategies").and_then(|s| s.as_array()) {
+                    return parse_strategies_array(strategies_arr);
+                }
+            }
+            Err(e) => {
+                tracing::debug!(provider = %provider_name, "system_install() call failed: {}", e);
+            }
+        }
+    }
+
+    vec![]
+}
+
+/// Parse a JSON array of strategy dicts into [`InstallStrategy`] values.
+fn parse_strategies_array(
+    arr: &[serde_json::Value],
+) -> Vec<vx_runtime::manifest_runtime::InstallStrategy> {
+    use vx_runtime::manifest_runtime::InstallStrategy;
+    arr.iter()
+        .filter_map(|s| {
+            let manager = s.get("manager").and_then(|m| m.as_str())?.to_string();
+            let package = s.get("package").and_then(|p| p.as_str())?.to_string();
+            let priority = s.get("priority").and_then(|p| p.as_i64()).unwrap_or(80) as i32;
+            let install_args = s
+                .get("install_args")
+                .and_then(|a| a.as_str())
+                .map(|s| s.to_string());
+            let params = s
+                .get("params")
+                .and_then(|p| p.as_str())
+                .map(|s| s.to_string());
+            let platforms: Vec<String> = s
+                .get("platforms")
+                .and_then(|p| p.as_array())
+                .map(|arr| {
+                    arr.iter()
+                        .filter_map(|v| v.as_str().map(|s| s.to_string()))
+                        .collect()
+                })
+                .unwrap_or_default();
+
+            Some(InstallStrategy::PackageManager {
+                manager,
+                package,
+                params,
+                install_args,
+                priority,
+                platforms,
+            })
         })
         .collect()
 }

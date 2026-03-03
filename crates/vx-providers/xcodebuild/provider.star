@@ -7,7 +7,7 @@
 # vx only detects the system installation.
 
 load("@vx//stdlib:env.star", "env_set")
-load("@vx//stdlib:provider.star", "system_permissions")
+load("@vx//stdlib:provider.star", "runtime_def", "bundled_runtime_def", "system_permissions")
 
 # ---------------------------------------------------------------------------
 # Provider metadata
@@ -29,71 +29,21 @@ platforms = {"os": ["macos"]}
 # ---------------------------------------------------------------------------
 
 runtimes = [
-    {
-        "name":             "xcodebuild",
-        "executable":       "xcodebuild",
-        "description":      "Build Xcode projects and workspaces",
-        "aliases":          [],
-        "priority":         100,
-        "auto_installable": False,
-        "system_paths":     [
-            "/usr/bin/xcodebuild",
-            "/Applications/Xcode.app/Contents/Developer/usr/bin/xcodebuild",
-        ],
-        "test_commands": [
-            {"command": "{executable} -version", "name": "version_check", "expected_output": "Xcode \\d+"},
-        ],
-    },
-    {
-        "name":             "xcrun",
-        "executable":       "xcrun",
-        "description":      "Run or locate development tools",
-        "bundled_with":     "xcodebuild",
-        "auto_installable": False,
-        "system_paths":     ["/usr/bin/xcrun"],
-        "test_commands": [
-            {"command": "{executable} --version", "name": "version_check"},
-        ],
-    },
-    {
-        "name":             "xcode-select",
-        "executable":       "xcode-select",
-        "description":      "Manage active Xcode installation",
-        "bundled_with":     "xcodebuild",
-        "auto_installable": False,
-        "system_paths":     ["/usr/bin/xcode-select"],
-        "test_commands": [
-            {"command": "{executable} --version", "name": "version_check"},
-        ],
-    },
-    {
-        "name":             "swift",
-        "executable":       "swift",
-        "description":      "Swift programming language compiler",
-        "bundled_with":     "xcodebuild",
-        "auto_installable": False,
-        "system_paths":     [
-            "/usr/bin/swift",
-            "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swift",
-        ],
-        "test_commands": [
-            {"command": "{executable} --version", "name": "version_check"},
-        ],
-    },
-    {
-        "name":             "swiftc",
-        "executable":       "swiftc",
-        "description":      "Swift compiler",
-        "bundled_with":     "xcodebuild",
-        "auto_installable": False,
-        "system_paths":     [
-            "/usr/bin/swiftc",
-            "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc",
-        ],
-        "test_commands": [
-            {"command": "{executable} --version", "name": "version_check"},
-        ],
-    },
+    runtime_def("xcodebuild",
+        description = "Build Xcode projects and workspaces",
+    ),
+    bundled_runtime_def("xcrun", "xcodebuild",
+        description = "Run or locate development tools",
+    ),
+    bundled_runtime_def("xcode-select", "xcodebuild",
+        description = "Manage active Xcode installation",
+    ),
+    bundled_runtime_def("swift", "xcodebuild",
+        description = "Swift programming language compiler",
+    ),
+    bundled_runtime_def("swiftc", "xcodebuild",
+        description = "Swift compiler",
+    ),
 ]
 
 # ---------------------------------------------------------------------------

@@ -94,6 +94,13 @@
 # │                                                                         │
 # │  platform_map()           Look up value from {os}/{arch} keyed dict     │
 # │  platform_select()        Select value by OS (windows/macos/linux)      │
+# │  rust_triple(ctx, libc)   Rust target triple for current platform       │
+# │  go_os_arch(ctx)          Go-style (os, arch) tuple                     │
+# │  archive_ext(ctx)         "zip" on Windows, "tar.gz" elsewhere          │
+# │  exe_suffix(ctx)          ".exe" on Windows, "" elsewhere               │
+# │  expand_asset(tmpl, ...)  Expand asset filename template                │
+# │  RUST_TRIPLES_MUSL        Rust triple dict (musl Linux)                 │
+# │  RUST_TRIPLES_GNU         Rust triple dict (gnu Linux)                  │
 # └─────────────────────────────────────────────────────────────────────────┘
 
 # ---------------------------------------------------------------------------
@@ -107,7 +114,14 @@ load("@vx//stdlib:runtime.star",
 
 load("@vx//stdlib:platform.star",
      "platform_map",
-     "platform_select")
+     "platform_select",
+     "rust_triple",
+     "go_os_arch",
+     "archive_ext",
+     "exe_suffix",
+     "expand_asset",
+     "RUST_TRIPLES_MUSL",
+     "RUST_TRIPLES_GNU")
 
 load("@vx//stdlib:permissions.star",
      "github_permissions",

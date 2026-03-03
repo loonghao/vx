@@ -9,7 +9,7 @@
 
 load("@vx//stdlib:github.star", "make_fetch_versions")
 load("@vx//stdlib:env.star", "env_prepend")
-load("@vx//stdlib:provider.star", "system_permissions", "curl_bash_install")
+load("@vx//stdlib:provider.star", "runtime_def", "system_permissions", "curl_bash_install")
 
 # ---------------------------------------------------------------------------
 # Provider metadata
@@ -38,24 +38,10 @@ def supported_platforms():
 # ---------------------------------------------------------------------------
 
 runtimes = [
-    {
-        "name":        "brew",
-        "executable":  "brew",
-        "description": "Homebrew package manager",
-        "aliases":     ["homebrew"],
-        "priority":    100,
-        "system_paths": [
-            # macOS Apple Silicon
-            "/opt/homebrew/bin/brew",
-            # macOS Intel
-            "/usr/local/bin/brew",
-            # Linux (Linuxbrew)
-            "/home/linuxbrew/.linuxbrew/bin/brew",
-        ],
-        "test_commands": [
-            {"command": "{executable} --version", "name": "version_check", "expected_output": "Homebrew \\d+"},
-        ],
-    },
+    runtime_def("brew",
+        aliases     = ["homebrew"],
+        description = "Homebrew package manager",
+    ),
 ]
 
 # ---------------------------------------------------------------------------

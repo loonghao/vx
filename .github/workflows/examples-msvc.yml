@@ -1,0 +1,199 @@
+# MSVC Examples CI
+#
+# Runs all examples/msvc/*.build.ps1 scripts on a real Windows runner with
+# MSVC Build Tools pre-installed (windows-latest already ships with VS 2022).
+#
+# Triggered when:
+#   - examples/msvc/** changes
+#   - the msvc provider.star changes
+#   - manually via workflow_dispatch
+#   - weekly schedule (keeps examples honest against upstream repos)
+
+name: Examples - MSVC
+
+on:
+  push:
+    branches: [main, develop]
+    paths:
+      - "examples/msvc/**"
+      - "crates/vx-providers/msvc/**"
+  pull_request:
+    paths:
+      - "examples/msvc/**"
+      - "crates/vx-providers/msvc/**"
+  workflow_dispatch:
+    inputs:
+      script:
+        description: "Single script to run (e.g. fmt.build.ps1). Leave empty to run all."
+        required: false
+        default: ""
+  schedule:
+    - cron: "0 4 * * 1" # Every Monday at 04:00 UTC
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-vx:
+    name: Build VX (Windows)
+    runs-on: windows-latest
+    env:
+      RUSTC_WRAPPER: sccache
+      SCCACHE_DIR: ${{ github.workspace }}/.cache/sccache
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install sccache
+        uses: taiki-e/install-action@v2
+        with:
+          tool: sccache
+
+      - name: Setup sccache path (Windows)
+        shell: pwsh
+        run: |
+          $sccachePath = (Get-Command sccache -ErrorAction SilentlyContinue).Source
+          if ($sccachePath) {
+            $sccacheDir = Split-Path $sccachePath
+            echo "$sccacheDir" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+          } else {
+            Write-Warning "sccache not found, disabling RUSTC_WRAPPER"
+            echo "RUSTC_WRAPPER=" >> $env:GITHUB_ENV
+          }
+
+      - name: Cache sccache
+        uses: actions/cache@v5
+        with:
+          path: ${{ github.workspace }}/.cache/sccache
+          key: sccache-msvc-examples-${{ hashFiles('Cargo.lock') }}
+          restore-keys: |
+            sccache-msvc-examples-
+
+      - name: Start sccache server
+        run: sccache --start-server || true
+
+      - name: Cache Cargo
+        uses: actions/cache@v5
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: windows-cargo-msvc-examples-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            windows-cargo-msvc-examples-
+
+      - name: Build VX
+        run: cargo build --release
+
+      - name: Upload VX binary
+        uses: actions/upload-artifact@v5
+        with:
+          name: vx-windows-msvc-examples
+          path: target/release/vx.exe
+          retention-days: 1
+
+  run-examples:
+    name: Run MSVC Examples
+    runs-on: windows-latest
+    needs: build-vx
+    timeout-minutes: 60
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Download VX binary
+        uses: actions/download-artifact@v5
+        with:
+          name: vx-windows-msvc-examples
+          path: ./bin
+
+      - name: Add VX to PATH
+        shell: pwsh
+        run: |
+          $binDir = Join-Path $env:GITHUB_WORKSPACE "bin"
+          echo "$binDir" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+          Write-Host "Added $binDir to PATH"
+
+      - name: Verify VX
+        shell: pwsh
+        run: vx --version
+
+      - name: Verify MSVC is available (windows-latest ships VS 2022)
+        shell: pwsh
+        run: |
+          $clPaths = @(
+            "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Tools\MSVC",
+            "C:\Program Files\Microsoft Visual Studio\2022\Professional\VC\Tools\MSVC",
+            "C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Tools\MSVC",
+            "C:\Program Files\Microsoft Visual Studio\2022\BuildTools\VC\Tools\MSVC"
+          )
+          $found = $false
+          foreach ($p in $clPaths) {
+            if (Test-Path $p) {
+              Write-Host "Found MSVC at: $p"
+              $found = $true
+              break
+            }
+          }
+          if (-not $found) {
+            Write-Warning "MSVC not found in standard paths — vx will attempt to install it"
+          }
+
+      - name: Run example — fmt (cmake + MSVC)
+        shell: pwsh
+        run: |
+          if ("${{ inputs.script }}" -ne "" -and "${{ inputs.script }}" -ne "fmt.build.ps1") {
+            Write-Host "Skipping fmt.build.ps1 (not selected)"
+            exit 0
+          }
+          & "$env:GITHUB_WORKSPACE\examples\msvc\fmt.build.ps1"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Run example — node-pty (native addon)
+        shell: pwsh
+        run: |
+          if ("${{ inputs.script }}" -ne "" -and "${{ inputs.script }}" -ne "node-pty.build.ps1") {
+            Write-Host "Skipping node-pty.build.ps1 (not selected)"
+            exit 0
+          }
+          & "$env:GITHUB_WORKSPACE\examples\msvc\node-pty.build.ps1"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Run example — dotnet-samples (csc / Roslyn)
+        shell: pwsh
+        run: |
+          if ("${{ inputs.script }}" -ne "" -and "${{ inputs.script }}" -ne "dotnet-samples-csc.build.ps1") {
+            Write-Host "Skipping dotnet-samples-csc.build.ps1 (not selected)"
+            exit 0
+          }
+          & "$env:GITHUB_WORKSPACE\examples\msvc\dotnet-samples-csc.build.ps1"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Run example — aionui (Electron + native modules)
+        shell: pwsh
+        run: |
+          if ("${{ inputs.script }}" -ne "" -and "${{ inputs.script }}" -ne "aionui.build.ps1") {
+            Write-Host "Skipping aionui.build.ps1 (not selected)"
+            exit 0
+          }
+          & "$env:GITHUB_WORKSPACE\examples\msvc\aionui.build.ps1"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload build logs
+        if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: msvc-example-logs
+          path: examples/msvc/logs/
+          retention-days: 7

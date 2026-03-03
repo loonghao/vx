@@ -224,6 +224,15 @@ pub fn build_runtime_map() -> vx_resolver::RuntimeMap {
                 spec.dependencies.push(dep);
             }
 
+            // Register system_paths glob patterns for detection
+            // (e.g., MSVC cl.exe paths that are not on system PATH)
+            if !runtime_meta.system_paths.is_empty() {
+                map.register_system_paths(
+                    runtime_meta.name.clone(),
+                    runtime_meta.system_paths.clone(),
+                );
+            }
+
             map.register(spec);
         }
     }

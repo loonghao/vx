@@ -24,6 +24,7 @@ pub mod ecosystem;
 pub mod fetch_context;
 pub mod info;
 pub mod resolver;
+// resolver/ directory contains: mod.rs, core.rs, nodejs.rs, python.rs, rust_eco.rs, opaque.rs
 
 // Re-exports
 pub use cache::{
@@ -36,3 +37,5 @@ pub use info::VersionInfo;
 pub use resolver::{
     RangeConstraint, RangeOp, Version, VersionConstraint, VersionRequest, VersionResolver,
 };
+// Export parse_constraint for use by other crates (e.g. vx-resolver)
+pub use resolver::core::parse_constraint;

@@ -5,15 +5,15 @@
 //! - **Non-interactive mode**: Avoids all user prompts in CI/automated environments
 //! - **Progress reporting**: Provides status callbacks during installation
 
-use super::{InstallResult, PackageInstallSpec, SystemPackageManager};
+use super::{
+    InstallResult, PackageInstallSpec, ProgressCallback, SystemPackageManager,
+    run_command_with_progress,
+};
 use crate::{Result, SystemPmError};
 use async_trait::async_trait;
-use std::io::{BufRead, BufReader};
-use std::process::{Command, Stdio};
+use std::process::Command;
+use std::sync::Arc;
 use tracing::{debug, info, trace, warn};
-
-/// Progress callback type for installation status updates
-pub type ProgressCallback = Box<dyn Fn(&str) + Send + Sync>;
 
 /// Chocolatey package manager
 pub struct ChocolateyManager {
@@ -35,7 +35,7 @@ impl ChocolateyManager {
         F: Fn(&str) + Send + Sync + 'static,
     {
         Self {
-            progress_callback: Some(Box::new(callback)),
+            progress_callback: Some(Arc::new(callback)),
         }
     }
 
@@ -60,22 +60,12 @@ impl ChocolateyManager {
     /// Run a choco command with streaming output for progress tracking
     fn run_choco_with_progress(&self, args: &[&str]) -> std::io::Result<std::process::Output> {
         let mut cmd = Command::new("choco");
-        cmd.args(args).stdout(Stdio::piped()).stderr(Stdio::piped());
-
-        let mut child = cmd.spawn()?;
-
-        // Read stdout in a separate thread to provide progress updates
-        if let Some(stdout) = child.stdout.take() {
-            let reader = BufReader::new(stdout);
-            for line in reader.lines().map_while(|r| r.ok()) {
-                // Parse and report progress from choco output
-                if !line.trim().is_empty() {
-                    self.report_progress(&line);
-                }
-            }
+        cmd.args(args);
+        if let Some(callback) = &self.progress_callback {
+            run_command_with_progress(cmd, callback)
+        } else {
+            self.run_choco(args)
         }
-
-        child.wait_with_output()
     }
 
     /// Run a PowerShell command

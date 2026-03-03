@@ -7,6 +7,7 @@
 # Uses stdlib templates from @vx//stdlib:provider.star
 
 load("@vx//stdlib:provider.star",
+     "runtime_def",
      "github_permissions",
      "archive_layout", "path_fns",
      "system_install_strategies", "pkg_strategy")
@@ -28,34 +29,9 @@ ecosystem   = "git"
 # ---------------------------------------------------------------------------
 
 runtimes = [
-    {
-        "name":        "git",
-        "executable":  "git",
-        "description": "Git version control",
-        "aliases":     [],
-        "priority":    100,
-        "system_paths": [
-            "C:/Program Files/Git/bin/git.exe",
-            "C:/Program Files/Git/cmd/git.exe",
-            "/usr/bin/git",
-            "/usr/local/bin/git",
-            "/opt/homebrew/bin/git",
-        ],
-        "test_commands": [
-            {"command": "{executable} --version", "name": "version_check",
-             "expected_output": "git version"},
-            {"command": "{executable} config --list", "name": "config_check",
-             "expect_success": True},
-        ],
-        "shells": [
-            # Use bin/bash.exe directly (not git-bash.exe which is a MinTTY launcher)
-            # bin/bash.exe runs in the current terminal (like VSCode does)
-            # git-bash.exe opens a new MinTTY window and --attach causes it to flash and close
-            {"name": "git-bash", "path": "bin/bash.exe"},
-            {"name": "git-cmd",  "path": "git-cmd.exe"},
-            {"name": "bash",     "path": "bin/bash.exe"},
-        ],
-    },
+    runtime_def("git",
+        description = "Git version control",
+    ),
 ]
 
 # ---------------------------------------------------------------------------

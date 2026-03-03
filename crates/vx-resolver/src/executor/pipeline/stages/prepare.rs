@@ -133,13 +133,8 @@ impl<'a> PrepareStage<'a> {
             .map(|s| s.to_string())
             .unwrap_or_else(|| "latest".to_string());
 
-        // Only apply proxy for non-installable (bundled) runtimes
-        if runtime.is_version_installable(&version_str) {
-            return Ok(None);
-        }
-
         debug!(
-            "[PrepareStage] Attempting proxy execution for bundled runtime {}@{}",
+            "[PrepareStage] Attempting proxy/system-path execution for runtime {}@{}",
             plan.primary.name, version_str
         );
 
@@ -247,22 +242,38 @@ impl<'a> Stage<ExecutionPlan, PreparedExecution> for PrepareStage<'a> {
                 );
                 (exe, plan.primary.command_prefix.clone())
             } else {
-                // Mismatch without command_prefix — likely a bundled runtime bug.
-                // Fall through to proxy execution instead of using the wrong binary.
-                tracing::warn!(
-                    "[PrepareStage] Executable mismatch: {} (stem={}) != runtime {}, falling back to proxy",
-                    exe.display(),
-                    exe_stem,
-                    runtime_name
-                );
-                // NEVER fall back to the mismatched executable — that causes
-                // `node ci` instead of `npm ci`.  If proxy also fails, return
-                // a clear error so the user knows what happened.
-                self.try_proxy_execution(&plan, &runtime_env)
-                    .await?
-                    .ok_or_else(|| PrepareError::NoExecutable {
-                        runtime: runtime_name.clone(),
-                    })?
+                // Mismatch without command_prefix.
+                //
+                // Two sub-cases:
+                //
+                // A) `exe` is an absolute path that was found by the resolver
+                //    (e.g. `vx msvc::ildasm` resolved to `ildasm.exe` via _ILDASM_PATHS).
+                //    The path is correct — use it directly.
+                //
+                // B) `exe` is a bare/relative name (resolver couldn't find the binary).
+                //    This means the executable_override doesn't exist.  Report a clear
+                //    error instead of silently falling back to the parent runtime's binary
+                //    (which would execute `cl.exe --help` instead of `sigtools --help`).
+                if exe.is_absolute() {
+                    // Case A: resolver found the right binary — trust it.
+                    tracing::debug!(
+                        "[PrepareStage] Executable mismatch but path is absolute: {} (stem={}) for runtime {}, using directly",
+                        exe.display(),
+                        exe_stem,
+                        runtime_name
+                    );
+                    (exe, plan.primary.command_prefix.clone())
+                } else {
+                    // Case B: bare name — executable_override was not found.
+                    tracing::warn!(
+                        "[PrepareStage] Executable override '{}' not found for runtime {}",
+                        exe_stem,
+                        runtime_name
+                    );
+                    return Err(PrepareError::NoExecutable {
+                        runtime: format!("{}::{}", runtime_name, exe_stem),
+                    });
+                }
             }
         } else {
             // No executable path — this is expected for bundled runtimes (e.g., msbuild).

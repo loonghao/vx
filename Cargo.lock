@@ -4899,6 +4899,7 @@ dependencies = [
  "toml 1.0.3+spec-1.1.0",
  "tracing",
  "vx-paths",
+ "vx-versions",
  "workspace-hack",
 ]
 
@@ -5121,6 +5122,17 @@ dependencies = [
 
 [[package]]
 name = "vx-provider-cmake"
+version = "0.8.3"
+dependencies = [
+ "rstest",
+ "starlark",
+ "vx-runtime",
+ "vx-starlark",
+ "workspace-hack",
+]
+
+[[package]]
+name = "vx-provider-conan"
 version = "0.8.3"
 dependencies = [
  "rstest",
@@ -5725,7 +5737,29 @@ dependencies = [
 ]
 
 [[package]]
+name = "vx-provider-wix"
+version = "0.8.3"
+dependencies = [
+ "rstest",
+ "starlark",
+ "vx-runtime",
+ "vx-starlark",
+ "workspace-hack",
+]
+
+[[package]]
 name = "vx-provider-xcodebuild"
+version = "0.8.3"
+dependencies = [
+ "rstest",
+ "starlark",
+ "vx-runtime",
+ "vx-starlark",
+ "workspace-hack",
+]
+
+[[package]]
+name = "vx-provider-xmake"
 version = "0.8.3"
 dependencies = [
  "rstest",

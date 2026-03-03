@@ -185,26 +185,26 @@ fn embed_provider_stars(out_dir: &str, providers_dir: &Path) {
 /// a minimal TOML manifest compatible with ProviderManifest::parse().
 ///
 /// Parses the following patterns from the Starlark script:
-/// - `def name(): return "xxx"` → provider name
-/// - `def description(): return "xxx"` → provider description
-/// - `def ecosystem(): return "xxx"` → provider ecosystem
-/// - `def homepage(): return "xxx"` → provider homepage
-/// - `runtimes = [{"name": "xxx", "executable": "xxx", ...}]` → runtime defs
+/// - `name = "xxx"` → provider name (direct assignment)
+/// - `description = "xxx"` → provider description
+/// - `ecosystem = "xxx"` → provider ecosystem
+/// - `homepage = "xxx"` → provider homepage
+/// - `runtimes = [runtime_def("xxx", ...), bundled_runtime_def("xxx", "parent", ...)]`
 /// - `platforms = {"os": [...]}` → platform constraints
 fn extract_manifest_from_star(dir_name: &str, content: &str) -> Option<String> {
-    // Extract name from `def name(): return "xxx"` or use dir_name as fallback
+    // Extract name from `name = "xxx"` assignment, or use dir_name as fallback
     let provider_name =
-        extract_star_string_fn(content, "name").unwrap_or_else(|| dir_name.to_string());
+        extract_star_string_assign(content, "name").unwrap_or_else(|| dir_name.to_string());
 
     // Extract optional fields
-    let description = extract_star_string_fn(content, "description").unwrap_or_default();
-    let ecosystem = extract_star_string_fn(content, "ecosystem").unwrap_or_default();
-    let homepage = extract_star_string_fn(content, "homepage");
+    let description = extract_star_string_assign(content, "description").unwrap_or_default();
+    let ecosystem = extract_star_string_assign(content, "ecosystem").unwrap_or_default();
+    let homepage = extract_star_string_assign(content, "homepage");
 
-    // Extract runtimes from `runtimes = [...]` block
+    // Extract runtimes from `runtimes = [runtime_def(...), ...]` block
     let runtimes = extract_star_runtimes(content);
 
-    // Extract platform constraints from `platforms = {...}` or provider-level `platform_constraint`
+    // Extract platform constraints from `platforms = {...}` or `supported_platforms()`
     let platform_os = extract_star_platform_os(content);
 
     // Build minimal TOML
@@ -286,27 +286,20 @@ fn escape_toml_string(s: &str) -> String {
         .replace('\t', "\\t")
 }
 
-/// Extract the return value of a simple single-line Starlark function:
-///   def <fn_name>():
-///       return "value"
-fn extract_star_string_fn(content: &str, fn_name: &str) -> Option<String> {
-    let def_pattern = format!("def {}():", fn_name);
-    let lines: Vec<&str> = content.lines().collect();
-
-    for (i, line) in lines.iter().enumerate() {
+/// Extract a string value from a top-level Starlark assignment:
+///   name        = "value"
+///   description = "value"
+///
+/// Handles both `"value"` and `'value'` quoting styles.
+fn extract_star_string_assign(content: &str, key: &str) -> Option<String> {
+    for line in content.lines() {
         let trimmed = line.trim();
-        if trimmed == def_pattern || trimmed.starts_with(&def_pattern) {
-            // Look at the next few lines for `return "value"`
-            for (j, next_line) in lines.iter().enumerate().skip(i + 1).take(4) {
-                let next = next_line.trim();
-                let _ = j;
-                if next.starts_with("return \"") || next.starts_with("return '") {
-                    return extract_quoted_string(next.trim_start_matches("return").trim());
-                }
-                // Skip blank lines and comments
-                if !next.is_empty() && !next.starts_with('#') {
-                    break;
-                }
+        // Match `key = "..."` or `key = '...'` at the start of a line
+        // (not inside a function body — those are indented)
+        if line.starts_with(key) || line.starts_with(&format!("{} ", key)) {
+            let rest = trimmed.strip_prefix(key)?.trim_start();
+            if let Some(rest) = rest.strip_prefix('=') {
+                return extract_quoted_string(rest.trim_start());
             }
         }
     }
@@ -316,13 +309,11 @@ fn extract_star_string_fn(content: &str, fn_name: &str) -> Option<String> {
 /// Extract a quoted string value: "foo" or 'foo'
 fn extract_quoted_string(s: &str) -> Option<String> {
     let s = s.trim();
-    if s.starts_with('"') && s.contains('"') {
-        let inner = s.trim_start_matches('"');
+    if let Some(inner) = s.strip_prefix('"') {
         let end = inner.find('"')?;
         return Some(inner[..end].to_string());
     }
-    if s.starts_with('\'') && s.contains('\'') {
-        let inner = s.trim_start_matches('\'');
+    if let Some(inner) = s.strip_prefix('\'') {
         let end = inner.find('\'')?;
         return Some(inner[..end].to_string());
     }
@@ -338,33 +329,27 @@ struct StarRuntime {
     priority: u32,
 }
 
-/// Extract runtime definitions from `runtimes = [...]` in a Starlark script.
+/// Extract runtime definitions from `runtimes = [runtime_def(...), ...]` in a Starlark script.
 ///
-/// Handles the common pattern:
+/// Only handles the function-call style:
 /// ```python
 /// runtimes = [
-///     {
-///         "name":        "foo",
-///         "executable":  "foo",
-///         "description": "...",
-///         "aliases":     ["bar"],
-///         "priority":    100,
-///     },
+///     runtime_def("foo",
+///         aliases     = ["bar"],
+///         description = "...",
+///     ),
+///     bundled_runtime_def("npm", "node"),
 /// ]
 /// ```
 fn extract_star_runtimes(content: &str) -> Vec<StarRuntime> {
-    let mut runtimes = Vec::new();
-
-    // Find `runtimes = [` line
     let lines: Vec<&str> = content.lines().collect();
     let mut i = 0;
     while i < lines.len() {
         let trimmed = lines[i].trim();
         if trimmed == "runtimes = [" || trimmed.starts_with("runtimes = [") {
-            // Collect lines until the closing `]` at the same indent level
-            let mut depth = 0;
+            // Collect lines until the closing `]` at the top-level bracket depth
+            let mut depth = 0i32;
             let mut block = String::new();
-            let start_indent = lines[i].len() - lines[i].trim_start().len();
 
             for (j, line) in lines.iter().enumerate().skip(i) {
                 block.push_str(line);
@@ -372,8 +357,8 @@ fn extract_star_runtimes(content: &str) -> Vec<StarRuntime> {
 
                 for ch in line.chars() {
                     match ch {
-                        '[' | '{' => depth += 1,
-                        ']' | '}' => depth -= 1,
+                        '[' | '(' | '{' => depth += 1,
+                        ']' | ')' | '}' => depth -= 1,
                         _ => {}
                     }
                 }
@@ -381,62 +366,103 @@ fn extract_star_runtimes(content: &str) -> Vec<StarRuntime> {
                 if j > i && depth <= 0 {
                     break;
                 }
-                let _ = start_indent;
             }
 
-            // Parse individual runtime dicts from the block
-            runtimes = parse_star_runtime_dicts(&block);
-            break;
+            return parse_star_runtime_fn_calls(&block);
         }
         i += 1;
     }
 
-    runtimes
+    vec![]
 }
 
-/// Parse runtime dicts from a Starlark list block string
-fn parse_star_runtime_dicts(block: &str) -> Vec<StarRuntime> {
+/// Parse `runtime_def(...)` and `bundled_runtime_def(...)` calls from a block.
+///
+/// Extracts:
+///   runtime_def("name", aliases=[...], description="...", executable="...")
+///   bundled_runtime_def("name", "parent", description="...")
+fn parse_star_runtime_fn_calls(block: &str) -> Vec<StarRuntime> {
     let mut runtimes = Vec::new();
-
-    // Split by `{` to find individual dicts
-    let mut depth = 0i32;
-    let mut dict_start = None;
     let chars: Vec<char> = block.chars().collect();
+    let len = chars.len();
+    let mut pos = 0;
 
-    for (i, &ch) in chars.iter().enumerate() {
-        match ch {
-            '{' => {
-                depth += 1;
-                if depth == 1 {
-                    dict_start = Some(i);
-                }
-            }
-            '}' => {
-                depth -= 1;
-                if depth == 0
-                    && let Some(start) = dict_start
-                {
-                    let dict_str: String = chars[start..=i].iter().collect();
-                    if let Some(rt) = parse_single_runtime_dict(&dict_str) {
-                        runtimes.push(rt);
+    while pos < len {
+        // Look for `runtime_def(` or `bundled_runtime_def(`
+        let rest: String = chars[pos..].iter().collect();
+
+        let (call_start, is_bundled) = if let Some(p) = rest.find("bundled_runtime_def(") {
+            (pos + p, true)
+        } else if let Some(p) = rest.find("runtime_def(") {
+            (pos + p, false)
+        } else {
+            break;
+        };
+
+        // Find the opening `(`
+        let paren_offset = if is_bundled {
+            "bundled_runtime_def(".len() - 1
+        } else {
+            "runtime_def(".len() - 1
+        };
+        let paren_pos = call_start + paren_offset;
+
+        // Collect the full argument list until the matching `)` at depth 0
+        let mut depth = 0i32;
+        let mut arg_start = None;
+        let mut arg_end = None;
+
+        for (i, &ch) in chars.iter().enumerate().skip(paren_pos) {
+            match ch {
+                '(' => {
+                    depth += 1;
+                    if depth == 1 {
+                        arg_start = Some(i + 1);
                     }
-                    dict_start = None;
                 }
+                ')' => {
+                    depth -= 1;
+                    if depth == 0 {
+                        arg_end = Some(i);
+                        break;
+                    }
+                }
+                _ => {}
             }
-            _ => {}
+        }
+
+        if let (Some(start), Some(end)) = (arg_start, arg_end) {
+            let args: String = chars[start..end].iter().collect();
+            if let Some(rt) = parse_runtime_def_args(&args, is_bundled) {
+                runtimes.push(rt);
+            }
+            pos = end + 1;
+        } else {
+            break;
         }
     }
 
     runtimes
 }
 
-/// Parse a single runtime dict string like `{"name": "foo", "executable": "foo", ...}`
-fn parse_single_runtime_dict(dict: &str) -> Option<StarRuntime> {
-    let name = extract_dict_string_value(dict, "name")?;
-    let executable = extract_dict_string_value(dict, "executable").unwrap_or_else(|| name.clone());
-    let description = extract_dict_string_value(dict, "description").unwrap_or_default();
-    let aliases = extract_dict_string_list(dict, "aliases");
-    let priority = extract_dict_int_value(dict, "priority").unwrap_or(100);
+/// Parse the argument list of a `runtime_def(...)` or `bundled_runtime_def(...)` call.
+///
+/// runtime_def("name", aliases=["a","b"], description="...", executable="...")
+/// bundled_runtime_def("name", "parent", description="...")
+fn parse_runtime_def_args(args: &str, is_bundled: bool) -> Option<StarRuntime> {
+    // First positional arg is always the runtime name
+    let name = extract_first_positional_string(args)?;
+
+    // For bundled runtimes, executable defaults to the name (parent provides it)
+    let executable = if is_bundled {
+        name.clone()
+    } else {
+        extract_kwarg_string_value(args, "executable").unwrap_or_else(|| name.clone())
+    };
+
+    let description = extract_kwarg_string_value(args, "description").unwrap_or_default();
+    let aliases = extract_kwarg_string_list_value(args, "aliases");
+    let priority = extract_kwarg_int_value(args, "priority").unwrap_or(100);
 
     Some(StarRuntime {
         name,
@@ -447,92 +473,112 @@ fn parse_single_runtime_dict(dict: &str) -> Option<StarRuntime> {
     })
 }
 
-/// Extract a string value from a dict-like string: `"key": "value"`
-fn extract_dict_string_value(dict: &str, key: &str) -> Option<String> {
-    // Look for `"key": "value"` or `"key":  "value"`
-    let pattern = format!("\"{}\"", key);
-    let pos = dict.find(&pattern)?;
-    let after_key = &dict[pos + pattern.len()..];
-    // Skip whitespace and colon
-    let after_colon = after_key.trim_start().trim_start_matches(':').trim_start();
-    extract_quoted_string(after_colon)
+/// Extract the first positional string argument from a function call arg list.
+/// e.g. `"node", aliases=[...]` → `"node"`
+fn extract_first_positional_string(args: &str) -> Option<String> {
+    extract_quoted_string(args.trim())
 }
 
-/// Extract an integer value from a dict-like string: `"key": 123`
-fn extract_dict_int_value(dict: &str, key: &str) -> Option<u32> {
-    let pattern = format!("\"{}\"", key);
-    let pos = dict.find(&pattern)?;
-    let after_key = &dict[pos + pattern.len()..];
-    let after_colon = after_key.trim_start().trim_start_matches(':').trim_start();
-    // Read digits
-    let digits: String = after_colon
-        .chars()
-        .take_while(|c| c.is_ascii_digit())
-        .collect();
-    digits.parse().ok()
+/// Extract a keyword argument string value: `key = "value"` or `key="value"`
+fn extract_kwarg_string_value(args: &str, key: &str) -> Option<String> {
+    let key_eq_sp = format!("{} =", key);
+    let key_eq = format!("{}=", key);
+
+    let pos = args
+        .find(&key_eq_sp)
+        .map(|p| p + key_eq_sp.len())
+        .or_else(|| args.find(&key_eq).map(|p| p + key_eq.len()))?;
+
+    let after = args[pos..].trim_start();
+    extract_quoted_string(after)
 }
 
-/// Extract a string list from a dict-like string: `"key": ["a", "b"]`
-fn extract_dict_string_list(dict: &str, key: &str) -> Vec<String> {
-    let pattern = format!("\"{}\"", key);
-    let pos = match dict.find(&pattern) {
+/// Extract a keyword argument string list: `key = ["a", "b"]`
+fn extract_kwarg_string_list_value(args: &str, key: &str) -> Vec<String> {
+    let key_eq_sp = format!("{} =", key);
+    let key_eq = format!("{}=", key);
+
+    let pos = args
+        .find(&key_eq_sp)
+        .map(|p| p + key_eq_sp.len())
+        .or_else(|| args.find(&key_eq).map(|p| p + key_eq.len()));
+
+    let pos = match pos {
         Some(p) => p,
         None => return vec![],
     };
-    let after_key = &dict[pos + pattern.len()..];
-    let after_colon = after_key.trim_start().trim_start_matches(':').trim_start();
 
-    // Find the `[...]` block
-    if !after_colon.starts_with('[') {
+    let after = args[pos..].trim_start();
+    if !after.starts_with('[') {
         return vec![];
     }
-    let end = after_colon.find(']').unwrap_or(after_colon.len());
-    let list_str = &after_colon[1..end];
 
-    // Extract quoted strings from the list
+    // Find matching `]` respecting nested brackets
+    let mut depth = 0i32;
+    let mut end = 0;
+    for (i, ch) in after.char_indices() {
+        match ch {
+            '[' => depth += 1,
+            ']' => {
+                depth -= 1;
+                if depth == 0 {
+                    end = i;
+                    break;
+                }
+            }
+            _ => {}
+        }
+    }
+
+    let list_str = &after[1..end];
     let mut result = Vec::new();
     let mut remaining = list_str;
     while let Some(s) = extract_quoted_string(remaining.trim_start()) {
         result.push(s.clone());
-        // Advance past this string
         let skip = remaining
             .find(&format!("\"{}\"", s))
             .or_else(|| remaining.find(&format!("'{}'", s)))
             .unwrap_or(0);
         remaining = &remaining[skip + s.len() + 2..];
-        // Skip comma
         remaining = remaining.trim_start().trim_start_matches(',');
     }
     result
 }
 
+/// Extract a keyword argument integer value: `key = 123`
+fn extract_kwarg_int_value(args: &str, key: &str) -> Option<u32> {
+    let key_eq_sp = format!("{} =", key);
+    let key_eq = format!("{}=", key);
+
+    let pos = args
+        .find(&key_eq_sp)
+        .map(|p| p + key_eq_sp.len())
+        .or_else(|| args.find(&key_eq).map(|p| p + key_eq.len()))?;
+
+    let after = args[pos..].trim_start();
+    let digits: String = after.chars().take_while(|c| c.is_ascii_digit()).collect();
+    digits.parse().ok()
+}
+
 /// Extract platform OS list from a Starlark provider file.
 ///
-/// Handles three patterns:
+/// Handles two patterns:
 ///
-/// 1. `platforms = {"os": ["windows"]}` (single-line dict)
-/// 2. Multi-line `platforms = {` block
-/// 3. `def supported_platforms(): return [{"os": "windows", ...}, ...]`
+/// 1. `platforms = {"os": ["windows"]}` (single-line or multi-line dict)
+/// 2. `def supported_platforms(): return [{"os": "windows", ...}, ...]`
 fn extract_star_platform_os(content: &str) -> Option<Vec<String>> {
-    // Pattern 1 & 2: `platforms = {` variable
+    // Pattern 1: `platforms = {` variable
     let lines: Vec<&str> = content.lines().collect();
     for (i, line) in lines.iter().enumerate() {
         let trimmed = line.trim();
         if trimmed.starts_with("platforms") && trimmed.contains('{') {
-            if trimmed.contains('"') || trimmed.contains('\'') {
-                // Single-line: platforms = {"os": ["windows"]}
-                let os_list = extract_dict_string_list(trimmed, "os");
-                if !os_list.is_empty() {
-                    return Some(os_list);
-                }
-            }
-            // Multi-line block
+            // Collect the full block (single-line or multi-line)
             let mut block = String::new();
             let mut depth = 0i32;
-            for (j, line) in lines.iter().enumerate().skip(i) {
-                block.push_str(line);
+            for (j, l) in lines.iter().enumerate().skip(i) {
+                block.push_str(l);
                 block.push('\n');
-                for ch in line.chars() {
+                for ch in l.chars() {
                     match ch {
                         '{' => depth += 1,
                         '}' => depth -= 1,
@@ -543,52 +589,66 @@ fn extract_star_platform_os(content: &str) -> Option<Vec<String>> {
                     break;
                 }
             }
-            let os_list = extract_dict_string_list(&block, "os");
+            // Extract `"os": [...]` from the block
+            let os_list = extract_string_list_after_key(&block, "\"os\"");
             if !os_list.is_empty() {
                 return Some(os_list);
             }
         }
     }
 
-    // Pattern 3: `def supported_platforms():` returning a list of dicts
+    // Pattern 2: `def supported_platforms():` returning a list of dicts
     // e.g. [{"os": "windows", "arch": "x64"}, {"os": "windows", "arch": "arm64"}]
-    // We collect all unique "os" values from the returned list.
+    // Collect all unique "os" values.
     if let Some(fn_start) = content.find("def supported_platforms():") {
-        // Collect the function body (lines until dedent)
         let body_start = content[fn_start..]
             .find('\n')
             .map(|p| fn_start + p + 1)
             .unwrap_or(fn_start);
         let body = &content[body_start..];
 
-        // Find the return statement and its list
         for line in body.lines() {
             let t = line.trim();
             if t.starts_with("return [") || t.starts_with("return[") {
-                // Collect until the closing `]`
+                // Find the list start in the original content
                 let list_start =
                     fn_start + content[fn_start..].find(t).unwrap_or(0) + t.find('[').unwrap_or(0);
                 let list_str = &content[list_start..];
-                let end = list_str.find(']').unwrap_or(list_str.len());
+                // Find the matching closing `]`
+                let mut depth = 0i32;
+                let mut end = list_str.len();
+                for (idx, ch) in list_str.char_indices() {
+                    match ch {
+                        '[' => depth += 1,
+                        ']' => {
+                            depth -= 1;
+                            if depth == 0 {
+                                end = idx;
+                                break;
+                            }
+                        }
+                        _ => {}
+                    }
+                }
                 let inner = &list_str[1..end];
 
-                // Extract all "os" values from the dicts in the list
+                // Extract all "os": "value" pairs
                 let mut os_values: Vec<String> = Vec::new();
                 let mut remaining = inner;
-                while let Some(os_val) = extract_dict_string_value(remaining, "os") {
-                    if !os_values.contains(&os_val) {
-                        os_values.push(os_val.clone());
+                while let Some(pos) = remaining.find("\"os\"") {
+                    let after = &remaining[pos + 4..];
+                    let after = after.trim_start().trim_start_matches(':').trim_start();
+                    if let Some(val) = extract_quoted_string(after) && !os_values.contains(&val) {
+                        os_values.push(val);
                     }
-                    // Advance past this occurrence
-                    let skip = remaining.find("\"os\"").unwrap_or(remaining.len());
-                    remaining = &remaining[skip + 4..];
+                    remaining = &remaining[pos + 4..];
                 }
                 if !os_values.is_empty() {
                     return Some(os_values);
                 }
                 break;
             }
-            // Stop at first non-empty, non-comment, non-indented line (dedent)
+            // Stop at dedent
             if !t.is_empty()
                 && !t.starts_with('#')
                 && !line.starts_with(' ')
@@ -600,6 +660,50 @@ fn extract_star_platform_os(content: &str) -> Option<Vec<String>> {
     }
 
     None
+}
+
+/// Extract a string list after a key pattern: `"os": ["windows", "linux"]`
+fn extract_string_list_after_key(text: &str, key: &str) -> Vec<String> {
+    let pos = match text.find(key) {
+        Some(p) => p,
+        None => return vec![],
+    };
+    let after = &text[pos + key.len()..];
+    let after = after.trim_start().trim_start_matches(':').trim_start();
+    if !after.starts_with('[') {
+        return vec![];
+    }
+
+    // Find matching `]`
+    let mut depth = 0i32;
+    let mut end = 0;
+    for (i, ch) in after.char_indices() {
+        match ch {
+            '[' => depth += 1,
+            ']' => {
+                depth -= 1;
+                if depth == 0 {
+                    end = i;
+                    break;
+                }
+            }
+            _ => {}
+        }
+    }
+
+    let list_str = &after[1..end];
+    let mut result = Vec::new();
+    let mut remaining = list_str;
+    while let Some(s) = extract_quoted_string(remaining.trim_start()) {
+        result.push(s.clone());
+        let skip = remaining
+            .find(&format!("\"{}\"", s))
+            .or_else(|| remaining.find(&format!("'{}'", s)))
+            .unwrap_or(0);
+        remaining = &remaining[skip + s.len() + 2..];
+        remaining = remaining.trim_start().trim_start_matches(',');
+    }
+    result
 }
 
 /// Embed bridge binaries (Windows only).

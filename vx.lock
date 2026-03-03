@@ -4,7 +4,7 @@
 version = 1
 
 [metadata]
-generated_at = "2026-02-27T01:22:31Z"
+generated_at = "2026-03-02T10:01:30Z"
 vx_version = "0.6.19"
 platform = "x86_64-pc-windows-msvc"
 
@@ -28,6 +28,12 @@ ecosystem = "Node"
 
 [tools.cmake]
 version = "4.2.2"
+source = "vx install"
+resolved_from = "latest"
+ecosystem = "Generic"
+
+[tools.dotnet]
+version = "10.0.103"
 source = "vx install"
 resolved_from = "latest"
 ecosystem = "Generic"

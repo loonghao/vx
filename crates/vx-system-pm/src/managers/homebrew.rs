@@ -1,23 +1,60 @@
 //! Homebrew package manager implementation
 
-use super::{InstallResult, PackageInstallSpec, SystemPackageManager};
+use super::{
+    InstallResult, PackageInstallSpec, ProgressCallback, SystemPackageManager,
+    run_command_with_progress,
+};
 use crate::{Result, SystemPmError};
 use async_trait::async_trait;
 use std::process::Command;
+use std::sync::Arc;
 use tracing::{debug, info, warn};
 
 /// Homebrew package manager
-pub struct HomebrewManager;
+pub struct HomebrewManager {
+    /// Optional progress callback
+    progress_callback: Option<ProgressCallback>,
+}
 
 impl HomebrewManager {
     /// Create a new Homebrew manager
     pub fn new() -> Self {
-        Self
+        Self {
+            progress_callback: None,
+        }
+    }
+
+    /// Create a Homebrew manager with progress callback
+    pub fn with_progress<F>(callback: F) -> Self
+    where
+        F: Fn(&str) + Send + Sync + 'static,
+    {
+        Self {
+            progress_callback: Some(Arc::new(callback)),
+        }
+    }
+
+    /// Report progress through callback
+    fn report_progress(&self, message: &str) {
+        if let Some(ref callback) = self.progress_callback {
+            callback(message);
+        }
     }
 
     /// Run a brew command
     fn run_brew(&self, args: &[&str]) -> std::io::Result<std::process::Output> {
         Command::new("brew").args(args).output()
+    }
+
+    /// Run a brew command with streaming progress output
+    fn run_brew_with_progress(&self, args: &[&str]) -> std::io::Result<std::process::Output> {
+        let mut cmd = Command::new("brew");
+        cmd.args(args);
+        if let Some(callback) = &self.progress_callback {
+            run_command_with_progress(cmd, callback)
+        } else {
+            cmd.output()
+        }
     }
 
     /// Run a shell command
@@ -69,13 +106,15 @@ impl SystemPackageManager for HomebrewManager {
         let args = vec!["install", &spec.package];
 
         debug!("Running: brew {}", args.join(" "));
+        self.report_progress(&format!("Installing {} via Homebrew...", spec.package));
 
-        let output = self.run_brew(&args)?;
+        let output = self.run_brew_with_progress(&args)?;
         let stdout = String::from_utf8_lossy(&output.stdout);
         let stderr = String::from_utf8_lossy(&output.stderr);
 
         if output.status.success() {
             info!("Package {} installed successfully", spec.package);
+            self.report_progress(&format!("{} installed successfully", spec.package));
 
             // Get installed version
             let version = self.get_installed_version(&spec.package).await?;

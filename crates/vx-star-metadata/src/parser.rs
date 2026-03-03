@@ -54,6 +54,8 @@ pub struct StarRuntimeMeta {
     pub shells: Vec<(String, String)>,
     /// Install dependencies (vx-managed runtimes that must be installed first)
     pub install_deps: Vec<String>,
+    /// Glob patterns for locating the executable on the system (for tools not on PATH, e.g. MSVC cl.exe)
+    pub system_paths: Vec<String>,
 }
 
 impl StarMetadata {
@@ -228,13 +230,13 @@ fn extract_runtimes(source: &str) -> Vec<StarRuntimeMeta> {
         Some(body) => body,
         None => return Vec::new(),
     };
-    parse_runtime_entries(list_body)
+    parse_runtime_entries(list_body, source)
 }
 
 /// Parse a list body into runtime metadata structs.
 ///
 /// Handles dict literals `{...}`, `runtime_def(...)`, and `bundled_runtime_def(...)`.
-fn parse_runtime_entries(list_body: &str) -> Vec<StarRuntimeMeta> {
+fn parse_runtime_entries<'a>(list_body: &'a str, source: &'a str) -> Vec<StarRuntimeMeta> {
     let mut runtimes = Vec::new();
     let mut remaining = list_body;
 
@@ -297,7 +299,7 @@ fn parse_runtime_entries(list_body: &str) -> Vec<StarRuntimeMeta> {
             let Some(args_body) = find_matching_bracket(remaining, call_start - 1, '(', ')') else {
                 break;
             };
-            runtimes.push(parse_runtime_def_call(args_body));
+            runtimes.push(parse_runtime_def_call(args_body, source));
             let end_pos = call_start + args_body.len() + 1;
             if end_pos >= remaining.len() {
                 break;
@@ -326,22 +328,34 @@ fn parse_runtime_entries(list_body: &str) -> Vec<StarRuntimeMeta> {
 }
 
 /// Parse a `runtime_def("name", aliases=[...], ...)` call.
-fn parse_runtime_def_call(args_body: &str) -> StarRuntimeMeta {
+///
+/// `source` is the full provider.star content, used to resolve variable references
+/// in `system_paths` (e.g. `system_paths = _MSVC_PATHS` where `_MSVC_PATHS` is a
+/// top-level list variable).
+fn parse_runtime_def_call(args_body: &str, source: &str) -> StarRuntimeMeta {
     let name = extract_first_positional_string(args_body);
     let executable = extract_kwarg_string(args_body, "executable").or_else(|| name.clone());
     let description = extract_kwarg_string(args_body, "description");
     let aliases = extract_kwarg_string_list(args_body, "aliases");
+    let platform_os = extract_kwarg_platform_os(args_body);
+    let auto_installable = extract_kwarg_bool(args_body, "auto_installable");
+    let bundled_with = extract_kwarg_string(args_body, "bundled_with");
+
+    // system_paths may be a direct list `[...]` or a variable reference like `_MSVC_PATHS`.
+    // Try direct list first; fall back to variable reference resolution.
+    let system_paths = extract_kwarg_string_list_or_var(args_body, "system_paths", source);
 
     StarRuntimeMeta {
         name,
         executable,
         description,
         aliases,
-        platform_os: Vec::new(),
-        auto_installable: None,
-        bundled_with: None,
+        platform_os,
+        auto_installable,
+        bundled_with,
         shells: Vec::new(),
         install_deps: Vec::new(),
+        system_paths,
     }
 }
 
@@ -352,17 +366,20 @@ fn parse_bundled_runtime_def_call(args_body: &str) -> StarRuntimeMeta {
     let executable = extract_kwarg_string(args_body, "executable").or_else(|| name.clone());
     let description = extract_kwarg_string(args_body, "description");
     let aliases = extract_kwarg_string_list(args_body, "aliases");
+    let platform_os = extract_kwarg_platform_os(args_body);
+    let auto_installable = extract_kwarg_bool(args_body, "auto_installable");
 
     StarRuntimeMeta {
         name,
         executable,
         description,
         aliases,
-        platform_os: Vec::new(),
-        auto_installable: None,
+        platform_os,
+        auto_installable,
         bundled_with,
         shells: Vec::new(),
         install_deps: Vec::new(),
+        system_paths: Vec::new(),
     }
 }
 
@@ -438,10 +455,157 @@ fn extract_kwarg_string_list(args_body: &str, key: &str) -> Vec<String> {
     Vec::new()
 }
 
+/// Extract a keyword argument string list, supporting both direct lists and variable references.
+///
+/// This handles two forms:
+/// 1. Direct list: `system_paths = ["path1", "path2"]`
+/// 2. Variable reference: `system_paths = _MSVC_PATHS` where `_MSVC_PATHS = [...]` is defined
+///    at the top level of the source file.
+fn extract_kwarg_string_list_or_var(args_body: &str, key: &str, source: &str) -> Vec<String> {
+    let mut search_start = 0;
+    while let Some(pos) = args_body[search_start..].find(key) {
+        let actual_pos = search_start + pos;
+        let after_key = &args_body[actual_pos + key.len()..];
+
+        let before = &args_body[..actual_pos];
+        let is_kwarg = before.is_empty()
+            || before
+                .chars()
+                .last()
+                .map(|c| c.is_whitespace() || c == ',')
+                .unwrap_or(true);
+        if !is_kwarg {
+            search_start = actual_pos + key.len();
+            continue;
+        }
+
+        let after_key_trimmed = after_key.trim_start();
+        if let Some(after_equals_raw) = after_key_trimmed.strip_prefix('=') {
+            let after_equals = after_equals_raw.trim_start();
+
+            // Case 1: Direct list `[...]`
+            if after_equals.starts_with('[') && let Some(list_body) = find_matching_bracket(after_equals, 0, '[', ']') {
+                return extract_string_list_items(list_body);
+            }
+
+            // Case 2: Variable reference (identifier like `_MSVC_PATHS`)
+            // Extract the identifier name (alphanumeric + underscore)
+            let var_name: String = after_equals
+                .chars()
+                .take_while(|c| c.is_alphanumeric() || *c == '_')
+                .collect();
+            if !var_name.is_empty()
+                && !var_name
+                    .chars()
+                    .next()
+                    .map(|c| c.is_ascii_digit())
+                    .unwrap_or(false)
+            {
+                // Look up the variable in the source file: `VAR_NAME = [...]`
+                if let Some(resolved) = resolve_list_variable(source, &var_name) {
+                    return resolved;
+                }
+            }
+        }
+
+        search_start = actual_pos + key.len();
+    }
+    Vec::new()
+}
+
+/// Resolve a top-level list variable from the source file.
+///
+/// Looks for `VAR_NAME = [...]` at the top level and returns the string items.
+fn resolve_list_variable(source: &str, var_name: &str) -> Option<Vec<String>> {
+    // Search for `VAR_NAME = [` pattern
+    let pattern = format!("{} = [", var_name);
+    let start = source.find(&pattern)?;
+    let list_start = start + pattern.len() - 1; // position of '['
+    let list_body = find_matching_bracket(&source[list_start..], 0, '[', ']')?;
+    let items = extract_string_list_items(list_body);
+    if items.is_empty() { None } else { Some(items) }
+}
+
+/// Extract a `platform_constraint = {"os": [...]}` keyword argument from a function call args body.
+fn extract_kwarg_platform_os(args_body: &str) -> Vec<String> {
+    let key = "platform_constraint";
+    let mut search_start = 0;
+    while let Some(pos) = args_body[search_start..].find(key) {
+        let actual_pos = search_start + pos;
+        let after_key = &args_body[actual_pos + key.len()..];
+
+        let before = &args_body[..actual_pos];
+        let is_kwarg = before.is_empty()
+            || before
+                .chars()
+                .last()
+                .map(|c| c.is_whitespace() || c == ',')
+                .unwrap_or(true);
+        if !is_kwarg {
+            search_start = actual_pos + key.len();
+            continue;
+        }
+
+        let after_key_trimmed = after_key.trim_start();
+        if let Some(after_equals_raw) = after_key_trimmed.strip_prefix('=') {
+            let after_equals = after_equals_raw.trim_start();
+            if after_equals.starts_with('{')
+                && let Some(dict_body) = find_matching_bracket(after_equals, 0, '{', '}')
+                && let Some(os_pos) = dict_body.find("\"os\"")
+            {
+                let after_os = &dict_body[os_pos + 4..];
+                let after_colon = after_os.trim_start().trim_start_matches(':').trim_start();
+                if after_colon.starts_with('[')
+                    && let Some(list_body) = find_matching_bracket(after_colon, 0, '[', ']')
+                {
+                    return extract_string_list_items(list_body);
+                }
+            }
+        }
+
+        search_start = actual_pos + key.len();
+    }
+    Vec::new()
+}
+
+/// Extract a boolean keyword argument from a function call args body.
+fn extract_kwarg_bool(args_body: &str, key: &str) -> Option<bool> {
+    let mut search_start = 0;
+    while let Some(pos) = args_body[search_start..].find(key) {
+        let actual_pos = search_start + pos;
+        let after_key = &args_body[actual_pos + key.len()..];
+
+        let before = &args_body[..actual_pos];
+        let is_kwarg = before.is_empty()
+            || before
+                .chars()
+                .last()
+                .map(|c| c.is_whitespace() || c == ',')
+                .unwrap_or(true);
+        if !is_kwarg {
+            search_start = actual_pos + key.len();
+            continue;
+        }
+
+        let after_key_trimmed = after_key.trim_start();
+        if let Some(after_equals_raw) = after_key_trimmed.strip_prefix('=') {
+            let after_equals = after_equals_raw.trim_start();
+            if after_equals.starts_with("True") {
+                return Some(true);
+            } else if after_equals.starts_with("False") {
+                return Some(false);
+            }
+        }
+
+        search_start = actual_pos + key.len();
+    }
+    None
+}
+
 /// Legacy wrapper kept for compatibility.
 #[allow(dead_code)]
 fn parse_runtime_dicts(list_body: &str) -> Vec<StarRuntimeMeta> {
-    parse_runtime_entries(list_body)
+    parse_runtime_entries(list_body, "")
 }
 
 /// Given the source and the position of an opening bracket, return the content
@@ -489,6 +653,7 @@ fn parse_runtime_dict(body: &str) -> StarRuntimeMeta {
         bundled_with: extract_dict_string_value(body, "bundled_with"),
         shells: extract_dict_shells(body),
         install_deps: extract_dict_string_list(body, "install_deps"),
+        system_paths: extract_dict_string_list(body, "system_paths"),
     }
 }
 

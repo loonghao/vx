@@ -617,3 +617,170 @@ npm = ["node"]
         assert_eq!(version.patch, 11);
     }
 }
+
+mod strategy_tests {
+    use super::*;
+    use vx_resolver::version::{GitVersionStrategy, SemverStrategy, Version, VersionStrategy};
+
+    fn make_version_info(version: &str) -> VersionInfo {
+        VersionInfo::new(version)
+    }
+
+    // ── SemverStrategy ──────────────────────────────────────────────────────
+
+    #[test]
+    fn test_semver_satisfies_exact() {
+        let strategy = SemverStrategy::generic();
+        let v = Version::new(1, 2, 3);
+        assert!(strategy.satisfies(&v, &VersionConstraint::Exact(Version::new(1, 2, 3))));
+        assert!(!strategy.satisfies(&v, &VersionConstraint::Exact(Version::new(1, 2, 4))));
+    }
+
+    #[test]
+    fn test_semver_satisfies_partial() {
+        let strategy = SemverStrategy::generic();
+        let v = Version::new(3, 11, 5);
+        let c = VersionConstraint::Partial {
+            major: 3,
+            minor: 11,
+        };
+        assert!(strategy.satisfies(&v, &c));
+        assert!(!strategy.satisfies(&Version::new(3, 12, 0), &c));
+    }
+
+    #[test]
+    fn test_semver_select_best_match_latest() {
+        let strategy = SemverStrategy::generic();
+        let available = vec![
+            make_version_info("1.0.0"),
+            make_version_info("1.1.0"),
+            make_version_info("2.0.0"),
+            VersionInfo::new("3.0.0-alpha").with_prerelease(true),
+        ];
+        let result = strategy.select_best_match(&VersionConstraint::Latest, &available);
+        assert_eq!(result.unwrap().version_string(), "2.0.0");
+    }
+
+    #[test]
+    fn test_semver_select_best_match_partial() {
+        let strategy = SemverStrategy::generic();
+        let available = vec![
+            make_version_info("3.10.0"),
+            make_version_info("3.11.0"),
+            make_version_info("3.11.5"),
+            make_version_info("3.11.11"),
+            make_version_info("3.12.0"),
+        ];
+        let result = strategy.select_best_match(
+            &VersionConstraint::Partial {
+                major: 3,
+                minor: 11,
+            },
+            &available,
+        );
+        assert_eq!(result.unwrap().version_string(), "3.11.11");
+    }
+
+    // ── GitVersionStrategy ──────────────────────────────────────────────────
+
+    #[test]
+    fn test_git_normalize() {
+        let strategy = GitVersionStrategy::new();
+        assert_eq!(strategy.normalize("2.53.0.windows.1"), "2.53.0");
+        assert_eq!(strategy.normalize("v2.53.0.windows.1"), "2.53.0");
+        assert_eq!(strategy.normalize("2.47.1.windows.2"), "2.47.1");
+        assert_eq!(strategy.normalize("2.53.0"), "2.53.0");
+    }
+
+    #[test]
+    fn test_git_select_best_match_exact() {
+        let strategy = GitVersionStrategy::new();
+        let available = vec![
+            make_version_info("2.52.0.windows.1"),
+            make_version_info("2.53.0.windows.1"),
+            make_version_info("2.53.0.windows.2"),
+            make_version_info("2.54.0.windows.1"),
+        ];
+        // "2.53.0" should match "2.53.0.windows.2" (latest windows build)
+        let result = strategy.select_best_match(
+            &VersionConstraint::Exact(Version::new(2, 53, 0)),
+            &available,
+        );
+        assert_eq!(result.unwrap().version_string(), "2.53.0.windows.2");
+    }
+
+    #[test]
+    fn test_git_select_best_match_partial() {
+        let strategy = GitVersionStrategy::new();
+        let available = vec![
+            make_version_info("2.52.0.windows.1"),
+            make_version_info("2.53.0.windows.1"),
+            make_version_info("2.53.1.windows.1"),
+            make_version_info("2.54.0.windows.1"),
+        ];
+        // "2.53" should match "2.53.1.windows.1" (latest 2.53.x)
+        let result = strategy.select_best_match(
+            &VersionConstraint::Partial {
+                major: 2,
+                minor: 53,
+            },
+            &available,
+        );
+        assert_eq!(result.unwrap().version_string(), "2.53.1.windows.1");
+    }
+
+    #[test]
+    fn test_git_select_best_match_latest() {
+        let strategy = GitVersionStrategy::new();
+        let available = vec![
+            make_version_info("2.52.0.windows.1"),
+            make_version_info("2.53.0.windows.1"),
+            make_version_info("2.54.0.windows.1"),
+        ];
+        let result = strategy.select_best_match(&VersionConstraint::Latest, &available);
+        assert_eq!(result.unwrap().version_string(), "2.54.0.windows.1");
+    }
+}
+
+mod request_parse_tests {
+    use super::*;
+
+    #[test]
+    fn test_parse_latest_aliases() {
+        for alias in &["latest", "stable", "lts"] {
+            let req = VersionRequest::parse(*alias);
+            assert!(
+                matches!(req.constraint, VersionConstraint::Latest),
+                "{alias} should parse as Latest"
+            );
+        }
+    }
+
+    #[test]
+    fn test_parse_exact() {
+        let req = VersionRequest::parse("3.11.11");
+        if let VersionConstraint::Exact(v) = req.constraint {
+            assert_eq!((v.major, v.minor, v.patch), (3, 11, 11));
+        } else {
+            panic!("Expected Exact");
+        }
+    }
+
+    #[test]
+    fn test_parse_compatible_release_pep440() {
+        // ~=3.11.0 → CompatibleRelease (Python PEP 440), NOT Tilde
+        let req = VersionRequest::parse("~=3.11.0");
+        assert!(
+            matches!(req.constraint, VersionConstraint::CompatibleRelease { .. }),
+            "~=3.11.0 should parse as CompatibleRelease, got {:?}",
+            req.constraint
+        );
+    }
+
+    #[test]
+    fn test_parse_tilde_semver() {
+        // ~1.2.3 → Tilde (semver)
+        let req = VersionRequest::parse("~1.2.3");
+        assert!(matches!(req.constraint, VersionConstraint::Tilde(_)));
+    }
+}
