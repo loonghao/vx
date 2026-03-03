@@ -56,7 +56,7 @@ impl RuntimeMap {
                 .unwrap_or_default();
 
             for runtime in &manifest.runtimes {
-                let spec = Self::runtime_def_to_spec(runtime, ecosystem.clone());
+                let spec = Self::runtime_def_to_spec(runtime, ecosystem);
                 // Store the original RuntimeDef for version-specific constraint queries
                 map.runtime_defs
                     .insert(runtime.name.clone(), runtime.clone());

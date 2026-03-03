@@ -37,12 +37,11 @@ use tracing::{debug, warn};
 /// on the system PATH but reside in well-known directories.
 pub fn find_first_glob_match(patterns: &[String]) -> Option<PathBuf> {
     for pattern in patterns {
-        if let Ok(mut paths) = glob::glob(pattern) {
-            if let Some(Ok(path)) = paths.next() {
-                if path.exists() {
-                    return Some(path);
-                }
-            }
+        if let Ok(mut paths) = glob::glob(pattern)
+            && let Some(Ok(path)) = paths.next()
+            && path.exists()
+        {
+            return Some(path);
         }
     }
     None
@@ -426,7 +425,7 @@ impl Runtime for ManifestDrivenRuntime {
     }
 
     fn ecosystem(&self) -> Ecosystem {
-        self.ecosystem_override.clone().unwrap_or(Ecosystem::System)
+        self.ecosystem_override.unwrap_or(Ecosystem::System)
     }
 
     fn supported_platforms(&self) -> Vec<crate::platform::Platform> {
@@ -579,40 +578,9 @@ impl Runtime for ManifestDrivenRuntime {
             // Before falling back to system PATH, try system_paths glob patterns.
             // This handles tools like `csc` that are bundled with MSVC but live in
             // well-known directories that are NOT on the system PATH.
-            if !self.system_paths.is_empty() {
-                if let Some(found) = find_first_glob_match(&self.system_paths) {
-                    debug!(
-                        "Found {} via system_paths glob at {}",
-                        self.name,
-                        found.display()
-                    );
-                    return Ok(crate::ExecutionPrep {
-                        executable_override: Some(found),
-                        proxy_ready: true,
-                        message: Some(format!(
-                            "Using {} from system installation (via system_paths)",
-                            self.name
-                        )),
-                        ..Default::default()
-                    });
-                }
-            }
-
-            return Ok(crate::ExecutionPrep {
-                use_system_path: true,
-                message: Some(format!(
-                    "{} not found in {} installation, trying system PATH",
-                    self.name, parent
-                )),
-                ..Default::default()
-            });
-        }
-
-        // Non-bundled runtime: try system_paths glob patterns before giving up.
-        // This handles system-installed tools (e.g. MSVC cl.exe) that are not on PATH
-        // but reside in well-known directories defined in system_paths.
-        if !self.system_paths.is_empty() {
-            if let Some(found) = find_first_glob_match(&self.system_paths) {
+            if !self.system_paths.is_empty()
+                && let Some(found) = find_first_glob_match(&self.system_paths)
+            {
                 debug!(
                     "Found {} via system_paths glob at {}",
                     self.name,
@@ -628,6 +596,37 @@ impl Runtime for ManifestDrivenRuntime {
                     ..Default::default()
                 });
             }
+
+            return Ok(crate::ExecutionPrep {
+                use_system_path: true,
+                message: Some(format!(
+                    "{} not found in {} installation, trying system PATH",
+                    self.name, parent
+                )),
+                ..Default::default()
+            });
+        }
+
+        // Non-bundled runtime: try system_paths glob patterns before giving up.
+        // This handles system-installed tools (e.g. MSVC cl.exe) that are not on PATH
+        // but reside in well-known directories defined in system_paths.
+        if !self.system_paths.is_empty()
+            && let Some(found) = find_first_glob_match(&self.system_paths)
+        {
+            debug!(
+                "Found {} via system_paths glob at {}",
+                self.name,
+                found.display()
+            );
+            return Ok(crate::ExecutionPrep {
+                executable_override: Some(found),
+                proxy_ready: true,
+                message: Some(format!(
+                    "Using {} from system installation (via system_paths)",
+                    self.name
+                )),
+                ..Default::default()
+            });
         }
 
         Ok(crate::ExecutionPrep::default())
