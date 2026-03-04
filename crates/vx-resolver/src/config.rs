@@ -7,8 +7,21 @@ use serde::{Deserialize, Serialize};
 use std::time::Duration;
 use vx_runtime::CacheMode;
 
-/// Default resolution cache TTL (15 minutes)
-pub const DEFAULT_RESOLUTION_CACHE_TTL: Duration = Duration::from_secs(15 * 60);
+/// Default resolution cache TTL (24 hours).
+///
+/// The resolution cache already has an exe-existence guard: if the cached
+/// executable path no longer exists on disk the entry is treated as a miss and
+/// the full resolution pipeline runs again.  This means the *effective*
+/// invalidation triggers are:
+///
+/// 1. Executable deleted / moved (exe-existence check → instant invalidation)
+/// 2. `vx.lock` or `vx.toml` changed (different content-hash in cache key → miss)
+/// 3. vx binary upgraded (different `vx_version` in cache key → miss)
+/// 4. TTL expired (safety net after 24 h)
+///
+/// 24 h is therefore safe: on a typical work-day you never wait longer than a
+/// single invocation for a tool that is already installed.
+pub const DEFAULT_RESOLUTION_CACHE_TTL: Duration = Duration::from_secs(24 * 60 * 60);
 
 /// Configuration for the resolver
 #[derive(Debug, Clone, Serialize, Deserialize)]
