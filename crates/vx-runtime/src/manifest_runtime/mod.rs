@@ -31,15 +31,19 @@ use anyhow::Result;
 use async_trait::async_trait;
 use tracing::{debug, warn};
 
-/// Search a list of glob patterns and return the first matching path.
+/// Search a list of glob patterns and return the first matching **file** path.
 ///
 /// Used to locate system-installed tools (e.g. MSVC `cl.exe`) that are not
 /// on the system PATH but reside in well-known directories.
+///
+/// Only returns paths that are regular files (not directories). This prevents
+/// mistakenly treating a directory such as `C:/Program Files/7-Zip` as an
+/// executable when the glob pattern matches the directory itself.
 pub fn find_first_glob_match(patterns: &[String]) -> Option<PathBuf> {
     for pattern in patterns {
         if let Ok(mut paths) = glob::glob(pattern)
             && let Some(Ok(path)) = paths.next()
-            && path.exists()
+            && path.is_file()
         {
             return Some(path);
         }
@@ -651,19 +655,68 @@ impl Runtime for ManifestDrivenRuntime {
         }])
     }
 
-    async fn is_installed(&self, _version: &str, _ctx: &RuntimeContext) -> Result<bool> {
-        // First try PATH lookup
+    async fn is_installed(&self, version: &str, ctx: &RuntimeContext) -> Result<bool> {
+        // 1. Check the vx-managed store first.
+        //    Tools installed via `vx install` live in ~/.vx/store/<name>/<version>/
+        //    and may NOT be on the system PATH, so which::which() would give a false
+        //    negative.  Checking the store first avoids redundant install() calls on
+        //    every `vx <tool>` invocation for already-installed tools.
+        let runtime_dir = ctx.paths.runtime_store_dir(&self.name);
+        if runtime_dir.exists() {
+            if version == "latest" {
+                // Any version directory present → tool is installed.
+                let has_version = std::fs::read_dir(&runtime_dir)
+                    .ok()
+                    .map(|entries| entries.filter_map(|e| e.ok()).any(|e| e.path().is_dir()))
+                    .unwrap_or(false);
+                if has_version {
+                    return Ok(true);
+                }
+            } else if runtime_dir.join(version).is_dir() {
+                // Specific version directory exists → that version is installed.
+                return Ok(true);
+            }
+        }
+
+        // 2. Fall back to PATH lookup (system-installed tools, e.g. installed by brew/choco).
         if which::which(&self.executable).is_ok() {
             return Ok(true);
         }
-        // Fall back to system_paths glob search (for tools like MSVC cl.exe not on PATH)
+
+        // 3. Fall back to system_paths glob search (for tools like MSVC cl.exe not on PATH).
         if !self.system_paths.is_empty() {
             return Ok(find_first_glob_match(&self.system_paths).is_some());
         }
+
         Ok(false)
     }
 
-    async fn installed_versions(&self, _ctx: &RuntimeContext) -> Result<Vec<String>> {
+    async fn installed_versions(&self, ctx: &RuntimeContext) -> Result<Vec<String>> {
+        // 1. Check the vx-managed store first.
+        //    Tools installed via `vx install` live in ~/.vx/store/<name>/<version>/
+        //    and may not be on the system PATH yet.  Checking the store prevents
+        //    companion tools (e.g. uv, prek) from being auto-reinstalled every time
+        //    the project environment is prepared.
+        let runtime_dir = ctx.paths.runtime_store_dir(&self.name);
+        if runtime_dir.exists() {
+            let mut versions: Vec<String> = std::fs::read_dir(&runtime_dir)
+                .ok()
+                .map(|entries| {
+                    entries
+                        .filter_map(|e| e.ok())
+                        .filter(|e| e.path().is_dir())
+                        .filter_map(|e| e.file_name().into_string().ok())
+                        .collect()
+                })
+                .unwrap_or_default();
+            if !versions.is_empty() {
+                // Newest first – mirrors the convention used by ProviderHandle.
+                versions.sort_by(|a, b| b.cmp(a));
+                return Ok(versions);
+            }
+        }
+
+        // 2. Fall back to system PATH detection.
         if which::which(&self.executable).is_ok() {
             if let Ok(Some(version)) = detection::detect_version(
                 &self.executable,
