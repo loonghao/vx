@@ -215,7 +215,7 @@ impl StarlarkProvider {
             );
         }
 
-        info!("Loaded built-in Starlark provider: {}", provider.meta.name);
+        debug!("Loaded built-in Starlark provider: {}", provider.meta.name);
         Ok(provider)
     }
 
