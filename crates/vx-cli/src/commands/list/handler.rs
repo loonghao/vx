@@ -95,6 +95,9 @@ async fn list_system_tools(
             });
         }
 
+        // Sort alphabetically (a-z) for consistent output
+        runtimes.sort_by(|a, b| a.name.cmp(&b.name));
+
         let output = ListOutput {
             runtimes,
             total: discovery.available.len(),
@@ -437,6 +440,9 @@ async fn list_all_tools(
     }
 
     drop(reg);
+
+    // Sort tools alphabetically (a-z) for consistent, predictable output
+    runtimes.sort_by(|a, b| a.name.cmp(&b.name));
 
     let renderer = OutputRenderer::new(format);
     let runtimes_count = runtimes.len();
