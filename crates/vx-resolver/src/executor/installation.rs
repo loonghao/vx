@@ -11,7 +11,7 @@ use super::pipeline::error::EnsureError;
 use super::project_config::ProjectToolsConfig;
 use crate::{Resolver, ResolverConfig, Result};
 use tracing::{debug, info, warn};
-use vx_console::ProgressSpinner;
+use vx_console::{ProgressSpinner, println_above_bars};
 use vx_runtime::{InstallResult, ProviderRegistry, RuntimeContext};
 
 /// Maximum number of version fallback attempts when installation fails
@@ -134,6 +134,10 @@ impl<'a> InstallationManager<'a> {
                 };
 
                 info!("Installing {} {} via provider", runtime_name, version);
+                // Show a visible status message so the user sees progress during
+                // the CDN-optimisation and download phases (these can take several
+                // seconds with no other terminal output).
+                println_above_bars(format!("⬇  Installing {}@{}...", runtime_name, version));
 
                 match self
                     .try_install_version(runtime_name, &version, context)
@@ -461,6 +465,12 @@ impl<'a> InstallationManager<'a> {
             "Auto-installing {} {} (requested: {})",
             runtime_name, resolved_version, requested_version
         );
+        // Always show a visible line so the user doesn't perceive a hang
+        // while the CDN-optimization and download phases are in progress.
+        println_above_bars(format!(
+            "⬇  Installing {}@{}...",
+            runtime_name, resolved_version
+        ));
 
         // Check for and install dependencies first
         self.install_dependencies_for_version(runtime_name, &resolved_version)
