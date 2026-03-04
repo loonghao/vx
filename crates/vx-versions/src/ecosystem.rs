@@ -7,7 +7,11 @@ use serde::{Deserialize, Serialize};
 use std::fmt;
 
 /// Ecosystem represents a family of related runtimes and tools
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Default)]
+///
+/// Serialization always uses lowercase (e.g. `"generic"`).
+/// Deserialization is case-insensitive so that older lock files that used
+/// PascalCase (e.g. `"Generic"`, `"NodeJs"`) continue to parse correctly.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Default)]
 #[serde(rename_all = "lowercase")]
 pub enum Ecosystem {
     /// Node.js ecosystem (node, npm, npx, yarn, pnpm, bun)
@@ -102,6 +106,20 @@ impl std::str::FromStr for Ecosystem {
             // Fallback: unknown ecosystems map to System
             _ => Ok(Self::System),
         }
+    }
+}
+
+impl<'de> Deserialize<'de> for Ecosystem {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        // Deserialize as a raw string then parse via FromStr (which lowercases first).
+        // This makes the TOML/JSON representation case-insensitive so that older
+        // lock files written with PascalCase (e.g. "Generic", "NodeJs") continue
+        // to deserialize correctly alongside the current lowercase convention.
+        let s = String::deserialize(deserializer)?;
+        s.parse::<Ecosystem>().map_err(serde::de::Error::custom)
     }
 }
 
