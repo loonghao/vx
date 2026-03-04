@@ -467,19 +467,40 @@ impl<'a> Stage<ResolveRequest, ExecutionPlan> for ResolveStage<'a> {
             // The EnsureStage or the pipeline orchestrator decides whether to fail.
         }
 
-        // Step 5: Cache the resolution result (only when supported platform, so hits are clean)
-        if let (Some(cache), Some(key)) = (self.resolution_cache, &cache_key) {
-            if let Err(e) = cache.set(key, &resolution) {
-                debug!(
-                    "[ResolveStage] Failed to write resolution cache for {}: {}",
-                    input.runtime_name, e
-                );
-            } else {
-                debug!(
-                    "[ResolveStage] Resolution cached for {}",
-                    input.runtime_name
-                );
+        // Step 5: Cache the resolution result.
+        //
+        // Only cache results where the primary runtime is already installed and
+        // all dependencies are satisfied.  A `NeedsInstall` result is a transient,
+        // pre-installation snapshot: once the EnsureStage installs the tool the
+        // cached answer would be stale and every subsequent run would still enter
+        // the (now fast-path) EnsureStage unnecessarily.
+        //
+        // By not caching NeedsInstall results we ensure that:
+        //   run 1  (tool absent)  → cache miss → resolve → NeedsInstall → install
+        //   run 2  (tool present) → cache miss → resolve → Installed    → cache ✅
+        //   run 3+ (tool present) → cache hit  → Installed              → skip EnsureStage ✅
+        let is_fully_installed =
+            !resolution.runtime_needs_install && resolution.missing_dependencies.is_empty();
+
+        if is_fully_installed {
+            if let (Some(cache), Some(key)) = (self.resolution_cache, &cache_key) {
+                if let Err(e) = cache.set(key, &resolution) {
+                    debug!(
+                        "[ResolveStage] Failed to write resolution cache for {}: {}",
+                        input.runtime_name, e
+                    );
+                } else {
+                    debug!(
+                        "[ResolveStage] Resolution cached for {} (Installed)",
+                        input.runtime_name
+                    );
+                }
             }
+        } else {
+            debug!(
+                "[ResolveStage] Skipping cache write for {} — runtime or deps need install",
+                input.runtime_name
+            );
         }
 
         // Step 6: Build the ExecutionPlan
