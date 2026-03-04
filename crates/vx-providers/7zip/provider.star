@@ -30,13 +30,20 @@ ecosystem   = "system"
 
 runtimes = [
     runtime_def("7zip",
+        # The actual binary is "7z" (not "7zip") — used for which() lookup
+        executable   = "7z",
         aliases      = ["7z", "7za", "7zz"],
+        # system_paths must point to the actual executable file, not a directory.
+        # glob patterns are used so version-specific paths (e.g. VS 20XX) are covered.
         system_paths = [
-            "C:/Program Files/7-Zip",
-            "C:/Program Files (x86)/7-Zip",
-            "/usr/bin",
-            "/usr/local/bin",
-            "/opt/homebrew/bin",
+            "C:/Program Files/7-Zip/7z.exe",
+            "C:/Program Files (x86)/7-Zip/7z.exe",
+            "/usr/bin/7zz",
+            "/usr/bin/7z",
+            "/usr/local/bin/7zz",
+            "/usr/local/bin/7z",
+            "/opt/homebrew/bin/7zz",
+            "/opt/homebrew/bin/7z",
         ],
         test_commands = [
             {"command": "{executable} --version", "name": "version_check"},
