@@ -90,6 +90,16 @@ pub type InstallLayoutFn = Arc<
         + Sync,
 >;
 
+/// Type alias for an async `deps(version)` function injected from Starlark providers.
+pub type DepsFn = Arc<
+    dyn Fn(
+            String,
+        ) -> std::pin::Pin<
+            Box<dyn std::future::Future<Output = Result<Vec<crate::RuntimeDependency>>> + Send>,
+        > + Send
+        + Sync,
+>;
+
 /// A runtime driven by manifest configuration (`provider.star`).
 ///
 /// For Starlark-driven providers, the `fetch_versions_fn`, `download_url_fn`, and
@@ -116,8 +126,11 @@ pub struct ManifestDrivenRuntime {
     pub download_url_fn: Option<DownloadUrlFn>,
     /// Optional Starlark-driven `install_layout` implementation.
     pub install_layout_fn: Option<InstallLayoutFn>,
+    /// Optional Starlark-driven `deps(version)` implementation.
+    pub deps_fn: Option<DepsFn>,
     /// Optional pip package name for Python-based tools.
     pub pip_package: Option<String>,
+
     /// Shells provided by this runtime (RFC 0038).
     pub shells: Vec<ShellDefinition>,
     /// Platform OS constraint (e.g. `["macos"]` for macOS-only tools).
@@ -141,6 +154,7 @@ impl std::fmt::Debug for ManifestDrivenRuntime {
                 "fetch_versions_fn",
                 &self.fetch_versions_fn.as_ref().map(|_| "<fn>"),
             )
+            .field("deps_fn", &self.deps_fn.as_ref().map(|_| "<fn>"))
             .finish()
     }
 }
@@ -175,7 +189,9 @@ impl ManifestDrivenRuntime {
             fetch_versions_fn: None,
             download_url_fn: None,
             install_layout_fn: None,
+            deps_fn: None,
             pip_package: None,
+
             shells: Vec::new(),
             platform_os: Vec::new(),
             system_paths: Vec::new(),
@@ -336,6 +352,21 @@ impl ManifestDrivenRuntime {
         self
     }
 
+    /// Inject a Starlark-driven `deps(version)` implementation.
+    pub fn with_deps_fn<F>(mut self, f: F) -> Self
+    where
+        F: Fn(
+                String,
+            ) -> std::pin::Pin<
+                Box<dyn std::future::Future<Output = Result<Vec<crate::RuntimeDependency>>> + Send>,
+            > + Send
+            + Sync
+            + 'static,
+    {
+        self.deps_fn = Some(Arc::new(f));
+        self
+    }
+
     /// Inject a Starlark-driven `install_layout` implementation.
     pub fn with_install_layout<F>(mut self, f: F) -> Self
     where
@@ -464,6 +495,17 @@ impl Runtime for ManifestDrivenRuntime {
             meta.insert("bundled_with".to_string(), bundled.clone());
         }
         meta
+    }
+
+    async fn versioned_dependencies(
+        &self,
+        version: &str,
+        _ctx: &crate::RuntimeContext,
+    ) -> Result<Vec<crate::RuntimeDependency>> {
+        match &self.deps_fn {
+            Some(f) => f(version.to_string()).await,
+            None => Ok(vec![]),
+        }
     }
 
     fn mirror_urls(&self) -> Vec<MirrorConfig> {

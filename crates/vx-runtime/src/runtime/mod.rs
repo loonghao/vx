@@ -158,6 +158,18 @@ pub trait Runtime: Send + Sync {
         &[]
     }
 
+    /// Version-aware dependencies resolved at runtime.
+    ///
+    /// This is used for providers whose dependency rules depend on the selected
+    /// version in `provider.star::deps(ctx, version)`.
+    async fn versioned_dependencies(
+        &self,
+        _version: &str,
+        _ctx: &RuntimeContext,
+    ) -> Result<Vec<RuntimeDependency>> {
+        Ok(vec![])
+    }
+
     /// Additional metadata
     fn metadata(&self) -> HashMap<String, String> {
         HashMap::new()

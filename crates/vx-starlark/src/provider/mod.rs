@@ -415,10 +415,22 @@ impl StarlarkProvider {
     ///
     /// Returns an empty list if `deps()` is not defined in provider.star.
     pub async fn deps(&self, version: &str) -> Result<Vec<serde_json::Value>> {
-        let ctx = ProviderContext::new(&self.meta.name, self.vx_home.clone())
+        self.deps_for_runtime(version, None).await
+    }
+
+    /// Call the `deps(ctx, version)` function for a specific runtime within a multi-runtime provider.
+    pub async fn deps_for_runtime(
+        &self,
+        version: &str,
+        runtime_name: Option<&str>,
+    ) -> Result<Vec<serde_json::Value>> {
+        let mut ctx = ProviderContext::new(&self.meta.name, self.vx_home.clone())
             .with_description(&self.meta.description)
             .with_sandbox(self.sandbox.clone())
             .with_version(version);
+        if let Some(name) = runtime_name {
+            ctx = ctx.with_runtime_name(name);
+        }
         self.execute_deps(&ctx, version).await
     }
 

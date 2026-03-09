@@ -5,7 +5,7 @@
 
 use rstest::rstest;
 use vx_manifest::ProviderManifest;
-use vx_resolver::{Ecosystem, RuntimeMap};
+use vx_resolver::{Ecosystem, RuntimeDependency, RuntimeMap};
 
 /// Helper function to create a RuntimeMap from test manifests
 fn create_test_runtime_map() -> RuntimeMap {
@@ -355,4 +355,28 @@ fn test_extract_min_version() {
     );
     assert_eq!(RuntimeMap::extract_min_version("*"), None);
     assert_eq!(RuntimeMap::extract_min_version("<20"), None);
+}
+
+#[test]
+fn test_parse_version_bounds_handles_exclusive_upper_bound() {
+    let (min, max) = RuntimeMap::parse_version_bounds(">=12, <23");
+    assert_eq!(min, Some("12".to_string()));
+
+    let dep = RuntimeDependency::required("node", "exclusive upper bound")
+        .with_min_version(min.unwrap())
+        .with_max_version(max.expect("expected converted max version"));
+
+    assert!(dep.is_version_compatible("12.0.0"));
+    assert!(dep.is_version_compatible("22.99.99"));
+    assert!(!dep.is_version_compatible("23.0.0"));
+}
+
+#[test]
+fn test_parse_version_bounds_handles_exclusive_minor_upper_bound() {
+    let (_, max) = RuntimeMap::parse_version_bounds("<23.5");
+    let dep = RuntimeDependency::required("node", "exclusive minor upper bound")
+        .with_max_version(max.expect("expected converted max version"));
+
+    assert!(dep.is_version_compatible("23.4.9"));
+    assert!(!dep.is_version_compatible("23.5.0"));
 }

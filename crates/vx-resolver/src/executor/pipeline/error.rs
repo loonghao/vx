@@ -31,6 +31,9 @@ pub enum ResolveError {
     #[error("failed to resolve version for {runtime}: {reason}")]
     ResolutionFailed { runtime: String, reason: String },
 
+    #[error("incompatible dependencies: {details}")]
+    IncompatibleDependencies { details: String },
+
     #[error("--with dependency '{runtime}' is not a known runtime. Available: {available}")]
     UnknownWithDependency { runtime: String, available: String },
 

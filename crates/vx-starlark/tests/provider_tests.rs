@@ -143,6 +143,52 @@ runtimes = [
     assert_eq!(runtimes[0].aliases, vec!["nodejs", "node-js"]);
 }
 
+#[tokio::test]
+async fn test_deps_for_runtime_uses_runtime_name_context() {
+    let content = r#"
+name = "multi-tool"
+description = "Multi runtime provider"
+
+runtimes = [
+    {"name": "foo", "executable": "foo"},
+    {"name": "bar", "executable": "bar"},
+]
+
+def deps(ctx, _version):
+    if ctx.runtime_name == "foo":
+        return [{"runtime": "node", "version": ">=18", "reason": "foo requires node"}]
+    if ctx.runtime_name == "bar":
+        return [{"runtime": "uv", "reason": "bar requires uv"}]
+    return [{"runtime": "git", "reason": "provider-level fallback"}]
+"#;
+    let provider = StarlarkProvider::from_content("multi-tool", content)
+        .await
+        .unwrap();
+
+    let foo_deps = provider
+        .deps_for_runtime("1.0.0", Some("foo"))
+        .await
+        .unwrap();
+    let bar_deps = provider
+        .deps_for_runtime("1.0.0", Some("bar"))
+        .await
+        .unwrap();
+    let fallback_deps = provider.deps("1.0.0").await.unwrap();
+
+    assert_eq!(
+        foo_deps[0].get("runtime").and_then(|v| v.as_str()),
+        Some("node")
+    );
+    assert_eq!(
+        bar_deps[0].get("runtime").and_then(|v| v.as_str()),
+        Some("uv")
+    );
+    assert_eq!(
+        fallback_deps[0].get("runtime").and_then(|v| v.as_str()),
+        Some("git")
+    );
+}
+
 // ============================================================
 // ProviderMeta tests
 // ============================================================

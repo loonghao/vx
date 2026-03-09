@@ -19,6 +19,48 @@ dev = "pnpm dev"
 build = "pnpm build"
 test = "pnpm test && uv run pytest"
 lint = "pnpm lint && uv run ruff check ."
+typecheck = "pnpm typecheck && uv run mypy ."
+
+[scripts.self-check]
+command = "echo '✅ self-check completed'"
+description = "Alias entrypoint for full self-check pipeline"
+depends = ["self-check:full"]
+
+[scripts."self-check:quick"]
+
+command = "echo '✅ quick checks passed'"
+description = "Run lint + typecheck checks"
+depends = ["lint", "typecheck"]
+
+[scripts."self-check:build"]
+command = "echo '✅ build checks passed'"
+description = "Run quick checks and build validation"
+depends = ["self-check:quick", "build"]
+
+[scripts."self-check:test"]
+command = "echo '✅ test checks passed'"
+description = "Run test checks"
+depends = ["test"]
+
+[scripts."self-check:i18n"]
+command = "echo '⏭️ i18n checks are not configured by default'"
+description = "Optional i18n check placeholder for locale projects"
+
+[scripts."self-check:ext"]
+command = "echo '⏭️ extension checks are not configured by default'"
+description = "Optional extension system check placeholder"
+
+[scripts."self-check:full"]
+command = "echo '🎉 self-check full pipeline passed'"
+description = "Run all self-check scopes for fullstack projects"
+depends = [
+  "self-check:quick",
+  "self-check:build",
+  "self-check:test",
+  "self-check:i18n",
+  "self-check:ext",
+]
+
 
 [hooks]
 post_setup = ["pnpm install", "uv sync"]

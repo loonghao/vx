@@ -109,6 +109,10 @@ pub struct ResolutionResult {
     /// Dependencies that are installed but don't meet version constraints
     pub incompatible_dependencies: Vec<IncompatibleDependency>,
 
+    /// Full dependency requirements collected during resolution.
+    #[serde(default)]
+    pub dependency_requirements: Vec<RuntimeDependency>,
+
     /// Runtimes that are not supported on the current platform
     pub unsupported_platform_runtimes: Vec<UnsupportedPlatformRuntime>,
 }
@@ -379,10 +383,13 @@ impl Resolver {
         let mut missing_deps = Vec::new();
         let mut install_order = Vec::new();
         let mut incompatible_deps = Vec::new();
+        let mut dependency_requirements = Vec::new();
 
         if let Some(spec) = spec {
             // Check each required dependency
             for dep in spec.required_dependencies() {
+                dependency_requirements.push(dep.clone());
+
                 let dep_name = dep.provided_by.as_deref().unwrap_or(&dep.runtime_name);
 
                 // Note: Platform compatibility checking for dependencies is done at the CLI layer
@@ -487,6 +494,7 @@ impl Resolver {
             install_order,
             runtime_needs_install,
             incompatible_dependencies: incompatible_deps,
+            dependency_requirements,
             unsupported_platform_runtimes,
         })
     }
@@ -710,6 +718,123 @@ impl Resolver {
             None => {
                 trace!("{} {} not in store", runtime_name, version);
                 None
+            }
+        }
+    }
+
+    /// Merge additional dependency requirements into an existing resolution.
+    ///
+    /// This is used for version-aware dependencies discovered outside the static
+    /// `RuntimeMap`, such as provider.star `deps(ctx, version)` hooks.
+    pub fn merge_additional_dependencies(
+        &self,
+        runtime_name: &str,
+        resolution: &mut ResolutionResult,
+        deps: impl IntoIterator<Item = RuntimeDependency>,
+    ) {
+        for dep in deps {
+            let dep_name = dep
+                .provided_by
+                .as_deref()
+                .unwrap_or(&dep.runtime_name)
+                .to_string();
+
+            if let Some(existing) = resolution
+                .dependency_requirements
+                .iter_mut()
+                .find(|existing| {
+                    existing.runtime_name == dep.runtime_name
+                        && existing.provided_by == dep.provided_by
+                })
+            {
+                if existing.min_version.is_none() {
+                    existing.min_version = dep.min_version.clone();
+                }
+                if existing.max_version.is_none() {
+                    existing.max_version = dep.max_version.clone();
+                }
+                if existing.recommended_version.is_none() {
+                    existing.recommended_version = dep.recommended_version.clone();
+                }
+                if existing.reason.is_empty() && !dep.reason.is_empty() {
+                    existing.reason = dep.reason.clone();
+                }
+                existing.required |= dep.required;
+            } else {
+                resolution.dependency_requirements.push(dep.clone());
+            }
+
+            if !dep.required {
+                continue;
+            }
+
+            if resolution
+                .incompatible_dependencies
+                .iter()
+                .any(|existing| existing.runtime_name == dep_name)
+            {
+                continue;
+            }
+
+            if resolution
+                .missing_dependencies
+                .iter()
+                .any(|existing| existing == &dep_name)
+            {
+                continue;
+            }
+
+            match self.check_runtime_status(&dep_name) {
+                RuntimeStatus::VxManaged { version, .. } => {
+                    if !dep.is_version_compatible(&version) {
+                        resolution
+                            .incompatible_dependencies
+                            .push(IncompatibleDependency {
+                                runtime_name: dep_name,
+                                current_version: Some(version),
+                                constraint: dep,
+                                recommended_version: None,
+                            });
+                    }
+                }
+                RuntimeStatus::SystemAvailable { path } => {
+                    if let Some(system_version) = self.get_system_runtime_version(&dep_name, &path)
+                        && !dep.is_version_compatible(&system_version)
+                    {
+                        resolution
+                            .incompatible_dependencies
+                            .push(IncompatibleDependency {
+                                runtime_name: dep_name,
+                                current_version: Some(system_version),
+                                constraint: dep,
+                                recommended_version: None,
+                            });
+                    }
+                }
+                RuntimeStatus::NotInstalled | RuntimeStatus::Unknown => {
+                    resolution.missing_dependencies.push(dep_name);
+                }
+            }
+        }
+
+        resolution.missing_dependencies.sort();
+        resolution.missing_dependencies.dedup();
+
+        if !resolution.missing_dependencies.is_empty() {
+            resolution.install_order = self.get_install_order(&resolution.missing_dependencies);
+            if resolution.runtime_needs_install {
+                let resolved_name = self
+                    .runtime_map
+                    .resolve_name(runtime_name)
+                    .unwrap_or(runtime_name)
+                    .to_string();
+                if !resolution
+                    .install_order
+                    .iter()
+                    .any(|name| name == &resolved_name)
+                {
+                    resolution.install_order.push(resolved_name);
+                }
             }
         }
     }
