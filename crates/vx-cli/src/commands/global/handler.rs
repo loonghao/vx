@@ -120,8 +120,9 @@ fn get_required_runtime_for_ecosystem(ecosystem: &str) -> Option<&'static str> {
         // Node.js ecosystem requires node (which provides npm)
         "npm" | "node" | "yarn" | "pnpm" | "bun" => Some("node"),
         // Python ecosystem requires uv or python
-        "pip" | "python" | "pypi" => Some("uv"),
+        "pip" | "python" | "pypi" | "uvx" => Some("uv"),
         "uv" => None, // uv is self-contained
+
         // Rust ecosystem
         "cargo" | "rust" | "crates" => Some("cargo"),
         // Go ecosystem

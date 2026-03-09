@@ -171,6 +171,11 @@ fn format_resolve_error(err: &ResolveError) {
             eprintln!();
             eprintln!("  {} {}", "Available:".dimmed(), available);
         }
+        ResolveError::IncompatibleDependencies { details } => {
+            eprintln!("  {}", details.red());
+            eprintln!();
+            print_hint("Adjust requested runtime versions to satisfy dependency constraints.");
+        }
         ResolveError::Other(e) => {
             eprintln!("  {}", e);
         }

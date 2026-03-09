@@ -2,12 +2,14 @@
 
 use super::Args;
 use crate::commands::CommandContext;
+use crate::commands::global::{GlobalCommand, InstallGlobalArgs};
 use crate::ui::{ProgressSpinner, UI};
 use anyhow::Result;
 use std::env;
 use vx_paths::project::{LOCK_FILE_NAME, find_vx_config};
 use vx_resolver::{LockFile, LockedTool};
 use vx_runtime::{InstallResult, ProviderRegistry, RuntimeContext};
+use vx_starlark::provider::types::PackageAlias;
 
 /// Parse tool specification in format "tool" or "tool@version"
 fn parse_tool_spec(spec: &str) -> (&str, Option<&str>) {
@@ -20,13 +22,58 @@ fn parse_tool_spec(spec: &str) -> (&str, Option<&str>) {
 
 /// Handle install command with Args
 pub async fn handle(ctx: &CommandContext, args: &Args) -> Result<()> {
-    handle_install(
-        ctx.registry(),
-        ctx.runtime_context(),
-        &args.tools,
-        args.force,
-    )
-    .await
+    let mut success_count = 0;
+    let mut fail_count = 0;
+    let total = args.tools.len();
+    let is_multi = total > 1;
+
+    for (idx, tool_spec) in args.tools.iter().enumerate() {
+        let (tool_name, version) = parse_tool_spec(tool_spec);
+
+        if is_multi {
+            UI::section(&format!("[{}/{}] {}", idx + 1, total, tool_spec));
+        }
+
+        let result = if let Some(alias) = get_package_alias(tool_name) {
+            install_package_alias(ctx, tool_name, version, args.force, alias).await
+        } else {
+            install_single(
+                ctx.registry(),
+                ctx.runtime_context(),
+                tool_name,
+                version,
+                args.force,
+                is_multi,
+            )
+            .await
+        };
+
+        match result {
+            Ok(()) => success_count += 1,
+            Err(e) => {
+                UI::error(&format!("Failed to install {}: {}", tool_spec, e));
+                fail_count += 1;
+            }
+        }
+    }
+
+    if is_multi {
+        println!();
+        if fail_count == 0 {
+            UI::success(&format!("Successfully installed {} tool(s)", success_count));
+        } else {
+            UI::warn(&format!(
+                "Installed {} tool(s), {} failed",
+                success_count, fail_count
+            ));
+        }
+    }
+
+    if fail_count > 0 {
+        Err(anyhow::anyhow!("{} tool(s) failed to install", fail_count))
+    } else {
+        Ok(())
+    }
 }
 
 /// Legacy handle function for backwards compatibility
@@ -75,6 +122,41 @@ pub async fn handle_install(
     } else {
         Ok(())
     }
+}
+
+fn get_package_alias(tool_name: &str) -> Option<PackageAlias> {
+    let registry = vx_starlark::handle::GLOBAL_REGISTRY.try_read().ok()?;
+    let handle = registry.get(tool_name)?;
+    handle.provider_meta().package_alias.clone()
+}
+
+async fn install_package_alias(
+    ctx: &CommandContext,
+    tool_name: &str,
+    version: Option<&str>,
+    force: bool,
+    alias: PackageAlias,
+) -> Result<()> {
+    let package = match version {
+        Some(version) => format!("{}:{}@{}", alias.ecosystem, alias.package, version),
+        None => format!("{}:{}", alias.ecosystem, alias.package),
+    };
+
+    UI::info(&format!(
+        "'{}' 通过 package_alias 路由到 '{}'",
+        tool_name, package
+    ));
+
+    crate::commands::global::handle(
+        ctx,
+        &GlobalCommand::Install(InstallGlobalArgs {
+            package,
+            force,
+            verbose: ctx.verbose(),
+            extra_args: vec![],
+        }),
+    )
+    .await
 }
 
 async fn install_single(

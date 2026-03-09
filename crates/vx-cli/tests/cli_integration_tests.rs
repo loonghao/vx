@@ -763,6 +763,7 @@ node = "20"
 mod install_tests {
     use super::*;
     use vx_cli::commands::install;
+    use vx_cli::{CommandContext, GlobalOptions};
 
     #[rstest]
     #[tokio::test]
@@ -777,6 +778,38 @@ mod install_tests {
         )
         .await;
         assert!(result.is_err(), "Install nonexistent tool should fail");
+        cleanup_test_env();
+    }
+
+    #[rstest]
+    #[tokio::test]
+    async fn test_package_alias_metadata_available_for_install_routing(
+        #[future] registry: ProviderRegistry,
+    ) {
+        vx_cli::registry::init_provider_handles().await;
+
+        let registry = registry.await;
+        let ctx = CommandContext::new(registry, create_test_context(), GlobalOptions::default());
+
+        let vite = ctx
+            .get_package_alias("vite")
+            .expect("vite should expose package_alias");
+        assert_eq!(vite.ecosystem, "npm");
+        assert_eq!(vite.package, "vite");
+
+        let meson = ctx
+            .get_package_alias("meson")
+            .expect("meson should expose package_alias");
+        assert_eq!(meson.ecosystem, "uvx");
+        assert_eq!(meson.package, "meson");
+
+        let pre_commit = ctx
+            .get_package_alias("pre-commit")
+            .expect("pre-commit should expose package_alias");
+        assert_eq!(pre_commit.ecosystem, "uvx");
+        assert_eq!(pre_commit.package, "pre-commit");
+
+        assert!(ctx.get_package_alias("node").is_none());
         cleanup_test_env();
     }
 
