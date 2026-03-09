@@ -219,9 +219,117 @@ pub(super) fn make_install_layout_fn_owned(
     }
 }
 
+pub(super) fn make_deps_fn_owned(
+    provider_name: Arc<str>,
+    content: Arc<str>,
+    runtime_name: String,
+) -> impl Fn(
+    String,
+) -> std::pin::Pin<
+    Box<
+        dyn std::future::Future<Output = anyhow::Result<Vec<vx_runtime::RuntimeDependency>>> + Send,
+    >,
+> + Send
++ Sync
++ 'static {
+    move |version: String| {
+        let provider_name = Arc::clone(&provider_name);
+        let content = Arc::clone(&content);
+        let rt_name = runtime_name.clone();
+        Box::pin(async move {
+            let provider = StarlarkProvider::from_content(&*provider_name, &*content)
+                .await
+                .map_err(|e| {
+                    anyhow::anyhow!("Failed to load {} provider.star: {e}", provider_name)
+                })?;
+
+            let raw = provider
+                .deps_for_runtime(&version, Some(&rt_name))
+                .await
+                .map_err(|e| {
+                    anyhow::anyhow!("{} deps failed for {}: {e}", provider_name, rt_name)
+                })?;
+
+            Ok(raw_deps_to_runtime(raw))
+        })
+    }
+}
+
 // ---------------------------------------------------------------------------
 // Internal helpers
 // ---------------------------------------------------------------------------
+
+fn raw_deps_to_runtime(raw: Vec<serde_json::Value>) -> Vec<vx_runtime::RuntimeDependency> {
+    raw.into_iter()
+        .filter_map(|item| {
+            let name = item.get("runtime").and_then(|v| v.as_str())?.to_string();
+            let version_req = item
+                .get("version")
+                .and_then(|v| v.as_str())
+                .map(|s| s.to_string())
+                .filter(|s| !s.is_empty() && s != "*");
+            let optional = item
+                .get("optional")
+                .and_then(|v| v.as_bool())
+                .unwrap_or(false);
+            let reason = item
+                .get("reason")
+                .and_then(|v| v.as_str())
+                .map(|s| s.to_string());
+
+            let mut dep = if optional {
+                vx_runtime::RuntimeDependency::optional(name)
+            } else {
+                vx_runtime::RuntimeDependency::required(name)
+            };
+
+            if let Some(ref version_req) = version_req {
+                dep = dep.with_version(version_req.clone());
+                if let Some(min) = extract_min_version(version_req) {
+                    dep = dep.with_min_version(min);
+                }
+                if let Some(max) = extract_max_version(version_req) {
+                    dep = dep.with_max_version(max);
+                }
+            }
+
+            if let Some(reason) = reason {
+                dep = dep.with_reason(reason);
+            }
+
+            Some(dep)
+        })
+        .collect()
+}
+
+fn extract_min_version(constraint: &str) -> Option<String> {
+    for part in constraint.split(',') {
+        let part = part.trim();
+        if let Some(version) = part.strip_prefix(">=") {
+            return Some(version.trim().to_string());
+        }
+        if let Some(version) = part.strip_prefix('=') {
+            return Some(version.trim().to_string());
+        }
+        if part.chars().next().is_some_and(|c| c.is_ascii_digit()) {
+            return Some(part.to_string());
+        }
+    }
+    None
+}
+
+fn extract_max_version(constraint: &str) -> Option<String> {
+    for part in constraint.split(',') {
+        let part = part.trim();
+        if let Some(version) = part.strip_prefix("<=") {
+            return Some(version.trim().to_string());
+        }
+        if let Some(version) = part.strip_prefix('=') {
+            return Some(version.trim().to_string());
+        }
+    }
+    None
+}
 
 fn versions_to_runtime(versions: Vec<crate::context::VersionInfo>) -> Vec<vx_runtime::VersionInfo> {
     versions

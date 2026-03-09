@@ -118,11 +118,15 @@ impl RuntimeMap {
                     );
                     // Parse version constraint
                     if !req.version.is_empty() && req.version != "*" {
-                        // Try to extract min version from constraint like ">=12"
-                        if let Some(min) = Self::extract_min_version(&req.version) {
+                        let (min, max) = Self::parse_version_bounds(&req.version);
+                        if let Some(min) = min {
                             dep = dep.with_min_version(min);
                         }
+                        if let Some(max) = max {
+                            dep = dep.with_max_version(max);
+                        }
                     }
+
                     if let Some(ref recommended) = req.recommended {
                         dep = dep.with_recommended_version(recommended.clone());
                     }
@@ -179,16 +183,69 @@ impl RuntimeMap {
         spec
     }
 
-    /// Extract minimum version from a version constraint like ">=12" or ">=12, <23"
-    pub fn extract_min_version(constraint: &str) -> Option<String> {
-        // Simple parsing for common patterns
+    /// Parse version bounds from a constraint like ">=12", ">=12, <=22", or ">=12, <23".
+    pub fn parse_version_bounds(constraint: &str) -> (Option<String>, Option<String>) {
+        let mut min = None;
+        let mut max = None;
+
         for part in constraint.split(',') {
             let part = part.trim();
             if let Some(version) = part.strip_prefix(">=") {
-                return Some(version.trim().to_string());
+                min = Some(version.trim().to_string());
+                continue;
+            }
+            if let Some(version) = part.strip_prefix("<=") {
+                max = Some(version.trim().to_string());
+                continue;
+            }
+            if let Some(version) = part.strip_prefix('<') {
+                max = Self::exclusive_upper_to_inclusive(version.trim());
+                continue;
+            }
+            if let Some(version) = part.strip_prefix('=') {
+                let version = version.trim().to_string();
+                min = Some(version.clone());
+                max = Some(version);
+                continue;
+            }
+            if part.chars().next().is_some_and(|c| c.is_ascii_digit()) {
+                let version = part.to_string();
+                min = Some(version.clone());
+                max = Some(version);
             }
         }
-        None
+
+        (min, max)
+    }
+
+    fn exclusive_upper_to_inclusive(version: &str) -> Option<String> {
+        const MAX_SEGMENT: u32 = u32::MAX;
+
+        let mut parts: Vec<u32> = version
+            .split('.')
+            .map(str::trim)
+            .map(str::parse::<u32>)
+            .collect::<Result<_, _>>()
+            .ok()?;
+
+        let pivot = parts.iter().rposition(|part| *part > 0)?;
+        parts[pivot] -= 1;
+        for part in parts.iter_mut().skip(pivot + 1) {
+            *part = MAX_SEGMENT;
+        }
+        parts.push(MAX_SEGMENT);
+
+        Some(
+            parts
+                .into_iter()
+                .map(|part| part.to_string())
+                .collect::<Vec<_>>()
+                .join("."),
+        )
+    }
+
+    pub fn extract_min_version(constraint: &str) -> Option<String> {
+        Self::parse_version_bounds(constraint).0
     }
 
     /// Get the current platform name (for system_deps platform filtering)
@@ -306,11 +363,14 @@ impl RuntimeMap {
                 );
 
                 // Parse version constraint
-                if !dep_def.version.is_empty()
-                    && dep_def.version != "*"
-                    && let Some(min) = Self::extract_min_version(&dep_def.version)
-                {
-                    dep = dep.with_min_version(min);
+                if !dep_def.version.is_empty() && dep_def.version != "*" {
+                    let (min, max) = Self::parse_version_bounds(&dep_def.version);
+                    if let Some(min) = min {
+                        dep = dep.with_min_version(min);
+                    }
+                    if let Some(max) = max {
+                        dep = dep.with_max_version(max);
+                    }
                 }
 
                 if let Some(ref recommended) = dep_def.recommended {

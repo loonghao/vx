@@ -16,6 +16,7 @@ use std::path::PathBuf;
 
 use async_trait::async_trait;
 use tracing::{debug, trace};
+use vx_runtime::{ProviderRegistry, RuntimeContext};
 
 use crate::executor::project_config::ProjectToolsConfig;
 use crate::{ResolutionCache, ResolutionCacheKey, ResolutionResult, Resolver, ResolverConfig};
@@ -130,6 +131,10 @@ pub struct ResolveStage<'a> {
     /// Optional project config for version fallback
     project_config: Option<&'a ProjectToolsConfig>,
 
+    /// Optional provider registry/runtime context for version-aware deps(version)
+    registry: Option<&'a ProviderRegistry>,
+    runtime_context: Option<&'a RuntimeContext>,
+
     /// Optional runtime store base path for scanning installed versions
     #[allow(dead_code)]
     store_base: Option<PathBuf>,
@@ -143,6 +148,8 @@ impl<'a> ResolveStage<'a> {
             config,
             resolution_cache: None,
             project_config: None,
+            registry: None,
+            runtime_context: None,
             store_base: None,
         }
     }
@@ -156,6 +163,17 @@ impl<'a> ResolveStage<'a> {
     /// Set the project configuration for version fallback
     pub fn with_project_config(mut self, config: &'a ProjectToolsConfig) -> Self {
         self.project_config = Some(config);
+        self
+    }
+
+    /// Enable version-aware dependency lookup via the runtime registry.
+    pub fn with_runtime_access(
+        mut self,
+        registry: &'a ProviderRegistry,
+        runtime_context: &'a RuntimeContext,
+    ) -> Self {
+        self.registry = Some(registry);
+        self.runtime_context = Some(runtime_context);
         self
     }
 
@@ -206,6 +224,167 @@ impl<'a> ResolveStage<'a> {
         } else {
             VersionSource::InstalledLatest
         }
+    }
+
+    async fn enrich_with_versioned_dependencies(
+        &self,
+        runtime_name: &str,
+        resolved_version: Option<&str>,
+        resolution: &mut ResolutionResult,
+    ) -> Result<(), ResolveError> {
+        let (Some(registry), Some(runtime_context)) = (self.registry, self.runtime_context) else {
+            return Ok(());
+        };
+
+        let Some(runtime) = registry.get_runtime(runtime_name) else {
+            return Ok(());
+        };
+
+        let Some(version) = self
+            .resolve_dependency_version(
+                runtime_name,
+                resolved_version,
+                resolution,
+                runtime.as_ref(),
+                runtime_context,
+            )
+            .await?
+        else {
+            return Ok(());
+        };
+
+        let deps = runtime
+            .versioned_dependencies(&version, runtime_context)
+            .await
+            .map_err(|e| ResolveError::ResolutionFailed {
+                runtime: runtime_name.to_string(),
+                reason: format!(
+                    "failed to resolve version-aware dependencies for {}@{}: {}",
+                    runtime_name, version, e
+                ),
+            })?;
+
+        if deps.is_empty() {
+            return Ok(());
+        }
+
+        self.resolver.merge_additional_dependencies(
+            runtime_name,
+            resolution,
+            deps.into_iter()
+                .map(|dep| self.runtime_dependency_to_resolver(dep, runtime_name)),
+        );
+
+        Ok(())
+    }
+
+    async fn resolve_dependency_version(
+        &self,
+        runtime_name: &str,
+        resolved_version: Option<&str>,
+        resolution: &ResolutionResult,
+        runtime: &dyn vx_runtime::Runtime,
+        runtime_context: &RuntimeContext,
+    ) -> Result<Option<String>, ResolveError> {
+        if let Some(version) = resolved_version.filter(|version| !version.is_empty()) {
+            return Ok(Some(version.to_string()));
+        }
+
+        if !resolution.runtime_needs_install {
+            return runtime
+                .resolve_installed_version("latest", runtime_context)
+                .await
+                .map_err(|e| ResolveError::ResolutionFailed {
+                    runtime: runtime_name.to_string(),
+                    reason: format!(
+                        "failed to detect installed version for {}: {}",
+                        runtime_name, e
+                    ),
+                });
+        }
+
+        runtime
+            .resolve_version("latest", runtime_context)
+            .await
+            .map(Some)
+            .map_err(|e| ResolveError::ResolutionFailed {
+                runtime: runtime_name.to_string(),
+                reason: format!(
+                    "failed to resolve latest version for {}: {}",
+                    runtime_name, e
+                ),
+            })
+    }
+
+    fn runtime_dependency_to_resolver(
+        &self,
+        dep: vx_runtime::RuntimeDependency,
+        runtime_name: &str,
+    ) -> crate::RuntimeDependency {
+        let dep_name = dep.name.clone();
+        let reason = dep
+            .reason
+            .clone()
+            .unwrap_or_else(|| format!("{} requires {}", runtime_name, dep_name));
+
+        let mut resolver_dep = if dep.optional {
+            crate::RuntimeDependency::optional(dep_name, reason)
+        } else {
+            crate::RuntimeDependency::required(dep_name, reason)
+        };
+
+        if let Some(version_req) = dep
+            .version_req
+            .as_deref()
+            .filter(|version| !version.is_empty() && *version != "*")
+        {
+            let (min, max) = crate::RuntimeMap::parse_version_bounds(version_req);
+            if let Some(min) = min {
+                resolver_dep = resolver_dep.with_min_version(min);
+            }
+            if let Some(max) = max {
+                resolver_dep = resolver_dep.with_max_version(max);
+            }
+        }
+
+        if let Some(min) = dep.min_version {
+            resolver_dep = resolver_dep.with_min_version(min);
+        }
+        if let Some(max) = dep.max_version {
+            resolver_dep = resolver_dep.with_max_version(max);
+        }
+        if let Some(recommended) = dep.recommended_version {
+            resolver_dep = resolver_dep.with_recommended_version(recommended);
+        }
+
+        resolver_dep
+    }
+
+    fn ensure_compatible_dependencies(
+        &self,
+        resolution: &ResolutionResult,
+    ) -> Result<(), ResolveError> {
+        if resolution.incompatible_dependencies.is_empty() {
+            return Ok(());
+        }
+
+        let reasons: Vec<String> = resolution
+            .incompatible_dependencies
+            .iter()
+            .map(|ic| {
+                format!(
+                    "{}: current={}, recommended={:?}",
+                    ic.runtime_name,
+                    ic.current_version.as_deref().unwrap_or("?"),
+                    ic.recommended_version
+                )
+            })
+            .collect();
+        trace!("[ResolveStage] incompatible deps: {:?}", reasons);
+
+        Err(ResolveError::IncompatibleDependencies {
+            details: reasons.join("; "),
+        })
     }
 
     /// Map a `ResolutionResult` into an `ExecutionPlan`
@@ -382,7 +561,7 @@ impl<'a> Stage<ResolveRequest, ExecutionPlan> for ResolveStage<'a> {
         };
 
         if let (Some(cache), Some(key)) = (self.resolution_cache, &cache_key)
-            && let Some(cached) = cache.get(key)
+            && let Some(mut cached) = cache.get(key)
         {
             debug!(
                 "[ResolveStage] Resolution cache hit for {}",
@@ -400,12 +579,19 @@ impl<'a> Stage<ResolveRequest, ExecutionPlan> for ResolveStage<'a> {
                     current: unsupported.current_platform.clone(),
                 });
             }
+            self.enrich_with_versioned_dependencies(
+                &input.runtime_name,
+                resolved_version.as_deref(),
+                &mut cached,
+            )
+            .await?;
+            self.ensure_compatible_dependencies(&cached)?;
             return Ok(self.build_plan(&input, &cached, resolved_version.as_deref(), source));
         }
 
         // Step 3: Resolve dependencies via the Resolver
         // If an executable override is provided (e.g., msvc::cl), use it for resolution
-        let resolution = if let Some(ref exe_override) = input.executable_override {
+        let mut resolution = if let Some(ref exe_override) = input.executable_override {
             self.resolver
                 .resolve_with_executable(
                     &input.runtime_name,
@@ -424,6 +610,13 @@ impl<'a> Stage<ResolveRequest, ExecutionPlan> for ResolveStage<'a> {
                     reason: e.to_string(),
                 })?
         };
+
+        self.enrich_with_versioned_dependencies(
+            &input.runtime_name,
+            resolved_version.as_deref(),
+            &mut resolution,
+        )
+        .await?;
 
         debug!(
             "[ResolveStage] executable={}, needs_install={}, missing_deps={:?}",
@@ -449,23 +642,7 @@ impl<'a> Stage<ResolveRequest, ExecutionPlan> for ResolveStage<'a> {
         }
 
         // Step 4: Check for incompatible dependencies
-        if !resolution.incompatible_dependencies.is_empty() {
-            let reasons: Vec<String> = resolution
-                .incompatible_dependencies
-                .iter()
-                .map(|ic| {
-                    format!(
-                        "{}: current={}, recommended={:?}",
-                        ic.runtime_name,
-                        ic.current_version.as_deref().unwrap_or("?"),
-                        ic.recommended_version
-                    )
-                })
-                .collect();
-            trace!("[ResolveStage] incompatible deps: {:?}", reasons);
-            // Note: incompatible dependencies are warnings, not errors.
-            // The EnsureStage or the pipeline orchestrator decides whether to fail.
-        }
+        self.ensure_compatible_dependencies(&resolution)?;
 
         // Step 5: Cache the resolution result.
         //
@@ -703,6 +880,7 @@ mod tests {
             install_order: vec!["node".to_string()],
             runtime_needs_install: true,
             incompatible_dependencies: vec![],
+            dependency_requirements: vec![],
             unsupported_platform_runtimes: vec![],
         };
 
@@ -728,6 +906,7 @@ mod tests {
             install_order: vec![],
             runtime_needs_install: false,
             incompatible_dependencies: vec![],
+            dependency_requirements: vec![],
             unsupported_platform_runtimes: vec![],
         };
 
@@ -759,6 +938,7 @@ mod tests {
             install_order: vec!["node".to_string(), "npm".to_string()],
             runtime_needs_install: true,
             incompatible_dependencies: vec![],
+            dependency_requirements: vec![],
             unsupported_platform_runtimes: vec![],
         };
 

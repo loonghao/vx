@@ -205,6 +205,9 @@ impl<'a> Executor<'a> {
         if let Some(ref cache) = self.resolution_cache {
             resolve_stage = resolve_stage.with_resolution_cache(cache);
         }
+        if let (Some(registry), Some(context)) = (self.registry, self.context) {
+            resolve_stage = resolve_stage.with_runtime_access(registry, context);
+        }
 
         let mut ensure_stage =
             EnsureStage::new(&self.resolver, &self.config, self.registry, self.context);
@@ -234,30 +237,8 @@ impl<'a> Executor<'a> {
                 .map_err(PipelineError::from)?
         };
 
-        // Check incompatible dependencies (from resolution)
-        let resolved_version = plan.primary.version_string().map(|s| s.to_string());
-        if let Ok(check_resolution) = self
-            .resolver
-            .resolve_with_version(runtime_name, resolved_version.as_deref())
-            && !check_resolution.incompatible_dependencies.is_empty()
-        {
-            let details: Vec<String> = check_resolution
-                .incompatible_dependencies
-                .iter()
-                .map(|ic| {
-                    format!(
-                        "{}: current={:?}, recommended={:?}",
-                        ic.runtime_name, ic.current_version, ic.recommended_version
-                    )
-                })
-                .collect();
-            return Err(PipelineError::IncompatibleDependencies {
-                details: details.join("; "),
-            }
-            .into());
-        }
-
         // Stage 2: Ensure installed
+
         let plan = {
             let _span = tracing::info_span!("ensure", runtime = %runtime_name).entered();
             debug!("[Pipeline] Ensure");

@@ -78,6 +78,7 @@ impl Stage<PreparedExecution, i32> for ExecuteStage {
             install_order: vec![],
             runtime_needs_install: false,
             incompatible_dependencies: vec![],
+            dependency_requirements: vec![],
             unsupported_platform_runtimes: vec![],
         };
 

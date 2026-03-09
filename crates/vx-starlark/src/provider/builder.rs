@@ -10,9 +10,10 @@ use std::sync::Arc;
 use vx_star_metadata::StarMetadata;
 
 use super::bridge::{
-    make_download_url_fn, make_download_url_fn_owned, make_fetch_versions_fn,
+    make_deps_fn_owned, make_download_url_fn, make_download_url_fn_owned, make_fetch_versions_fn,
     make_fetch_versions_fn_owned, make_install_layout_fn, make_install_layout_fn_owned,
 };
+
 use crate::context::ProviderContext;
 use crate::engine::StarlarkEngine;
 
@@ -141,6 +142,12 @@ pub fn build_runtimes(
                     Arc::clone(&content).to_string(),
                 ));
         }
+        rt = rt.with_deps_fn(make_deps_fn_owned(
+            Arc::clone(&provider_name),
+            Arc::clone(&content),
+            provider_name.to_string(),
+        ));
+
         return vec![Arc::new(rt)];
     }
 
@@ -221,6 +228,12 @@ pub fn build_runtimes(
                         rt_name_owned,
                     ));
             }
+
+            runtime = runtime.with_deps_fn(make_deps_fn_owned(
+                Arc::clone(&provider_name),
+                Arc::clone(&content),
+                name.clone(),
+            ));
 
             // Wire up system_paths glob patterns (for tools like MSVC cl.exe that are
             // not on PATH — used to locate the executable after system installation)
