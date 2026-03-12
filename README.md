@@ -101,7 +101,27 @@ curl -fsSL https://raw.githubusercontent.com/loonghao/vx/main/install.sh | bash
 powershell -c "irm https://raw.githubusercontent.com/loonghao/vx/main/install.ps1 | iex"
 ```
 
+### Stable Installation in Rate-Limited Networks
+
+```bash
+# 1) Pin a stable installer version (recommended for CI and enterprise networks)
+VX_VERSION="0.8.4" curl -fsSL https://raw.githubusercontent.com/loonghao/vx/main/install.sh | bash
+
+# 2) Configure multi-source release mirrors (comma separated)
+VX_RELEASE_BASE_URLS="https://mirror.example.com/vx/releases,https://github.com/loonghao/vx/releases" \
+  curl -fsSL https://raw.githubusercontent.com/loonghao/vx/main/install.sh | bash
+```
+
+```powershell
+# Windows mirror fallback (comma/semicolon separated)
+$env:VX_RELEASE_BASE_URLS="https://mirror.example.com/vx/releases,https://github.com/loonghao/vx/releases"
+powershell -c "irm https://raw.githubusercontent.com/loonghao/vx/main/install.ps1 | iex"
+```
+
+> The installer will try all configured release base URLs automatically, then fallback across different asset naming patterns.
+
 ### Start Using Immediately
+
 
 ```bash
 # No setup needed - just prefix your commands with 'vx'
@@ -178,26 +198,46 @@ vx sync                         # Sync tools with vx.toml
 
 | Command | Description |
 |---------|-------------|
-| `vx <tool> [args...]` | Execute a tool (auto-installs if needed) |
-| `vx install <tool>[@version]` | Install a specific tool version |
-| `vx uninstall <tool> [version]` | Uninstall tool versions |
-| `vx switch <tool>@<version>` | Switch to a different version |
-| `vx which <tool>` | Show which version is being used |
-| `vx versions <tool>` | Show available versions |
-| `vx list` | List all supported tools |
-| `vx search <query>` | Search available tools |
+| `vx <runtime>[@version] [args...]` | Execute a runtime (auto-installs if needed) |
+| `vx <runtime>[@version]::<executable> [args...]` | Execute specific executable from a runtime |
+| `vx <ecosystem>:<package>[::executable] [args...]` | Execute a package (RFC 0027) |
+| `vx --with <runtime>[@version] <command>` | Inject companion runtimes for this invocation |
+| `vx install <runtime>@<version>` | Install a specific runtime version |
+| `vx uninstall <runtime>[@version]` | Uninstall runtime versions |
+| `vx switch <runtime>@<version>` | Switch to a different version |
+| `vx which <runtime>` | Show which version is being used |
+| `vx versions <runtime>` | Show available versions |
+| `vx list` | List all supported runtimes |
+| `vx search <query>` | Search available runtimes |
 
-### Project Environment
+### Shell & Environment
+
+| Command | Description |
+|---------|-------------|
+| `vx shell launch <runtime>[@version] [shell]` | Launch shell with runtime environment (canonical) |
+| `vx dev` | Enter development shell with project tools |
+| `vx dev -c <cmd>` | Run a command in the dev environment |
+
+### Global Package Management (`vx pkg`)
+
+| Command | Description |
+|---------|-------------|
+| `vx pkg install <ecosystem>:<package>` | Install a global package |
+| `vx pkg uninstall <ecosystem>:<package>` | Uninstall a global package |
+| `vx pkg list` | List globally installed packages |
+| `vx pkg info <ecosystem>:<package>` | Show package information |
+
+### Project Management
 
 | Command | Description |
 |---------|-------------|
 | `vx init` | Initialize project configuration (`vx.toml`) |
 | `vx setup` | Install all tools defined in `vx.toml` |
-| `vx dev` | Enter development shell with project tools |
-| `vx dev -c <cmd>` | Run a command in the dev environment |
 | `vx sync` | Sync installed tools with `vx.toml` |
-| `vx add <tool>` | Add a tool to project configuration |
-| `vx remove <tool>` | Remove a tool from project configuration |
+| `vx lock` | Generate or update `vx.lock` for reproducibility |
+| `vx check` | Check version constraints and tool availability |
+| `vx add <runtime>` | Add a runtime to project configuration |
+| `vx remove <runtime>` | Remove a runtime from project configuration |
 | `vx run <script>` | Run a script defined in `vx.toml` |
 
 ### System Management
@@ -205,10 +245,10 @@ vx sync                         # Sync tools with vx.toml
 | Command | Description |
 |---------|-------------|
 | `vx cache info` | Show disk usage and cache statistics |
-| `vx clean` | Clean up cache and orphaned packages |
+| `vx cache prune` | Clean up cache and orphaned packages |
 | `vx config` | Manage global configuration |
 | `vx self-update` | Update vx itself |
-| `vx plugin list` | List available plugins |
+| `vx provider list` | List available providers |
 
 ---
 
@@ -224,7 +264,7 @@ node = "20"                     # Major version
 python = "3.12"                 # Minor version
 uv = "latest"                   # Always latest
 go = "1.21.6"                   # Exact version
-rust = ">=1.70"                 # Version range
+rustup = "latest"               # Rust toolchain manager
 
 [settings]
 auto_install = true             # Auto-install missing tools in dev shell

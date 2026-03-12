@@ -398,6 +398,18 @@ The vx action automatically exports the `GITHUB_TOKEN` environment variable to a
   run: vx uv run pytest
 ```
 
+For highly restricted or heavily rate-limited networks, you can also pin installer version and configure mirrored release bases:
+
+```yaml
+- name: Install vx via mirrored release bases
+  shell: bash
+  env:
+    VX_VERSION: "0.8.4"
+    VX_RELEASE_BASE_URLS: "https://mirror.example.com/vx/releases,https://github.com/loonghao/vx/releases"
+  run: curl -fsSL https://raw.githubusercontent.com/loonghao/vx/main/install.sh | bash
+```
+
+
 ### Tool Installation Failures
 
 If a tool fails to install, check:
