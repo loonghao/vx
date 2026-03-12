@@ -101,7 +101,27 @@ curl -fsSL https://raw.githubusercontent.com/loonghao/vx/main/install.sh | bash
 powershell -c "irm https://raw.githubusercontent.com/loonghao/vx/main/install.ps1 | iex"
 ```
 
+### 在限流网络中稳定安装
+
+```bash
+# 1）固定稳定安装版本（推荐用于 CI 与企业网络）
+VX_VERSION="0.8.4" curl -fsSL https://raw.githubusercontent.com/loonghao/vx/main/install.sh | bash
+
+# 2）配置多源发布镜像（逗号分隔）
+VX_RELEASE_BASE_URLS="https://mirror.example.com/vx/releases,https://github.com/loonghao/vx/releases" \
+  curl -fsSL https://raw.githubusercontent.com/loonghao/vx/main/install.sh | bash
+```
+
+```powershell
+# Windows 镜像回退（逗号或分号分隔）
+$env:VX_RELEASE_BASE_URLS="https://mirror.example.com/vx/releases,https://github.com/loonghao/vx/releases"
+powershell -c "irm https://raw.githubusercontent.com/loonghao/vx/main/install.ps1 | iex"
+```
+
+> 安装器会自动遍历所有配置的发布基址，并对不同资产命名模式执行回退重试。
+
 ### 立即开始使用
+
 
 ```bash
 # 无需设置 - 只需在命令前加上 'vx'
@@ -178,26 +198,46 @@ vx sync                         # 同步工具与 vx.toml
 
 | 命令 | 描述 |
 |---------|-------------|
-| `vx <tool> [args...]` | 执行工具（需要时自动安装） |
-| `vx install <tool>[@version]` | 安装特定工具版本 |
-| `vx uninstall <tool> [version]` | 卸载工具版本 |
-| `vx switch <tool>@<version>` | 切换到不同版本 |
-| `vx which <tool>` | 显示正在使用的版本 |
-| `vx versions <tool>` | 显示可用版本 |
-| `vx list` | 列出所有支持的工具 |
-| `vx search <query>` | 搜索可用工具 |
+| `vx <runtime>[@version] [args...]` | 执行运行时（需要时自动安装） |
+| `vx <runtime>[@version]::<executable> [args...]` | 执行运行时中的特定可执行文件 |
+| `vx <ecosystem>:<package>[::executable] [args...]` | 执行包（RFC 0027） |
+| `vx --with <runtime>[@version] <command>` | 为本次调用注入伴随运行时 |
+| `vx install <runtime>@<version>` | 安装特定运行时版本 |
+| `vx uninstall <runtime>[@version]` | 卸载运行时版本 |
+| `vx switch <runtime>@<version>` | 切换到不同版本 |
+| `vx which <runtime>` | 显示正在使用的版本 |
+| `vx versions <runtime>` | 显示可用版本 |
+| `vx list` | 列出所有支持的运行时 |
+| `vx search <query>` | 搜索可用运行时 |
 
-### 项目环境
+### Shell 与环境
+
+| 命令 | 描述 |
+|---------|-------------|
+| `vx shell launch <runtime>[@version] [shell]` | 启动带有运行时环境的 shell（规范形式） |
+| `vx dev` | 进入带有项目工具的开发 shell |
+| `vx dev -c <cmd>` | 在开发环境中运行命令 |
+
+### 全局包管理 (`vx pkg`)
+
+| 命令 | 描述 |
+|---------|-------------|
+| `vx pkg install <ecosystem>:<package>` | 安装全局包 |
+| `vx pkg uninstall <ecosystem>:<package>` | 卸载全局包 |
+| `vx pkg list` | 列出全局安装的包 |
+| `vx pkg info <ecosystem>:<package>` | 显示包信息 |
+
+### 项目管理
 
 | 命令 | 描述 |
 |---------|-------------|
 | `vx init` | 初始化项目配置（`vx.toml`） |
 | `vx setup` | 安装 `vx.toml` 中定义的所有工具 |
-| `vx dev` | 进入带有项目工具的开发 shell |
-| `vx dev -c <cmd>` | 在开发环境中运行命令 |
 | `vx sync` | 同步已安装工具与 `vx.toml` |
-| `vx add <tool>` | 添加工具到项目配置 |
-| `vx remove <tool>` | 从项目配置移除工具 |
+| `vx lock` | 生成或更新 `vx.lock` 以确保可复现性 |
+| `vx check` | 检查版本约束和工具可用性 |
+| `vx add <runtime>` | 添加运行时到项目配置 |
+| `vx remove <runtime>` | 从项目配置移除运行时 |
 | `vx run <script>` | 运行 `vx.toml` 中定义的脚本 |
 
 ### 系统管理
@@ -205,10 +245,10 @@ vx sync                         # 同步工具与 vx.toml
 | 命令 | 描述 |
 |---------|-------------|
 | `vx cache info` | 显示磁盘使用和缓存统计信息 |
-| `vx clean` | 清理缓存和孤立包 |
+| `vx cache prune` | 清理缓存和孤立包 |
 | `vx config` | 管理全局配置 |
 | `vx self-update` | 更新 vx 本身 |
-| `vx plugin list` | 列出可用插件 |
+| `vx provider list` | 列出可用的 provider |
 
 ---
 
@@ -224,7 +264,7 @@ node = "20"                     # 主版本号
 python = "3.12"                 # 次版本号
 uv = "latest"                   # 始终最新
 go = "1.21.6"                   # 精确版本
-rust = ">=1.70"                 # 版本范围
+rustup = "latest"               # Rust 工具链管理器
 
 [settings]
 auto_install = true             # 在 dev shell 中自动安装缺失工具
@@ -554,6 +594,35 @@ docker run --rm loonghao/vx --version
 > **注意**: 请使用具体的版本标签（如 `vx-v0.5.15`）而不是 `v1`。查看 [releases](https://github.com/loonghao/vx/releases) 获取最新版本。
 
 详细文档请参阅 [GitHub Action 指南](docs/guides/github-action.md)。
+
+---
+
+## 🧪 测试
+
+vx 提供了覆盖所有 provider 的完整测试套件：
+
+```bash
+# 在干净的临时环境中测试所有 provider
+just test-providers
+
+# 输出详细日志
+just test-providers-verbose
+
+# 仅测试指定 provider
+just test-providers-filter "node"
+
+# 保留缓存以便排查
+just test-providers-keep
+```
+
+测试套件特性：
+- ✅ 使用临时 VX_HOME（测试后自动清理）
+- ✅ 自动发现源码中的所有 provider
+- ✅ 验证命令执行与自动安装链路
+- ✅ 生成详细测试报告
+- ✅ 支持 CI/CD，包含退出码与 JSON 输出
+
+详细说明请参阅 [scripts/README.md](scripts/README.md)。
 
 ---
 

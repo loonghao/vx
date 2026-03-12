@@ -4,7 +4,7 @@
 #   irm https://raw.githubusercontent.com/loonghao/vx/main/install.ps1 | iex
 #
 # With specific version:
-#   $env:VX_VERSION="0.7.0"; irm https://raw.githubusercontent.com/loonghao/vx/main/install.ps1 | iex
+#   $env:VX_VERSION="0.8.4"; irm https://raw.githubusercontent.com/loonghao/vx/main/install.ps1 | iex
 #
 # With custom install directory:
 #   $env:VX_INSTALL_DIR="C:\tools\bin"; irm https://raw.githubusercontent.com/loonghao/vx/main/install.ps1 | iex
@@ -14,8 +14,9 @@
 #   scoop install vx
 
 param(
-    [string]$Version    = $env:VX_VERSION,
-    [string]$InstallDir = $env:VX_INSTALL_DIR
+    [string]$Version         = $env:VX_VERSION,
+    [string]$InstallDir      = $env:VX_INSTALL_DIR,
+    [string]$ReleaseBaseUrls = $env:VX_RELEASE_BASE_URLS
 )
 
 $ErrorActionPreference = "Stop"
@@ -23,6 +24,23 @@ $ErrorActionPreference = "Stop"
 $RepoOwner = "loonghao"
 $RepoName  = "vx"
 $BaseUrl   = "https://github.com/$RepoOwner/$RepoName/releases"
+
+function Get-ReleaseBaseUrls {
+    if (-not $ReleaseBaseUrls) {
+        return @($BaseUrl)
+    }
+
+    $urls = $ReleaseBaseUrls -split '[,;]' |
+        ForEach-Object { $_.Trim() } |
+        Where-Object { $_ -ne "" }
+
+    if (-not $urls -or $urls.Count -eq 0) {
+        return @($BaseUrl)
+    }
+
+    return $urls
+}
+
 
 if (-not $InstallDir) {
     $InstallDir = "$env:USERPROFILE\.local\bin"
@@ -72,13 +90,41 @@ function Invoke-Download {
     return $false
 }
 
+function Get-LatestVersion {
+    $headers = @{
+        "User-Agent" = "vx-installer/1.0"
+        "Accept"     = "application/vnd.github+json"
+    }
+    if ($env:GITHUB_TOKEN) {
+        $headers["Authorization"] = "Bearer $env:GITHUB_TOKEN"
+    }
+
+    try {
+        $apiUrl = "https://api.github.com/repos/$RepoOwner/$RepoName/releases?per_page=20"
+        $releases = Invoke-RestMethod -Uri $apiUrl -Headers $headers -TimeoutSec 30
+
+        foreach ($release in $releases) {
+            if (-not $release.prerelease -and -not $release.draft -and $release.assets -and $release.assets.Count -gt 0) {
+                return ($release.tag_name -replace '^(vx-)?v', '')
+            }
+        }
+    } catch {
+        # fallback handled by latest/download candidate
+    }
+
+    return $null
+}
+
 # ── Main ──────────────────────────────────────────────────────────────────────
 
 function Main {
+
     $platform = Get-Platform
 
     Write-Step "Installing vx for Windows..."
     Write-Step "Detected: Windows -> $platform"
+
+    $releaseBaseUrls = Get-ReleaseBaseUrls
 
     # Resolve download URL
     if ($Version -and $Version -ne "latest") {
@@ -91,14 +137,25 @@ function Main {
             @{ Tag = "vx-v$ver"; Archive = "vx-$ver-$platform.zip" },
             @{ Tag = "vx-v$ver"; Archive = "vx-$platform.zip" }
         )
-        $useLatest = $false
+
     } else {
-        # Use latest release directly — no API call needed
+        # latest may not always expose unversioned assets; try robust fallbacks
         $archiveCandidates = @(
             @{ Tag = "latest"; Archive = "vx-$platform.zip" }
         )
-        $useLatest = $true
+
+        $latestVersion = Get-LatestVersion
+        if ($latestVersion) {
+            Write-Step "Resolved latest stable version with assets: $latestVersion"
+            $archiveCandidates += @(
+                @{ Tag = "v$latestVersion";    Archive = "vx-$latestVersion-$platform.zip" },
+                @{ Tag = "v$latestVersion";    Archive = "vx-$platform.zip" },
+                @{ Tag = "vx-v$latestVersion"; Archive = "vx-$latestVersion-$platform.zip" },
+                @{ Tag = "vx-v$latestVersion"; Archive = "vx-$platform.zip" }
+            )
+        }
     }
+
 
     # Create temp dir
     $tempDir = New-TemporaryFile | ForEach-Object { Remove-Item $_; New-Item -ItemType Directory -Path $_ }
@@ -106,32 +163,37 @@ function Main {
     try {
         $archivePath = $null
         $usedTag     = $null
-        $usedArchive = $null
 
-        foreach ($combo in $archiveCandidates) {
-            $tag     = $combo.Tag
-            $archive = $combo.Archive
 
-            if ($tag -eq "latest") {
-                $url = "$BaseUrl/latest/download/$archive"
-            } else {
-                $url = "$BaseUrl/download/$tag/$archive"
+        foreach ($releaseBaseUrl in $releaseBaseUrls) {
+            foreach ($combo in $archiveCandidates) {
+                $tag     = $combo.Tag
+                $archive = $combo.Archive
+
+                if ($tag -eq "latest") {
+                    $url = "$releaseBaseUrl/latest/download/$archive"
+                } else {
+                    $url = "$releaseBaseUrl/download/$tag/$archive"
+                }
+
+                Write-Step "Downloading from: $url"
+                $dest = Join-Path $tempDir $archive
+
+                if (Invoke-Download -Url $url -Dest $dest) {
+                    $archivePath = $dest
+                    $usedTag     = $tag
+
+                    break
+                }
             }
 
-            Write-Step "Downloading from: $url"
-            $dest = Join-Path $tempDir $archive
-
-            if (Invoke-Download -Url $url -Dest $dest) {
-                $archivePath = $dest
-                $usedTag     = $tag
-                $usedArchive = $archive
-                break
-            }
+            if ($archivePath) { break }
         }
+
 
         if (-not $archivePath) {
             Write-Fail "Download failed. Please check your internet connection or specify a version:"
-            Write-Host "  `$env:VX_VERSION='0.7.0'; irm https://raw.githubusercontent.com/loonghao/vx/main/install.ps1 | iex"
+            Write-Host "  `$env:VX_VERSION='0.8.4'; irm https://raw.githubusercontent.com/loonghao/vx/main/install.ps1 | iex"
             exit 1
         }
 
