@@ -1,7 +1,7 @@
 # provider.star - 7-Zip provider
 #
-# Windows: MSI from GitHub releases (ip7z/7zip)
-# macOS/Linux: tar.xz from GitHub releases
+# Windows prefers system package managers.
+# macOS/Linux use archives from GitHub releases.
 # Tags: "24.09" (no 'v' prefix)
 #
 # Uses stdlib templates from @vx//stdlib:provider.star
@@ -9,10 +9,10 @@
 load("@vx//stdlib:provider.star",
      "runtime_def",
      "system_permissions",
-     "multi_platform_install", "winget_install", "choco_install",
+     "system_install_strategies", "winget_install", "choco_install",
      "brew_install", "apt_install")
 load("@vx//stdlib:github.star", "github_releases", "releases_to_versions")
-load("@vx//stdlib:env.star",    "env_prepend")
+load("@vx//stdlib:env.star", "env_prepend")
 
 # ---------------------------------------------------------------------------
 # Provider metadata
@@ -30,11 +30,8 @@ ecosystem   = "system"
 
 runtimes = [
     runtime_def("7zip",
-        # The actual binary is "7z" (not "7zip") — used for which() lookup
         executable   = "7z",
         aliases      = ["7z", "7za", "7zz"],
-        # system_paths must point to the actual executable file, not a directory.
-        # glob patterns are used so version-specific paths (e.g. VS 20XX) are covered.
         system_paths = [
             "C:/Program Files/7-Zip/7z.exe",
             "C:/Program Files (x86)/7-Zip/7z.exe",
@@ -46,7 +43,7 @@ runtimes = [
             "/opt/homebrew/bin/7z",
         ],
         test_commands = [
-            {"command": "{executable} --version", "name": "version_check"},
+            {"command": "{executable} -h", "name": "version_check", "expected_output": "7-Zip"},
         ],
     ),
 ]
@@ -76,14 +73,15 @@ def fetch_versions(ctx):
 def _ver_compact(version):
     return version.replace(".", "")
 
+
 def download_url(ctx, version):
-    os   = ctx.platform.os
+    os = ctx.platform.os
+    if os == "windows":
+        return None
     arch = ctx.platform.arch
     ver  = _ver_compact(version)
     base = "https://github.com/ip7z/7zip/releases/download/{}".format(version)
-    if os == "windows":
-        return "{}/7z{}-x64.msi".format(base, ver) if arch == "x64" else "{}/7z{}.msi".format(base, ver)
-    elif os == "macos":
+    if os == "macos":
         return "{}/7z{}-mac.tar.xz".format(base, ver)
     elif os == "linux":
         return "{}/7z{}-linux-arm64.tar.xz".format(base, ver) if arch == "arm64" else "{}/7z{}-linux-x64.tar.xz".format(base, ver)
@@ -91,59 +89,39 @@ def download_url(ctx, version):
 
 # ---------------------------------------------------------------------------
 # install_layout
-# Note: Windows uses MSI which is not supported by vx-installer.
-# Users should use system_install on Windows.
 # ---------------------------------------------------------------------------
 
-def install_layout(ctx, _version):
-    os = ctx.platform.os
-    if os == "windows":
-        # MSI is not supported; this will fail at install time
-        # Users should use system_install instead
-        return {
-            "type":             "msi",
-            "executable_paths": ["7z.exe"],
-            "strip_prefix":     "PFiles\\7-Zip",
-        }
-    exe = "7zz"
+def install_layout(_ctx, _version):
     return {
         "type":             "archive",
         "strip_prefix":     "",
-        "executable_paths": [exe, "7z"],
+        "executable_paths": ["7zz", "7z"],
     }
 
 # ---------------------------------------------------------------------------
 # system_install
 # ---------------------------------------------------------------------------
 
-system_install = multi_platform_install(
-    windows_strategies = [
-        winget_install("7zip.7zip", priority = 90),
-        choco_install("7zip",       priority = 80),
-    ],
-    macos_strategies = [
-        brew_install("sevenzip"),
-    ],
-    linux_strategies = [
-        brew_install("sevenzip", priority = 70),
-        apt_install("p7zip-full", priority = 70),
-    ],
-)
+system_install = system_install_strategies([
+    winget_install("7zip.7zip", priority = 90),
+    choco_install("7zip",       priority = 80),
+    brew_install("sevenzip",    priority = 70),
+    apt_install("p7zip-full",   priority = 70),
+])
 
 # ---------------------------------------------------------------------------
 # Path queries + environment
-# Note: 7zip has special executable names:
-#   - Windows: 7z.exe
-#   - Unix: 7zz (create symlink 7z -> 7zz on macOS)
 # ---------------------------------------------------------------------------
 
 def store_root(ctx):
     return ctx.vx_home + "/store/7zip"
 
+
 def get_execute_path(ctx, _version):
     if ctx.platform.os == "windows":
-        return ctx.install_dir + "/7z.exe"
+        return ctx.install_dir + "/bin/7z.exe"
     return ctx.install_dir + "/7zz"
+
 
 def post_install(ctx, _version):
     if ctx.platform.os == "macos":
@@ -151,8 +129,12 @@ def post_install(ctx, _version):
                 "target": ctx.install_dir + "/7z"}
     return None
 
+
 def environment(ctx, _version):
+    if ctx.platform.os == "windows":
+        return [env_prepend("PATH", ctx.install_dir + "/bin")]
     return [env_prepend("PATH", ctx.install_dir)]
+
 
 def deps(_ctx, _version):
     return []

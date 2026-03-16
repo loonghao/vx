@@ -11,7 +11,7 @@
 
 load("@vx//stdlib:provider.star",
      "runtime_def", "github_permissions",
-     "archive_layout", "path_fns")
+     "path_fns", "post_extract_flatten")
 load("@vx//stdlib:github.star", "make_fetch_versions", "github_asset_url")
 load("@vx//stdlib:env.star",    "env_prepend")
 
@@ -51,41 +51,50 @@ fetch_versions = make_fetch_versions("mbitsnbites", "buildcache")
 
 # ---------------------------------------------------------------------------
 # Platform helpers
-# buildcache uses: buildcache-{os}-{arch}.{ext}
+# buildcache release assets are published per-OS:
+# - buildcache-windows.zip
+# - buildcache-macos.zip
+# - buildcache-linux.tar.gz
 # ---------------------------------------------------------------------------
 
-_BUILDCACHE_PLATFORMS = {
-    "windows/x64":   ("win-x86_64",    "zip"),
-    "macos/x64":     ("darwin-x86_64", "tar.gz"),
-    "macos/arm64":   ("darwin-arm64",  "tar.gz"),
-    "linux/x64":     ("linux-x86_64",  "tar.gz"),
-    "linux/arm64":   ("linux-arm64",   "tar.gz"),
+_BUILDCACHE_ASSETS = {
+    "windows": "buildcache-windows.zip",
+    "macos":   "buildcache-macos.zip",
+    "linux":   "buildcache-linux.tar.gz",
 }
 
 def _buildcache_platform(ctx):
-    key = "{}/{}".format(ctx.platform.os, ctx.platform.arch)
-    return _BUILDCACHE_PLATFORMS.get(key)
+    return _BUILDCACHE_ASSETS.get(ctx.platform.os)
 
 # ---------------------------------------------------------------------------
 # download_url
 # ---------------------------------------------------------------------------
 
 def download_url(ctx, version):
-    platform = _buildcache_platform(ctx)
-    if not platform:
+    asset = _buildcache_platform(ctx)
+    if not asset:
         return None
-    platform_name, ext = platform[0], platform[1]
-    asset = "buildcache-{}.{}".format(platform_name, ext)
     return github_asset_url("mbitsnbites", "buildcache", "v" + version, asset)
 
 # ---------------------------------------------------------------------------
-# Layout + path functions (from stdlib)
+# Layout + path functions
 # ---------------------------------------------------------------------------
 
-install_layout   = archive_layout("buildcache")
-paths            = path_fns("buildcache")
-store_root       = paths["store_root"]
-get_execute_path = paths["get_execute_path"]
+def install_layout(ctx, _version):
+    exe = "buildcache.exe" if ctx.platform.os == "windows" else "buildcache"
+    return {
+        "type":             "archive",
+        "strip_prefix":     "",
+        "executable_paths": ["bin/" + exe, exe, "buildcache"],
+    }
+
+paths      = path_fns("buildcache")
+store_root = paths["store_root"]
+post_extract = post_extract_flatten(pattern = "buildcache")
+
+def get_execute_path(ctx, _version):
+    exe = "buildcache.exe" if ctx.platform.os == "windows" else "buildcache"
+    return ctx.install_dir + "/bin/" + exe
 
 # ---------------------------------------------------------------------------
 # post_install — usage instructions
@@ -121,4 +130,7 @@ Environment Variables:
 """
 
 def environment(ctx, _version):
-    return [env_prepend("PATH", ctx.install_dir)]
+    return [
+        env_prepend("PATH", ctx.install_dir + "/bin"),
+        env_prepend("PATH", ctx.install_dir),
+    ]
