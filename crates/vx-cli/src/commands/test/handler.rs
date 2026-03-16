@@ -8,6 +8,74 @@ use anyhow::{Context, Result};
 use std::path::PathBuf;
 use vx_runtime::{RuntimeTestResult, RuntimeTester, TestCaseResult};
 
+fn executable_lookup_candidates(
+    runtime: &dyn vx_runtime::Runtime,
+    runtime_name: &str,
+) -> Vec<String> {
+    let mut candidates = Vec::new();
+    let mut push = |candidate: &str| {
+        if !candidate.is_empty() && !candidates.iter().any(|existing| existing == candidate) {
+            candidates.push(candidate.to_string());
+        }
+    };
+
+    push(runtime.executable_name());
+    push(runtime_name);
+    for alias in runtime.aliases() {
+        push(alias);
+    }
+
+    candidates
+}
+
+fn find_runtime_on_path(runtime: &dyn vx_runtime::Runtime, runtime_name: &str) -> Option<PathBuf> {
+    executable_lookup_candidates(runtime, runtime_name)
+        .into_iter()
+        .find_map(|candidate| which::which(&candidate).ok())
+}
+
+async fn find_runtime_executable_for_test(
+    runtime: &std::sync::Arc<dyn vx_runtime::Runtime>,
+    runtime_name: &str,
+    version: &str,
+) -> Option<PathBuf> {
+    if let Some(exe_path) = find_runtime_on_path(runtime.as_ref(), runtime_name) {
+        return Some(exe_path);
+    }
+
+    let exec_ctx =
+        vx_runtime::ExecutionContext::new(std::sync::Arc::new(vx_runtime::RealCommandExecutor))
+            .with_working_dir(std::env::current_dir().unwrap_or_else(|_| PathBuf::from(".")));
+
+    if let Ok(prep) = runtime.prepare_execution(version, &exec_ctx).await {
+        if let Some(exe_path) = prep.executable_override
+            && exe_path.exists()
+        {
+            return Some(exe_path);
+        }
+
+        if prep.use_system_path {
+            return find_runtime_on_path(runtime.as_ref(), runtime_name);
+        }
+    }
+
+    if version != "latest"
+        && let Ok(prep) = runtime.prepare_execution("latest", &exec_ctx).await
+    {
+        if let Some(exe_path) = prep.executable_override
+            && exe_path.exists()
+        {
+            return Some(exe_path);
+        }
+
+        if prep.use_system_path {
+            return find_runtime_on_path(runtime.as_ref(), runtime_name);
+        }
+    }
+
+    None
+}
+
 /// Handle test command with Args
 pub async fn handle(ctx: &CommandContext, args: &Args) -> Result<()> {
     // Determine test mode
@@ -83,7 +151,7 @@ async fn handle_test_runtime(ctx: &CommandContext, runtime_name: &str, opts: &Ar
         .and_then(|def| def.test.clone());
 
     // Get executable path
-    let executable_path = get_installed_executable(ctx, runtime_name);
+    let executable_path = get_installed_executable(ctx, runtime_name).await;
 
     // Create and configure tester
     let mut tester = RuntimeTester::new(runtime_name);
@@ -154,31 +222,47 @@ async fn install_runtime_for_test(
     ctx: &CommandContext,
     runtime_name: &str,
 ) -> Result<std::path::PathBuf> {
-    // Use the install handler to install the runtime
-    crate::commands::install::handle_install(
+    let install_result = crate::commands::install::install_quiet(
         ctx.registry(),
         ctx.runtime_context(),
-        &[runtime_name.to_string()],
-        false, // don't force reinstall
+        runtime_name,
     )
     .await
     .context("Failed to install runtime")?;
 
-    // Get the installed executable path
-    let path_manager = vx_paths::PathManager::new()?;
     let runtime = ctx
         .registry()
         .get_runtime(runtime_name)
         .ok_or_else(|| anyhow::anyhow!("Runtime not found: {}", runtime_name))?;
 
+    if install_result.executable_path.to_str() != Some("system")
+        && install_result.executable_path.exists()
+    {
+        return Ok(install_result.executable_path);
+    }
+
+    if let Ok(Some(exe_path)) = runtime
+        .get_executable_path_for_version(&install_result.version, ctx.runtime_context())
+        .await
+    {
+        return Ok(exe_path);
+    }
+
+    if let Some(exe_path) =
+        find_runtime_executable_for_test(&runtime, runtime_name, &install_result.version).await
+    {
+        return Ok(exe_path);
+    }
+
     // Find the installed version
-    let versions = path_manager.list_store_versions(runtime_name)?;
-    let version = versions
-        .first()
-        .ok_or_else(|| anyhow::anyhow!("No version installed for {}", runtime_name))?;
+    let path_manager = vx_paths::PathManager::new()?;
+    let versions = path_manager.list_store_versions(runtime.store_name())?;
+    let version = versions.first().unwrap_or(&install_result.version);
 
     let platform = vx_runtime::Platform::current();
-    let store_dir = path_manager.version_store_dir(runtime_name, version);
+    let store_dir = path_manager
+        .version_store_dir(runtime.store_name(), version)
+        .join(platform.as_str());
     let exe_relative = runtime.executable_relative_path(version, &platform);
     let exe_path = store_dir.join(&exe_relative);
 
@@ -452,18 +536,25 @@ async fn run_ci_test_for_runtime(
             let exe_path =
                 if ir.executable_path.to_str() != Some("system") && ir.executable_path.exists() {
                     ir.executable_path.clone()
+                } else if let Ok(Some(exe_path)) = runtime
+                    .get_executable_path_for_version(&version, runtime_context)
+                    .await
+                {
+                    exe_path
                 } else {
-                    // Try to find in system PATH
-                    which::which(runtime_name).unwrap_or_else(|_| {
-                        // Fall back to computed path
-                        get_executable_path_for_runtime(
-                            &runtime,
-                            runtime_name,
-                            &version,
-                            path_manager,
-                            &current_platform,
-                        )
-                    })
+                    // Try to find via executable name, aliases, or provider system_paths
+                    find_runtime_executable_for_test(&runtime, runtime_name, &version)
+                        .await
+                        .unwrap_or_else(|| {
+                            // Fall back to computed path
+                            get_executable_path_for_runtime(
+                                &runtime,
+                                runtime_name,
+                                &version,
+                                path_manager,
+                                &current_platform,
+                            )
+                        })
                 };
 
             (version, exe_path)
@@ -471,7 +562,9 @@ async fn run_ci_test_for_runtime(
         Ok(Err(e)) => {
             // Installation failed - check if system installation is available
             let error_msg = format!("{}", e);
-            if let Ok(system_exe) = which::which(runtime_name) {
+            if let Some(system_exe) =
+                find_runtime_executable_for_test(&runtime, runtime_name, "latest").await
+            {
                 // System installation found, try to use it
                 if opts.verbose && !opts.quiet && !opts.json {
                     println!(
@@ -774,7 +867,7 @@ async fn handle_test_all_providers(ctx: &CommandContext, opts: &Args) -> Result<
                 .and_then(|def| def.test.clone());
 
             // Get executable path
-            let executable_path = get_installed_executable(ctx, runtime_name);
+            let executable_path = get_installed_executable(ctx, runtime_name).await;
 
             // Create and configure tester
             let mut tester = RuntimeTester::new(runtime_name);
@@ -909,7 +1002,7 @@ async fn handle_test_extension(_ctx: &CommandContext, url: &str, opts: &Args) ->
 // ============================================================================
 
 /// Get the path to an installed executable
-fn get_installed_executable(ctx: &CommandContext, runtime_name: &str) -> Option<PathBuf> {
+async fn get_installed_executable(ctx: &CommandContext, runtime_name: &str) -> Option<PathBuf> {
     let path_manager = vx_paths::PathManager::new().ok()?;
     let runtime = ctx.registry().get_runtime(runtime_name)?;
     let platform = vx_runtime::Platform::current();
@@ -975,7 +1068,7 @@ fn get_installed_executable(ctx: &CommandContext, runtime_name: &str) -> Option<
         }
     }
 
-    None
+    find_runtime_executable_for_test(&runtime, runtime_name, "latest").await
 }
 
 /// Get executable path for a runtime, handling different installation methods
@@ -1126,7 +1219,6 @@ impl TestResult {
 
         let vx_installed = result.installed || !installed_versions.is_empty();
         let system_available = result.system_available || system_path.is_some();
-        let available = vx_installed || system_available;
 
         // Determine if functional test passed
         let functional_test = if opts.functional || !result.test_cases.is_empty() {
@@ -1134,6 +1226,8 @@ impl TestResult {
         } else {
             None
         };
+
+        let available = vx_installed || system_available || functional_test == Some(true);
 
         // Determine pass criteria based on test mode:
         // - Default (no flags): platform supported is enough (configuration check)
