@@ -1,10 +1,69 @@
 //! Runtime trait tests
 
+use std::path::Path;
+use std::sync::Arc;
+
+use anyhow::{Result, bail};
 use async_trait::async_trait;
 use rstest::rstest;
+use tempfile::TempDir;
 use vx_runtime::{
-    Arch, Ecosystem, Os, Platform, Runtime, RuntimeContext, VersionInfo, mock_context,
+    Arch, Ecosystem, HttpClient, Installer, Os, Platform, RealFileSystem, RealPathProvider,
+    Runtime, RuntimeContext, VersionInfo,
 };
+
+#[derive(Debug)]
+struct NoopHttpClient;
+
+#[async_trait]
+impl HttpClient for NoopHttpClient {
+    async fn get(&self, _url: &str) -> Result<String> {
+        bail!("not used in runtime_tests")
+    }
+
+    async fn get_json_value(&self, _url: &str) -> Result<serde_json::Value> {
+        bail!("not used in runtime_tests")
+    }
+
+    async fn download(&self, _url: &str, _dest: &Path) -> Result<()> {
+        bail!("not used in runtime_tests")
+    }
+
+    async fn download_with_progress(
+        &self,
+        _url: &str,
+        _dest: &Path,
+        _on_progress: &(dyn Fn(u64, u64) + Send + Sync),
+    ) -> Result<()> {
+        bail!("not used in runtime_tests")
+    }
+}
+
+#[derive(Debug)]
+struct NoopInstaller;
+
+#[async_trait]
+impl Installer for NoopInstaller {
+    async fn extract(&self, _archive: &Path, _dest: &Path) -> Result<()> {
+        bail!("not used in runtime_tests")
+    }
+
+    async fn download_and_extract(&self, _url: &str, _dest: &Path) -> Result<()> {
+        bail!("not used in runtime_tests")
+    }
+}
+
+fn test_context() -> (TempDir, RuntimeContext) {
+    let temp_dir = tempfile::tempdir().expect("temp dir should be created");
+    let ctx = RuntimeContext::new(
+        Arc::new(RealPathProvider::with_base_dir(temp_dir.path())),
+        Arc::new(NoopHttpClient),
+        Arc::new(RealFileSystem::new()),
+        Arc::new(NoopInstaller),
+    );
+
+    (temp_dir, ctx)
+}
 
 /// Test runtime implementation
 struct TestRuntime {
@@ -40,7 +99,7 @@ impl Runtime for TestRuntime {
     }
 
     fn ecosystem(&self) -> Ecosystem {
-        self.ecosystem.clone()
+        self.ecosystem
     }
 
     fn aliases(&self) -> Vec<&str> {
@@ -72,7 +131,7 @@ fn test_runtime_aliases() {
 
 #[tokio::test]
 async fn test_fetch_versions() {
-    let ctx = mock_context();
+    let (_temp_dir, ctx) = test_context();
     let runtime = TestRuntime::new("test");
 
     let versions = runtime.fetch_versions(&ctx).await.unwrap();
@@ -84,7 +143,7 @@ async fn test_fetch_versions() {
 
 #[tokio::test]
 async fn test_is_installed_false() {
-    let ctx = mock_context();
+    let (_temp_dir, ctx) = test_context();
     let runtime = TestRuntime::new("test");
 
     let installed = runtime.is_installed("1.0.0", &ctx).await.unwrap();
@@ -93,7 +152,7 @@ async fn test_is_installed_false() {
 
 #[tokio::test]
 async fn test_installed_versions_empty() {
-    let ctx = mock_context();
+    let (_temp_dir, ctx) = test_context();
     let runtime = TestRuntime::new("test");
 
     let versions = runtime.installed_versions(&ctx).await.unwrap();
