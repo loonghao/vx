@@ -106,8 +106,10 @@ fn test_get_spec() {
 
 #[rstest]
 fn test_merge_additional_dependencies_adds_missing_runtime_and_install_order() {
-    let mut config = ResolverConfig::default();
-    config.fallback_to_system = false;
+    let config = ResolverConfig {
+        fallback_to_system: false,
+        ..ResolverConfig::default()
+    };
 
     let mut runtime_map = RuntimeMap::empty();
     runtime_map.register(RuntimeSpec::new("synthetic-dep", "Synthetic dependency"));
