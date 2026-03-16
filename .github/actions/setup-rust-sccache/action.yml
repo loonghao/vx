@@ -38,6 +38,18 @@ runs:
         components: ${{ inputs.rust-components }}
         targets: ${{ inputs.rust-targets }}
 
+    - name: Ensure Rust targets are installed
+      if: ${{ inputs.rust-targets != '' }}
+      shell: bash
+      run: |
+        IFS=',' read -ra TARGETS <<< "${{ inputs.rust-targets }}"
+        for target in "${TARGETS[@]}"; do
+          trimmed_target="$(echo "$target" | xargs)"
+          if [[ -n "$trimmed_target" ]]; then
+            rustup target add "$trimmed_target"
+          fi
+        done
+
     - name: Install sccache
       uses: taiki-e/install-action@v2
       with:
