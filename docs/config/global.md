@@ -22,7 +22,7 @@ cache_duration = "7d"
 node = "lts"
 python = "3.11"
 go = "latest"
-rust = "stable"
+rustup = "latest"
 ```
 
 ## Sections
@@ -53,7 +53,7 @@ Default tool versions when no project config exists.
 node = "lts"
 python = "3.11"
 go = "latest"
-rust = "stable"
+rustup = "latest"
 uv = "latest"
 ```
 
@@ -138,7 +138,7 @@ cache_duration = "7d"
 node = "20"
 python = "3.11"
 go = "1.21"
-rust = "stable"
+rustup = "latest"
 uv = "latest"
 deno = "latest"
 ```

@@ -1280,7 +1280,7 @@ fn test_cli_container_build() {
 }
 
 // ============================================
-// Plugin Subcommand Tests
+// Plugin Subcommand Tests (legacy alias)
 // ============================================
 
 #[test]
@@ -1290,7 +1290,7 @@ fn test_cli_plugin_list() {
 
     match cli.command {
         Some(Commands::Plugin {
-            command: PluginCommand::List { enabled, .. },
+            command: ProviderCommand::List { enabled, .. },
         }) => {
             assert!(enabled);
         }
@@ -1305,7 +1305,7 @@ fn test_cli_plugin_enable() {
 
     match cli.command {
         Some(Commands::Plugin {
-            command: PluginCommand::Enable { name },
+            command: ProviderCommand::Enable { name },
         }) => {
             assert_eq!(name, "my-plugin");
         }

@@ -34,7 +34,6 @@ PROVIDERS_DIR="${VX_PROVIDERS_DIR:-crates/vx-providers}"
 
 # Known problematic runtimes that can't be tested in CI
 # - msbuild, msvc: require Visual Studio installation
-# - openssl: system library, varies by platform
 # - systemctl, journalctl, etc: Linux system services (can't test in CI)
 # - choco: Windows package manager (requires elevation)
 # - xcodebuild, xcrun, xcode-select: macOS only, requires full Xcode
@@ -47,7 +46,7 @@ PROVIDERS_DIR="${VX_PROVIDERS_DIR:-crates/vx-providers}"
 # - ollama: download URL issues with proxy
 # - python: requires system install, network timeout issues
 # - brew, homebrew: require script installation, not suitable for CI
-SKIP_ALWAYS="msbuild,msvc,openssl,systemctl,journalctl,systemd-analyze,loginctl,choco,xcodebuild,xcrun,xcode-select,swift,swiftc,make,awscli,aws,azcli,az,curl,nasm,rust,rustc,cargo,rustup,ollama,python,brew,homebrew"
+SKIP_ALWAYS="msbuild,msvc,systemctl,journalctl,systemd-analyze,loginctl,choco,xcodebuild,xcrun,xcode-select,swift,swiftc,make,awscli,aws,azcli,az,curl,nasm,rust,rustc,cargo,rustup,ollama,python,brew,homebrew"
 
 # Parse arguments
 while [[ $# -gt 0 ]]; do

@@ -160,60 +160,95 @@ impl<'a> Stage<ExecutionPlan, ExecutionPlan> for EnsureStage<'a> {
         // Install the primary runtime
         if plan.primary.status == InstallStatus::NeedsInstall {
             debug!("[EnsureStage] Installing primary: {}", plan.primary.name);
-            let version = plan.primary.version_string().map(|s| s.to_string());
 
-            let install_result = if let Some(ver) = &version {
-                install_mgr
-                    .ensure_version_installed(&plan.primary.name, ver)
-                    .await
-                    .map_err(|e| EnsureError::InstallFailed {
-                        runtime: plan.primary.name.clone(),
-                        version: ver.clone(),
-                        reason: e.to_string(),
-                    })?
-            } else {
-                install_mgr
-                    .install_runtime(&plan.primary.name)
-                    .await
-                    .map_err(|e| EnsureError::InstallFailed {
-                        runtime: plan.primary.name.clone(),
-                        version: "latest".to_string(),
-                        reason: e.to_string(),
-                    })?
-            };
+            // ── Unified bundled-runtime handling ──────────────────────────
+            //
+            // Bundled runtimes (e.g., npm/npx bundled with node, cargo/rustc
+            // bundled with rust) are NOT independently installable.  Their
+            // parent runtime should already have been installed as a
+            // dependency above.
+            //
+            // We detect this ONCE here, skip every install method, and leave
+            // executable = None so PrepareStage uses proxy execution (RFC 0028)
+            // to locate the correct binary inside the parent's install dir.
+            //
+            // This replaces the scattered is_version_installable() checks
+            // that previously lived inside ensure_version_installed(),
+            // install_runtime(), and the post-install result handling.
+            let is_bundled = self
+                .registry
+                .and_then(|r| r.get_runtime(&plan.primary.name))
+                .map(|rt| !rt.is_version_installable("latest"))
+                .unwrap_or(false);
 
-            if let Some(result) = install_result {
-                // For bundled runtimes (e.g., npm bundled with node), the InstallResult
-                // returns the PARENT runtime's executable (node), not the bundled tool (npm).
-                // We must NOT set this as the executable, otherwise PrepareStage will
-                // skip proxy resolution and execute `node ci` instead of `npm ci`.
-                //
-                // Check if this runtime is bundled by asking the registry.
-                let is_bundled = self
-                    .registry
-                    .and_then(|r| r.get_runtime(&plan.primary.name))
-                    .map(|rt| !rt.is_version_installable(&result.version))
-                    .unwrap_or(false);
-
-                let exe = if is_bundled {
-                    // Bundled runtime: leave executable as None so PrepareStage
-                    // uses proxy execution (RFC 0028) to find the correct tool path
-                    debug!(
-                        "[EnsureStage] {} is bundled — skipping executable from InstallResult to allow proxy resolution",
-                        plan.primary.name
-                    );
-                    None
-                } else if result.executable_path.is_absolute() {
-                    Some(result.executable_path)
-                } else {
-                    None
-                };
-                plan.primary
-                    .mark_installed_with_version(result.version.clone(), exe);
-                info!(
-                    "[EnsureStage] Primary {} installed (version: {})",
-                    plan.primary.name, result.version
+            if is_bundled {
+                let version = plan
+                    .primary
+                    .version_string()
+                    .map(|s| s.to_string())
+                    .unwrap_or_else(|| "latest".to_string());
+                debug!(
+                    "[EnsureStage] {} is bundled — skipping install, proxy will resolve executable (version: {})",
+                    plan.primary.name, version
                 );
+
+                // Ensure the parent runtime is installed.
+                // It should already be in plan.dependencies, but as a safety net
+                // we call ensure_proxy_runtime_installed which is a no-op if
+                // the parent is already present.
+                if let Err(e) = install_mgr
+                    .ensure_proxy_runtime_installed(&plan.primary.name, &version)
+                    .await
+                {
+                    debug!(
+                        "[EnsureStage] Failed to ensure parent for bundled {}: {}",
+                        plan.primary.name, e
+                    );
+                    // Non-fatal: the parent might already be installed via deps
+                }
+
+                plan.primary.mark_installed_with_version(version, None);
+                info!(
+                    "[EnsureStage] Primary {} (bundled) ready for proxy execution",
+                    plan.primary.name
+                );
+            } else {
+                // ── Normal (non-bundled) runtime installation ─────────────
+                let version = plan.primary.version_string().map(|s| s.to_string());
+
+                let install_result = if let Some(ver) = &version {
+                    install_mgr
+                        .ensure_version_installed(&plan.primary.name, ver)
+                        .await
+                        .map_err(|e| EnsureError::InstallFailed {
+                            runtime: plan.primary.name.clone(),
+                            version: ver.clone(),
+                            reason: e.to_string(),
+                        })?
+                } else {
+                    install_mgr
+                        .install_runtime(&plan.primary.name)
+                        .await
+                        .map_err(|e| EnsureError::InstallFailed {
+                            runtime: plan.primary.name.clone(),
+                            version: "latest".to_string(),
+                            reason: e.to_string(),
+                        })?
+                };
+
+                if let Some(result) = install_result {
+                    let exe = if result.executable_path.is_absolute() {
+                        Some(result.executable_path)
+                    } else {
+                        None
+                    };
+                    plan.primary
+                        .mark_installed_with_version(result.version.clone(), exe);
+                    info!(
+                        "[EnsureStage] Primary {} installed (version: {})",
+                        plan.primary.name, result.version
+                    );
+                }
             }
         }
 

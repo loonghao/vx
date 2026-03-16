@@ -843,6 +843,7 @@ tar -tzf tool-1.0.0-linux.tar.gz | head -20
 
 For more advanced usage, see:
 
+- **[provider.star Language & Standard Library Reference](./provider-star-reference.md)** — Complete stdlib API, ctx object, templates, coding conventions
 - **[Starlark Providers - Advanced Guide](./starlark-providers.md)** — Multi-runtime providers, custom version sources, system integration, and extension patterns
 
 ## See Also

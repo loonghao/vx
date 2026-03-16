@@ -25,10 +25,10 @@ fn test_provider_name_is_ninja() {
 }
 
 #[test]
-fn test_provider_ecosystem_is_build_system() {
+fn test_provider_ecosystem_is_devtools() {
     make_assert().eq(
         r#"load("provider.star", "ecosystem"); ecosystem"#,
-        r#""build-system""#,
+        r#""devtools""#,
     );
 }
 

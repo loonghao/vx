@@ -28,6 +28,7 @@ vx-metrics = { workspace = true }
 vx-project-analyzer = { workspace = true }
 vx-resolver = { workspace = true }
 vx-runtime = { workspace = true }
+vx-versions = { workspace = true }
 vx-runtime-http = { workspace = true }
 vx-setup = { workspace = true }
 vx-args = { path = "../vx-args" }
@@ -58,7 +59,8 @@ vx-provider-awscli = { workspace = true }
 vx-provider-azcli = { workspace = true }
 vx-provider-gcloud = { workspace = true }
 # Container & Kubernetes
-vx-provider-docker = { workspace = true }
+vx-provider-podman = { workspace = true }
+
 vx-provider-kubectl = { workspace = true }
 vx-provider-helm = { workspace = true }
 # CLI utilities
@@ -106,9 +108,8 @@ vx-provider-jj = { workspace = true }
 vx-provider-ollama = { workspace = true }
 # Editors & IDEs
 vx-provider-vscode = { workspace = true }
-# Security & crypto
-vx-provider-openssl = { workspace = true }
 # Build cache
+
 vx-provider-sccache = { workspace = true }
 vx-provider-ccache = { workspace = true }
 vx-provider-buildcache = { workspace = true }
@@ -187,3 +188,6 @@ anyhow = { workspace = true }
 vx-paths = { workspace = true }
 serial_test = { workspace = true }
 vx-runtime = { workspace = true, features = ["testing"] }
+
+[build-dependencies]
+vx-star-metadata = { workspace = true }

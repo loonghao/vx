@@ -78,8 +78,14 @@ def download_url(ctx, version):
 # jq places binary in bin/ subdir
 # ---------------------------------------------------------------------------
 
-install_layout   = binary_layout("jq")
-_paths           = path_fns("jq")
-store_root       = _paths["store_root"]
-get_execute_path = bin_subdir_execute_path("jq")
-environment      = bin_subdir_env()
+install_layout = binary_layout("jq")
+_paths         = path_fns("jq")
+store_root     = _paths["store_root"]
+
+def get_execute_path(ctx, _version):
+    exe = "jq.exe" if ctx.platform.os == "windows" else "jq"
+    return ctx.install_dir + "/bin/" + exe
+
+def environment(ctx, _version):
+    return [{"op": "prepend", "name": "PATH", "value": ctx.install_dir + "/bin"}]
+

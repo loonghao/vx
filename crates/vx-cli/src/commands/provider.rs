@@ -1,16 +1,20 @@
-// Plugin command implementation
+//! Provider command implementation
+//!
+//! Manages user-defined providers loaded from provider.star files.
+//! Supports adding, removing, listing, and inspecting providers.
 
-use crate::cli::PluginCommand;
+use crate::cli::ProviderCommand;
 use crate::registry::load_star_overrides;
 use crate::ui::UI;
 use anyhow::{Context, Result};
 use std::path::{Path, PathBuf};
 use vx_paths::VxPaths;
 use vx_runtime::ProviderRegistry;
+use vx_starlark::StarMetadata;
 
-pub async fn handle(registry: &ProviderRegistry, command: PluginCommand) -> Result<()> {
+pub async fn handle(registry: &ProviderRegistry, command: ProviderCommand) -> Result<()> {
     match command {
-        PluginCommand::List {
+        ProviderCommand::List {
             enabled: _,
             category: _,
         } => {
@@ -47,7 +51,7 @@ pub async fn handle(registry: &ProviderRegistry, command: PluginCommand) -> Resu
             }
         }
 
-        PluginCommand::Info { name } => {
+        ProviderCommand::Info { name } => {
             UI::header(&format!("Runtime: {name}"));
 
             if let Some(runtime) = registry.get_runtime(&name) {
@@ -72,17 +76,17 @@ pub async fn handle(registry: &ProviderRegistry, command: PluginCommand) -> Resu
             }
         }
 
-        PluginCommand::Enable { name: _ } => {
-            UI::warning("Enable/disable commands not applicable to the new provider system");
+        ProviderCommand::Enable { name: _ } => {
+            UI::warning("Enable/disable commands not applicable to the provider system");
             UI::hint("All providers are automatically available");
         }
 
-        PluginCommand::Disable { name: _ } => {
-            UI::warning("Enable/disable commands not applicable to the new provider system");
+        ProviderCommand::Disable { name: _ } => {
+            UI::warning("Enable/disable commands not applicable to the provider system");
             UI::hint("All providers are automatically available");
         }
 
-        PluginCommand::Search { query } => {
+        ProviderCommand::Search { query } => {
             UI::header(&format!("Runtimes matching '{query}'"));
 
             let query_lower = query.to_lowercase();
@@ -102,7 +106,7 @@ pub async fn handle(registry: &ProviderRegistry, command: PluginCommand) -> Resu
             }
         }
 
-        PluginCommand::Stats => {
+        ProviderCommand::Stats => {
             UI::header("Provider Statistics");
 
             let providers = registry.providers();
@@ -119,11 +123,11 @@ pub async fn handle(registry: &ProviderRegistry, command: PluginCommand) -> Resu
             }
         }
 
-        PluginCommand::Add { path, name, force } => {
+        ProviderCommand::Add { path, name, force } => {
             handle_add(&path, name.as_deref(), force).await?;
         }
 
-        PluginCommand::Remove { name } => {
+        ProviderCommand::Remove { name } => {
             handle_remove(&name)?;
         }
     }
@@ -391,75 +395,23 @@ fn print_success(provider_name: &str, content: &str) {
 
 /// Extract the `description = "..."` field from a provider.star source.
 fn extract_description_from_star(source: &str) -> Option<String> {
-    for line in source.lines() {
-        let trimmed = line.trim();
-        if let Some(rest) = trimmed.strip_prefix("description") {
-            let rest = rest.trim();
-            if let Some(rest) = rest.strip_prefix('=') {
-                let rest = rest.trim();
-                let value = if (rest.starts_with('"') && rest.ends_with('"'))
-                    || (rest.starts_with('\'') && rest.ends_with('\''))
-                {
-                    &rest[1..rest.len() - 1]
-                } else {
-                    continue;
-                };
-                if !value.is_empty() {
-                    return Some(value.to_string());
-                }
-            }
-        }
-    }
-    None
+    let meta = StarMetadata::parse(source);
+    meta.description
 }
 
 /// Extract the `name = "..."` field from a provider.star source.
 fn extract_name_from_star(source: &str) -> Option<String> {
-    for line in source.lines() {
-        let trimmed = line.trim();
-        // Match: name = "foo"  or  name = 'foo'
-        if let Some(rest) = trimmed.strip_prefix("name") {
-            let rest = rest.trim();
-            if let Some(rest) = rest.strip_prefix('=') {
-                let rest = rest.trim();
-                // Strip surrounding quotes
-                let value = if (rest.starts_with('"') && rest.ends_with('"'))
-                    || (rest.starts_with('\'') && rest.ends_with('\''))
-                {
-                    &rest[1..rest.len() - 1]
-                } else {
-                    continue;
-                };
-                if !value.is_empty() {
-                    return Some(value.to_string());
-                }
-            }
-        }
-    }
-    None
+    let meta = StarMetadata::parse(source);
+    meta.name
 }
 
 /// Extract runtime names from `runtime_def("name", ...)` calls in a provider.star.
 fn extract_runtime_names_from_star(source: &str) -> Vec<String> {
-    let mut names = Vec::new();
-    for line in source.lines() {
-        let trimmed = line.trim();
-        // Match: runtime_def("foo", ...)  or  runtime_def('foo', ...)
-        if let Some(rest) = trimmed.strip_prefix("runtime_def(") {
-            let rest = rest.trim_start();
-            let value = if let Some(s) = rest.strip_prefix('"') {
-                s.split('"').next()
-            } else if let Some(s) = rest.strip_prefix('\'') {
-                s.split('\'').next()
-            } else {
-                None
-            };
-            if let Some(name) = value.filter(|s| !s.is_empty()) {
-                names.push(name.to_string());
-            }
-        }
-    }
-    names
+    let meta = StarMetadata::parse(source);
+    meta.runtimes
+        .iter()
+        .filter_map(|rt| rt.name.clone())
+        .collect()
 }
 
 // ---------------------------------------------------------------------------

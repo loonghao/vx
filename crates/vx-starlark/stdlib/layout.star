@@ -123,9 +123,12 @@ def binary_layout(executable):
         exe = executable + _exe_suffix(ctx)
         return {
             "type":             "binary",
-            "executable_paths": [exe, executable],
+            "target_name":      exe,
+            "target_dir":       "bin",
+            "executable_paths": ["bin/" + exe, exe, executable],
         }
     return install_layout
+
 
 def bin_subdir_layout(executables, strip_prefix = None):
     """Return an install_layout(ctx, version) function for tools with a bin/ subdir.

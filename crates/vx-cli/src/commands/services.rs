@@ -1,6 +1,6 @@
 //! Services command - Manage development services
 //!
-//! This command manages services defined in `vx.toml` using Docker/Podman.
+//! This command manages services defined in `vx.toml` using Podman.
 //!
 //! ## Configuration Example
 //!
@@ -31,29 +31,15 @@ use std::path::Path;
 use std::process::{Command, Stdio};
 use vx_config::ServiceConfig;
 
-/// Container runtime (docker or podman)
+/// Container runtime (Podman)
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum ContainerRuntime {
-    Docker,
     Podman,
 }
 
 impl ContainerRuntime {
     /// Detect available container runtime
     pub fn detect() -> Option<Self> {
-        // Try docker first
-        if Command::new("docker")
-            .arg("--version")
-            .stdout(Stdio::null())
-            .stderr(Stdio::null())
-            .status()
-            .map(|s| s.success())
-            .unwrap_or(false)
-        {
-            return Some(ContainerRuntime::Docker);
-        }
-
-        // Try podman
         if Command::new("podman")
             .arg("--version")
             .stdout(Stdio::null())
@@ -71,7 +57,6 @@ impl ContainerRuntime {
     /// Get the command name
     pub fn command(&self) -> &str {
         match self {
-            ContainerRuntime::Docker => "docker",
             ContainerRuntime::Podman => "podman",
         }
     }
@@ -108,9 +93,8 @@ pub async fn handle_start(
         return Ok(());
     }
 
-    let runtime = ContainerRuntime::detect().ok_or_else(|| {
-        anyhow::anyhow!("No container runtime found. Please install Docker or Podman.")
-    })?;
+    let runtime = ContainerRuntime::detect()
+        .ok_or_else(|| anyhow::anyhow!("No container runtime found. Please install Podman."))?;
 
     UI::header("🚀 Starting Services");
     println!();
@@ -165,9 +149,8 @@ pub async fn handle_stop(services: Option<Vec<String>>, verbose: bool) -> Result
         return Ok(());
     }
 
-    let runtime = ContainerRuntime::detect().ok_or_else(|| {
-        anyhow::anyhow!("No container runtime found. Please install Docker or Podman.")
-    })?;
+    let runtime = ContainerRuntime::detect()
+        .ok_or_else(|| anyhow::anyhow!("No container runtime found. Please install Podman."))?;
 
     UI::header("🛑 Stopping Services");
     println!();
@@ -217,11 +200,11 @@ pub async fn handle_status(verbose: bool) -> Result<()> {
         return Ok(());
     }
 
-    let runtime = ContainerRuntime::detect().ok_or_else(|| {
-        anyhow::anyhow!("No container runtime found. Please install Docker or Podman.")
-    })?;
+    let runtime = ContainerRuntime::detect()
+        .ok_or_else(|| anyhow::anyhow!("No container runtime found. Please install Podman."))?;
 
     UI::header("📊 Service Status");
+
     println!();
 
     let project_name = get_project_name(&config_path);
@@ -283,9 +266,8 @@ pub async fn handle_logs(service: &str, follow: bool, tail: Option<usize>) -> Re
         ));
     }
 
-    let runtime = ContainerRuntime::detect().ok_or_else(|| {
-        anyhow::anyhow!("No container runtime found. Please install Docker or Podman.")
-    })?;
+    let runtime = ContainerRuntime::detect()
+        .ok_or_else(|| anyhow::anyhow!("No container runtime found. Please install Podman."))?;
 
     let project_name = get_project_name(&config_path);
     let container_name = format!("vx-{}-{}", project_name, service);
@@ -593,7 +575,6 @@ mod tests {
 
     #[test]
     fn test_container_runtime_command() {
-        assert_eq!(ContainerRuntime::Docker.command(), "docker");
         assert_eq!(ContainerRuntime::Podman.command(), "podman");
     }
 

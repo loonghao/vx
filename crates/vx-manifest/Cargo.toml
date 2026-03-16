@@ -13,6 +13,7 @@ thiserror = { workspace = true }
 tracing = { workspace = true }
 vx-paths = { path = "../vx-paths" }
 vx-versions = { path = "../vx-versions" }
+vx-star-metadata = { path = "../vx-star-metadata" }
 workspace-hack = { version = "0.1", path = "../workspace-hack" }
 
 [dev-dependencies]

@@ -753,7 +753,8 @@ tar -tzf tool-1.0.0-linux.tar.gz | head -20
 
 更多高级用法，请参阅：
 
-- **[Starlark Providers - 高级指南](./starlark-providers.md)** — 多运行时 Provider、自定义版本源、系统集成和扩展模式
+- **[provider.star 语言与标准库参考](./provider-star-reference.md)** — 完整的 stdlib API、ctx 对象、模板、编码规范
+- **[Starlark Provider — 高级指南](./starlark-providers.md)** — 多运行时 Provider、自定义版本源、系统集成和扩展模式
 
 ## 另请参阅
 

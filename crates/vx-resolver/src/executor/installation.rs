@@ -65,6 +65,12 @@ impl<'a> InstallationManager<'a> {
     /// Returns the InstallResult (including executable_path) if successful.
     /// If the latest version fails verification, automatically falls back to
     /// the next available stable version (up to MAX_FALLBACK_ATTEMPTS times).
+    ///
+    /// **Safety**: Bundled runtimes (e.g., npm bundled with node) are detected
+    /// early and routed through [`ensure_proxy_runtime_installed`] instead of
+    /// the normal download-and-extract path.  Callers should prefer the unified
+    /// bundled check in [`EnsureStage`], but this safety net prevents silent
+    /// misresolution if `install_runtime` is ever called directly.
     pub async fn install_runtime(&self, runtime_name: &str) -> Result<Option<InstallResult>> {
         info!("Installing: {}", runtime_name);
 
@@ -72,6 +78,21 @@ impl<'a> InstallationManager<'a> {
         if let (Some(registry), Some(context)) = (self.registry, self.context)
             && let Some(runtime) = registry.get_runtime(runtime_name)
         {
+            // ── Bundled runtime safety net ────────────────────────────────
+            // Bundled runtimes share the parent's version list and install
+            // directory.  Installing them independently would download the
+            // parent archive and return the parent's executable, which is
+            // the root cause of `vx npm ci` → `node ci` misresolution.
+            if !runtime.is_version_installable("latest") {
+                debug!(
+                    "{} is bundled (not independently installable) — delegating to proxy install",
+                    runtime_name
+                );
+                self.ensure_proxy_runtime_installed(runtime_name, "latest")
+                    .await?;
+                return Ok(Some(InstallResult::proxy("latest".to_string())));
+            }
+
             // Check platform support before attempting installation
             if let Err(e) = runtime.check_platform_support() {
                 return Err(EnsureError::PlatformNotSupported {

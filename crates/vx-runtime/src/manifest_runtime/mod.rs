@@ -24,7 +24,7 @@ pub use types::{
 };
 
 use std::collections::HashMap;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use anyhow::Result;
@@ -390,7 +390,48 @@ impl ManifestDrivenRuntime {
         install_dir: &std::path::Path,
         layout: &serde_json::Value,
     ) -> PathBuf {
+        if let (Some(target_dir), Some(target_name)) = (
+            layout.get("target_dir").and_then(|d| d.as_str()),
+            layout.get("target_name").and_then(|n| n.as_str()),
+        ) {
+            let candidate = install_dir.join(target_dir).join(target_name);
+            if candidate.exists() {
+                return candidate;
+            }
+        }
+
         if let Some(paths) = layout.get("executable_paths").and_then(|p| p.as_array()) {
+            let mut preferred_rel: Option<&str> = None;
+            let mut preferred_names: Vec<String> = vec![self.executable.clone()];
+            if cfg!(windows)
+                && !self.executable.ends_with(".exe")
+                && !self.executable.ends_with(".cmd")
+                && !self.executable.ends_with(".bat")
+            {
+                preferred_names.push(format!("{}.exe", self.executable));
+                preferred_names.push(format!("{}.cmd", self.executable));
+                preferred_names.push(format!("{}.bat", self.executable));
+            }
+
+            for p in paths {
+                if let Some(rel) = p.as_str() {
+                    let file_name = Path::new(rel).file_name().and_then(|n| n.to_str());
+                    if let Some(name) = file_name
+                        && preferred_names
+                            .iter()
+                            .any(|preferred| preferred.eq_ignore_ascii_case(name))
+                    {
+                        let candidate = install_dir.join(rel);
+                        if candidate.exists() {
+                            return candidate;
+                        }
+                        if preferred_rel.is_none() {
+                            preferred_rel = Some(rel);
+                        }
+                    }
+                }
+            }
+
             for p in paths {
                 if let Some(rel) = p.as_str() {
                     let candidate = install_dir.join(rel);
@@ -399,10 +440,23 @@ impl ManifestDrivenRuntime {
                     }
                 }
             }
+
+            if let Some(rel) = preferred_rel {
+                return install_dir.join(rel);
+            }
+
             if let Some(first) = paths.first().and_then(|p| p.as_str()) {
                 return install_dir.join(first);
             }
         }
+
+        if let (Some(target_dir), Some(target_name)) = (
+            layout.get("target_dir").and_then(|d| d.as_str()),
+            layout.get("target_name").and_then(|n| n.as_str()),
+        ) {
+            return install_dir.join(target_dir).join(target_name);
+        }
+
         install_dir.join(vx_paths::with_executable_extension(&self.executable))
     }
 
@@ -703,7 +757,7 @@ impl Runtime for ManifestDrivenRuntime {
         //    and may NOT be on the system PATH, so which::which() would give a false
         //    negative.  Checking the store first avoids redundant install() calls on
         //    every `vx <tool>` invocation for already-installed tools.
-        let runtime_dir = ctx.paths.runtime_store_dir(&self.name);
+        let runtime_dir = ctx.paths.runtime_store_dir(self.store_name());
         if runtime_dir.exists() {
             if version == "latest" {
                 // Any version directory present → tool is installed.
@@ -739,7 +793,7 @@ impl Runtime for ManifestDrivenRuntime {
         //    and may not be on the system PATH yet.  Checking the store prevents
         //    companion tools (e.g. uv, prek) from being auto-reinstalled every time
         //    the project environment is prepared.
-        let runtime_dir = ctx.paths.runtime_store_dir(&self.name);
+        let runtime_dir = ctx.paths.runtime_store_dir(self.store_name());
         if runtime_dir.exists() {
             let mut versions: Vec<String> = std::fs::read_dir(&runtime_dir)
                 .ok()
@@ -776,6 +830,35 @@ impl Runtime for ManifestDrivenRuntime {
             Ok(vec!["system".to_string()])
         } else {
             Ok(vec![])
+        }
+    }
+
+    async fn get_executable_path_for_version(
+        &self,
+        version: &str,
+        ctx: &RuntimeContext,
+    ) -> Result<Option<std::path::PathBuf>> {
+        let platform = Platform::current();
+        let base_path = ctx.paths.version_store_dir(self.store_name(), version);
+        let install_path = base_path.join(platform.as_str());
+        if !ctx.fs.exists(&install_path) {
+            return Ok(None);
+        }
+
+        if let Some(ref layout_fn) = self.install_layout_fn
+            && let Ok(Some(layout)) = layout_fn(version.to_string()).await
+        {
+            let exe_path = self.resolve_exe_path_from_layout(&install_path, &layout);
+            if ctx.fs.exists(&exe_path) {
+                return Ok(Some(exe_path));
+            }
+        }
+
+        let verification = self.verify_installation(version, &install_path, &platform);
+        if verification.valid {
+            Ok(verification.executable_path)
+        } else {
+            Ok(None)
         }
     }
 

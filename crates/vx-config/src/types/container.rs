@@ -14,7 +14,7 @@ pub struct ContainerConfig {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub enabled: Option<bool>,
 
-    /// Container runtime (docker, podman)
+    /// Container runtime (podman)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub runtime: Option<String>,
 

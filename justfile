@@ -177,6 +177,58 @@ cross-build TARGET:
 
 
 # ============================================
+# Architecture & Quality Gates
+# ============================================
+
+# Check architectural layer dependencies (custom linter)
+check-architecture:
+    bash scripts/check-architecture.sh
+
+# Check file size limits (warns on bloat)
+check-file-sizes:
+    bash scripts/check-file-sizes.sh
+
+# Check file size limits strictly (fails on violations)
+check-file-sizes-strict:
+    bash scripts/check-file-sizes.sh --strict
+
+# Run all architecture checks
+check-all: check-architecture check-file-sizes check-inline-tests
+    @echo "✅ All architecture checks passed"
+
+# Diagnose development environment
+doctor:
+    @echo "🏥 VX Development Environment Diagnosis"
+    @echo "========================================"
+    @echo ""
+    @echo "## Rust Toolchain"
+    @rustc --version 2>/dev/null || echo "❌ rustc not found"
+    @cargo --version 2>/dev/null || echo "❌ cargo not found"
+    @echo ""
+    @echo "## Build Tools"
+    @sccache --version 2>/dev/null || echo "⚠️  sccache not found (optional, speeds up builds)"
+    @cargo nextest --version 2>/dev/null || echo "⚠️  cargo-nextest not found (optional, faster tests)"
+    @cargo hakari --version 2>/dev/null || echo "⚠️  cargo-hakari not found (optional, workspace-hack)"
+    @echo ""
+    @echo "## VX"
+    @vx --version 2>/dev/null || echo "⚠️  vx not found in PATH"
+    @echo ""
+    @echo "## Git"
+    @git --version 2>/dev/null || echo "❌ git not found"
+    @echo ""
+    @echo "## Workspace"
+    @echo "Crates: $(ls -d crates/vx-*/ 2>/dev/null | wc -l | xargs)"
+    @echo "Providers: $(ls -d crates/vx-providers/*/ 2>/dev/null | wc -l | xargs)"
+    @echo "provider.star files: $(find crates/vx-providers -name 'provider.star' 2>/dev/null | wc -l | xargs)"
+    @echo ""
+    @echo "========================================"
+    @echo "🏥 Diagnosis complete"
+
+# Fast pre-merge check (what CI will run on your PR)
+pre-merge: format-check lint check-architecture test-fast
+    @echo "✅ Pre-merge checks passed — ready for PR"
+
+# ============================================
 # Development
 # ============================================
 

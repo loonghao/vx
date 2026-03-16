@@ -8,14 +8,16 @@ vx 开箱即支持 **50+ 个工具**，涵盖语言运行时、包管理器、De
 |------|------|------|
 | [语言运行时](#语言运行时) | Node.js, Python, Go, Rust, Deno, Zig, Java, .NET | 8 |
 | [包管理器](#包管理器) | npm, pnpm, yarn, bun, uv, pip, cargo, nuget | 8 |
-| [DevOps](#devops) | Terraform, kubectl, Helm, Docker CLI, Git | 5 |
+| [DevOps](#devops) | Terraform, kubectl, Helm, Podman CLI, Git | 5 |
+
 | [云 CLI](#云-cli) | AWS CLI, Azure CLI, Google Cloud CLI | 3 |
 | [构建工具](#构建工具) | CMake, Ninja, Just, Task, Make, Meson, protoc, MSBuild | 8 |
 | [代码质量](#代码质量) | pre-commit, Vite | 2 |
 | [AI](#ai) | Ollama | 1 |
 | [科学计算 & HPC](#科学计算--hpc) | Spack, Rez | 2 |
 | [媒体](#媒体) | FFmpeg, ImageMagick | 2 |
-| [系统工具](#系统工具) | jq, gh, curl, pwsh, Git, NASM, OpenSSL, x-cmd | 8+ |
+| [系统工具](#系统工具) | jq, gh, curl, pwsh, Git, NASM, x-cmd | 7+ |
+
 | [Windows 专属](#windows-专属) | choco, winget, rcedit, MSVC Build Tools | 4 |
 
 ## 语言运行时
@@ -52,7 +54,7 @@ vx 开箱即支持 **50+ 个工具**，涵盖语言运行时、包管理器、De
 | **Terraform** | 基础设施即代码 | [详情 →](./devops) |
 | **kubectl** | Kubernetes CLI | [详情 →](./devops) |
 | **Helm** | Kubernetes 包管理器 | [详情 →](./devops) |
-| **Docker** | 容器 CLI（需要 Docker Engine） | [详情 →](./devops) |
+| **Podman** | 容器 CLI 与 compose 工作流 | [详情 →](./devops) |
 | **Git** | 版本控制（Windows 使用 MinGit） | [详情 →](./devops) |
 | **Dagu** | 基于 DAG 的工作流执行器 | — |
 
@@ -114,7 +116,7 @@ vx 开箱即支持 **50+ 个工具**，涵盖语言运行时、包管理器、De
 | **curl** | HTTP 客户端 |
 | **pwsh** | PowerShell |
 | **NASM** | Netwide 汇编器 |
-| **OpenSSL** | 密码学工具包 |
+
 | **x-cmd** | 命令行工具箱，100+ 模块，集成 AI |
 
 ## Windows 专属

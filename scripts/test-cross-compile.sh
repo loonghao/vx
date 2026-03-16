@@ -1,6 +1,6 @@
 #!/bin/bash
 # Test cross-compilation for different targets
-# This script helps verify that our OpenSSL fixes work
+# This script helps verify that our TLS and native dependency setup works
 
 set -e
 
@@ -47,7 +47,7 @@ else
     exit 1
 fi
 
-# Test targets that commonly have OpenSSL issues
+# Test targets that previously surfaced TLS or native dependency issues
 TARGETS=(
     "x86_64-unknown-linux-musl:Linux musl (static)"
     "aarch64-unknown-linux-gnu:Linux ARM64"
@@ -70,7 +70,7 @@ echo -e "Successful: ${GREEN}$SUCCESS_COUNT${NC}/$TOTAL_COUNT"
 
 if [ $SUCCESS_COUNT -eq $TOTAL_COUNT ]; then
     echo -e "${GREEN}🎉 All cross-compilation tests passed!${NC}"
-    echo -e "${GREEN}OpenSSL dependency issues have been resolved.${NC}"
+    echo -e "${GREEN}TLS and native dependency issues have been resolved.${NC}"
     exit 0
 else
     echo -e "${RED}⚠️  Some cross-compilation tests failed.${NC}"

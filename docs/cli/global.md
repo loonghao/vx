@@ -461,7 +461,7 @@ vx global shim-update
 # Ensure runtime is installed
 vx install node    # For npm packages
 vx install python  # For pip packages
-vx install rust    # For cargo packages
+vx install rustup  # For cargo packages (managed by rustup)
 ```
 
 ### Permission Issues

@@ -1,8 +1,8 @@
 [package]
-name = "vx-provider-openssl"
+name = "vx-provider-podman"
 version.workspace = true
 edition.workspace = true
-description = "OpenSSL cryptography provider for vx"
+description = "Podman container platform provider for vx"
 license.workspace = true
 repository.workspace = true
 homepage.workspace = true
@@ -13,7 +13,7 @@ rust-version.workspace = true
 publish = false
 
 [lib]
-name = "vx_provider_openssl"
+name = "vx_provider_podman"
 path = "lib.rs"
 
 [dependencies]

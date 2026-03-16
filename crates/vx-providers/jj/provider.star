@@ -63,19 +63,6 @@ def deps(_ctx, _version):
     return [dep_def("git", version=">=2.41", optional=True,
                     reason="jj uses git as backend for version control")]
 
-# ---------------------------------------------------------------------------
-# constraints — runtime recommendations
-# ---------------------------------------------------------------------------
-
-constraints = [
-    {
-        "when":       "*",
-        "recommends": [
-            {
-                "runtime": "git",
-                "version": ">=2.41",
-                "reason":  "jj uses git as backend for version control",
-            },
-        ],
-    },
-]
+#
+# Note: constraint-style recommendations are not consumed from provider.star
+# yet. Keep deps() as the single source of dependency guidance.

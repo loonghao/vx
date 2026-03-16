@@ -43,9 +43,9 @@ impl ContainerManager {
         self.config.enabled.unwrap_or(false)
     }
 
-    /// Get the container runtime (docker or podman)
+    /// Get the container runtime (podman)
     pub fn runtime(&self) -> &str {
-        self.config.runtime.as_deref().unwrap_or("docker")
+        self.config.runtime.as_deref().unwrap_or("podman")
     }
 
     /// Generate Dockerfile content

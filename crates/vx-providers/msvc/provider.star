@@ -127,8 +127,10 @@ runtimes = [
         auto_installable    = True,
         platform_constraint = {"os": ["windows"]},
         system_paths        = _MSVC_PATHS,
-        test_commands       = [{"command": "{executable} --version", "name": "version_check"}],
+        test_commands       = [{"command": "{executable} /help", "name": "version_check",
+                                "expected_output": "Microsoft"}],
     ),
+
     bundled_runtime_def("nmake",    bundled_with = "msvc",
         auto_installable = False, platform_constraint = {"os": ["windows"]}),
     bundled_runtime_def("link",     bundled_with = "msvc",

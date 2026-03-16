@@ -1,176 +1,76 @@
 # Rust
 
-vx provides support for the Rust programming language and its toolchain.
+vx supports Rust through `rustup` and bundled runtimes like `cargo`/`rustc`.
 
-## Supported Tools
+## Runtime Relationship
 
-| Tool | Description |
-|------|-------------|
-| `rust` | Rust toolchain (rustc, cargo, etc.) |
-| `cargo` | Rust package manager |
-| `rustc` | Rust compiler |
+| Runtime | Role | Recommended Usage |
+|---|---|---|
+| `rustup` | Toolchain manager / installer | `vx rustup ...` |
+| `cargo` | Build, test, dependency management | `vx cargo ...` |
+| `rustc` | Rust compiler | `vx rustc ...` |
+
+> `vx rust` is currently an alias to `vx rustc`. For clarity, prefer `vx rustc` in docs/scripts.
 
 ## Installation
 
 ```bash
-vx install rust stable
-vx install rust nightly
-vx install rust 1.75.0
+# Install rustup runtime (recommended)
+vx install rustup
+vx install rustup@latest
 ```
 
-## Download Format
+## Daily Commands
 
-vx downloads Rust toolchains in `.tar.gz` format for all platforms (Windows, macOS, Linux). This ensures consistent extraction behavior across all operating systems and avoids platform-specific installer formats like `.msi`.
-
-The download URLs follow the pattern:
-```
-https://static.rust-lang.org/dist/rust-{version}-{platform}.tar.gz
-```
-
-## Version Specifiers
-
-```bash
-rust stable      # Stable channel
-rust beta        # Beta channel
-rust nightly     # Nightly channel
-rust 1.75.0      # Specific version
-```
-
-## Cargo
-
-### Basic Commands
+### Cargo
 
 ```bash
 vx cargo --version
-vx cargo new my-project
-vx cargo init
-```
-
-### Building
-
-```bash
-vx cargo build
 vx cargo build --release
-vx cargo build --target x86_64-unknown-linux-musl
-```
-
-### Running
-
-```bash
-vx cargo run
-vx cargo run --release
-vx cargo run -- --arg value
-```
-
-### Testing
-
-```bash
 vx cargo test
-vx cargo test --release
-vx cargo test -- --nocapture
+vx cargo run
 ```
 
-### Dependencies
-
-```bash
-vx cargo add serde
-vx cargo add tokio --features full
-vx cargo remove serde
-vx cargo update
-```
-
-### Publishing
-
-```bash
-vx cargo publish --dry-run
-vx cargo publish
-```
-
-## Rustc
+### Rustc
 
 ```bash
 vx rustc --version
 vx rustc main.rs -o main
 ```
 
-## Project Configuration
+### Rustup (toolchain management)
+
+```bash
+vx rustup --version
+vx rustup toolchain list
+vx rustup target add x86_64-unknown-linux-musl
+```
+
+## vx.toml Recommendation
 
 ```toml
 [tools]
-rust = "stable"
+rustup = "latest"
 
 [scripts]
 build = "cargo build --release"
 test = "cargo test"
 lint = "cargo clippy -- -D warnings"
 format = "cargo fmt"
-doc = "cargo doc --open"
 ```
 
-## Common Workflows
+## Important Version Note
 
-### New Project
+`rustup` version and `rustc` version are different.
+
+- `rustup = "1.93.1"` is usually invalid (that is a Rust compiler version, not a rustup release).
+- If you need a specific compiler toolchain, manage it via `vx rustup toolchain ...` commands.
+
+## Package Execution Syntax (Rust Ecosystem)
 
 ```bash
-vx cargo new my-project
-cd my-project
-vx cargo run
+# Run rust ecosystem packages on demand
+vx cargo:ripgrep::rg --version
+vx cargo:fd-find::fd .
 ```
 
-### Library Project
-
-```bash
-vx cargo new --lib my-lib
-cd my-lib
-vx cargo test
-```
-
-### Web Server with Axum
-
-```bash
-vx cargo new my-server
-cd my-server
-vx cargo add axum tokio --features tokio/full
-# Create src/main.rs
-vx cargo run
-```
-
-### CLI Tool with Clap
-
-```bash
-vx cargo new my-cli
-cd my-cli
-vx cargo add clap --features derive
-# Create src/main.rs
-vx cargo build --release
-```
-
-## Cross-Compilation
-
-```bash
-# Add target
-vx rustup target add x86_64-unknown-linux-musl
-
-# Build for target
-vx cargo build --release --target x86_64-unknown-linux-musl
-```
-
-## Code Quality
-
-```bash
-# Format code
-vx cargo fmt
-
-# Lint with Clippy
-vx cargo clippy
-
-# Check without building
-vx cargo check
-```
-
-## Tips
-
-1. **Use stable for production**: Unless you need nightly features
-2. **Run clippy regularly**: Catches common mistakes
-3. **Use cargo fmt**: Consistent formatting
-4. **Pin rust-toolchain.toml**: For team consistency

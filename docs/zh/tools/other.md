@@ -179,17 +179,17 @@ vx helm install my-release chart/
 vx helm upgrade my-release chart/
 ```
 
-### Docker
+### Podman
 
 容器运行时和工具。
 
 ```bash
-vx install `docker@latest
+vx install podman
 
-vx docker --version
-vx docker build -t myapp .
-vx docker run -it myapp
-vx docker compose up -d
+vx podman --version
+vx podman build -t myapp .
+vx podman run -it myapp
+vx podman compose up -d
 ```
 
 ## 云 CLI 工具
@@ -320,7 +320,7 @@ dotnet = "latest"
 terraform = "1.6"
 kubectl = "latest"
 helm = "latest"
-docker = "latest"
+podman = "system"
 awscli = "latest"
 pre-commit = "latest"
 cmake = "latest"
@@ -331,7 +331,7 @@ x-cmd = "latest"
 dev = "deno task dev"
 deploy = "terraform apply -auto-approve"
 k8s-status = "kubectl get pods -A"
-docker-build = "docker build -t myapp ."
+podman-build = "podman build -t myapp ."
 lint = "pre-commit run --all-files"
 build = "cmake -B build && cmake --build build"
 dotnet-build = "dotnet build"

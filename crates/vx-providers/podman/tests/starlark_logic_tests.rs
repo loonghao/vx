@@ -1,4 +1,4 @@
-//! Pure Starlark logic tests for openssl provider.star
+//! Pure Starlark logic tests for podman provider.star
 
 use starlark::assert::Assert;
 use starlark::syntax::Dialect;
@@ -8,27 +8,25 @@ fn make_assert() -> Assert<'static> {
     let mut a = Assert::new();
     a.dialect(&Dialect::Standard);
     setup_provider_test_mocks(&mut a);
-    a.module("provider.star", vx_provider_openssl::PROVIDER_STAR);
+    a.module("provider.star", vx_provider_podman::PROVIDER_STAR);
     a
 }
 
 fn provider_star_prefix() -> String {
     use vx_starlark::test_mocks::prepare_provider_source;
-    prepare_provider_source(vx_provider_openssl::PROVIDER_STAR)
-}
-
-// ── provider metadata ─────────────────────────────────────────────────────────
-
-#[test]
-fn test_provider_name_is_openssl() {
-    make_assert().eq(r#"load("provider.star", "name"); name"#, r#""openssl""#);
+    prepare_provider_source(vx_provider_podman::PROVIDER_STAR)
 }
 
 #[test]
-fn test_provider_ecosystem_is_system() {
+fn test_provider_name_is_podman() {
+    make_assert().eq(r#"load("provider.star", "name"); name"#, r#""podman""#);
+}
+
+#[test]
+fn test_provider_ecosystem_is_devtools() {
     make_assert().eq(
         r#"load("provider.star", "ecosystem"); ecosystem"#,
-        r#""system""#,
+        r#""devtools""#,
     );
 }
 
@@ -37,20 +35,27 @@ fn test_provider_has_homepage() {
     make_assert().is_true(r#"load("provider.star", "homepage"); homepage.startswith("https://")"#);
 }
 
-// ── runtimes metadata ─────────────────────────────────────────────────────────
-
 #[test]
-fn test_runtimes_has_openssl() {
+fn test_runtimes_has_podman() {
     make_assert().is_true(
         r#"
 load("provider.star", "runtimes")
 names = [r["name"] for r in runtimes]
-"openssl" in names
+"podman" in names
 "#,
     );
 }
 
-// ── fetch_versions logic ──────────────────────────────────────────────────────
+#[test]
+fn test_podman_runtime_has_test_commands() {
+    make_assert().is_true(
+        r#"
+load("provider.star", "runtimes")
+rt = [r for r in runtimes if r["name"] == "podman"][0]
+len(rt.get("test_commands", [])) > 0
+"#,
+    );
+}
 
 #[test]
 fn test_fetch_versions_returns_system_entry() {
@@ -67,11 +72,8 @@ len(versions) == 1 and versions[0]["version"] == "system"
     ));
 }
 
-// ── download_url logic ────────────────────────────────────────────────────────
-
 #[test]
 fn test_download_url_always_returns_none() {
-    // openssl is a system tool, not managed by vx
     let mut a = Assert::new();
     a.dialect(&Dialect::Standard);
     a.is_true(&format!(
@@ -85,7 +87,15 @@ url == None
     ));
 }
 
-// ── environment logic ─────────────────────────────────────────────────────────
+#[test]
+fn test_system_install_is_defined() {
+    make_assert().is_true(
+        r#"
+load("provider.star", "system_install")
+system_install != None
+"#,
+    );
+}
 
 #[test]
 fn test_environment_returns_empty() {
@@ -102,8 +112,6 @@ len(env) == 0
     ));
 }
 
-// ── lint check ────────────────────────────────────────────────────────────────
-
 #[test]
 fn test_provider_star_lint_clean() {
     use starlark::analysis::AstModuleLint;
@@ -112,7 +120,7 @@ fn test_provider_star_lint_clean() {
 
     let ast = AstModule::parse(
         "provider.star",
-        vx_provider_openssl::PROVIDER_STAR.to_string(),
+        vx_provider_podman::PROVIDER_STAR.to_string(),
         &Dialect::Standard,
     )
     .expect("provider.star should parse without errors");
@@ -134,6 +142,7 @@ fn test_provider_star_lint_clean() {
         "ecosystem",
         "runtimes",
         "permissions",
+        "system_install",
         "True",
         "False",
         "None",

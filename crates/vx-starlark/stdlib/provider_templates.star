@@ -355,18 +355,44 @@ def github_binary_provider(owner, repo, asset,
                                go_arch = go_arch if go_arch else "")
         return github_asset_url(owner, repo, tag, fname)
 
+    def _store_root(ctx):
+        return ctx.vx_home + "/store/" + store_name
+
+    def _get_execute_path(ctx, _version):
+        return ctx.install_dir + "/bin/" + exe_name + _exe_suffix(ctx)
+
+    def _post_install(_ctx, _version):
+        return None
+
+    def _environment(ctx, _version):
+        ops = [env_prepend("PATH", ctx.install_dir + "/bin")] if path_env else []
+        if extra_env != None:
+            ops = ops + extra_env
+        return ops
+
     def _install_layout(ctx, _version):
         exe = exe_name + _exe_suffix(ctx)
         return {
             "__type":           "binary",
-            "executable_paths": [exe, exe_name],
+            "target_name":      exe,
+            "target_dir":       "bin",
+            "executable_paths": ["bin/" + exe, exe, exe_name],
         }
 
-    fns = _std_provider_fns(store_name, exe_name, path_env, extra_env)
-    fns["fetch_versions"] = _fetch_versions
-    fns["download_url"]   = _download_url
-    fns["install_layout"] = _install_layout
-    return fns
+    def _deps(_ctx, _version):
+        return []
+
+    return {
+        "fetch_versions":   _fetch_versions,
+        "download_url":     _download_url,
+        "install_layout":   _install_layout,
+        "store_root":       _store_root,
+        "get_execute_path": _get_execute_path,
+        "post_install":     _post_install,
+        "environment":      _environment,
+        "deps":             _deps,
+    }
+
 
 # ---------------------------------------------------------------------------
 # Template 4: system_provider

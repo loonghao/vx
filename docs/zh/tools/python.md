@@ -32,7 +32,7 @@ vx 使用 Astral 的 [python-build-standalone](https://github.com/astral-sh/pyth
 
 ```bash
 # 安装最新版 Python
-vx install `python@latest
+vx install python@latest
 
 # 安装特定版本
 vx install python 3.12.8
@@ -68,7 +68,7 @@ vx python -m pytest
 ### 安装
 
 ```bash
-vx install `uv@latest
+vx install uv@latest
 ```
 
 ### 包管理
@@ -106,6 +106,22 @@ vx uvx mypy src/
 vx uvx pytest
 vx uvx jupyter notebook
 ```
+
+### `vx uvx` 与 `vx uvx:<package>`
+
+- `vx uvx <cmd> ...` 是**运行时直连执行**（等价于 `uvx <cmd>` 风格）。
+- `vx uvx:<package>[::executable] ...` 是**包语法**。
+
+```bash
+# 运行时直连执行
+vx uvx ruff check .
+
+# 包语法（显式指定包和可执行文件）
+vx uvx:pyinstaller::pyinstaller --version
+```
+
+> 包语法里的 `::...` 表示包上下文中的可执行文件名，不是 shell。  
+> shell 语法是 `vx <runtime>::<shell>`（例如：`vx uv::cmd`）。
 
 ## 项目配置
 

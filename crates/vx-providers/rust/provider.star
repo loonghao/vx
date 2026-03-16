@@ -88,11 +88,21 @@ def download_url(ctx, version):
 # install_layout — single binary installer
 # ---------------------------------------------------------------------------
 
-def install_layout(ctx, _version):
-    exe = "rustup-init.exe" if ctx.platform.os == "windows" else "rustup-init"
+def install_layout(ctx, version):
+    triple = _rustup_triple(ctx)
+    if not triple:
+        return None
+    source = "rustup-init-{}-{}".format(version, triple)
+    target = "rustup-init"
+    if ctx.platform.os == "windows":
+        source = source + ".exe"
+        target = target + ".exe"
     return {
-        "type":             "binary",
-        "executable_paths": [exe],
+        "type":               "binary",
+        "source_name":        source,
+        "target_name":        target,
+        "target_dir":         "bin",
+        "target_permissions": "755",
     }
 
 # ---------------------------------------------------------------------------
@@ -101,11 +111,12 @@ def install_layout(ctx, _version):
 
 def post_extract(ctx, _version, install_dir):
     actions = []
-    if ctx.platform.os != "windows":
-        actions.append(set_permissions("rustup-init", "755"))
     init_bin = "rustup-init.exe" if ctx.platform.os == "windows" else "rustup-init"
+    if ctx.platform.os != "windows":
+        actions.append(set_permissions("bin/" + init_bin, "755"))
     actions.append(run_command(
-        install_dir + "/" + init_bin,
+        install_dir + "/bin/" + init_bin,
+
         args = ["-y", "--no-modify-path", "--default-toolchain", "stable"],
         env  = {
             "RUSTUP_HOME": install_dir + "/rustup",
@@ -123,6 +134,12 @@ def store_root(ctx):
     return ctx.vx_home + "/store/rust"
 
 def get_execute_path(ctx, _version):
+    runtime = ctx.runtime_name or "rustup"
+
+    if runtime in ("rustc", "cargo", "rustfmt", "rustup"):
+        exe = runtime + (".exe" if ctx.platform.os == "windows" else "")
+        return ctx.install_dir + "/cargo/bin/" + exe
+    # Fallback to rustup
     exe = "rustup.exe" if ctx.platform.os == "windows" else "rustup"
     return ctx.install_dir + "/cargo/bin/" + exe
 

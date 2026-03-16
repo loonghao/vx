@@ -1,0 +1,102 @@
+name: "Setup Rust + sccache"
+description: "Reusable composite action to setup Rust toolchain with sccache caching"
+
+inputs:
+  rust-components:
+    description: "Additional Rust components to install (e.g., 'rustfmt, clippy')"
+    required: false
+    default: ""
+  rust-targets:
+    description: "Additional Rust targets to install (e.g., 'x86_64-apple-darwin')"
+    required: false
+    default: ""
+  shared-key:
+    description: "Shared cache key for Swatinem/rust-cache"
+    required: false
+    default: "default"
+  cache-prefix-key:
+    description: "Prefix key for Swatinem/rust-cache (useful for target-specific caching)"
+    required: false
+    default: ""
+  install-nextest:
+    description: "Install cargo-nextest"
+    required: false
+    default: "false"
+
+runs:
+  using: "composite"
+  steps:
+    - name: Setup MSVC development environment (Windows)
+      if: runner.os == 'Windows'
+      uses: ilammy/msvc-dev-cmd@v1
+      with:
+        arch: x64
+
+    - name: Setup Rust
+      uses: dtolnay/rust-toolchain@stable
+      with:
+        components: ${{ inputs.rust-components }}
+        targets: ${{ inputs.rust-targets }}
+
+    - name: Install sccache
+      uses: taiki-e/install-action@v2
+      with:
+        tool: sccache
+
+    - name: Setup sccache path (Windows)
+      if: runner.os == 'Windows'
+      shell: pwsh
+      run: |
+        $sccacheDir = "$env:USERPROFILE\.cargo\bin"
+        if (Test-Path "$sccacheDir\sccache.exe") {
+          echo "$sccacheDir" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+          & "$sccacheDir\sccache.exe" --version
+        } else {
+          $sccachePath = (Get-Command sccache -ErrorAction SilentlyContinue).Source
+          if ($sccachePath) {
+            $sccacheDir = Split-Path $sccachePath
+            echo "$sccacheDir" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+          } else {
+            Write-Warning "sccache not found, disabling RUSTC_WRAPPER"
+            echo "RUSTC_WRAPPER=" >> $env:GITHUB_ENV
+          }
+        }
+
+    - name: Verify sccache (Unix)
+      if: runner.os != 'Windows'
+      shell: bash
+      run: |
+        which sccache || echo "sccache not found in PATH"
+        sccache --version || echo "sccache version check failed"
+
+    - name: Cache sccache
+      uses: actions/cache@v5
+      with:
+        path: ${{ github.workspace }}/.cache/sccache
+        key: sccache-v2-${{ runner.os }}-${{ hashFiles('Cargo.lock') }}
+        restore-keys: |
+          sccache-v2-${{ runner.os }}-
+          sccache-v2-
+
+    - name: Add Rust to PATH (Windows)
+      if: runner.os == 'Windows'
+      shell: pwsh
+      run: |
+        $cargoPath = "$env:USERPROFILE\.cargo\bin"
+        echo "$cargoPath" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+
+    - name: Cache Rust
+      uses: Swatinem/rust-cache@v2
+      with:
+        prefix-key: ${{ inputs.cache-prefix-key }}
+        shared-key: ${{ inputs.shared-key }}
+
+    - name: Start sccache server
+      shell: bash
+      run: sccache --start-server || true
+
+    - name: Install cargo-nextest
+      if: inputs.install-nextest == 'true'
+      uses: taiki-e/install-action@v2
+      with:
+        tool: cargo-nextest

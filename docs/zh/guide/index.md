@@ -22,7 +22,7 @@ vx cargo build           # 如果需要，自动安装 Rust
 
 - **多种语言运行时** — Node.js、Python、Go、Rust、.NET、Java、Zig 等
 - **包管理器** — npm、pnpm、yarn、uv、pip、cargo 等
-- **DevOps 工具** — Terraform、kubectl、Helm、Docker CLI 等
+- **DevOps 工具** — Terraform、kubectl、Helm、Podman CLI 等
 - **构建工具** — CMake、Ninja、Just、Task、protoc 等
 - **云 CLI** — AWS CLI、Azure CLI、Google Cloud CLI 等
 
@@ -133,4 +133,6 @@ vx run test              # 运行测试
 - [安装](/zh/guide/installation) — 在你的系统上安装 vx
 - [快速上手](/zh/guide/getting-started) — 5 分钟内开始使用
 - [核心概念](/zh/guide/concepts) — 了解 vx 的工作原理
+- [统一语法规则](/zh/guide/command-syntax-rules) — 规范语法表与 CLI 整合策略
 - [CLI 参考](/zh/cli/overview) — 完整的命令文档
+

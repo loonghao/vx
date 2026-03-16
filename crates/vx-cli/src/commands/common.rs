@@ -221,19 +221,19 @@ pub fn calculate_directory_size(path: &Path) -> Result<u64> {
 /// parse_tool_version("node") // Err - missing version
 /// ```
 pub fn parse_tool_version(tool_version: &str) -> Result<(String, String)> {
-    if let Some((tool, version)) = tool_version.split_once('@') {
-        if tool.is_empty() || version.is_empty() {
-            return Err(anyhow::anyhow!(
-                "Invalid tool@version format: {}",
-                tool_version
-            ));
-        }
-        Ok((tool.to_string(), version.to_string()))
-    } else {
-        Err(anyhow::anyhow!(
+    let request = vx_resolver::RuntimeRequest::parse(tool_version);
+    if request.name.is_empty() {
+        return Err(anyhow::anyhow!(
             "Invalid format: {}. Expected format: tool@version (e.g., node@20.10.0)",
             tool_version
-        ))
+        ));
+    }
+    match request.version {
+        Some(version) if !version.is_empty() => Ok((request.name, version)),
+        _ => Err(anyhow::anyhow!(
+            "Invalid format: {}. Expected format: tool@version (e.g., node@20.10.0)",
+            tool_version
+        )),
     }
 }
 

@@ -78,6 +78,8 @@ async fn find_runtime_executable_for_test(
 
 /// Handle test command with Args
 pub async fn handle(ctx: &CommandContext, args: &Args) -> Result<()> {
+    crate::registry::ensure_provider_metadata_initialized().await;
+
     // Determine test mode
     if args.ci {
         handle_ci_test(ctx, args).await

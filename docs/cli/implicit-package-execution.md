@@ -130,6 +130,7 @@ vx uv:ruff check .
 # Using uvx (isolated, ephemeral)
 vx uvx:ruff check .
 vx uvx:black .
+vx uvx:pyinstaller::pyinstaller --version
 
 # Using pipx (isolated, ephemeral)
 vx pipx:cowsay Hello World
@@ -366,7 +367,7 @@ vx global list
 # Install required runtime first
 vx install node        # For npm packages
 vx install python      # For pip packages
-vx install rust        # For cargo packages
+vx install rustup      # For cargo packages (managed by rustup)
 ```
 
 ### Command Conflicts

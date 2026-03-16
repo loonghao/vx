@@ -7,6 +7,7 @@ use crate::{
 };
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
+use vx_star_metadata::StarMetadata;
 
 /// Manifest loader - discovers and loads provider.toml files
 #[derive(Debug, Default)]
@@ -291,12 +292,13 @@ impl ManifestLoader {
 /// Convert a `provider.star` file content into a `ProviderManifest`.
 /// Returns `None` if the provider name cannot be determined.
 fn star_to_manifest(content: &str) -> Option<ProviderManifest> {
-    let name = star_extract_simple_return(content, "name")?;
-    let description = star_extract_simple_return(content, "description");
-    let homepage = star_extract_simple_return(content, "homepage");
-    let repository = star_extract_simple_return(content, "repository");
-    let ecosystem_str = star_extract_simple_return(content, "ecosystem");
-    let platforms_os = star_extract_platforms_os(content);
+    let meta = StarMetadata::parse(content);
+    let name = meta.name?;
+    let description = meta.description.clone();
+    let homepage = meta.homepage;
+    let repository = meta.repository;
+    let ecosystem_str = meta.ecosystem;
+    let platforms_os = meta.platforms;
 
     let ecosystem = match ecosystem_str.as_deref() {
         Some("nodejs") | Some("node") => Some(Ecosystem::NodeJs),
@@ -346,8 +348,7 @@ fn star_to_manifest(content: &str) -> Option<ProviderManifest> {
         package_alias: None,
     };
 
-    let star_runtimes = star_extract_runtimes(content);
-    let runtimes = if star_runtimes.is_empty() {
+    let runtimes = if meta.runtimes.is_empty() {
         vec![RuntimeDef {
             name: name.clone(),
             executable: name.clone(),
@@ -383,7 +384,7 @@ fn star_to_manifest(content: &str) -> Option<ProviderManifest> {
             bundled: None,
         }]
     } else {
-        star_runtimes
+        meta.runtimes
             .iter()
             .map(|rt| {
                 let rt_name = rt.name.clone().unwrap_or_else(|| name.clone());
@@ -421,7 +422,7 @@ fn star_to_manifest(content: &str) -> Option<ProviderManifest> {
                     platform_constraint: rt_platform,
                     bundled_with: rt.bundled_with.clone(),
                     managed_by: None,
-                    command_prefix: rt.command_prefix.clone(),
+                    command_prefix: vec![],
                     constraints: vec![],
                     hooks: None,
                     platforms: None,
@@ -452,308 +453,6 @@ fn star_to_manifest(content: &str) -> Option<ProviderManifest> {
     };
 
     Some(ProviderManifest { provider, runtimes })
-}
-
-/// Metadata for a single runtime entry inside the `runtimes` list.
-struct StarRuntimeMeta {
-    name: Option<String>,
-    executable: Option<String>,
-    description: Option<String>,
-    aliases: Vec<String>,
-    platform_os: Vec<String>,
-    auto_installable: Option<bool>,
-    bundled_with: Option<String>,
-    priority: Option<u32>,
-    command_prefix: Vec<String>,
-}
-
-/// Extract a string value for a top-level variable or function return.
-///
-/// Supports two formats (RFC 0038 v5 top-level variables take priority):
-/// 1. Top-level variable: `name = "value"` or `name = 'value'` (any spacing around `=`)
-/// 2. Function return: `def name(): return "value"`
-fn star_extract_simple_return(source: &str, fn_name: &str) -> Option<String> {
-    // Try top-level variable format first (RFC 0038 v5): `name = "value"`
-    // Handles any amount of whitespace around `=`, e.g. `name        = "node"`
-    for line in source.lines() {
-        let trimmed = line.trim();
-        // Must start with the exact variable name followed by optional spaces then `=`
-        if let Some(rest) = trimmed.strip_prefix(fn_name) {
-            let rest = rest.trim_start();
-            if rest.starts_with('=')
-                && let after_eq = rest[1..].trim_start()
-                && let Some(val) = star_extract_string_literal(after_eq)
-            {
-                return Some(val);
-            }
-        }
-    }
-
-    // Fall back to function return format: `def name(): return "value"`
-    let pattern = format!("def {}()", fn_name);
-    let start = source.find(&pattern)?;
-    let after_def = &source[start + pattern.len()..];
-    let search_window = &after_def[..after_def.len().min(300)];
-    let return_pos = search_window.find("return")?;
-    let after_return = search_window[return_pos + 6..].trim_start();
-    star_extract_string_literal(after_return)
-}
-
-/// Extract a quoted string literal from the beginning of `s`.
-fn star_extract_string_literal(s: &str) -> Option<String> {
-    let s = s.trim_start();
-    let quote = s.chars().next()?;
-    if quote != '"' && quote != '\'' {
-        return None;
-    }
-    let rest = &s[1..];
-    let end = rest.find(quote)?;
-    Some(rest[..end].to_string())
-}
-
-/// Extract the OS list from `platforms = {"os": [...]}` or `def platforms(): return {"os": [...]}`.
-fn star_extract_platforms_os(source: &str) -> Option<Vec<String>> {
-    // Try top-level variable format first (RFC 0038 v5): `platforms = {"os": [...]}`
-    for line in source.lines() {
-        let trimmed = line.trim();
-        if let Some(after_prefix) = trimmed.strip_prefix("platforms =") {
-            let after_eq = after_prefix.trim_start();
-            if after_eq.starts_with('{') {
-                // Find the matching closing brace
-                if let Some(dict_body) = star_find_matching_bracket(after_eq, 0, '{', '}')
-                    && let Some(os_pos) = dict_body.find("\"os\"")
-                {
-                    let after_os = &dict_body[os_pos + 4..];
-                    let after_colon = after_os.trim_start().trim_start_matches(':').trim_start();
-                    if after_colon.starts_with('[')
-                        && let Some(list_body) =
-                            star_find_matching_bracket(after_colon, 0, '[', ']')
-                    {
-                        return Some(star_extract_string_list_items(list_body));
-                    }
-                }
-            }
-        }
-    }
-
-    // Fall back to function format: `def platforms(): return {"os": [...]}`
-    let pattern = "def platforms()";
-    let start = source.find(pattern)?;
-    let after_def = &source[start + pattern.len()..];
-    let window = &after_def[..after_def.len().min(500)];
-    let os_pos = window.find("\"os\"")?;
-    let after_os = &window[os_pos + 4..];
-    let list_start = after_os.find('[')?;
-    let list_content = &after_os[list_start + 1..];
-    let list_end = list_content.find(']')?;
-    let list_str = &list_content[..list_end];
-    Some(star_extract_string_list_items(list_str))
-}
-
-/// Extract string items from a comma-separated list body (without brackets).
-fn star_extract_string_list_items(s: &str) -> Vec<String> {
-    let mut items = Vec::new();
-    let mut remaining = s;
-    while !remaining.is_empty() {
-        remaining = remaining.trim_start();
-        if remaining.is_empty() {
-            break;
-        }
-        let quote = remaining.chars().next().unwrap();
-        if quote != '"' && quote != '\'' {
-            if let Some(pos) = remaining.find([',', ']']) {
-                remaining = &remaining[pos + 1..];
-            } else {
-                break;
-            }
-            continue;
-        }
-        remaining = &remaining[1..];
-        if let Some(end) = remaining.find(quote) {
-            items.push(remaining[..end].to_string());
-            remaining = &remaining[end + 1..];
-            remaining = remaining.trim_start();
-            if remaining.starts_with(',') {
-                remaining = &remaining[1..];
-            }
-        } else {
-            break;
-        }
-    }
-    items
-}
-
-/// Extract the top-level `runtimes = [...]` list and parse each dict entry.
-fn star_extract_runtimes(source: &str) -> Vec<StarRuntimeMeta> {
-    let marker = "runtimes = [";
-    let start = match source.find(marker) {
-        Some(p) => p + marker.len(),
-        None => return Vec::new(),
-    };
-    let list_body = match star_find_matching_bracket(source, start - 1, '[', ']') {
-        Some(body) => body,
-        None => return Vec::new(),
-    };
-    star_parse_runtime_dicts(list_body)
-}
-
-/// Given the source and the position of an opening bracket, return the content
-/// between the opening and its matching closing bracket.
-fn star_find_matching_bracket(
-    source: &str,
-    open_pos: usize,
-    open: char,
-    close: char,
-) -> Option<&str> {
-    let bytes = source.as_bytes();
-    if bytes[open_pos] != open as u8 {
-        return None;
-    }
-    let mut depth = 0usize;
-    let mut in_string = false;
-    let mut string_char = b'"';
-    let mut i = open_pos;
-    while i < bytes.len() {
-        let b = bytes[i];
-        if in_string {
-            if b == string_char && (i == 0 || bytes[i - 1] != b'\\') {
-                in_string = false;
-            }
-        } else if b == b'"' || b == b'\'' {
-            in_string = true;
-            string_char = b;
-        } else if b == open as u8 {
-            depth += 1;
-        } else if b == close as u8 {
-            depth -= 1;
-            if depth == 0 {
-                return Some(&source[open_pos + 1..i]);
-            }
-        }
-        i += 1;
-    }
-    None
-}
-
-/// Parse a list body into runtime metadata structs.
-fn star_parse_runtime_dicts(list_body: &str) -> Vec<StarRuntimeMeta> {
-    let mut runtimes = Vec::new();
-    let mut remaining = list_body;
-    while let Some(dict_start) = remaining.find('{') {
-        let Some(dict_body) = star_find_matching_bracket(remaining, dict_start, '{', '}') else {
-            break;
-        };
-        runtimes.push(star_parse_runtime_dict(dict_body));
-        let end_pos = dict_start + dict_body.len() + 2;
-        if end_pos >= remaining.len() {
-            break;
-        }
-        remaining = &remaining[end_pos..];
-    }
-    runtimes
-}
-
-/// Parse a single runtime dict body.
-fn star_parse_runtime_dict(body: &str) -> StarRuntimeMeta {
-    StarRuntimeMeta {
-        name: star_extract_dict_string_value(body, "name"),
-        executable: star_extract_dict_string_value(body, "executable"),
-        description: star_extract_dict_string_value(body, "description"),
-        aliases: star_extract_dict_string_list(body, "aliases"),
-        platform_os: star_extract_dict_platform_os(body),
-        auto_installable: star_extract_dict_bool_value(body, "auto_installable"),
-        bundled_with: star_extract_dict_string_value(body, "bundled_with"),
-        priority: star_extract_dict_u32_value(body, "priority"),
-        command_prefix: star_extract_dict_string_list(body, "command_prefix"),
-    }
-}
-
-/// Extract a string value for a given key from a dict body.
-fn star_extract_dict_string_value(body: &str, key: &str) -> Option<String> {
-    for key_str in &[format!("\"{}\"", key), format!("'{}'", key)] {
-        if let Some(pos) = body.find(key_str.as_str()) {
-            let after_key = &body[pos + key_str.len()..];
-            let after_colon = after_key.trim_start().trim_start_matches(':').trim_start();
-            if let Some(val) = star_extract_string_literal(after_colon) {
-                return Some(val);
-            }
-        }
-    }
-    None
-}
-
-/// Extract a bool value for a given key from a dict body.
-fn star_extract_dict_bool_value(body: &str, key: &str) -> Option<bool> {
-    for key_str in &[format!("\"{}\"", key), format!("'{}'", key)] {
-        if let Some(pos) = body.find(key_str.as_str()) {
-            let after_key = &body[pos + key_str.len()..];
-            let after_colon = after_key.trim_start().trim_start_matches(':').trim_start();
-            if after_colon.starts_with("True") {
-                return Some(true);
-            } else if after_colon.starts_with("False") {
-                return Some(false);
-            }
-        }
-    }
-    None
-}
-
-/// Extract a u32 value for a given key from a dict body.
-fn star_extract_dict_u32_value(body: &str, key: &str) -> Option<u32> {
-    for key_str in &[format!("\"{}\"", key), format!("'{}'", key)] {
-        if let Some(pos) = body.find(key_str.as_str()) {
-            let after_key = &body[pos + key_str.len()..];
-            let after_colon = after_key.trim_start().trim_start_matches(':').trim_start();
-            let num_str: String = after_colon
-                .chars()
-                .take_while(|c| c.is_ascii_digit())
-                .collect();
-            if !num_str.is_empty() {
-                return num_str.parse().ok();
-            }
-        }
-    }
-    None
-}
-
-/// Extract a string list value for a given key from a dict body.
-fn star_extract_dict_string_list(body: &str, key: &str) -> Vec<String> {
-    for key_str in &[format!("\"{}\"", key), format!("'{}'", key)] {
-        if let Some(pos) = body.find(key_str.as_str()) {
-            let after_key = &body[pos + key_str.len()..];
-            let after_colon = after_key.trim_start().trim_start_matches(':').trim_start();
-            if after_colon.starts_with('[')
-                && let Some(list_body) = star_find_matching_bracket(after_colon, 0, '[', ']')
-            {
-                return star_extract_string_list_items(list_body);
-            }
-        }
-    }
-    Vec::new()
-}
-
-/// Extract the OS list from `"platform_constraint": {"os": [...]}` in a dict body.
-fn star_extract_dict_platform_os(body: &str) -> Vec<String> {
-    let key = "platform_constraint";
-    for key_str in &[format!("\"{}\"", key), format!("'{}'", key)] {
-        if let Some(pos) = body.find(key_str.as_str()) {
-            let after_key = &body[pos + key_str.len()..];
-            let after_colon = after_key.trim_start().trim_start_matches(':').trim_start();
-            if after_colon.starts_with('{')
-                && let Some(dict_body) = star_find_matching_bracket(after_colon, 0, '{', '}')
-                && let Some(os_pos) = dict_body.find("\"os\"")
-            {
-                let after_os = &dict_body[os_pos + 4..];
-                let after_colon2 = after_os.trim_start().trim_start_matches(':').trim_start();
-                if after_colon2.starts_with('[')
-                    && let Some(list_body) = star_find_matching_bracket(after_colon2, 0, '[', ']')
-                {
-                    return star_extract_string_list_items(list_body);
-                }
-            }
-        }
-    }
-    Vec::new()
 }
 
 #[cfg(test)]

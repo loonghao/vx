@@ -10,7 +10,7 @@
 # Uses stdlib templates from @vx//stdlib:provider.star
 
 load("@vx//stdlib:provider.star",
-     "runtime_def", "github_permissions", "post_extract_flatten",
+     "runtime_def", "bundled_runtime_def", "github_permissions", "post_extract_flatten",
      "path_fns")
 load("@vx//stdlib:github.star", "make_fetch_versions", "github_asset_url")
 
@@ -22,7 +22,7 @@ description = "FFmpeg - A complete, cross-platform solution to record, convert a
 homepage    = "https://ffmpeg.org"
 repository  = "https://github.com/FFmpeg/FFmpeg"
 license     = "LGPL-2.1"
-ecosystem   = "media"
+ecosystem   = "system"
 aliases     = ["avconv"]
 
 # ---------------------------------------------------------------------------
@@ -36,6 +36,12 @@ runtimes = [
             {"command": "{executable} -version", "name": "version_check",
              "expected_output": "ffmpeg version"},
         ],
+    ),
+    bundled_runtime_def("ffprobe", "ffmpeg",
+        description = "FFmpeg media stream analyzer",
+    ),
+    bundled_runtime_def("ffplay", "ffmpeg",
+        description = "FFmpeg media player",
     ),
 ]
 
@@ -105,8 +111,9 @@ get_execute_path = paths["get_execute_path"]
 
 def environment(ctx, _version):
     if ctx.platform.os == "windows":
-        return [{"op": "prepend", "name": "PATH", "value": ctx.install_dir + "/bin"}]
-    return [{"op": "prepend", "name": "PATH", "value": ctx.install_dir}]
+        return [{"op": "prepend", "key": "PATH", "value": ctx.install_dir + "/bin"}]
+    return [{"op": "prepend", "key": "PATH", "value": ctx.install_dir}]
+
 
 def post_install(_ctx, _version):
     return None

@@ -62,12 +62,12 @@ rt = [r for r in runtimes if r["name"] == "winget"][0]
 }
 
 #[test]
-fn test_winget_runtime_has_system_paths() {
+fn test_winget_runtime_does_not_set_explicit_system_paths() {
     make_assert().is_true(
         r#"
 load("provider.star", "runtimes")
 rt = [r for r in runtimes if r["name"] == "winget"][0]
-len(rt["system_paths"]) > 0
+"system_paths" not in rt
 "#,
     );
 }

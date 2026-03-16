@@ -107,7 +107,7 @@ fn test_parse_executable_override() {
 
 #[test]
 fn test_parse_executable_override_with_version() {
-    let req = RuntimeRequest::parse("msvc::cl@14.42");
+    let req = RuntimeRequest::parse("msvc@14.42::cl");
     assert_eq!(req.name, "msvc");
     assert_eq!(req.executable, Some("cl".to_string()));
     assert_eq!(req.version, Some("14.42".to_string()));
@@ -115,7 +115,7 @@ fn test_parse_executable_override_with_version() {
 
 #[test]
 fn test_parse_executable_override_empty_exe() {
-    let req = RuntimeRequest::parse("msvc::@14.42");
+    let req = RuntimeRequest::parse("msvc@14.42::");
     assert_eq!(req.name, "msvc");
     assert_eq!(req.executable, None);
     assert_eq!(req.version, Some("14.42".to_string()));
@@ -131,13 +131,14 @@ fn test_parse_executable_override_empty_all() {
 
 #[test]
 fn test_display_with_executable_override() {
+    // Display outputs canonical format: runtime@version::executable
     let req = RuntimeRequest {
         name: "msvc".to_string(),
         executable: Some("cl".to_string()),
         version: Some("14.42".to_string()),
         shell: None,
     };
-    assert_eq!(format!("{}", req), "msvc::cl@14.42");
+    assert_eq!(format!("{}", req), "msvc@14.42::cl");
 
     let req = RuntimeRequest {
         name: "msvc".to_string(),
@@ -146,6 +147,59 @@ fn test_display_with_executable_override() {
         shell: None,
     };
     assert_eq!(format!("{}", req), "msvc::cl");
+}
+
+// --- canonical format: runtime@version::executable ---
+
+#[test]
+fn test_parse_canonical_version_before_exe() {
+    // Canonical: runtime@version::executable
+    let req = RuntimeRequest::parse("msvc@14.19::cl");
+    assert_eq!(req.name, "msvc");
+    assert_eq!(req.executable, Some("cl".to_string()));
+    assert_eq!(req.version, Some("14.19".to_string()));
+    assert_eq!(req.shell, None);
+}
+
+#[test]
+fn test_parse_canonical_version_before_exe_complex() {
+    // Canonical with full semver
+    let req = RuntimeRequest::parse("msvc@14.42.0::link");
+    assert_eq!(req.name, "msvc");
+    assert_eq!(req.executable, Some("link".to_string()));
+    assert_eq!(req.version, Some("14.42.0".to_string()));
+}
+
+#[test]
+fn test_parse_canonical_version_before_shell() {
+    // Canonical with shell: runtime@version::shell
+    let req = RuntimeRequest::parse("node@22::powershell");
+    assert_eq!(req.name, "node");
+    assert_eq!(req.shell, Some("powershell".to_string()));
+    assert_eq!(req.version, Some("22".to_string()));
+    assert!(req.is_shell_request());
+}
+
+#[test]
+fn test_parse_noncanonical_version_after_exe_is_not_supported() {
+    let req = RuntimeRequest::parse("msvc::cl@14.42");
+    assert_eq!(req.name, "msvc");
+    assert_eq!(req.executable, Some("cl@14.42".to_string()));
+    assert_eq!(req.version, None);
+}
+
+#[test]
+fn test_parse_canonical_roundtrip() {
+    // Parse canonical format, display should produce canonical format
+    let req = RuntimeRequest::parse("msvc@14.42::cl");
+    assert_eq!(format!("{}", req), "msvc@14.42::cl");
+}
+
+#[test]
+fn test_parse_compatibility_display_canonical() {
+    // Parse compatibility format, display should produce canonical format
+    let req = RuntimeRequest::parse("msvc::cl@14.42");
+    assert_eq!(format!("{}", req), "msvc@14.42::cl");
 }
 
 // --- shell syntax (runtime::shell) ---
@@ -188,7 +242,7 @@ fn test_parse_bash_shell() {
 
 #[test]
 fn test_parse_shell_with_version() {
-    let req = RuntimeRequest::parse("git::git-bash@2.43");
+    let req = RuntimeRequest::parse("git@2.43::git-bash");
     assert_eq!(req.name, "git");
     assert_eq!(req.shell, Some("git-bash".to_string()));
     assert_eq!(req.version, Some("2.43".to_string()));
@@ -212,13 +266,14 @@ fn test_executable_vs_shell_distinction() {
 
 #[test]
 fn test_display_with_shell() {
+    // Display outputs canonical format: runtime@version::shell
     let req = RuntimeRequest {
         name: "git".to_string(),
         shell: Some("git-bash".to_string()),
         version: Some("2.43".to_string()),
         executable: None,
     };
-    assert_eq!(format!("{}", req), "git::git-bash@2.43");
+    assert_eq!(format!("{}", req), "git@2.43::git-bash");
 
     let req = RuntimeRequest {
         name: "git".to_string(),

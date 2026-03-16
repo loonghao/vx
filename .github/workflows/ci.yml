@@ -79,7 +79,7 @@ jobs:
       test_packages: ${{ steps.compute-affected.outputs.test_packages }}
 
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
 
       - name: Detect file changes
         uses: dorny/paths-filter@v3
@@ -382,66 +382,14 @@ jobs:
             binary: vx
 
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
 
-      - name: Setup Rust
-        uses: dtolnay/rust-toolchain@stable
+      - name: Setup Rust + sccache
+        uses: ./.github/actions/setup-rust-sccache
         with:
-          targets: ${{ matrix.platform.target }}
-
-      - name: Install sccache
-        uses: taiki-e/install-action@v2
-        with:
-          tool: sccache
-
-      - name: Setup sccache path (Windows)
-        if: runner.os == 'Windows'
-        shell: pwsh
-        run: |
-          # taiki-e/install-action installs to ~/.cargo/bin on Windows
-          $sccacheDir = "$env:USERPROFILE\.cargo\bin"
-          if (Test-Path "$sccacheDir\sccache.exe") {
-            echo "Found sccache at $sccacheDir\sccache.exe"
-            echo "$sccacheDir" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
-            & "$sccacheDir\sccache.exe" --version
-          } else {
-            # Try to find sccache in PATH
-            $sccachePath = (Get-Command sccache -ErrorAction SilentlyContinue).Source
-            if ($sccachePath) {
-              $sccacheDir = Split-Path $sccachePath
-              echo "Found sccache at $sccachePath"
-              echo "$sccacheDir" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
-            } else {
-              Write-Warning "sccache not found, disabling RUSTC_WRAPPER"
-              echo "RUSTC_WRAPPER=" >> $env:GITHUB_ENV
-            }
-          }
-
-      - name: Verify sccache is available (Unix)
-        if: runner.os != 'Windows'
-        shell: bash
-        run: |
-          which sccache || echo "sccache not found in PATH"
-          sccache --version || echo "sccache version check failed"
-
-      - name: Cache sccache
-        uses: actions/cache@v5
-        with:
-          path: ${{ github.workspace }}/.cache/sccache
-          key: sccache-v2-${{ runner.os }}-${{ hashFiles('Cargo.lock') }}
-          restore-keys: |
-            sccache-v2-${{ runner.os }}-
-            sccache-v2-
-
-      - name: Cache Rust
-        uses: Swatinem/rust-cache@v2
-        with:
-          prefix-key: ${{ matrix.platform.target }}
+          rust-targets: ${{ matrix.platform.target }}
           shared-key: build
-
-      - name: Start sccache server
-        shell: bash
-        run: sccache --start-server || true
+          cache-prefix-key: ${{ matrix.platform.target }}
 
       - name: Build vx release binary
         run: cargo build --release --target ${{ matrix.platform.target }}
@@ -453,7 +401,7 @@ jobs:
           ./target/${{ matrix.platform.target }}/release/${{ matrix.platform.binary }} --help
 
       - name: Upload vx binary
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: ${{ matrix.platform.artifact }}
           path: target/${{ matrix.platform.target }}/release/${{ matrix.platform.binary }}
@@ -473,10 +421,10 @@ jobs:
       SCCACHE_DIR: ${{ github.workspace }}/.cache/sccache
 
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
 
       - name: Download vx binary
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@v6
         with:
           name: vx-linux-x64
           path: ./bin
@@ -496,37 +444,10 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-vx-tools-quality-
 
-      - name: Setup Rust (required for cargo commands)
-        uses: dtolnay/rust-toolchain@stable
+      - name: Setup Rust + sccache
+        uses: ./.github/actions/setup-rust-sccache
         with:
-          components: rustfmt, clippy
-
-      - name: Install sccache
-        uses: taiki-e/install-action@v2
-        with:
-          tool: sccache
-
-      - name: Verify sccache is available
-        shell: bash
-        run: |
-          which sccache || where sccache || echo "sccache not found in PATH"
-          sccache --version || echo "sccache version check failed"
-          if [[ "$RUNNER_OS" == "Windows" ]]; then
-            echo "$USERPROFILE\\.cargo\\bin" >> $GITHUB_PATH
-          fi
-
-      - name: Cache sccache
-        uses: actions/cache@v5
-        with:
-          path: ${{ github.workspace }}/.cache/sccache
-          key: sccache-v2-${{ runner.os }}-${{ hashFiles('Cargo.lock') }}
-          restore-keys: |
-            sccache-v2-${{ runner.os }}-
-            sccache-v2-
-
-      - name: Cache Rust
-        uses: Swatinem/rust-cache@v2
-        with:
+          rust-components: "rustfmt, clippy"
           shared-key: quality
 
       - name: Verify workspace-hack (cargo-hakari)
@@ -583,10 +504,10 @@ jobs:
             binary: vx
 
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
 
       - name: Download vx binary
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@v6
         with:
           name: ${{ matrix.platform.artifact }}
           path: ./bin
@@ -611,75 +532,11 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-vx-tools-test-
 
-      - name: Setup Rust
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Install sccache
-        uses: taiki-e/install-action@v2
-        with:
-          tool: sccache
-
-      - name: Setup sccache path (Windows)
-        if: runner.os == 'Windows'
-        shell: pwsh
-        run: |
-          $sccacheDir = "$env:USERPROFILE\.cargo\bin"
-          if (Test-Path "$sccacheDir\sccache.exe") {
-            echo "Found sccache at $sccacheDir\sccache.exe"
-            echo "$sccacheDir" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
-            & "$sccacheDir\sccache.exe" --version
-          } else {
-            $sccachePath = (Get-Command sccache -ErrorAction SilentlyContinue).Source
-            if ($sccachePath) {
-              $sccacheDir = Split-Path $sccachePath
-              echo "Found sccache at $sccachePath"
-              echo "$sccacheDir" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
-            } else {
-              Write-Warning "sccache not found, disabling RUSTC_WRAPPER"
-              echo "RUSTC_WRAPPER=" >> $env:GITHUB_ENV
-            }
-          }
-
-      - name: Verify sccache is available (Unix)
-        if: runner.os != 'Windows'
-        shell: bash
-        run: |
-          which sccache || echo "sccache not found in PATH"
-          sccache --version || echo "sccache version check failed"
-
-      - name: Cache sccache
-        uses: actions/cache@v5
-        with:
-          path: ${{ github.workspace }}/.cache/sccache
-          key: sccache-v2-${{ runner.os }}-${{ hashFiles('Cargo.lock') }}
-          restore-keys: |
-            sccache-v2-${{ runner.os }}-
-            sccache-v2-
-
-      - name: Add Rust to PATH (Windows)
-        if: runner.os == 'Windows'
-        shell: pwsh
-        run: |
-          $cargoPath = "$env:USERPROFILE\.cargo\bin"
-          echo "$cargoPath" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
-          echo "Added $cargoPath to PATH"
-
-      - name: Verify cargo is available
-        shell: bash
-        run: |
-          echo "Checking cargo..."
-          which cargo || where cargo || echo "cargo location unknown"
-          cargo --version
-
-      - name: Cache Rust
-        uses: Swatinem/rust-cache@v2
+      - name: Setup Rust + sccache
+        uses: ./.github/actions/setup-rust-sccache
         with:
           shared-key: test
-
-      - name: Install cargo-nextest
-        uses: taiki-e/install-action@v2
-        with:
-          tool: cargo-nextest
+          install-nextest: "true"
 
       - name: Run targeted tests
         shell: bash
@@ -725,10 +582,10 @@ jobs:
             binary: vx
 
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
 
       - name: Download vx binary
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@v6
         with:
           name: ${{ matrix.platform.artifact }}
           path: ./bin
@@ -753,75 +610,11 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-vx-tools-test-
 
-      - name: Setup Rust
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Install sccache
-        uses: taiki-e/install-action@v2
-        with:
-          tool: sccache
-
-      - name: Setup sccache path (Windows)
-        if: runner.os == 'Windows'
-        shell: pwsh
-        run: |
-          $sccacheDir = "$env:USERPROFILE\.cargo\bin"
-          if (Test-Path "$sccacheDir\sccache.exe") {
-            echo "Found sccache at $sccacheDir\sccache.exe"
-            echo "$sccacheDir" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
-            & "$sccacheDir\sccache.exe" --version
-          } else {
-            $sccachePath = (Get-Command sccache -ErrorAction SilentlyContinue).Source
-            if ($sccachePath) {
-              $sccacheDir = Split-Path $sccachePath
-              echo "Found sccache at $sccachePath"
-              echo "$sccacheDir" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
-            } else {
-              Write-Warning "sccache not found, disabling RUSTC_WRAPPER"
-              echo "RUSTC_WRAPPER=" >> $env:GITHUB_ENV
-            }
-          }
-
-      - name: Verify sccache is available (Unix)
-        if: runner.os != 'Windows'
-        shell: bash
-        run: |
-          which sccache || echo "sccache not found in PATH"
-          sccache --version || echo "sccache version check failed"
-
-      - name: Cache sccache
-        uses: actions/cache@v5
-        with:
-          path: ${{ github.workspace }}/.cache/sccache
-          key: sccache-v2-${{ runner.os }}-${{ hashFiles('Cargo.lock') }}
-          restore-keys: |
-            sccache-v2-${{ runner.os }}-
-            sccache-v2-
-
-      - name: Add Rust to PATH (Windows)
-        if: runner.os == 'Windows'
-        shell: pwsh
-        run: |
-          $cargoPath = "$env:USERPROFILE\.cargo\bin"
-          echo "$cargoPath" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
-          echo "Added $cargoPath to PATH"
-
-      - name: Verify cargo is available
-        shell: bash
-        run: |
-          echo "Checking cargo..."
-          which cargo || where cargo || echo "cargo location unknown"
-          cargo --version
-
-      - name: Cache Rust
-        uses: Swatinem/rust-cache@v2
+      - name: Setup Rust + sccache
+        uses: ./.github/actions/setup-rust-sccache
         with:
           shared-key: test
-
-      - name: Install cargo-nextest
-        uses: taiki-e/install-action@v2
-        with:
-          tool: cargo-nextest
+          install-nextest: "true"
 
       - name: Run full workspace tests
         shell: bash
@@ -849,10 +642,10 @@ jobs:
           - aarch64-unknown-linux-musl
 
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
 
       - name: Download vx binary
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@v6
         with:
           name: vx-linux-x64
           path: ./bin
@@ -889,7 +682,7 @@ jobs:
     if: needs.detect-changes.outputs.should_build == 'true'
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
 
       - name: Setup vx
         uses: ./
@@ -923,10 +716,10 @@ jobs:
       SCCACHE_DIR: ${{ github.workspace }}/.cache/sccache
 
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
 
       - name: Download vx binary
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@v6
         with:
           name: vx-linux-x64
           path: ./bin
@@ -936,36 +729,13 @@ jobs:
           chmod +x ./bin/vx
           echo "${{ github.workspace }}/bin" >> $GITHUB_PATH
 
-      - name: Setup Rust
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Install sccache
-        uses: taiki-e/install-action@v2
+      - name: Setup Rust + sccache
+        uses: ./.github/actions/setup-rust-sccache
         with:
-          tool: sccache
-
-      - name: Verify sccache is available
-        shell: bash
-        run: |
-          which sccache || where sccache || echo "sccache not found in PATH"
-          sccache --version || echo "sccache version check failed"
-
-      - name: Cache sccache
-        uses: actions/cache@v5
-        with:
-          path: ${{ github.workspace }}/.cache/sccache
-          key: sccache-v2-${{ runner.os }}-${{ hashFiles('Cargo.lock') }}
-          restore-keys: |
-            sccache-v2-${{ runner.os }}-
-            sccache-v2-
+          shared-key: coverage
 
       - name: Install cargo-llvm-cov
         uses: taiki-e/install-action@cargo-llvm-cov
-
-      - name: Cache Rust
-        uses: Swatinem/rust-cache@v2
-        with:
-          shared-key: coverage
 
       - name: Generate coverage
         run: vx just coverage-ci
@@ -992,10 +762,10 @@ jobs:
       needs.detect-changes.outputs.should_build == 'true'
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
 
       - name: Download vx binary
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@v6
         with:
           name: vx-linux-x64
           path: ./bin
@@ -1024,7 +794,7 @@ jobs:
       needs.detect-changes.outputs.should_build == 'false'
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
 
       - name: Setup Node.js
         uses: actions/setup-node@v6

@@ -64,23 +64,23 @@ names = [r["name"] for r in runtimes]
 }
 
 #[test]
-fn test_xcodebuild_is_not_auto_installable() {
+fn test_xcodebuild_does_not_override_auto_installable() {
     make_assert().is_true(
         r#"
 load("provider.star", "runtimes")
 rt = [r for r in runtimes if r["name"] == "xcodebuild"][0]
-rt["auto_installable"] == False
+"auto_installable" not in rt
 "#,
     );
 }
 
 #[test]
-fn test_xcodebuild_has_system_paths() {
+fn test_xcodebuild_does_not_set_explicit_system_paths() {
     make_assert().is_true(
         r#"
 load("provider.star", "runtimes")
 rt = [r for r in runtimes if r["name"] == "xcodebuild"][0]
-len(rt["system_paths"]) > 0
+"system_paths" not in rt
 "#,
     );
 }

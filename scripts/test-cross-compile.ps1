@@ -1,5 +1,5 @@
 # Test cross-compilation for different targets on Windows
-# This script helps verify that our OpenSSL fixes work
+# This script helps verify that our TLS and native dependency setup works
 
 param(
     [switch]$Verbose
@@ -60,7 +60,7 @@ catch {
     exit 1
 }
 
-# Test targets that commonly have OpenSSL issues
+# Test targets that previously surfaced TLS or native dependency issues
 $targets = @(
     @{Target = "x86_64-pc-windows-gnu"; Description = "Windows GNU"},
     @{Target = "x86_64-unknown-linux-musl"; Description = "Linux musl (static)"},
@@ -83,7 +83,7 @@ Write-Host "/$totalCount"
 
 if ($successCount -eq $totalCount) {
     Write-Host "`n🎉 All cross-compilation tests passed!" -ForegroundColor Green
-    Write-Host "OpenSSL dependency issues have been resolved." -ForegroundColor Green
+    Write-Host "TLS and native dependency issues have been resolved." -ForegroundColor Green
     exit 0
 } else {
     Write-Host "`n⚠️  Some cross-compilation tests failed." -ForegroundColor Yellow

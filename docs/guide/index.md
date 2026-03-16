@@ -22,7 +22,7 @@ Modern software development requires a complex toolkit:
 
 - **Multiple language runtimes** — Node.js, Python, Go, Rust, .NET, Java, Zig, etc.
 - **Package managers** — npm, pnpm, yarn, uv, pip, cargo, etc.
-- **DevOps tools** — Terraform, kubectl, Helm, Docker CLI, etc.
+- **DevOps tools** — Terraform, kubectl, Helm, Podman CLI, etc.
 - **Build tools** — CMake, Ninja, Just, Task, protoc, etc.
 - **Cloud CLIs** — AWS CLI, Azure CLI, Google Cloud CLI, etc.
 
@@ -133,4 +133,6 @@ vx run test              # Runs tests
 - [Installation](/guide/installation) — Install vx on your system
 - [Quick Start](/guide/getting-started) — Get up and running in 5 minutes
 - [Core Concepts](/guide/concepts) — Understand how vx works
+- [Unified Syntax Rules](/guide/command-syntax-rules) — Canonical syntax table and CLI consolidation policy
 - [CLI Reference](/cli/overview) — Complete command documentation
+

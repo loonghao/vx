@@ -1,58 +1,57 @@
 # install 命令
 
-安装工具版本。
+安装一个或多个运行时（Runtime）。
 
 ## 语法
 
 ```bash
-vx install <tool>[@version] [options]
+vx install <runtime>[@version] [<runtime>[@version] ...] [--force]
 ```
 
-## 参数
+## 说明
 
-| 参数 | 描述 |
-|------|------|
-| `tool` | 要安装的工具名称 |
-| `version` | 可选的版本说明符 |
+`vx install` 用于显式安装 vx 管理的运行时。
+
+- 未指定版本时，vx 会解析为 `latest`。
+- 支持一次安装多个运行时。
+- 对于捆绑运行时，vx 会自动回退到其父运行时进行安装。
+
+例如：
+
+- `cargo`、`rustc` 捆绑在 `rustup` 下。
+- 安装 `cargo` 时可能自动转为安装 `rustup`。
 
 ## 选项
 
-| 选项 | 描述 |
-|------|------|
-| `--force, -f` | 强制重新安装，即使已安装 |
-| `--global, -g` | 设为全局默认版本 |
-| `--verbose, -v` | 显示详细输出 |
+| 选项 | 说明 |
+|---|---|
+| `-f`, `--force` | 即使已安装也强制重装 |
 
 ## 示例
 
 ```bash
 # 安装最新版本
-vx install node
-vx install python
-vx install go
+vx install node uv go
 
-# 安装特定版本
-vx install node@20
-vx install node@20.10.0
-vx install python@3.11
+# 安装指定版本
+vx install node@22 go@1.22
 
-# 安装并设为全局默认
-vx install node@20 --global
+# Rust 生态（推荐）
+vx install rustup
+vx cargo --version
+vx rustc --version
 
-# 强制重新安装
-vx install node --force
+# 强制重装
+vx install node@22 --force
 ```
 
-## 版本说明符
+## 版本说明
 
-| 格式 | 描述 | 示例 |
-|------|------|------|
-| `latest` | 最新稳定版 | `node@latest` |
-| `lts` | 最新 LTS 版本 | `node@lts` |
-| `X` | 主版本 | `node@20` |
-| `X.Y` | 次版本 | `node@20.10` |
-| `X.Y.Z` | 精确版本 | `node@20.10.0` |
+- 运行时版本与工具链版本可能不是同一语义。
+- Rust 建议安装/配置 `rustup`，日常使用 `vx cargo` / `vx rustc`。
 
-## 参见
+## 相关文档
 
-- [list](./list) - 列出可用工具
+- [`overview`](./overview) - CLI 总览
+- [`list`](./list) - 查看已安装/可用运行时
+- [`global`](./global) - 全局包管理

@@ -520,8 +520,17 @@ impl StarlarkProvider {
         // `def name(): return "..."` (function return) formats.
         let star_meta = vx_star_metadata::StarMetadata::parse(content);
 
+        let lint_name = star_meta
+            .name
+            .as_deref()
+            .unwrap_or("provider.star")
+            .to_string();
+
         let meta = ProviderMeta {
-            name: star_meta.name.unwrap_or_else(|| "unknown".to_string()),
+            name: star_meta
+                .name
+                .clone()
+                .unwrap_or_else(|| "unknown".to_string()),
             description: star_meta.description.unwrap_or_default(),
             version: "1.0.0".to_string(),
             homepage: star_meta.homepage,
@@ -544,8 +553,9 @@ impl StarlarkProvider {
 
         let mut runtimes: Vec<RuntimeMeta> = Vec::new();
 
-        // Try to parse the `runtimes` list variable via the Starlark engine
-        let virtual_path = PathBuf::from("<parse_metadata>");
+        // Try to parse the `runtimes` list variable via the Starlark engine.
+        // Use the provider name for linting so warnings point to the right provider.
+        let virtual_path = PathBuf::from(lint_name);
         let engine = StarlarkEngine::new();
         if let Ok(Some(runtimes_json)) = engine.get_variable(&virtual_path, content, "runtimes")
             && let Some(arr) = runtimes_json.as_array()

@@ -64,7 +64,7 @@ vx 内置了 **48+ 个 Provider**，覆盖主要生态系统：
 | **Go** | go, gofmt |
 | **Rust** | rust (rustc, cargo, rustup) |
 | **.NET** | dotnet, msbuild, nuget |
-| **DevOps** | terraform, kubectl, helm, docker |
+| **DevOps** | terraform, kubectl, helm, podman |
 | **云** | awscli, azcli, gcloud |
 | **构建** | cmake, ninja, just, task, make, meson, protoc |
 | **媒体** | ffmpeg, imagemagick |

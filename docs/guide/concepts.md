@@ -64,7 +64,7 @@ vx ships with **48+ built-in providers** covering major ecosystems:
 | **Go** | go, gofmt |
 | **Rust** | rust (rustc, cargo, rustup) |
 | **.NET** | dotnet, msbuild, nuget |
-| **DevOps** | terraform, kubectl, helm, docker |
+| **DevOps** | terraform, kubectl, helm, podman |
 | **Cloud** | awscli, azcli, gcloud |
 | **Build** | cmake, ninja, just, task, make, meson, protoc |
 | **Media** | ffmpeg, imagemagick |

@@ -311,7 +311,8 @@ fn get_tool_category(runtime_name: &str) -> String {
         // Compilers
         "cl" | "gcc" | "clang" | "swift" | "swiftc" => "compiler",
         // Security
-        "openssl" | "gpg" | "codesign" | "signtool" => "security",
+        "gpg" | "codesign" | "signtool" => "security",
+
         // Network
         "curl" | "wget" | "ssh" | "scp" => "network",
         // System
@@ -321,7 +322,7 @@ fn get_tool_category(runtime_name: &str) -> String {
         // Version control
         "git" | "svn" | "hg" => "vcs",
         // Container
-        "docker" | "podman" | "kubectl" | "helm" => "container",
+        "podman" | "kubectl" | "helm" => "container",
         // Cloud
         "aws" | "az" | "gcloud" => "cloud",
         _ => "other",

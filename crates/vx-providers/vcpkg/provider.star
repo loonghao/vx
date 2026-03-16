@@ -1,13 +1,12 @@
 # provider.star - vcpkg provider
 #
 # C++ library manager. Tags are date-based: "2025-12-16" (no "v" prefix).
-# Asset: vcpkg-{arch}-{os}[.exe]  (single binary)
+# Assets are single binaries with platform-specific names.
 #
 # Uses stdlib templates from @vx//stdlib:provider.star
 
 load("@vx//stdlib:provider.star",
-     "runtime_def", "github_permissions", "dep_def",
-     "platform_map")
+     "runtime_def", "github_permissions", "dep_def", "platform_map")
 load("@vx//stdlib:github.star", "make_fetch_versions")
 load("@vx//stdlib:env.star", "env_set", "env_prepend")
 
@@ -55,17 +54,17 @@ fetch_versions = make_fetch_versions("microsoft", "vcpkg-tool")
 
 # ---------------------------------------------------------------------------
 # Platform helpers
-# vcpkg asset naming: vcpkg-{arch}-{os}[.exe]
 # ---------------------------------------------------------------------------
 
 _VCPKG_ASSETS = {
-    "windows/x64":   "vcpkg-x64-windows.exe",
-    "windows/arm64": "vcpkg-arm64-windows.exe",
-    "macos/x64":     "vcpkg-x64-osx",
-    "macos/arm64":   "vcpkg-arm64-osx",
-    "linux/x64":     "vcpkg-x64-linux",
-    "linux/arm64":   "vcpkg-arm64-linux",
+    "windows/x64":   "vcpkg.exe",
+    "windows/arm64": "vcpkg-arm64.exe",
+    "macos/x64":     "vcpkg-macos",
+    "macos/arm64":   "vcpkg-macos",
+    "linux/x64":     "vcpkg-glibc",
+    "linux/arm64":   "vcpkg-glibc-arm64",
 }
+
 
 def download_url(ctx, version):
     asset = platform_map(ctx, _VCPKG_ASSETS)
@@ -82,7 +81,9 @@ def install_layout(ctx, _version):
     exe = "vcpkg.exe" if ctx.platform.os == "windows" else "vcpkg"
     return {
         "type":             "binary",
-        "executable_paths": [exe],
+        "target_name":      exe,
+        "target_dir":       "bin",
+        "executable_paths": ["bin/" + exe, exe, "vcpkg"],
     }
 
 # ---------------------------------------------------------------------------
@@ -92,19 +93,22 @@ def install_layout(ctx, _version):
 def store_root(ctx):
     return ctx.vx_home + "/store/vcpkg"
 
+
 def get_execute_path(ctx, _version):
     exe = "vcpkg.exe" if ctx.platform.os == "windows" else "vcpkg"
-    return ctx.install_dir + "/" + exe
+    return ctx.install_dir + "/bin/" + exe
+
 
 def post_install(_ctx, _version):
     return None
+
 
 def environment(ctx, _version):
     return [
         env_set("VCPKG_ROOT", ctx.install_dir),
         env_set("VCPKG_DOWNLOADS", ctx.install_dir + "/.cache/downloads"),
         env_set("VCPKG_DEFAULT_BINARY_CACHE", ctx.install_dir + "/.cache/archives"),
-        env_prepend("PATH", ctx.install_dir),
+        env_prepend("PATH", ctx.install_dir + "/bin"),
     ]
 
 # ---------------------------------------------------------------------------

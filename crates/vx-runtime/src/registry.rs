@@ -14,7 +14,6 @@
 //! `supported_runtimes()`) will materialize all pending factories first.
 
 use crate::Platform;
-use crate::plugin::ProviderLoader;
 use crate::provider::Provider;
 use crate::runtime::Runtime;
 use std::collections::HashMap;
@@ -53,8 +52,6 @@ pub struct ProviderRegistry {
     providers: RwLock<Vec<Arc<dyn Provider>>>,
     /// Cache: runtime name -> provider index (for already-materialized providers)
     runtime_cache: RwLock<HashMap<String, usize>>,
-    /// Optional dynamic provider loader
-    provider_loader: RwLock<Option<Arc<dyn ProviderLoader>>>,
     /// Pending (not yet materialized) provider factories, keyed by provider name.
     /// Protected by Mutex because we need to take ownership of the factory to call it.
     pending_factories: Mutex<HashMap<String, ProviderFactory>>,
@@ -69,7 +66,6 @@ impl ProviderRegistry {
         Self {
             providers: RwLock::new(Vec::new()),
             runtime_cache: RwLock::new(HashMap::new()),
-            provider_loader: RwLock::new(None),
             pending_factories: Mutex::new(HashMap::new()),
             pending_index: RwLock::new(HashMap::new()),
         }
@@ -329,16 +325,6 @@ impl ProviderRegistry {
         self.runtime_cache.write().unwrap().clear();
         self.pending_factories.lock().unwrap().clear();
         self.pending_index.write().unwrap().clear();
-    }
-
-    /// Set a dynamic provider loader for loading providers on-demand
-    pub fn set_provider_loader(&self, loader: Arc<dyn ProviderLoader>) {
-        *self.provider_loader.write().unwrap() = Some(loader);
-    }
-
-    /// Get the provider loader if set
-    pub fn get_provider_loader(&self) -> Option<Arc<dyn ProviderLoader>> {
-        self.provider_loader.read().unwrap().clone()
     }
 
     /// Get all runtimes that support the current platform (materializes all pending)

@@ -34,7 +34,7 @@ pub enum Ecosystem {
     DotNet,
     /// Development tools (cmake, ninja, task, terraform, etc.)
     DevTools,
-    /// Container ecosystem (docker, kubectl, helm)
+    /// Container ecosystem (podman, kubectl, helm)
     Container,
     /// Cloud ecosystem (awscli, azcli, gcloud)
     Cloud,

@@ -53,8 +53,6 @@ pub mod manifest_runtime;
 pub mod normalizer;
 pub mod package_runtime;
 pub mod platform;
-#[cfg(feature = "plugin")]
-pub mod plugin;
 pub mod provider;
 pub mod provider_env;
 pub mod provider_loader;
@@ -128,10 +126,6 @@ pub use constraints::{
     ManifestVersionPattern, VersionPattern, build_constraint_rules, get_default_constraints,
     init_constraints_from_star,
 };
-
-// Plugin system (requires "plugin" feature for dynamic loading)
-#[cfg(feature = "plugin")]
-pub use plugin::{PluginLoader, ProviderLoader, ProviderPlugin, default_plugin_paths};
 
 // Manifest-driven runtimes (RFC 0021)
 pub use manifest_runtime::{

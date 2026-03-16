@@ -1,102 +1,76 @@
 # Rust
 
-vx 支持 Rust 编程语言。
+vx 通过 `rustup` 及其捆绑运行时（`cargo`、`rustc`）支持 Rust 开发。
 
-## 支持的工具
+## 运行时关系
 
-| 工具 | 描述 |
-|------|------|
-| `cargo` | Rust 包管理器 |
-| `rustc` | Rust 编译器 |
+| 运行时 | 角色 | 推荐用法 |
+|---|---|---|
+| `rustup` | 工具链管理/安装 | `vx rustup ...` |
+| `cargo` | 构建、测试、依赖管理 | `vx cargo ...` |
+| `rustc` | Rust 编译器 | `vx rustc ...` |
+
+> `vx rust` 当前是 `vx rustc` 的别名。为避免歧义，文档与脚本建议显式使用 `vx rustc`。
 
 ## 安装
 
 ```bash
-# 安装稳定版
-vx install rust stable
-
-# 安装特定版本
-vx install rust 1.75.0
+# 推荐：安装 rustup 运行时
+vx install rustup
+vx install rustup@latest
 ```
 
-## 下载格式
+## 日常命令
 
-vx 在所有平台（Windows、macOS、Linux）上都使用 `.tar.gz` 格式下载 Rust 工具链。这确保了跨操作系统的一致解压行为，避免了使用 `.msi` 等平台特定的安装程序格式。
-
-下载 URL 格式如下：
-```
-https://static.rust-lang.org/dist/rust-{version}-{platform}.tar.gz
-```
-
-## 使用示例
+### Cargo
 
 ```bash
-# 运行 Cargo
 vx cargo --version
 vx cargo build --release
 vx cargo test
 vx cargo run
-
-# 运行 rustc
-vx rustc --version
 ```
 
-## 版本管理
+### Rustc
 
 ```bash
-# 安装稳定版
-vx install rust@stable
-
-# 安装特定版本
-vx install rust@1.75.0
+vx rustc --version
+vx rustc main.rs -o main
 ```
 
-## 项目配置
+### Rustup（工具链管理）
+
+```bash
+vx rustup --version
+vx rustup toolchain list
+vx rustup target add x86_64-unknown-linux-musl
+```
+
+## vx.toml 推荐写法
 
 ```toml
 [tools]
-rust = "stable"
+rustup = "latest"
 
 [scripts]
 build = "cargo build --release"
 test = "cargo test"
-run = "cargo run"
+lint = "cargo clippy -- -D warnings"
+format = "cargo fmt"
 ```
 
-## 常见工作流
+## 版本说明（重要）
 
-### 新建项目
+`rustup` 版本和 `rustc` 版本不是一回事：
+
+- `rustup = "1.93.1"` 通常无效（这是 Rust 编译器版本，不是 rustup 发布版本）。
+- 如果你要固定某个编译器工具链，请通过 `vx rustup toolchain ...` 管理。
+
+## Rust 生态包语法
 
 ```bash
-vx cargo new my-project
-cd my-project
-vx cargo run
+# 按需运行 Rust 生态包
+vx cargo:ripgrep::rg --version
+vx cargo:fd-find::fd .
 ```
 
-### 库项目
-
-```bash
-vx cargo new --lib my-lib
-cd my-lib
-vx cargo test
-```
-
-### 代码质量
-
-```bash
-# 格式化代码
-vx cargo fmt
-
-# 使用 Clippy 进行代码检查
-vx cargo clippy
-
-# 检查代码（不编译）
-vx cargo check
-```
-
-## 提示
-
-1. **生产环境使用稳定版**：除非需要 nightly 特性
-2. **定期运行 clippy**：捕获常见错误
-3. **使用 cargo fmt**：保持代码格式一致
-4. **固定 rust-toolchain.toml**：确保团队一致性

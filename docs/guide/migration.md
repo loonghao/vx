@@ -114,10 +114,10 @@ post_setup = ["npm install", "vx run db:migrate", "vx run seed"]
 
 ### Step 4: Define Services
 
-If you were using docker-compose separately, integrate it:
+If you were using a separate compose-based workflow, integrate it:
 
 ```toml
-# Before (docker-compose.yml)
+# Before (compose.yaml)
 # services:
 #   db:
 #     image: postgres:16

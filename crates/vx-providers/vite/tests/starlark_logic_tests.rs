@@ -118,6 +118,7 @@ fn test_provider_star_lint_clean() {
         "runtimes",
         "permissions",
         "package_prefixes",
+        "int",
         "True",
         "False",
         "None",

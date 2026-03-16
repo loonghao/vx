@@ -64,7 +64,12 @@ pub mod init;
 pub mod lock;
 pub mod metrics;
 pub mod migrate;
-pub mod plugin;
+pub mod provider;
+/// Backward compatibility alias for `provider` module.
+#[deprecated(note = "Use `commands::provider` instead")]
+pub mod plugin {
+    pub use super::provider::*;
+}
 pub mod remove;
 pub mod run;
 pub mod search;

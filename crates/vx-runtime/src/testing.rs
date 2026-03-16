@@ -1021,7 +1021,12 @@ impl RuntimeTester {
         }
 
         // Substitute variables in command
-        let command_str = cmd.command.replace("{executable}", executable);
+        let executable_token = if executable.chars().any(|c| c.is_whitespace()) {
+            format!("\"{}\"", executable)
+        } else {
+            executable.to_string()
+        };
+        let command_str = cmd.command.replace("{executable}", &executable_token);
 
         // Parse command with proper quote handling
         let parts = match parse_command_line(&command_str) {

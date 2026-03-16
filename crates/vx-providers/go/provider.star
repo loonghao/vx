@@ -7,7 +7,6 @@
 
 load("@vx//stdlib:provider.star",
      "runtime_def", "bundled_runtime_def", "github_permissions", "dep_def",
-     "bin_subdir_layout", "bin_subdir_execute_path",
      "fetch_versions_from_api", "path_fns")
 load("@vx//stdlib:env.star",    "env_set", "env_prepend")
 
@@ -89,7 +88,16 @@ def download_url(ctx, version):
 # Go archives have a top-level "go/" directory
 # ---------------------------------------------------------------------------
 
-install_layout = bin_subdir_layout(["go", "gofmt"], strip_prefix = "go")
+def install_layout(ctx, _version):
+    if ctx.platform.os == "windows":
+        exe_paths = ["bin/go.exe", "bin/gofmt.exe", "bin/go", "bin/gofmt"]
+    else:
+        exe_paths = ["bin/go", "bin/gofmt"]
+    return {
+        "type":             "archive",
+        "strip_prefix":     "go",
+        "executable_paths": exe_paths,
+    }
 
 # ---------------------------------------------------------------------------
 # Path queries + environment (using stdlib helpers)
@@ -97,11 +105,12 @@ install_layout = bin_subdir_layout(["go", "gofmt"], strip_prefix = "go")
 
 _paths = path_fns("go")
 store_root = _paths["store_root"]
-get_execute_path = bin_subdir_execute_path("go")
+def get_execute_path(ctx, _version):
+    exe = "go.exe" if ctx.platform.os == "windows" else "go"
+    return ctx.install_dir + "/bin/" + exe
 
 def environment(ctx, _version):
-    os = ctx.platform.os
-    bin_dir = ctx.install_dir if os == "windows" else ctx.install_dir + "/bin"
+    bin_dir = ctx.install_dir + "/bin"
     return [
         env_prepend("PATH", bin_dir),
         env_set("GOROOT", ctx.install_dir),

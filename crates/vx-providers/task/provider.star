@@ -26,7 +26,9 @@ aliases     = ["go-task", "taskfile"]
 # ---------------------------------------------------------------------------
 
 runtimes = [runtime_def("task", aliases=["go-task"],
-                         version_pattern="Task version")]
+                         test_commands = [{"command": "{executable} --version", "name": "version_check",
+                                           "expected_output": "^\\d+\\.\\d+\\.\\d+"}])]
+
 
 # ---------------------------------------------------------------------------
 # Permissions

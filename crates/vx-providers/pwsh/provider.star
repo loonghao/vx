@@ -1,12 +1,13 @@
 # provider.star - pwsh (PowerShell) provider
 #
-# Asset: PowerShell-{version}-{os}-{arch}.{ext}
-# Uses stdlib templates from @vx//stdlib:provider.star
+# PowerShell archives are used on macOS/Linux.
+# Windows prefers the system-installed PowerShell package.
 
 load("@vx//stdlib:provider.star",
-     "runtime_def", "github_permissions")
+     "runtime_def", "github_permissions",
+     "system_install_strategies", "winget_install", "choco_install")
 load("@vx//stdlib:github.star", "make_fetch_versions", "github_asset_url")
-load("@vx//stdlib:env.star",    "env_prepend")
+load("@vx//stdlib:env.star", "env_prepend")
 
 # ---------------------------------------------------------------------------
 # Provider metadata
@@ -25,6 +26,12 @@ ecosystem   = "system"
 runtimes = [
     runtime_def("pwsh",
         aliases = ["powershell", "ps"],
+        system_paths = [
+            "C:/Program Files/PowerShell/*/pwsh.exe",
+            "C:/Program Files (x86)/PowerShell/*/pwsh.exe",
+            "/usr/local/bin/pwsh",
+            "/usr/bin/pwsh",
+        ],
         test_commands = [
             {"command": "{executable} -Command \"$PSVersionTable.PSVersion\"",
              "name": "version_check", "expected_output": "\\d+\\.\\d+"},
@@ -36,7 +43,7 @@ runtimes = [
 # Permissions
 # ---------------------------------------------------------------------------
 
-permissions = github_permissions()
+permissions = github_permissions(exec_cmds = ["winget", "choco"])
 
 # ---------------------------------------------------------------------------
 # fetch_versions
@@ -46,7 +53,6 @@ fetch_versions = make_fetch_versions("PowerShell", "PowerShell")
 
 # ---------------------------------------------------------------------------
 # Platform helpers
-# Asset: PowerShell-{version}-{os}-{arch}.{ext}
 # ---------------------------------------------------------------------------
 
 _PWSH_PLATFORMS = {
@@ -58,7 +64,10 @@ _PWSH_PLATFORMS = {
     "linux/arm64":   ("linux", "arm64", "tar.gz"),
 }
 
+
 def download_url(ctx, version):
+    if ctx.platform.os == "windows":
+        return None
     platform = _PWSH_PLATFORMS.get("{}/{}".format(ctx.platform.os, ctx.platform.arch))
     if not platform:
         return None
@@ -79,21 +88,34 @@ def install_layout(ctx, _version):
     }
 
 # ---------------------------------------------------------------------------
+# system_install — Windows package managers
+# ---------------------------------------------------------------------------
+
+system_install = system_install_strategies([
+    winget_install("Microsoft.PowerShell", priority = 90),
+    choco_install("powershell-core", priority = 80),
+])
+
+# ---------------------------------------------------------------------------
 # Path queries + environment
 # ---------------------------------------------------------------------------
 
 def store_root(ctx):
     return ctx.vx_home + "/store/pwsh"
 
+
 def get_execute_path(ctx, _version):
     exe = "pwsh.exe" if ctx.platform.os == "windows" else "pwsh"
     return ctx.install_dir + "/" + exe
 
+
 def post_install(_ctx, _version):
     return None
 
+
 def environment(ctx, _version):
     return [env_prepend("PATH", ctx.install_dir)]
+
 
 def deps(_ctx, _version):
     return []
