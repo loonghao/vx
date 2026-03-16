@@ -14,19 +14,19 @@ default:
 
 # Install docs dependencies
 docs-install:
-    cd docs && vx npm ci
+    cd docs && vx node::npm ci
 
 # Build documentation site
 docs-build:
-    cd docs && vx npx vitepress build
+    cd docs && vx node::npx vitepress build
 
 # Start docs dev server
 docs-dev:
-    cd docs && vx npx vitepress dev
+    cd docs && vx node::npx vitepress dev
 
 # Preview built docs
 docs-preview:
-    cd docs && vx npx vitepress preview
+    cd docs && vx node::npx vitepress preview
 
 
 # ============================================

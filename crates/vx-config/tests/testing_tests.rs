@@ -1,7 +1,5 @@
 use tempfile::tempdir;
-use vx_config::{
-    CoverageConfig, CoverageReporter, TestConfig, TestFramework, TestResult, TestRunner,
-};
+use vx_config::{CoverageConfig, CoverageReporter, TestFramework, TestResult};
 
 #[test]
 fn test_framework_detection() {
