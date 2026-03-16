@@ -27,41 +27,32 @@ use crate::ui::UI;
 use anyhow::Result;
 use colored::Colorize;
 use vx_paths::{PackageRegistry, VxPaths};
-use vx_resolver::ProjectToolsConfig;
+use vx_resolver::{ProjectToolsConfig, RuntimeRequest};
 use vx_runtime::ProviderRegistry;
 use vx_starlark::handle::global_registry;
 
 pub async fn handle(
     registry: &ProviderRegistry,
-    tool: &str,
-    version: Option<&str>,
+    request: &RuntimeRequest,
     all: bool,
     use_system_path: bool,
     format: OutputFormat,
 ) -> Result<()> {
-    UI::debug(&format!("Looking for tool: {}@{:?}", tool, version));
+    crate::registry::ensure_provider_metadata_initialized().await;
 
-    // Parse provider::runtime syntax (e.g., msvc::signtool, msvc::cl)
-    //
-    // Semantics: `provider::runtime` means "the `runtime` runtime under the `provider` provider".
-    // The right-hand side is first tried as a runtime name; if not found in the registry,
-    // it falls back to being treated as an executable override (legacy behaviour).
-    let (runtime_part, exe_override) = if let Some((provider_hint, rhs)) = tool.split_once("::") {
-        // Check if `rhs` is itself a known runtime name in the global registry
-        let rhs_is_runtime = {
-            let reg = global_registry().await;
-            reg.get(rhs).is_some()
-        };
-        if rhs_is_runtime {
-            // e.g. msvc::signtool → look up "signtool" as the runtime
-            (rhs, None)
-        } else {
-            // e.g. msvc::cl (legacy exe-override) → look up "msvc", exe = "cl"
-            (provider_hint, Some(rhs))
-        }
-    } else {
-        (tool, None)
-    };
+    let tool = request.to_string();
+    let version = request.version.as_deref();
+    let exe_override = request.executable.as_deref();
+
+    UI::debug(&format!(
+        "Looking for tool: {} (parsed: {:?})",
+        tool, request
+    ));
+
+    // Resolve runtime name:
+    // - If exe_override is set, use request.name as the provider/runtime hint
+    // - If exe_override is None, check if request.name is a known runtime
+    let runtime_part = request.name.as_str();
 
     // If --use-system-path is specified, only check system PATH
     if use_system_path {
@@ -175,6 +166,71 @@ pub async fn handle(
     let locations: Vec<(std::path::PathBuf, ToolSource)> =
         locations.into_iter().filter(|(p, _)| p.exists()).collect();
 
+    // ── Step 2b: system_paths fallback for system-only providers ─────────
+    // For system providers (e.g. MSVC), get_execute_path() always returns None
+    // because they aren't installed into the vx store. Their executables are
+    // located via `runtimes[].system_paths` glob patterns in provider.star.
+    // We try this BEFORE the explicit-version guard so that `vx where msvc@14.19::cl`
+    // can still find cl.exe on the system even though there's no vx store entry.
+    let locations = if locations.is_empty() {
+        let found = if let Some(path) = find_via_system_paths(&canonical_name).await? {
+            // When exe_override is set and the found path is for a different executable,
+            // try to find exe_override in the same directory.
+            // e.g. msvc system_paths finds cl.exe, but user wants link.exe → look in same dir
+            if let Some(exe) = exe_override {
+                let found_name = path.file_stem().and_then(|s| s.to_str()).unwrap_or("");
+                if !found_name.eq_ignore_ascii_case(exe) {
+                    // Try to find exe_override in the same directory
+                    if let Some(parent) = path.parent() {
+                        let exe_with_ext = if cfg!(windows) {
+                            format!("{}.exe", exe)
+                        } else {
+                            exe.to_string()
+                        };
+                        let candidate = parent.join(&exe_with_ext);
+                        if candidate.exists() {
+                            UI::debug(&format!(
+                                "Found '{}' alongside '{}' at {}",
+                                exe,
+                                found_name,
+                                candidate.display()
+                            ));
+                            Some(candidate)
+                        } else {
+                            // exe_override not found alongside, return the original path
+                            UI::debug(&format!(
+                                "Found '{}' via system_paths but '{}' not in same directory",
+                                canonical_name, exe
+                            ));
+                            Some(path)
+                        }
+                    } else {
+                        Some(path)
+                    }
+                } else {
+                    Some(path)
+                }
+            } else {
+                Some(path)
+            }
+        } else {
+            None
+        };
+
+        if let Some(path) = found {
+            UI::debug(&format!(
+                "Found '{}' via system_paths glob patterns: {}",
+                canonical_name,
+                path.display()
+            ));
+            vec![(path, ToolSource::Detected)]
+        } else {
+            vec![]
+        }
+    } else {
+        locations
+    };
+
     // ── Step 3: Determine final path ─────────────────────────────────────
     // IMPORTANT: When a version is explicitly specified, we should NOT fallback
     // to system PATH. This ensures `vx where python@3.14` only returns vx-managed
@@ -211,7 +267,7 @@ pub async fn handle(
     } else {
         // Fallback chain: global packages → system PATH → system_paths
         // Only when no version was specified at all
-        resolve_fallback(tool, &exe_name, &canonical_name, all).await?
+        resolve_fallback(runtime_part, &exe_name, &canonical_name, all).await?
     };
 
     let renderer = OutputRenderer::new(format);
@@ -230,14 +286,14 @@ pub async fn handle(
             renderer.render(&output)?;
         } else {
             let available_tools = registry.runtime_names();
-            let suggestions = suggestions::get_tool_suggestions(tool, &available_tools);
+            let suggestions = suggestions::get_tool_suggestions(&request.name, &available_tools);
 
             eprintln!(
                 "{} {}",
                 "✗".red(),
                 format!(
                     "Tool '{}' not found in vx-managed installations or system PATH",
-                    tool
+                    request.name
                 )
                 .red()
             );
@@ -271,7 +327,7 @@ pub async fn handle(
             eprintln!(
                 "{} {}",
                 "💡".cyan(),
-                format!("Use 'vx install {}' to install this tool", tool).dimmed()
+                format!("Use 'vx install {}' to install this tool", request.name).dimmed()
             );
         }
         std::process::exit(1);

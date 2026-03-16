@@ -206,12 +206,9 @@ impl ManifestDrivenRuntime {
                             self.name, manager, package
                         );
 
-                        let spec = PackageInstallSpec {
-                            package: package.clone(),
-                            params: params.clone(),
-                            install_args: install_args.clone(),
-                            ..Default::default()
-                        };
+                        let mut spec = PackageInstallSpec::new(package.clone());
+                        spec.params = params.clone();
+                        spec.install_args = install_args.clone();
 
                         match pm.install_package(&spec).await {
                             Ok(_) => {

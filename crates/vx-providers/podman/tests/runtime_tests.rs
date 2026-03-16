@@ -1,18 +1,18 @@
-//! docker provider tests
+//! podman provider tests
 
 use rstest::rstest;
 use vx_runtime::Runtime;
 
 fn create_provider() -> std::sync::Arc<dyn vx_runtime::Provider> {
-    let meta = vx_starlark::StarMetadata::parse(vx_provider_docker::PROVIDER_STAR);
+    let meta = vx_starlark::StarMetadata::parse(vx_provider_podman::PROVIDER_STAR);
     let name = meta.name.unwrap_or_else(|| "unknown".to_string());
-    vx_starlark::create_provider(name, vx_provider_docker::PROVIDER_STAR)
+    vx_starlark::create_provider(name, vx_provider_podman::PROVIDER_STAR)
 }
 
 #[test]
 fn test_provider_name() {
     let provider = create_provider();
-    assert_eq!(provider.name(), "docker");
+    assert_eq!(provider.name(), "podman");
 }
 
 #[test]
@@ -30,11 +30,11 @@ fn test_provider_runtimes() {
         .iter()
         .map(|r: &std::sync::Arc<dyn Runtime>| r.name())
         .collect();
-    assert!(names.contains(&"docker"));
+    assert!(names.contains(&"podman"));
 }
 
 #[rstest]
-#[case("docker", true)]
+#[case("podman", true)]
 #[case("node", false)]
 fn test_provider_supports(#[case] name: &str, #[case] expected: bool) {
     let provider = create_provider();
@@ -44,13 +44,13 @@ fn test_provider_supports(#[case] name: &str, #[case] expected: bool) {
 #[test]
 fn test_provider_get_runtime() {
     let provider = create_provider();
-    assert!(provider.get_runtime("docker").is_some());
+    assert!(provider.get_runtime("podman").is_some());
     assert!(provider.get_runtime("unknown").is_none());
 }
 
 #[test]
 fn test_star_metadata() {
-    let meta = vx_starlark::StarMetadata::parse(vx_provider_docker::PROVIDER_STAR);
+    let meta = vx_starlark::StarMetadata::parse(vx_provider_podman::PROVIDER_STAR);
     assert!(meta.name.is_some());
     assert!(!meta.runtimes.is_empty());
 }

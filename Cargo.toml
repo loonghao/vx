@@ -66,7 +66,8 @@ members = [
   "crates/vx-providers/azcli",
   "crates/vx-providers/gcloud",
   # Container tools
-  "crates/vx-providers/docker",
+  "crates/vx-providers/podman",
+
   # Kubernetes tools
   "crates/vx-providers/kubectl",
   "crates/vx-providers/helm",
@@ -108,9 +109,9 @@ members = [
   # IDE tools
   "crates/vx-providers/vscode",
   # System tools
-  "crates/vx-providers/openssl",
   "crates/vx-providers/systemctl",
   "crates/vx-providers/xcodebuild",
+
   # Build cache
   "crates/vx-providers/sccache",
   "crates/vx-providers/ccache",
@@ -196,6 +197,7 @@ rust-version = "1.93.0"
 vx-core = { path = "crates/vx-core" }
 vx-cache = { path = "crates/vx-cache" }
 vx-starlark = { path = "crates/vx-starlark" }
+vx-star-metadata = { path = "crates/vx-star-metadata" }
 starlark = { version = "0.13" }
 vx-runtime = { path = "crates/vx-runtime" }
 vx-runtime-core = { path = "crates/vx-runtime-core" }
@@ -243,7 +245,8 @@ vx-provider-awscli = { path = "crates/vx-providers/awscli" }
 vx-provider-azcli = { path = "crates/vx-providers/azcli" }
 vx-provider-gcloud = { path = "crates/vx-providers/gcloud" }
 # Container tools
-vx-provider-docker = { path = "crates/vx-providers/docker" }
+vx-provider-podman = { path = "crates/vx-providers/podman" }
+
 # Kubernetes tools
 vx-provider-kubectl = { path = "crates/vx-providers/kubectl" }
 vx-provider-helm = { path = "crates/vx-providers/helm" }
@@ -285,8 +288,8 @@ vx-provider-ollama = { path = "crates/vx-providers/ollama" }
 # IDE tools
 vx-provider-vscode = { path = "crates/vx-providers/vscode" }
 # System tools
-vx-provider-openssl = { path = "crates/vx-providers/openssl" }
 vx-provider-systemctl = { path = "crates/vx-providers/systemctl" }
+
 vx-provider-xcodebuild = { path = "crates/vx-providers/xcodebuild" }
 # Build cache
 vx-provider-sccache = { path = "crates/vx-providers/sccache" }

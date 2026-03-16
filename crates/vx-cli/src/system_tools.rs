@@ -188,7 +188,8 @@ fn get_tool_category(runtime_name: &str) -> String {
         // Compilers
         "cl" | "nmake" | "gcc" | "clang" | "swift" | "swiftc" | "javac" => "compiler",
         // Security
-        "openssl" | "gpg" | "codesign" | "signtool" | "certutil" | "security" => "security",
+        "gpg" | "codesign" | "signtool" | "certutil" | "security" => "security",
+
         // Network
         "curl" | "wget" | "ssh" | "scp" | "rsync" | "netstat" | "tcpdump" => "network",
         // System
@@ -200,7 +201,7 @@ fn get_tool_category(runtime_name: &str) -> String {
         // Version control
         "git" | "svn" | "hg" | "git-lfs" => "vcs",
         // Container
-        "docker" | "podman" | "kubectl" | "helm" | "minikube" => "container",
+        "podman" | "kubectl" | "helm" | "minikube" => "container",
         // Cloud
         "aws" | "az" | "gcloud" | "terraform" | "pulumi" | "ansible" => "cloud",
         // Archive

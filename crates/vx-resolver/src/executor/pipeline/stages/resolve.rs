@@ -16,7 +16,7 @@ use std::path::PathBuf;
 
 use async_trait::async_trait;
 use tracing::{debug, trace};
-use vx_runtime::{ProviderRegistry, RuntimeContext};
+use vx_runtime::{ProviderRegistry, RuntimeContext, get_default_constraints};
 
 use crate::executor::project_config::ProjectToolsConfig;
 use crate::{ResolutionCache, ResolutionCacheKey, ResolutionResult, Resolver, ResolverConfig};
@@ -265,15 +265,26 @@ impl<'a> ResolveStage<'a> {
             })?;
 
         if deps.is_empty() {
-            return Ok(());
+            // No-op
+        } else {
+            self.resolver.merge_additional_dependencies(
+                runtime_name,
+                resolution,
+                deps.into_iter()
+                    .map(|dep| self.runtime_dependency_to_resolver(dep, runtime_name)),
+            );
         }
 
-        self.resolver.merge_additional_dependencies(
-            runtime_name,
-            resolution,
-            deps.into_iter()
-                .map(|dep| self.runtime_dependency_to_resolver(dep, runtime_name)),
-        );
+        let default_constraints = get_default_constraints(runtime_name, &version);
+        if !default_constraints.is_empty() {
+            self.resolver.merge_additional_dependencies(
+                runtime_name,
+                resolution,
+                default_constraints
+                    .into_iter()
+                    .map(|dep| self.runtime_dependency_to_resolver(dep, runtime_name)),
+            );
+        }
 
         Ok(())
     }

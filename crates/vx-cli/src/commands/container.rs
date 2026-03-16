@@ -185,10 +185,10 @@ pub async fn handle_build(
 
             (manager.runtime().to_string(), generated_tags)
         } else {
-            ("docker".to_string(), tags)
+            ("podman".to_string(), tags)
         }
     } else {
-        ("docker".to_string(), tags)
+        ("podman".to_string(), tags)
     };
 
     if image_tags.is_empty() {
@@ -265,7 +265,7 @@ pub async fn handle_push(tag: Option<String>, verbose: bool) -> anyhow::Result<(
     let config_path = find_config_file(&current_dir);
 
     let (runtime, tags_to_push) = if let Some(t) = tag {
-        ("docker".to_string(), vec![t])
+        ("podman".to_string(), vec![t])
     } else if let Some(ref config_path) = config_path {
         let config = parse_config(config_path)?;
 
@@ -312,12 +312,6 @@ pub async fn handle_status() -> anyhow::Result<()> {
     let config_path = find_config_file(&current_dir);
 
     // Check container runtime availability
-    let docker_available = Command::new("docker")
-        .arg("--version")
-        .output()
-        .map(|o| o.status.success())
-        .unwrap_or(false);
-
     let podman_available = Command::new("podman")
         .arg("--version")
         .output()
@@ -328,15 +322,7 @@ pub async fn handle_status() -> anyhow::Result<()> {
     println!("================");
     println!();
 
-    println!("Runtimes:");
-    println!(
-        "  Docker: {}",
-        if docker_available {
-            "✓ available"
-        } else {
-            "✗ not found"
-        }
-    );
+    println!("Runtime:");
     println!(
         "  Podman: {}",
         if podman_available {
@@ -364,7 +350,7 @@ pub async fn handle_status() -> anyhow::Result<()> {
             );
             println!(
                 "  Runtime: {}",
-                container.runtime.as_deref().unwrap_or("docker (default)")
+                container.runtime.as_deref().unwrap_or("podman (default)")
             );
 
             if let Some(registry) = &container.registry {
@@ -456,10 +442,10 @@ pub async fn handle_login(
             });
             (manager.runtime().to_string(), url)
         } else {
-            ("docker".to_string(), registry)
+            ("podman".to_string(), registry)
         }
     } else {
-        ("docker".to_string(), registry)
+        ("podman".to_string(), registry)
     };
 
     let mut cmd = Command::new(&runtime);
@@ -479,7 +465,7 @@ pub async fn handle_login(
 
     UI::info(&format!(
         "Logging in to {}...",
-        registry_url.as_deref().unwrap_or("Docker Hub")
+        registry_url.as_deref().unwrap_or("default registry")
     ));
 
     let status = cmd.status()?;

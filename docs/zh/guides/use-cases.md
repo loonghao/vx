@@ -216,7 +216,7 @@ vx 在使用多种语言的项目中表现出色：
 
 ```bash
 # 安装所有需要的工具
-vx install node uv go rust
+vx install node uv go rustup
 
 # 或使用 vx.toml 进行声明式设置
 cat > vx.toml << 'EOF'
@@ -224,7 +224,7 @@ cat > vx.toml << 'EOF'
 node = "22"
 uv = "latest"
 go = "1.22"
-rust = "stable"
+rustup = "latest"
 EOF
 
 # 设置所有工具

@@ -2012,16 +2012,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6800badb6cb2082ffd7b6a67e6125bb39f18782f793520caee8cb8846be06112"
 
 [[package]]
-name = "libloading"
-version = "0.9.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "754ca22de805bb5744484a5b151a9e1a8e837d5dc232c2d7d8c2e3492edc8b60"
-dependencies = [
- "cfg-if",
- "windows-link 0.2.1",
-]
-
-[[package]]
 name = "libmimalloc-sys"
 version = "0.1.44"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4537,7 +4527,6 @@ dependencies = [
  "vx-provider-curl",
  "vx-provider-dagu",
  "vx-provider-deno",
- "vx-provider-docker",
  "vx-provider-dotnet",
  "vx-provider-fd",
  "vx-provider-ffmpeg",
@@ -4564,8 +4553,8 @@ dependencies = [
  "vx-provider-nuget",
  "vx-provider-nx",
  "vx-provider-ollama",
- "vx-provider-openssl",
  "vx-provider-pnpm",
+ "vx-provider-podman",
  "vx-provider-pre-commit",
  "vx-provider-prek",
  "vx-provider-protoc",
@@ -4597,7 +4586,9 @@ dependencies = [
  "vx-runtime-http",
  "vx-setup",
  "vx-shim",
+ "vx-star-metadata",
  "vx-starlark",
+ "vx-versions",
  "walkdir",
  "which",
  "windows-sys 0.61.2",
@@ -4653,12 +4644,9 @@ name = "vx-core"
 version = "0.8.3"
 dependencies = [
  "anyhow",
- "async-trait",
- "dirs",
  "pretty_assertions",
  "rstest",
  "serde",
- "serde_json",
  "serial_test",
  "tempfile",
  "test-case",
@@ -4775,6 +4763,7 @@ dependencies = [
  "toml",
  "tracing",
  "vx-paths",
+ "vx-star-metadata",
  "vx-versions",
  "workspace-hack",
 ]
@@ -5042,17 +5031,6 @@ dependencies = [
 
 [[package]]
 name = "vx-provider-deno"
-version = "0.8.3"
-dependencies = [
- "rstest",
- "starlark",
- "vx-runtime",
- "vx-starlark",
- "workspace-hack",
-]
-
-[[package]]
-name = "vx-provider-docker"
 version = "0.8.3"
 dependencies = [
  "rstest",
@@ -5349,7 +5327,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "vx-provider-openssl"
+name = "vx-provider-pnpm"
 version = "0.8.3"
 dependencies = [
  "rstest",
@@ -5360,7 +5338,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "vx-provider-pnpm"
+name = "vx-provider-podman"
 version = "0.8.3"
 dependencies = [
  "rstest",
@@ -5721,7 +5699,6 @@ dependencies = [
  "chrono",
  "futures-util",
  "glob",
- "libloading",
  "regex",
  "rstest",
  "serde",

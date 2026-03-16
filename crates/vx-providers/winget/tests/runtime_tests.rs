@@ -35,7 +35,7 @@ fn test_provider_runtimes() {
 
 #[rstest]
 #[case("winget", true)]
-#[case("windows-package-manager", true)]
+#[case("winget-cli", true)]
 #[case("node", false)]
 fn test_provider_supports(#[case] name: &str, #[case] expected: bool) {
     let provider = create_provider();

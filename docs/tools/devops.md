@@ -26,21 +26,21 @@ vx terraform destroy
 
 ## Container Tools
 
-### Docker
+### Podman
 
-Docker CLI for container management.
+Podman CLI for container management.
 
 ```bash
-vx install `docker@latest
+vx install podman
 
-vx docker --version
-vx docker build -t myapp .
-vx docker run -it myapp
-vx docker compose up -d
-vx docker ps
+vx podman --version
+vx podman build -t myapp .
+vx podman run -it myapp
+vx podman compose up -d
+vx podman ps
 ```
 
-**Note:** This installs the Docker CLI. You still need Docker Engine or Docker Desktop running on your system.
+**Note:** This installs the Podman CLI and uses Podman as the default container runtime in vx.
 
 ## Kubernetes
 
@@ -236,7 +236,7 @@ vx git push
 ```toml
 [tools]
 terraform = "1.6"
-docker = "latest"
+podman = "system"
 kubectl = "latest"
 helm = "latest"
 git = "latest"
@@ -245,7 +245,7 @@ dagu = "latest"
 [scripts]
 deploy = "terraform apply -auto-approve"
 k8s-status = "kubectl get pods -A"
-docker-build = "docker build -t myapp ."
+podman-build = "podman build -t myapp ."
 helm-deploy = "helm upgrade --install myapp ./chart"
 dashboard = "dagu server"
 pipeline = "dagu start build-pipeline"

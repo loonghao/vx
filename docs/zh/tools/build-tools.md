@@ -67,35 +67,36 @@ vx dotnet build -c Release
 
 ```bash
 # 安装 MSVC 构建工具
-vx install `msvc@latest
+vx install msvc@latest
 vx install msvc 14.40       # 指定版本
 
-# 通过命名空间使用 MSVC 工具（推荐）
-vx msvc cl main.cpp -o main.exe
-vx msvc link main.obj
-vx msvc nmake
-vx msvc lib /OUT:mylib.lib *.obj
+# 运行时可执行覆盖语法（推荐）
+vx msvc::cl main.cpp -o main.exe
+vx msvc::link main.obj
+vx msvc::nmake
+vx msvc::lib /OUT:mylib.lib *.obj
 
-# 直接别名（用于常用工具）
-vx cl main.cpp              # 等同于：vx msvc cl
-vx nmake                    # 等同于：vx msvc nmake
+# 直接别名（常用工具）
+vx cl main.cpp              # 等同于：vx msvc::cl
+vx nmake                    # 等同于：vx msvc::nmake
 
 # 指定版本使用
-vx msvc@14.40 cl main.cpp   # 使用 MSVC 14.40
-vx msvc@14.29 cl legacy.cpp # 使用 MSVC 14.29 (VS2019)
+vx msvc@14.40::cl main.cpp   # 使用 MSVC 14.40
+vx msvc@14.29::cl legacy.cpp # 使用 MSVC 14.29 (VS2019)
+
 ```
 
 **可用的 MSVC 工具：**
 
 | 工具 | 命令 | 描述 |
 |------|------|------|
-| cl | `vx msvc cl` | C/C++ 编译器 |
-| link | `vx msvc link` | 链接器 |
-| lib | `vx msvc lib` | 库管理器 |
-| nmake | `vx msvc nmake` / `vx nmake` | Make 工具 |
-| ml64 | `vx msvc ml64` | MASM x64 汇编器 |
-| dumpbin | `vx msvc dumpbin` | 二进制文件转储工具 |
-| editbin | `vx msvc editbin` | 二进制文件编辑工具 |
+| cl | `vx msvc::cl` / `vx cl` | C/C++ 编译器 |
+| link | `vx msvc::link` | 链接器 |
+| lib | `vx msvc::lib` | 库管理器 |
+| nmake | `vx msvc::nmake` / `vx nmake` | Make 工具 |
+| ml64 | `vx msvc::ml64` | MASM x64 汇编器 |
+| dumpbin | `vx msvc::dumpbin` | 二进制文件转储工具 |
+| editbin | `vx msvc::editbin` | 二进制文件编辑工具 |
 
 **CMake + MSVC 工作流示例：**
 
@@ -138,7 +139,7 @@ sdk_version = "10.0.22621"
 [tools]
 node = "22"
 cmake = "3.28"
-rust = "1.82"
+rustup = "latest"
 
 [tools.msvc]
 version = "14.42"
@@ -357,7 +358,7 @@ tasks:
 跨平台构建系统生成器。
 
 ```bash
-vx install `cmake@latest
+vx install cmake@latest
 
 vx cmake --version
 vx cmake -B build -S .
@@ -404,7 +405,7 @@ vx ninja -C build
 Protocol Buffers 编译器。
 
 ```bash
-vx install `protoc@latest
+vx install protoc@latest
 
 vx protoc --version
 vx protoc --cpp_out=. message.proto
@@ -420,7 +421,7 @@ vx protoc --rust_out=. message.proto
 下一代前端工具。
 
 ```bash
-vx install `vite@latest
+vx install vite@latest
 
 vx vite --version
 vx vite                    # 启动开发服务器

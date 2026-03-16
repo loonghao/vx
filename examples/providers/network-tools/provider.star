@@ -127,7 +127,6 @@ def _ext(ctx):
 def download_url(ctx, version):
     """Build the download URL for the requested runtime and version."""
     runtime = ctx.runtime_name if hasattr(ctx, "runtime_name") else "gh"
-    os      = ctx.platform.os
     ext     = _ext(ctx)
 
     # ── gh ──────────────────────────────────────────────────────────────────

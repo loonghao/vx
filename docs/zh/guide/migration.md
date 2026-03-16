@@ -114,10 +114,10 @@ post_setup = ["npm install", "vx run db:migrate", "vx run seed"]
 
 ### 步骤 4：定义服务
 
-如果之前单独使用 docker-compose，可以集成进来：
+如果之前单独使用 compose 工作流，可以集成进来：
 
 ```toml
-# 之前（docker-compose.yml）
+# 之前（compose.yaml）
 # services:
 #   db:
 #     image: postgres:16

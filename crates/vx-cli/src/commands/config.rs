@@ -7,8 +7,31 @@ use std::path::PathBuf;
 use vx_paths::{CONFIG_FILE_NAME, find_config_file};
 
 pub async fn handle() -> Result<()> {
-    UI::warning("Config command not yet implemented in new architecture");
-    UI::hint("Use vx.toml files for project configuration");
+    use vx_config::parse_config;
+
+    let current_dir = env::current_dir()?;
+    let Some(config_path) = find_config_file(&current_dir) else {
+        UI::warning("No vx.toml found in current directory or parent directories");
+        UI::hint("Run 'vx init' to create one");
+        return Ok(());
+    };
+
+    let config = parse_config(&config_path)?;
+
+    UI::header("📋 Project Configuration");
+    println!();
+    UI::info(&format!("File: {}", config_path.display()));
+
+    if let Some(project) = &config.project
+        && let Some(name) = &project.name
+    {
+        UI::info(&format!("Project: {}", name));
+    }
+
+    UI::info(&format!("Tools: {}", config.tools.len()));
+    UI::info(&format!("Scripts: {}", config.scripts.len()));
+    UI::info(&format!("Services: {}", config.services.len()));
+
     Ok(())
 }
 

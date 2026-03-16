@@ -68,24 +68,38 @@ USAGE MODES:
        vx <runtime>[@version] [args...]
        vx node@20 --version
 
-  2. Package execution (RFC 0027):
-       vx <ecosystem>:<package>[@version][::executable] [args...]
+  2. Runtime executable override:
+       vx <runtime>[@version]::<executable> [args...]
+       vx msvc@14.42::cl main.cpp
+
+  3. Package execution (RFC 0027):
+       vx <ecosystem>[@runtime_version]:<package>[@version][::executable] [args...]
        vx npm:typescript::tsc --version
        vx uvx:ruff check .
-       vx dlx:create-react-app my-app
-       vx deno:cowsay Hello
-       vx dotnet-tool:dotnet-script script.csx
-       vx jbang:picocli --help
+       vx cargo:ripgrep::rg --version
 
-  3. Shell execution (attach to current terminal):
-       vx <runtime>[::shell_name]
-       vx git::git-bash
-       vx node::powershell
-       vx go::cmd
+  4. Multi-runtime composition:
+       vx --with <runtime>[@version] [--with ...] <target_command>
+       vx --with bun@1.1.0 --with deno node app.js
 
-  4. Globally installed package shims:
-       vx tsc --version        (from: vx global install npm:typescript)
-       vx ruff check .         (from: vx global install uvx:ruff)
+  5. Shell launch (canonical):
+       vx shell <runtime>[@version] [shell_name]
+       vx shell node@22 powershell
+       vx shell git git-bash
+     Compatibility alias: vx <runtime>::<shell_name>
+
+  6. Globally installed package shims:
+       vx tsc --version        (from: vx pkg install npm:typescript)
+       vx ruff check .         (from: vx pkg install uvx:ruff)
+
+  7. Global package management:
+       vx pkg <install|uninstall|list|info|update> ...
+       vx pkg install npm:typescript
+     Compatibility alias: vx global ...
+
+  8. Project toolchain management:
+       vx project <init|add|rm|sync|lock|check> ...
+     Compatibility aliases: vx init, vx add, vx sync, etc.
 
 SUPPORTED ECOSYSTEMS:
   Node.js:  npm, npx, node, bun, bunx, yarn, pnpm, dlx (pnpm dlx)
@@ -102,17 +116,13 @@ EXAMPLES:
   vx node --version
   vx npm:create-react-app my-app
   vx uvx:ruff check .
-  vx dlx:create-react-app my-app
-  vx deno:cowsay Hello
-  vx dotnet-tool:dotnet-script script.csx
-  vx jbang:picocli --help
   vx cargo:ripgrep::rg --version
-  vx go:golang.org/x/tools/gopls::gopls -v
-  vx git::git-bash
-  vx --with bun npm:opencode-ai::opencode")]
+  vx shell git git-bash
+  vx --with bun npm:opencode-ai::opencode
+  vx pkg install npm:typescript")]
 #[command(version)]
 #[command(
-    after_help = "Run 'vx <command> --help' for more information on a command.\nRun 'vx global --help' for global package management.\nRun 'vx versions <tool>' to see available versions."
+    after_help = "Run 'vx <command> --help' for more information on a command.\nRun 'vx pkg --help' for global package management.\nRun 'vx shell launch --help' for runtime shell launching.\nRun 'vx versions <tool>' to see available versions."
 )]
 pub struct Cli {
     #[command(subcommand)]
@@ -308,7 +318,10 @@ pub enum Commands {
     ///
     /// Install, list, and manage globally installed packages with isolation.
     /// Packages are installed to ~/.vx/packages/ and accessed via shims.
-    #[command(alias = "g")]
+    ///
+    /// Canonical form: `vx pkg <add|rm|ls|info|shim-update> ...`
+    /// Compatibility alias: `vx global ...`
+    #[command(aliases = ["g", "pkg"])]
     Global {
         #[command(subcommand)]
         command: GlobalCommand,
@@ -643,10 +656,11 @@ pub enum Commands {
         args: Vec<String>,
     },
 
-    /// Plugin management commands
+    /// Plugin management commands (legacy alias for `provider`)
+    #[command(hide = true)]
     Plugin {
         #[command(subcommand)]
-        command: PluginCommand,
+        command: ProviderCommand,
     },
 
     // =========================================================================
@@ -661,7 +675,7 @@ pub enum Commands {
     // =========================================================================
     // Services & Container
     // =========================================================================
-    /// Manage development services (Docker/Podman)
+    /// Manage development services (Podman)
     Services {
         #[command(subcommand)]
         command: ServicesCommand,
@@ -777,7 +791,7 @@ pub enum Commands {
     ///   vx provider remove my-tool
     Provider {
         #[command(subcommand)]
-        command: PluginCommand,
+        command: ProviderCommand,
     },
 }
 
@@ -950,38 +964,40 @@ pub enum ConfigCommand {
 }
 
 #[derive(Subcommand, Clone)]
-pub enum PluginCommand {
-    /// List all plugins
+pub enum ProviderCommand {
+    /// List installed providers
     #[command(alias = "ls")]
     List {
-        /// Show only enabled plugins
+        /// Show only enabled providers
         #[arg(long)]
         enabled: bool,
         /// Filter by category
         #[arg(long)]
         category: Option<String>,
     },
-    /// Show plugin information
+    /// Show provider information
     Info {
-        /// Plugin name
+        /// Provider or runtime name
         name: String,
     },
-    /// Enable a plugin
+    /// Enable a provider (no-op: all providers are automatically available)
+    #[command(hide = true)]
     Enable {
-        /// Plugin name
+        /// Provider name
         name: String,
     },
-    /// Disable a plugin
+    /// Disable a provider (no-op: all providers are automatically available)
+    #[command(hide = true)]
     Disable {
-        /// Plugin name
+        /// Provider name
         name: String,
     },
-    /// Search plugins
+    /// Search providers
     Search {
         /// Search query
         query: String,
     },
-    /// Show plugin statistics
+    /// Show provider statistics
     Stats,
     /// Add a provider from a local file, directory, or remote HTTP URL
     ///
@@ -1028,6 +1044,22 @@ pub enum ShellCommand {
     Completions {
         /// Shell type
         shell: String,
+    },
+    /// Launch an interactive shell with a runtime's environment configured
+    ///
+    /// Canonical form: `vx shell <runtime>[@version] [shell_name]`
+    /// Compatibility alias: `vx <runtime>::<shell_name>` (e.g., `vx node::powershell`)
+    ///
+    /// Examples:
+    ///   vx shell node@22 powershell   # Launch PowerShell with Node.js 22 environment
+    ///   vx shell go bash              # Launch Bash with Go environment
+    ///   vx shell git git-bash         # Launch Git Bash with git environment
+    ///   vx shell rust                 # Launch default shell with Rust environment
+    Launch {
+        /// Runtime name with optional version (e.g., node, node@22, go@1.21)
+        runtime: String,
+        /// Shell to launch (auto-detected if not specified)
+        shell_name: Option<String>,
     },
 }
 
@@ -1431,12 +1463,10 @@ impl CommandHandler for Commands {
                 version,
                 force,
             } => {
-                // Support tool@version format (e.g., "python@3.7")
-                let (tool_name, parsed_version) = if let Some((t, v)) = tool.split_once('@') {
-                    (t, Some(v.to_string()))
-                } else {
-                    (tool.as_str(), None)
-                };
+                // Use RuntimeRequest::parse to correctly handle all formats
+                let request = vx_resolver::RuntimeRequest::parse(tool);
+                let tool_name = request.name.as_str();
+                let parsed_version = request.version;
                 let final_version = version.clone().or(parsed_version);
 
                 // RFC 0033: If the tool has a package_alias, route to global uninstall
@@ -1471,16 +1501,12 @@ impl CommandHandler for Commands {
             }
 
             Commands::Which { tool, all } => {
-                // Support tool@version format (e.g., "yarn@4")
-                let (tool_name, version) = if let Some((t, v)) = tool.split_once('@') {
-                    (t.to_string(), Some(v.to_string()))
-                } else {
-                    (tool.clone(), None)
-                };
+                // Use RuntimeRequest::parse to correctly handle all formats:
+                //   runtime@version, runtime::exe, runtime@version::exe, runtime::exe@version
+                let request = vx_resolver::RuntimeRequest::parse(tool);
                 commands::where_cmd::handle(
                     ctx.registry(),
-                    &tool_name,
-                    version.as_deref(),
+                    &request,
                     *all,
                     ctx.use_system_path(),
                     ctx.output_format(),
@@ -1495,16 +1521,13 @@ impl CommandHandler for Commands {
                 detailed,
                 interactive,
             } => {
-                // Support tool@version format - extract just the tool name
-                let tool_name = if let Some((t, _)) = tool.split_once('@') {
-                    t
-                } else {
-                    tool.as_str()
-                };
+                // Use RuntimeRequest::parse to extract just the tool name
+                let request = vx_resolver::RuntimeRequest::parse(tool);
+                let tool_name = request.name;
                 commands::fetch::handle(
                     ctx.registry(),
                     ctx.runtime_context(),
-                    tool_name,
+                    &tool_name,
                     *latest,
                     *prerelease,
                     *detailed,
@@ -1559,8 +1582,8 @@ impl CommandHandler for Commands {
 
             Commands::Cache { command } => commands::cache::handle(command.clone()).await,
 
-            Commands::Plugin { command } => {
-                commands::plugin::handle(ctx.registry(), command.clone()).await
+            Commands::Plugin { command } | Commands::Provider { command } => {
+                commands::provider::handle(ctx.registry(), command.clone()).await
             }
 
             Commands::Env { command } => {
@@ -1670,6 +1693,38 @@ impl CommandHandler for Commands {
                 }
                 ShellCommand::Completions { shell } => {
                     commands::shell::handle_completion(shell.clone()).await
+                }
+                ShellCommand::Launch {
+                    runtime,
+                    shell_name,
+                } => {
+                    // Use RuntimeRequest::parse to handle runtime@version
+                    let mut request = vx_resolver::RuntimeRequest::parse(runtime);
+
+                    // Determine the shell to launch
+                    // If not specified, use platform default (cmd on Windows, bash on Unix)
+                    let shell = shell_name.clone().unwrap_or_else(|| {
+                        if cfg!(windows) {
+                            "cmd".to_string()
+                        } else {
+                            std::env::var("SHELL")
+                                .ok()
+                                .and_then(|s| s.rsplit('/').next().map(|n| n.to_string()))
+                                .unwrap_or_else(|| "bash".to_string())
+                        }
+                    });
+
+                    // Override shell in the request
+                    request.executable = None;
+                    request.shell = Some(shell);
+
+                    crate::execute_shell_request(
+                        ctx,
+                        &request,
+                        &[],
+                        &vx_core::WithDependency::parse_many(&ctx.options.with_deps),
+                    )
+                    .await
                 }
             },
 
@@ -1978,10 +2033,6 @@ impl CommandHandler for Commands {
                 }
                 AiCommand::Session(session) => commands::ai::handle_session(ctx, session).await,
             },
-
-            Commands::Provider { command } => {
-                commands::plugin::handle(ctx.registry(), command.clone()).await
-            }
         }
     }
 }

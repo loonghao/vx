@@ -8,14 +8,16 @@ vx supports **50+ tools** out of the box, spanning language runtimes, package ma
 |----------|-------|-------|
 | [Language Runtimes](#language-runtimes) | Node.js, Python, Go, Rust, Deno, Zig, Java, .NET | 8 |
 | [Package Managers](#package-managers) | npm, pnpm, yarn, bun, uv, pip, cargo, nuget | 8 |
-| [DevOps](#devops) | Terraform, kubectl, Helm, Docker CLI, Git | 5 |
+| [DevOps](#devops) | Terraform, kubectl, Helm, Podman CLI, Git | 5 |
+
 | [Cloud CLI](#cloud-cli) | AWS CLI, Azure CLI, Google Cloud CLI | 3 |
 | [Build Tools](#build-tools) | CMake, Ninja, Just, Task, Make, Meson, protoc, MSBuild | 8 |
 | [Code Quality](#code-quality) | pre-commit, Vite | 2 |
 | [AI](#ai) | Ollama | 1 |
 | [Scientific & HPC](#scientific--hpc) | Spack, Rez | 2 |
 | [Media](#media) | FFmpeg, ImageMagick | 2 |
-| [System Tools](#system-tools) | jq, gh, curl, pwsh, Git, NASM, OpenSSL, x-cmd | 8+ |
+| [System Tools](#system-tools) | jq, gh, curl, pwsh, Git, NASM, x-cmd | 7+ |
+
 | [Windows-specific](#windows-specific) | choco, winget, rcedit, MSVC Build Tools | 4 |
 
 ## Language Runtimes
@@ -52,7 +54,7 @@ vx supports **50+ tools** out of the box, spanning language runtimes, package ma
 | **Terraform** | Infrastructure as Code | [Details →](./devops) |
 | **kubectl** | Kubernetes CLI | [Details →](./devops) |
 | **Helm** | Kubernetes package manager | [Details →](./devops) |
-| **Docker** | Container CLI (requires Docker Engine) | [Details →](./devops) |
+| **Podman** | Container CLI and compose workflow | [Details →](./devops) |
 | **Git** | Version control (MinGit on Windows) | [Details →](./devops) |
 | **Dagu** | DAG-based workflow executor | — |
 
@@ -114,7 +116,7 @@ vx supports **50+ tools** out of the box, spanning language runtimes, package ma
 | **curl** | HTTP client |
 | **pwsh** | PowerShell |
 | **NASM** | Netwide Assembler |
-| **OpenSSL** | Cryptography toolkit |
+
 | **x-cmd** | Command-line toolbox with 100+ modules and AI |
 
 ## Windows-Specific

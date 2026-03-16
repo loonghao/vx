@@ -1,4 +1,4 @@
-//! openssl provider for vx
+//! podman provider for vx
 //!
 //! This is a manifest-driven provider defined in `provider.star`.
 

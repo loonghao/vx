@@ -461,7 +461,7 @@ vx global shim-update
 # 确保运行时已安装
 vx install node    # 用于 npm 包
 vx install python  # 用于 pip 包
-vx install rust    # 用于 cargo 包
+vx install rustup  # 用于 cargo 包（由 rustup 管理）
 ```
 
 ### 权限问题

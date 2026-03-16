@@ -216,7 +216,7 @@ vx shines in projects that use multiple languages:
 
 ```bash
 # Install all required tools
-vx install node uv go rust
+vx install node uv go rustup
 
 # Or use vx.toml for declarative setup
 cat > vx.toml << 'EOF'
@@ -224,7 +224,7 @@ cat > vx.toml << 'EOF'
 node = "22"
 uv = "latest"
 go = "1.22"
-rust = "stable"
+rustup = "latest"
 EOF
 
 # Set up all tools

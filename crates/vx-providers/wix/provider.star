@@ -18,7 +18,7 @@
 # Uses stdlib templates from @vx//stdlib:provider.star
 
 load("@vx//stdlib:provider.star",
-     "runtime_def", "bundled_runtime_def", "dep_def",
+     "runtime_def", "dep_def",
      "github_permissions",
      "system_install_strategies", "winget_install", "choco_install")
 load("@vx//stdlib:github.star", "make_fetch_versions")

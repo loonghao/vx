@@ -1,17 +1,16 @@
 # provider.star - Azure CLI provider
 #
 # Linux: direct tar.gz from GitHub releases
-# Windows/macOS: system package manager (MSI not supported)
+# Windows/macOS: system package manager preferred
 #
 # Uses stdlib templates from @vx//stdlib:provider.star
 
 load("@vx//stdlib:provider.star",
      "runtime_def", "github_permissions", "post_extract_permissions",
-     "path_fns",
-     "multi_platform_install", "winget_install", "choco_install",
+     "system_install_strategies", "winget_install", "choco_install",
      "brew_install")
 load("@vx//stdlib:github.star", "make_fetch_versions")
-load("@vx//stdlib:env.star",    "env_prepend")
+load("@vx//stdlib:env.star", "env_prepend")
 
 # ---------------------------------------------------------------------------
 # Provider metadata
@@ -31,6 +30,12 @@ aliases     = ["azure-cli"]
 runtimes = [
     runtime_def("az",
         aliases = ["azcli", "azure-cli"],
+        system_paths = [
+            "C:/Program Files (x86)/Microsoft SDKs/Azure/CLI2/wbin/az.cmd",
+            "C:/Program Files/Microsoft SDKs/Azure/CLI2/wbin/az.cmd",
+            "/usr/local/bin/az",
+            "/usr/bin/az",
+        ],
         test_commands = [
             {"command": "{executable} --version", "name": "version_check",
              "expected_output": "azure-cli"},
@@ -42,7 +47,10 @@ runtimes = [
 # Permissions
 # ---------------------------------------------------------------------------
 
-permissions = github_permissions(extra_hosts = ["aka.ms"])
+permissions = github_permissions(
+    extra_hosts = ["aka.ms"],
+    exec_cmds   = ["winget", "choco", "brew"],
+)
 
 # ---------------------------------------------------------------------------
 # fetch_versions
@@ -81,29 +89,33 @@ post_extract = post_extract_permissions(["bin/az"])
 # system_install — preferred on Windows and macOS
 # ---------------------------------------------------------------------------
 
-system_install = multi_platform_install(
-    windows_strategies = [
-        winget_install("Microsoft.AzureCLI", priority = 100),
-        choco_install("azure-cli",            priority = 80),
-    ],
-    macos_strategies = [
-        brew_install("azure-cli"),
-    ],
-)
+system_install = system_install_strategies([
+    winget_install("Microsoft.AzureCLI", priority = 100),
+    choco_install("azure-cli", priority = 80),
+    brew_install("azure-cli", priority = 70),
+])
 
 # ---------------------------------------------------------------------------
-# Path + env functions (from stdlib)
+# Path + env functions
 # ---------------------------------------------------------------------------
 
-paths            = path_fns("azcli", executable = "az")
-store_root       = paths["store_root"]
-get_execute_path = paths["get_execute_path"]
+def store_root(ctx):
+    return ctx.vx_home + "/store/azcli"
+
+
+def get_execute_path(ctx, _version):
+    if ctx.platform.os == "windows":
+        return ctx.install_dir + "/bin/az.cmd"
+    return ctx.install_dir + "/bin/az"
+
 
 def environment(ctx, _version):
     return [env_prepend("PATH", ctx.install_dir + "/bin")]
 
+
 def post_install(_ctx, _version):
     return None
+
 
 def deps(_ctx, _version):
     return []

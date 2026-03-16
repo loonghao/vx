@@ -19,6 +19,13 @@
 vx <生态系统>[@运行时版本]:<包名>[@版本][::可执行文件] [参数...]
 ```
 
+### 不要和运行时 / shell 语法混用
+
+- 运行时执行：`vx <runtime>[@version] [args...]`（示例：`vx uvx ruff check .`）
+- 运行时可执行覆盖：`vx <runtime>[@version]::<executable> [args...]`（示例：`vx msvc@14.42::cl main.cpp`）
+- 运行时 shell：`vx <runtime>::<shell>`（示例：`vx uv::cmd`）
+- 包执行（本页）：`vx <ecosystem>:<package>[::executable] ...`
+
 ### 语法组件
 
 | 组件 | 描述 | 示例 |
@@ -366,7 +373,7 @@ vx global list
 # 首先安装所需的运行时
 vx install node        # 用于 npm 包
 vx install python      # 用于 pip 包
-vx install rust        # 用于 cargo 包
+vx install rustup      # 用于 cargo 包（由 rustup 管理）
 ```
 
 ### 命令冲突

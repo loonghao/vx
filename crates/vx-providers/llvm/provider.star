@@ -4,16 +4,11 @@
 #                llvm-ar, llvm-nm, llvm-objdump, llvm-ranlib, llvm-strip
 #
 # Downloads from GitHub releases: llvm/llvm-project
-# Windows: LLVM-{version}-win64.exe (NSIS installer) or
-#          clang+llvm-{version}-x86_64-pc-windows-msvc.tar.xz
-# macOS:   clang+llvm-{version}-arm64-apple-macos11.tar.xz
-# Linux:   clang+llvm-{version}-x86_64-linux-gnu-ubuntu-22.04.tar.xz
 
 load("@vx//stdlib:provider.star",
      "runtime_def", "bundled_runtime_def", "dep_def",
-     "github_permissions", "platform_map",
+     "github_permissions", "fetch_versions_with_tag_prefix",
      "system_install_strategies", "winget_install", "brew_install")
-load("@vx//stdlib:github.star", "make_fetch_versions")
 load("@vx//stdlib:env.star", "env_prepend", "env_set")
 
 # ---------------------------------------------------------------------------
@@ -39,7 +34,6 @@ _LLVM_WIN_PATHS = [
 _CLANG_CL_WIN_PATHS = [
     "C:/Program Files/LLVM/bin/clang-cl.exe",
     "C:/Program Files (x86)/LLVM/bin/clang-cl.exe",
-    # Also bundled with MSVC BuildTools
     "C:/Program Files/Microsoft Visual Studio/2022/Enterprise/VC/Tools/Llvm/x64/bin/clang-cl.exe",
     "C:/Program Files/Microsoft Visual Studio/2022/Professional/VC/Tools/Llvm/x64/bin/clang-cl.exe",
     "C:/Program Files/Microsoft Visual Studio/2022/Community/VC/Tools/Llvm/x64/bin/clang-cl.exe",
@@ -52,41 +46,41 @@ _CLANG_CL_WIN_PATHS = [
 
 runtimes = [
     runtime_def("llvm",
-        executable          = "clang",
-        aliases             = ["clang", "llvm-toolchain"],
-        system_paths        = _LLVM_WIN_PATHS,
-        test_commands       = [
+        executable   = "clang",
+        aliases      = ["clang", "llvm-toolchain"],
+        system_paths = _LLVM_WIN_PATHS,
+        test_commands = [
             {"command": "{executable} --version", "name": "version_check",
              "expected_output": "clang version \\d+"},
         ],
     ),
-    bundled_runtime_def("clang++",      bundled_with = "llvm"),
+    bundled_runtime_def("clang++", bundled_with = "llvm"),
     bundled_runtime_def("clang-format", bundled_with = "llvm",
         description = "LLVM code formatter"),
-    bundled_runtime_def("clang-tidy",   bundled_with = "llvm",
+    bundled_runtime_def("clang-tidy", bundled_with = "llvm",
         description = "LLVM static analyzer and linter"),
     runtime_def("clang-cl",
-        bundled_with        = "llvm",
-        description         = "MSVC-compatible Clang frontend (Windows)",
-        system_paths        = _CLANG_CL_WIN_PATHS,
-        test_commands       = [
+        bundled_with  = "llvm",
+        description   = "MSVC-compatible Clang frontend (Windows)",
+        system_paths  = _CLANG_CL_WIN_PATHS,
+        test_commands = [
             {"command": "{executable} --version", "name": "version_check",
              "expected_output": "clang version \\d+"},
         ],
     ),
-    bundled_runtime_def("lld",          bundled_with = "llvm",
+    bundled_runtime_def("lld", bundled_with = "llvm",
         description = "LLVM linker"),
-    bundled_runtime_def("lld-link",     bundled_with = "llvm",
+    bundled_runtime_def("lld-link", bundled_with = "llvm",
         description = "LLVM linker (MSVC-compatible interface)"),
-    bundled_runtime_def("llvm-ar",      bundled_with = "llvm",
+    bundled_runtime_def("llvm-ar", bundled_with = "llvm",
         description = "LLVM archiver"),
-    bundled_runtime_def("llvm-nm",      bundled_with = "llvm",
+    bundled_runtime_def("llvm-nm", bundled_with = "llvm",
         description = "LLVM symbol lister"),
     bundled_runtime_def("llvm-objdump", bundled_with = "llvm",
         description = "LLVM object file dumper"),
-    bundled_runtime_def("llvm-ranlib",  bundled_with = "llvm",
+    bundled_runtime_def("llvm-ranlib", bundled_with = "llvm",
         description = "LLVM archive index generator"),
-    bundled_runtime_def("llvm-strip",   bundled_with = "llvm",
+    bundled_runtime_def("llvm-strip", bundled_with = "llvm",
         description = "LLVM symbol stripper"),
 ]
 
@@ -97,24 +91,25 @@ runtimes = [
 permissions = github_permissions(extra_hosts = ["github.com"])
 
 # ---------------------------------------------------------------------------
-# fetch_versions — GitHub releases (llvm/llvm-project)
-# Tags: llvmorg-18.1.8, llvmorg-17.0.6, etc.
+# fetch_versions — tags: llvmorg-{version}
 # ---------------------------------------------------------------------------
 
-fetch_versions = make_fetch_versions("llvm", "llvm-project")
+fetch_versions = fetch_versions_with_tag_prefix(
+    "llvm", "llvm-project", tag_prefix = "llvmorg-"
+)
 
 # ---------------------------------------------------------------------------
 # Platform helpers
-# LLVM release asset naming varies by version and platform
 # ---------------------------------------------------------------------------
 
 _LLVM_PLATFORMS = {
-    "windows/x64":   ("x86_64-pc-windows-msvc",  "tar.xz"),
-    "macos/x64":     ("x86_64-apple-darwin",      "tar.xz"),
-    "macos/arm64":   ("arm64-apple-macos11",       "tar.xz"),
+    "windows/x64":   ("x86_64-pc-windows-msvc", "tar.xz"),
+    "macos/x64":     ("x86_64-apple-darwin", "tar.xz"),
+    "macos/arm64":   ("arm64-apple-macos11", "tar.xz"),
     "linux/x64":     ("x86_64-linux-gnu-ubuntu-22.04", "tar.xz"),
-    "linux/arm64":   ("aarch64-linux-gnu",         "tar.xz"),
+    "linux/arm64":   ("aarch64-linux-gnu", "tar.xz"),
 }
+
 
 def _llvm_platform(ctx):
     key = "{}/{}".format(ctx.platform.os, ctx.platform.arch)
@@ -122,8 +117,6 @@ def _llvm_platform(ctx):
 
 # ---------------------------------------------------------------------------
 # download_url
-# Tag format: llvmorg-{version}  (e.g. llvmorg-18.1.8)
-# Asset: clang+llvm-{version}-{triple}.tar.xz
 # ---------------------------------------------------------------------------
 
 def download_url(ctx, version):
@@ -145,8 +138,7 @@ def install_layout(ctx, version):
         return None
     triple, _ext = platform
     strip_prefix = "clang+llvm-{}-{}".format(version, triple)
-    os = ctx.platform.os
-    if os == "windows":
+    if ctx.platform.os == "windows":
         exe_paths = [
             "bin/clang.exe", "bin/clang++.exe", "bin/clang-cl.exe",
             "bin/clang-format.exe", "bin/clang-tidy.exe",
@@ -184,12 +176,15 @@ system_install = system_install_strategies([
 def store_root(ctx):
     return ctx.vx_home + "/store/llvm"
 
+
 def get_execute_path(ctx, _version):
     exe = "clang.exe" if ctx.platform.os == "windows" else "clang"
     return ctx.install_dir + "/bin/" + exe
 
+
 def post_install(_ctx, _version):
     return None
+
 
 def environment(ctx, _version):
     return [

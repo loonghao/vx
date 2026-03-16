@@ -1,0 +1,207 @@
+name: Maintenance
+
+# Automated tech debt garbage collection
+# Inspired by OpenAI's "Harness Engineering" approach:
+# - Regularly scan for architectural drift
+# - Detect code bloat
+# - Find stale dependencies
+# - Keep the codebase agent-readable
+
+on:
+  schedule:
+    # Run every Monday at 06:00 UTC
+    - cron: "0 6 * * 1"
+  workflow_dispatch:
+    inputs:
+      strict:
+        description: "Fail on any violation (default: report only)"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: maintenance
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  # ============================================================================
+  # Architecture Layer Check
+  # ============================================================================
+  architecture-check:
+    name: Architecture Layers
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Check layer dependencies
+        id: arch
+        run: |
+          bash scripts/check-architecture.sh 2>&1 | tee arch-report.txt
+        continue-on-error: true
+
+      - name: Upload report
+        if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: architecture-report
+          path: arch-report.txt
+          retention-days: 30
+
+  # ============================================================================
+  # File Size Audit
+  # ============================================================================
+  file-size-audit:
+    name: File Size Audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Check file sizes
+        id: sizes
+        run: |
+          bash scripts/check-file-sizes.sh 2>&1 | tee size-report.txt
+        continue-on-error: true
+
+      - name: Upload report
+        if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: file-size-report
+          path: size-report.txt
+          retention-days: 30
+
+  # ============================================================================
+  # Inline Tests Detection
+  # ============================================================================
+  inline-tests-check:
+    name: Inline Tests Detection
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Check for inline tests
+        run: |
+          echo "🔍 Scanning for inline #[cfg(test)] modules..."
+          echo ""
+
+          VIOLATIONS=0
+          while IFS= read -r -d '' file; do
+            if grep -qn '#\[cfg(test)\]' "$file" 2>/dev/null; then
+              line=$(grep -n '#\[cfg(test)\]' "$file" | head -1 | cut -d: -f1)
+              echo "⚠️  $file:$line — inline test module found"
+              VIOLATIONS=$((VIOLATIONS + 1))
+            fi
+          done < <(find crates/*/src -name "*.rs" -print0 2>/dev/null)
+
+          echo ""
+          if [ $VIOLATIONS -gt 0 ]; then
+            echo "Found $VIOLATIONS file(s) with inline tests."
+            echo "Tests should be in crates/<name>/tests/ directory."
+          else
+            echo "✅ No inline tests found."
+          fi
+
+  # ============================================================================
+  # Dependency Freshness
+  # ============================================================================
+  dependency-check:
+    name: Dependency Freshness
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install cargo-outdated
+        run: cargo install cargo-outdated --locked
+
+      - name: Check outdated dependencies
+        run: |
+          echo "📦 Checking for outdated dependencies..."
+          cargo outdated --workspace --root-deps-only 2>&1 | tee outdated-report.txt || true
+        continue-on-error: true
+
+      - name: Upload report
+        if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: outdated-deps-report
+          path: outdated-report.txt
+          retention-days: 30
+
+  # ============================================================================
+  # Workspace Health
+  # ============================================================================
+  workspace-health:
+    name: Workspace Health
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Check workspace consistency
+        run: |
+          echo "🔧 Workspace Health Check"
+          echo "========================="
+          echo ""
+
+          # Check for duplicate dependency versions
+          echo "### Duplicate Dependencies"
+          cargo tree --workspace --duplicates 2>/dev/null | head -50 || echo "cargo-tree not available"
+          echo ""
+
+          # Count workspace stats
+          echo "### Workspace Stats"
+          echo "- Total crates: $(grep -c 'members' Cargo.toml | head -1 || echo '?')"
+          echo "- Rust files: $(find crates/ -name '*.rs' | wc -l | xargs)"
+          echo "- Starlark files: $(find crates/vx-providers -name '*.star' | wc -l | xargs)"
+          echo "- Test files: $(find crates/*/tests -name '*.rs' 2>/dev/null | wc -l | xargs)"
+          echo "- Total lines of Rust: $(find crates/ -name '*.rs' -exec cat {} + | wc -l | xargs)"
+          echo ""
+
+          # Check for workspace-hack consistency
+          echo "### Workspace Hack (cargo-hakari)"
+          cargo install cargo-hakari --locked 2>/dev/null || true
+          cargo hakari generate --diff 2>&1 || echo "⚠️  workspace-hack may be out of date"
+
+  # ============================================================================
+  # Summary Report
+  # ============================================================================
+  summary:
+    name: Summary Report
+    runs-on: ubuntu-latest
+    needs:
+      - architecture-check
+      - file-size-audit
+      - inline-tests-check
+      - dependency-check
+      - workspace-health
+    if: always()
+    steps:
+      - name: Generate summary
+        run: |
+          echo "## 🔧 Weekly Maintenance Report" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Check | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|-------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Architecture Layers | ${{ needs.architecture-check.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| File Size Audit | ${{ needs.file-size-audit.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Inline Tests | ${{ needs.inline-tests-check.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Dependencies | ${{ needs.dependency-check.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Workspace Health | ${{ needs.workspace-health.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "*Generated by the Maintenance workflow — see artifacts for detailed reports.*" >> $GITHUB_STEP_SUMMARY

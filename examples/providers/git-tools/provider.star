@@ -133,7 +133,7 @@ def download_url(ctx, version):
 # ---------------------------------------------------------------------------
 # install_layout
 # ---------------------------------------------------------------------------
-def install_layout(ctx, version):
+def install_layout(ctx, _version):
     """Both tools ship as a single binary inside a flat archive."""
     runtime = ctx.runtime_name if hasattr(ctx, "runtime_name") else "lazygit"
     os      = ctx.platform.os

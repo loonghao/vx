@@ -39,9 +39,11 @@ def supported_platforms():
 
 runtimes = [
     runtime_def("make",
-        aliases     = ["gmake", "gnumake"],
-        description = "GNU Make build automation tool",
+        aliases             = ["gmake", "gnumake"],
+        description         = "GNU Make build automation tool",
+        platform_constraint = {"os": ["linux", "macos"]},
     ),
+
 ]
 
 # ---------------------------------------------------------------------------

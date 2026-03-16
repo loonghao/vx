@@ -25,10 +25,10 @@ fn test_provider_name_is_ffmpeg() {
 }
 
 #[test]
-fn test_provider_ecosystem_is_media() {
+fn test_provider_ecosystem_is_system() {
     make_assert().eq(
         r#"load("provider.star", "ecosystem"); ecosystem"#,
-        r#""media""#,
+        r#""system""#,
     );
 }
 
@@ -196,8 +196,9 @@ fn test_environment_windows_prepends_bin_dir() {
 {}
 ctx = struct(platform = struct(os = "windows", arch = "x64", target = ""), install_dir = "C:\\vx\\ffmpeg", vx_home = "C:\\Users\\user\\.vx")
 env = environment(ctx, "7.0")
-path_ops = [op for op in env if op.get("name") == "PATH"]
+path_ops = [op for op in env if op.get("key") == "PATH"]
 len(path_ops) > 0 and "bin" in path_ops[0].get("value", "")
+
 "#,
         provider_star_prefix()
     ));
@@ -212,8 +213,9 @@ fn test_environment_linux_prepends_install_dir() {
 {}
 ctx = struct(platform = struct(os = "linux", arch = "x64", target = ""), install_dir = "/opt/ffmpeg", vx_home = "/home/user/.vx")
 env = environment(ctx, "7.0")
-path_ops = [op for op in env if op.get("name") == "PATH"]
+path_ops = [op for op in env if op.get("key") == "PATH"]
 len(path_ops) > 0 and "/opt/ffmpeg" in path_ops[0].get("value", "")
+
 "#,
         provider_star_prefix()
     ));

@@ -10,7 +10,7 @@ use std::collections::HashMap;
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
 #[serde(default)]
 pub struct ServiceConfig {
-    /// Docker image
+    /// Container image
     #[serde(skip_serializing_if = "Option::is_none")]
     pub image: Option<String>,
 

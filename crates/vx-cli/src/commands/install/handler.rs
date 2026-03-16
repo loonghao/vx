@@ -157,9 +157,7 @@ pub async fn handle_install(
 }
 
 fn get_package_alias(tool_name: &str) -> Option<PackageAlias> {
-    let registry = vx_starlark::handle::GLOBAL_REGISTRY.try_read().ok()?;
-    let handle = registry.get(tool_name)?;
-    handle.provider_meta().package_alias.clone()
+    crate::registry::find_package_alias(tool_name)
 }
 
 async fn install_package_alias(

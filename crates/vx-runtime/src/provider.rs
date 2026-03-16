@@ -6,23 +6,6 @@ use crate::Platform;
 use crate::runtime::Runtime;
 use std::sync::Arc;
 
-/// Trait for package managers (npm, yarn, pip, etc.)
-///
-/// Package managers are tools that install packages/dependencies,
-/// as opposed to runtimes which are the execution environments.
-pub trait PackageManager: Send + Sync {
-    /// Package manager name (e.g., "npm", "yarn", "pip")
-    fn name(&self) -> &str;
-
-    /// Description
-    fn description(&self) -> &str {
-        "A package manager"
-    }
-
-    /// The runtime this package manager belongs to
-    fn runtime(&self) -> &str;
-}
-
 /// Provider is a container for related runtimes
 ///
 /// For example, NodeProvider provides:
@@ -65,11 +48,6 @@ pub trait Provider: Send + Sync {
 
     /// Get all runtimes provided by this provider
     fn runtimes(&self) -> Vec<Arc<dyn Runtime>>;
-
-    /// Get package managers provided by this provider (optional)
-    fn package_managers(&self) -> Vec<Arc<dyn PackageManager>> {
-        vec![]
-    }
 
     /// Check if this provider supports a runtime by name or alias
     fn supports(&self, name: &str) -> bool {
