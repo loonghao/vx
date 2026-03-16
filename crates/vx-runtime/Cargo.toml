@@ -41,14 +41,10 @@ vx-system-pm = { workspace = true }
 
 
 
-# Dynamic library loading (optional - only needed for plugin system)
-libloading = { version = "0.9", optional = true }
 workspace-hack = { version = "0.1", path = "../workspace-hack" }
 
 [features]
-default = ["plugin"]
-# Plugin system for dynamic provider loading
-plugin = ["libloading"]
+default = []
 # Testing utilities (mock implementations) - only needed in test builds
 testing = []
 

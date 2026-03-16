@@ -8,14 +8,17 @@
 # Rust 1.93+ includes rust-lld by default
 # Benefits: ~10-13s faster linking on Windows MSVC
 
-# Windows MSVC - Use lld linker for faster builds
-# Also statically link the C runtime for standalone executables
+# Windows MSVC - Use rust-lld (lld-link flavor) for faster builds
+# NOTE: `-fuse-ld=lld` is a clang/gcc-style argument and gets forwarded to
+# `link.exe`, which then ignores it. Use rust-lld as the linker instead.
+# Also statically link the C runtime for standalone executables.
 # See: https://github.com/astral-sh/ruff/issues/11503
 [target.'cfg(all(target_env = "msvc", target_os = "windows"))']
+linker = "rust-lld.exe"
 rustflags = [
     "-C", "target-feature=+crt-static",
-    "-C", "link-arg=-fuse-ld=lld",
 ]
+
 
 # Linux gnu - Use lld linker for faster builds
 # Alternative: Use mold for even faster linking (install: sudo apt install mold)

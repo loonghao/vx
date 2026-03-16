@@ -56,6 +56,8 @@ pub struct StarRuntimeMeta {
     pub install_deps: Vec<String>,
     /// Glob patterns for locating the executable on the system (for tools not on PATH, e.g. MSVC cl.exe)
     pub system_paths: Vec<String>,
+    /// Priority (lower = higher priority)
+    pub priority: Option<u32>,
 }
 
 impl StarMetadata {
@@ -340,6 +342,7 @@ fn parse_runtime_def_call(args_body: &str, source: &str) -> StarRuntimeMeta {
     let platform_os = extract_kwarg_platform_os(args_body);
     let auto_installable = extract_kwarg_bool(args_body, "auto_installable");
     let bundled_with = extract_kwarg_string(args_body, "bundled_with");
+    let priority = extract_kwarg_u32(args_body, "priority");
 
     // system_paths may be a direct list `[...]` or a variable reference like `_MSVC_PATHS`.
     // Try direct list first; fall back to variable reference resolution.
@@ -356,6 +359,7 @@ fn parse_runtime_def_call(args_body: &str, source: &str) -> StarRuntimeMeta {
         shells: Vec::new(),
         install_deps: Vec::new(),
         system_paths,
+        priority,
     }
 }
 
@@ -368,6 +372,7 @@ fn parse_bundled_runtime_def_call(args_body: &str) -> StarRuntimeMeta {
     let aliases = extract_kwarg_string_list(args_body, "aliases");
     let platform_os = extract_kwarg_platform_os(args_body);
     let auto_installable = extract_kwarg_bool(args_body, "auto_installable");
+    let priority = extract_kwarg_u32(args_body, "priority");
 
     StarRuntimeMeta {
         name,
@@ -380,6 +385,7 @@ fn parse_bundled_runtime_def_call(args_body: &str) -> StarRuntimeMeta {
         shells: Vec::new(),
         install_deps: Vec::new(),
         system_paths: Vec::new(),
+        priority,
     }
 }
 
@@ -604,6 +610,42 @@ fn extract_kwarg_bool(args_body: &str, key: &str) -> Option<bool> {
     None
 }
 
+/// Extract a u32 keyword argument from a function call args body.
+fn extract_kwarg_u32(args_body: &str, key: &str) -> Option<u32> {
+    let mut search_start = 0;
+    while let Some(pos) = args_body[search_start..].find(key) {
+        let actual_pos = search_start + pos;
+        let after_key = &args_body[actual_pos + key.len()..];
+
+        let before = &args_body[..actual_pos];
+        let is_kwarg = before.is_empty()
+            || before
+                .chars()
+                .last()
+                .map(|c| c.is_whitespace() || c == ',')
+                .unwrap_or(true);
+        if !is_kwarg {
+            search_start = actual_pos + key.len();
+            continue;
+        }
+
+        let after_key_trimmed = after_key.trim_start();
+        if let Some(after_equals_raw) = after_key_trimmed.strip_prefix('=') {
+            let after_equals = after_equals_raw.trim_start();
+            let digits: String = after_equals
+                .chars()
+                .take_while(|c| c.is_ascii_digit())
+                .collect();
+            if !digits.is_empty() {
+                return digits.parse().ok();
+            }
+        }
+
+        search_start = actual_pos + key.len();
+    }
+    None
+}
+
 /// Legacy wrapper kept for compatibility.
 #[allow(dead_code)]
 fn parse_runtime_dicts(list_body: &str) -> Vec<StarRuntimeMeta> {
@@ -656,6 +698,7 @@ fn parse_runtime_dict(body: &str) -> StarRuntimeMeta {
         shells: extract_dict_shells(body),
         install_deps: extract_dict_string_list(body, "install_deps"),
         system_paths: extract_dict_string_list(body, "system_paths"),
+        priority: extract_dict_u32_value(body, "priority"),
     }
 }
 
@@ -720,6 +763,24 @@ fn extract_dict_bool_value(body: &str, key: &str) -> Option<bool> {
                 return Some(true);
             } else if after_colon.starts_with("False") {
                 return Some(false);
+            }
+        }
+    }
+    None
+}
+
+/// Extract a u32 value for a given key from a dict body.
+fn extract_dict_u32_value(body: &str, key: &str) -> Option<u32> {
+    for key_str in &[format!("\"{}\"", key), format!("'{}'", key)] {
+        if let Some(pos) = body.find(key_str.as_str()) {
+            let after_key = &body[pos + key_str.len()..];
+            let after_colon = after_key.trim_start().trim_start_matches(':').trim_start();
+            let num_str: String = after_colon
+                .chars()
+                .take_while(|c| c.is_ascii_digit())
+                .collect();
+            if !num_str.is_empty() {
+                return num_str.parse().ok();
             }
         }
     }

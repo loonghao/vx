@@ -2,5 +2,5 @@
 # This ensures consistent Rust version across development and CI
 
 [toolchain]
-channel = "stable"
+channel = "1.93.1"
 components = ["rustfmt", "clippy"]

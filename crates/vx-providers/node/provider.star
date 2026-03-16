@@ -87,6 +87,7 @@ def _node_platform(ctx):
 # ---------------------------------------------------------------------------
 
 def download_url(ctx, version):
+    ver = version[1:] if version.startswith("v") else version
     platform = _node_platform(ctx)
     if not platform:
         return None
@@ -98,19 +99,20 @@ def download_url(ctx, version):
         ext = "tar.gz"
     else:
         ext = "tar.xz"
-    filename = "node-v{}-{}-{}.{}".format(version, os_str, arch_str, ext)
-    return "https://nodejs.org/dist/v{}/{}".format(version, filename)
+    filename = "node-v{}-{}-{}.{}".format(ver, os_str, arch_str, ext)
+    return "https://nodejs.org/dist/v{}/{}".format(ver, filename)
 
 # ---------------------------------------------------------------------------
 # install_layout — strip top-level "node-v{version}-{os}-{arch}/" dir
 # ---------------------------------------------------------------------------
 
 def install_layout(ctx, version):
+    ver = version[1:] if version.startswith("v") else version
     platform = _node_platform(ctx)
     if not platform:
         return {"type": "archive", "strip_prefix": "", "executable_paths": ["node"]}
     os_str, arch_str = platform[0], platform[1]
-    strip = "node-v{}-{}-{}".format(version, os_str, arch_str)
+    strip = "node-v{}-{}-{}".format(ver, os_str, arch_str)
     if ctx.platform.os == "windows":
         exe_paths = ["node.exe", "npm.cmd", "npx.cmd"]
     else:
@@ -120,6 +122,7 @@ def install_layout(ctx, version):
         "strip_prefix":     strip,
         "executable_paths": exe_paths,
     }
+
 
 # ---------------------------------------------------------------------------
 # post_extract — ensure bundled tools have execute permissions on Unix

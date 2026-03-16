@@ -54,13 +54,19 @@ pub async fn main() -> anyhow::Result<()> {
         ui::UI::set_verbose(true);
     }
 
+    // Fast-path for lightweight commands that do not require provider registry
+    // or runtime context initialization. This significantly reduces fixed startup
+    // overhead for config/script read-only operations used in benchmarks.
+    if let Some(result) = try_execute_lightweight_command(&cli).await {
+        if result.is_err() {
+            _metrics_guard.set_exit_code(1);
+        }
+        return result;
+    }
+
     // Register embedded bridge binaries (e.g., MSBuild.exe on Windows)
     // This must happen before any provider tries to deploy bridges.
     registry::register_embedded_bridges();
-
-    // Initialize global ProviderHandle registry from embedded provider.star files (RFC-0037)
-    // This makes provider metadata (test commands, package aliases, etc.) available globally.
-    registry::init_provider_handles().await;
 
     // Create provider registry with all available providers
     let registry = create_registry();
@@ -96,6 +102,35 @@ pub async fn main() -> anyhow::Result<()> {
     }
 
     result
+}
+
+/// Execute lightweight commands without initializing provider registry/runtime context.
+///
+/// Returns Some(result) when command was handled via fast-path, None otherwise.
+async fn try_execute_lightweight_command(cli: &Cli) -> Option<Result<()>> {
+    use crate::cli::{Commands, ConfigCommand};
+
+    match &cli.command {
+        // `vx config show` is used in benchmark parse tests and only needs local config I/O.
+        Some(Commands::Config {
+            command: Some(ConfigCommand::Show) | None,
+        }) => Some(commands::config::handle().await),
+
+        // `vx config validate` is also benchmarked and does not require runtime/provider init.
+        Some(Commands::Config {
+            command: Some(ConfigCommand::Validate { path, verbose }),
+        }) => Some(commands::config::handle_validate(path.clone(), *verbose).await),
+
+        // `vx run --list` benchmark path: read/print scripts from vx.toml only.
+        Some(Commands::Run {
+            script: _,
+            list: true,
+            script_help: false,
+            args: _,
+        }) => Some(commands::run::handle(None, true, false, &[]).await),
+
+        _ => None,
+    }
 }
 
 /// Execute a tool with the given arguments
@@ -227,6 +262,11 @@ async fn execute_tool(
             std::process::exit(exit_code);
         }
         return Ok(());
+    }
+
+    if !is_known_runtime && !request.is_shell_request() {
+        ui::UI::tool_not_found(&request.name, &crate::registry::available_runtime_names());
+        std::process::exit(1);
     }
 
     // Check if this is a shell request (runtime::shell syntax)
@@ -856,11 +896,6 @@ impl VxCli {
             self.ctx.runtime_context.clone(),
             options,
         );
-
-        // RFC-0037: Initialize ProviderHandle registry with all built-in providers.
-        // This is done once at startup so that CLI commands can use ProviderHandle
-        // for path queries, version management, and post-install operations.
-        registry::init_provider_handles().await;
 
         // Route to appropriate handler
         match &cli.command {

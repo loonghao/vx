@@ -7,7 +7,7 @@
 //! - `node@20` - runtime with major version constraint
 //! - `node@^18.0.0` - runtime with semver constraint
 //! - `msvc::cl` - runtime with executable override
-//! - `msvc::cl@14.42` - runtime with executable override and version
+//! - `msvc@14.42::cl` - runtime with version and executable override
 //! - `git::git-bash` - runtime with shell launch (launches Git Bash with git's environment)
 
 use std::fmt;
@@ -86,8 +86,9 @@ impl RuntimeRequest {
     /// - `runtime` - just the runtime name
     /// - `runtime@version` - runtime with version constraint
     /// - `runtime::executable` - runtime with executable override
-    /// - `runtime::executable@version` - runtime with executable override and version
+    /// - `runtime@version::executable` - runtime with version and executable override
     /// - `runtime::shell` - runtime with shell launch (if shell is a known shell name)
+    /// - `runtime@version::shell` - runtime with version and shell launch
     ///
     /// # Examples
     ///
@@ -109,7 +110,8 @@ impl RuntimeRequest {
     /// assert_eq!(req.executable, Some("cl".to_string()));
     /// assert_eq!(req.version, None);
     ///
-    /// let req = RuntimeRequest::parse("msvc::cl@14.42");
+    /// // Canonical format: runtime@version::executable
+    /// let req = RuntimeRequest::parse("msvc@14.42::cl");
     /// assert_eq!(req.name, "msvc");
     /// assert_eq!(req.executable, Some("cl".to_string()));
     /// assert_eq!(req.version, Some("14.42".to_string()));
@@ -120,22 +122,18 @@ impl RuntimeRequest {
     /// ```
     pub fn parse(spec: &str) -> Self {
         // Check for `::` executable/shell override syntax first
-        // Format: runtime::executable_or_shell[@version]
-        if let Some((runtime_part, exe_and_version)) = spec.split_once("::") {
-            // Parse version from exe part: executable_or_shell[@version]
-            let (exe_or_shell, version) =
-                if let Some((exe, version)) = exe_and_version.split_once('@') {
-                    (
-                        exe,
-                        if version.is_empty() {
-                            None
-                        } else {
-                            Some(version.to_string())
-                        },
-                    )
+        if let Some((runtime_part, exe_or_shell)) = spec.split_once("::") {
+            // Parse version from runtime part
+            let (name, version) = if let Some((name, version)) = runtime_part.split_once('@') {
+                let version = if version.is_empty() {
+                    None
                 } else {
-                    (exe_and_version, None)
+                    Some(version.to_string())
                 };
+                (name, version)
+            } else {
+                (runtime_part, None)
+            };
 
             // Determine if this is a shell or an executable
             let (executable, shell) = if exe_or_shell.is_empty() {
@@ -149,7 +147,7 @@ impl RuntimeRequest {
             };
 
             return Self {
-                name: runtime_part.to_string(),
+                name: name.to_string(),
                 version,
                 executable,
                 shell,
@@ -201,14 +199,15 @@ impl RuntimeRequest {
 
 impl fmt::Display for RuntimeRequest {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        // Output canonical format: runtime[@version][::executable_or_shell]
         write!(f, "{}", self.name)?;
+        if let Some(ref version) = self.version {
+            write!(f, "@{}", version)?;
+        }
         if let Some(ref shell) = self.shell {
             write!(f, "::{}", shell)?;
         } else if let Some(ref exe) = self.executable {
             write!(f, "::{}", exe)?;
-        }
-        if let Some(ref version) = self.version {
-            write!(f, "@{}", version)?;
         }
         Ok(())
     }

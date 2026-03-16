@@ -664,6 +664,6 @@ def _test():
 
 ## See Also
 
-- [Manifest-Driven Providers](./manifest-driven-providers.md) - Basic provider structure
-- [Provider Functions Reference](./manifest-driven-providers.md#provider-functions-reference) - Complete API reference
-- [Standard Library Reference](./manifest-driven-providers.md#standard-library) - Available stdlib functions
+- [Manifest-Driven Providers](./manifest-driven-providers.md) — Getting-started guide for provider creation
+- [provider.star Language & Standard Library Reference](./provider-star-reference.md) — Complete stdlib API, ctx object, templates, coding conventions
+- [vx.toml Syntax Guide](./vx-toml-syntax.md) — Project configuration patterns

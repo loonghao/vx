@@ -1,16 +1,16 @@
 # provider.star - AWS CLI provider
 #
 # Linux: direct zip from awscli.amazonaws.com
-# Windows/macOS: system package manager (MSI/PKG not supported)
+# Windows/macOS: system package manager preferred
 #
 # Uses stdlib templates from @vx//stdlib:provider.star
 
 load("@vx//stdlib:provider.star",
      "runtime_def", "github_permissions", "post_extract_permissions",
-     "path_fns",
-     "multi_platform_install", "winget_install", "choco_install",
+     "system_install_strategies", "winget_install", "choco_install",
      "brew_install")
 load("@vx//stdlib:github.star", "make_fetch_versions")
+load("@vx//stdlib:env.star", "env_prepend")
 
 # ---------------------------------------------------------------------------
 # Provider metadata
@@ -29,7 +29,12 @@ aliases     = ["aws-cli"]
 
 runtimes = [
     runtime_def("aws",
-        aliases         = ["awscli", "aws-cli"],
+        aliases = ["awscli", "aws-cli"],
+        system_paths = [
+            "C:/Program Files/Amazon/AWSCLIV2/aws.exe",
+            "/usr/local/bin/aws",
+            "/usr/bin/aws",
+        ],
         version_pattern = "aws-cli",
     ),
 ]
@@ -38,7 +43,10 @@ runtimes = [
 # Permissions
 # ---------------------------------------------------------------------------
 
-permissions = github_permissions(extra_hosts = ["awscli.amazonaws.com"])
+permissions = github_permissions(
+    extra_hosts = ["awscli.amazonaws.com"],
+    exec_cmds   = ["winget", "choco", "brew"],
+)
 
 # ---------------------------------------------------------------------------
 # fetch_versions
@@ -80,33 +88,33 @@ post_extract = post_extract_permissions(["dist/aws"])
 # system_install — preferred on Windows and macOS
 # ---------------------------------------------------------------------------
 
-system_install = multi_platform_install(
-    windows_strategies = [
-        winget_install("Amazon.AWSCLI", priority = 100),
-        choco_install("awscli",         priority = 80),
-    ],
-    macos_strategies = [
-        brew_install("awscli"),
-    ],
-    linux_strategies = [
-        brew_install("awscli", priority = 70),
-    ],
-)
+system_install = system_install_strategies([
+    winget_install("Amazon.AWSCLI", priority = 100),
+    choco_install("awscli", priority = 80),
+    brew_install("awscli", priority = 70),
+])
 
 # ---------------------------------------------------------------------------
-# Path + env functions (from stdlib)
-# Note: awscli uses install_dir/bin for PATH, not install_dir directly
+# Path + env functions
 # ---------------------------------------------------------------------------
 
-paths            = path_fns("awscli", executable = "aws")
-store_root       = paths["store_root"]
-get_execute_path = paths["get_execute_path"]
+def store_root(ctx):
+    return ctx.vx_home + "/store/awscli"
+
+
+def get_execute_path(ctx, _version):
+    if ctx.platform.os == "windows":
+        return ctx.install_dir + "/dist/aws.exe"
+    return ctx.install_dir + "/dist/aws"
+
 
 def environment(ctx, _version):
-    return [{"op": "prepend", "name": "PATH", "value": ctx.install_dir + "/bin"}]
+    return [env_prepend("PATH", ctx.install_dir + "/dist")]
+
 
 def post_install(_ctx, _version):
     return None
+
 
 def deps(_ctx, _version):
     return []

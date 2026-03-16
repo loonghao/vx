@@ -202,7 +202,7 @@ vx msvc@14.40 cl main.cpp
 | Rust | cargo, rustc, rustup |
 | Go | go, gofmt |
 | System | git, just, jq, cmake, make, ninja, meson |
-| Cloud | docker, kubectl, helm, awscli, azcli, gcloud, terraform |
+| Cloud | podman, kubectl, helm, awscli, azcli, gcloud, terraform |
 | .NET | dotnet, msbuild, nuget |
 | Other | zig, java, protoc, ffmpeg, gh, ollama, dagu, skills |
 
@@ -291,9 +291,10 @@ jobs:
 | `version` | The installed vx version |
 | `cache-hit` | Whether the cache was hit |
 
-## Docker Support
+## Container Image Support
 
-vx provides a Docker image for containerized workflows:
+vx also provides a container image for containerized workflows, and it can be consumed from Podman-compatible environments:
+
 
 ```dockerfile
 # Use vx as base image
@@ -314,7 +315,7 @@ FROM nginx:alpine
 COPY --from=builder /home/vx/dist /usr/share/nginx/html
 ```
 
-### GitHub Actions with Docker
+### GitHub Actions Container Jobs
 
 ```yaml
 jobs:

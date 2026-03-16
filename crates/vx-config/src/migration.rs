@@ -593,7 +593,7 @@ impl ConfigMigrator {
         // services
         if !config.services.is_empty() {
             if options.add_comments {
-                output.push_str("# Development services (Docker/Podman)\n");
+                output.push_str("# Development services (Podman)\n");
             }
             for (name, service) in &config.services {
                 output.push_str(&format!("[services.{}]\n", name));

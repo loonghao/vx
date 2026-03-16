@@ -166,7 +166,6 @@ def install_layout(ctx, version):
     """Return the archive extraction descriptor for the requested runtime."""
     runtime = ctx.runtime_name if hasattr(ctx, "runtime_name") else "fzf"
     os      = ctx.platform.os
-    arch    = ctx.platform.arch
     triple  = _triple(ctx)
 
     # ── fzf ─────────────────────────────────────────────────────────────────

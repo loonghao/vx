@@ -466,7 +466,7 @@ vx cargo run
 
 | Tool | Commands | Description |
 |------|----------|-------------|
-| **Docker** | `docker` | Container runtime and tooling |
+| **Podman** | `podman` | Container runtime and tooling |
 | **Terraform** | `terraform` | Infrastructure as Code |
 | **kubectl** | `kubectl` | Kubernetes CLI |
 | **Helm** | `helm` | Kubernetes package manager |
@@ -570,11 +570,11 @@ yay -S vx-bin
 cargo install --git https://github.com/loonghao/vx
 ```
 
-### Docker
+### Container Image
 
 ```bash
-docker pull loonghao/vx:latest
-docker run --rm loonghao/vx --version
+podman pull loonghao/vx:latest
+podman run --rm loonghao/vx --version
 ```
 
 ### GitHub Actions

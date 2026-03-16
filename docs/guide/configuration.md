@@ -2,8 +2,8 @@
 
 vx uses a simple TOML-based configuration system with two levels:
 
-1. **Project Configuration** (`vx.toml`) - Per-project settings
-2. **Global Configuration** (`~/.config/vx/config.toml`) - User-wide defaults
+1. **Project Configuration** (`vx.toml`) — Per-project settings
+2. **Global Configuration** (`~/.config/vx/config.toml`) — User-wide defaults
 
 ## Project Configuration (vx.toml)
 
@@ -66,7 +66,7 @@ env = { POSTGRES_PASSWORD = "dev" }
 
 ## Sections Explained
 
-### [project]
+### `[project]`
 
 Project metadata:
 
@@ -79,25 +79,32 @@ license = "MIT"
 repository = "https://github.com/org/repo"
 ```
 
-### [tools]
+### `[tools]`
 
-Tool versions to use. Supports simple strings or detailed configuration:
+Runtime versions to use. Supports simple strings or detailed configuration:
 
 ```toml
 [tools]
-node = "20"          # Major version
+node = "20"          # Major version — latest 20.x.x
 uv = "latest"        # Latest stable
 go = "1.21.5"        # Exact version
-rust = "stable"      # Channel
+rustup = "latest"    # Rust toolchain manager
 
-# Detailed configuration
+# Detailed configuration with platform filtering
 [tools.node]
 version = "20"
 postinstall = "corepack enable"
 os = ["linux", "darwin", "windows"]
+
+# Windows-only runtime
+[tools.pwsh]
+version = "7.4.13"
+os = ["windows"]
 ```
 
-### [python]
+> **Rust note**: Configure `rustup` in `[tools]`, then use `vx cargo` / `vx rustc` in workflows. The `rustup` version is the toolchain manager version, not the Rust compiler version.
+
+### `[python]`
 
 Python environment configuration:
 
@@ -114,7 +121,7 @@ git = ["https://github.com/user/repo.git"]
 dev = ["pytest", "mypy"]
 ```
 
-### [env]
+### `[env]`
 
 Environment variables with required/optional declarations:
 
@@ -135,15 +142,21 @@ provider = "auto"  # auto | 1password | vault | aws-secrets
 items = ["DATABASE_URL", "API_KEY"]
 ```
 
-### [scripts]
+### `[scripts]`
 
-Runnable scripts with dependencies:
+Runnable scripts with dependencies, invoked via `vx run <name>`:
 
 ```toml
 [scripts]
 # Simple command
 dev = "npm run dev"
 test = "pytest"
+
+# Parameterized scripts — {{args}} forwards CLI arguments
+test-pkgs = "cargo test {{args}}"     # vx run test-pkgs -- -p vx-cli
+
+# Package execution syntax
+tox = "uvx:tox {{args}}"             # Runs tox via uvx
 
 # Complex script with options
 [scripts.start]
@@ -152,27 +165,29 @@ description = "Start the server"
 args = ["--host", "0.0.0.0"]
 cwd = "src"
 env = { PORT = "8080" }
-depends = ["build"]  # Run build first
+depends = ["build"]  # Run build first (DAG ordering)
 ```
 
-### [settings]
+### `[settings]`
 
 Behavior settings:
 
 ```toml
 [settings]
-auto_install = true       # Auto-install missing tools
-parallel_install = true   # Install tools in parallel
-cache_duration = "7d"     # Cache duration
+auto_install = true       # Auto-install missing runtimes
+parallel_install = true   # Install runtimes in parallel
+cache_duration = "7d"     # Version list cache duration
 shell = "auto"            # Shell (auto, bash, zsh, fish, pwsh)
 log_level = "info"        # Log level
+isolation = true          # Isolate vx dev environment
+passenv = ["SSH_*"]       # Pass through env vars (glob patterns)
 
 [settings.experimental]
 monorepo = false
 workspaces = false
 ```
 
-### [hooks] <Badge type="tip" text="v0.6.0+" />
+### `[hooks]` <Badge type="tip" text="v0.6.0+" />
 
 Lifecycle hooks for automation:
 
@@ -182,18 +197,34 @@ pre_setup = "echo 'Starting setup...'"
 post_setup = ["vx run db:migrate", "vx run seed"]
 pre_commit = "vx run lint && vx run test"
 enter = "vx sync --check"
+
+[hooks.custom]
+deploy = "vx run build && vx run deploy"
 ```
 
 Available hooks:
 
-- `pre_setup` - Before `vx setup`
-- `post_setup` - After `vx setup`
-- `pre_commit` - Before git commit
-- `enter` - When entering project directory
+- `pre_setup` — Before `vx setup`
+- `post_setup` — After `vx setup`
+- `pre_commit` — Before git commit
+- `enter` — When entering project directory
 
-### [services] <Badge type="tip" text="v0.6.0+" />
+### `[setup]` <Badge type="tip" text="v0.6.0+" />
 
-Local development services (docker-compose style):
+Setup pipeline with CI integration:
+
+```toml
+[setup]
+pipeline = ["pre_setup", "install_tools", "export_paths", "post_setup"]
+
+[setup.ci]
+enabled = true
+provider = "github"   # Auto-detected from environment
+```
+
+### `[services]` <Badge type="tip" text="v0.6.0+" />
+
+Local development services (Podman-managed containers plus local commands):
 
 ```toml
 [services.database]
@@ -212,7 +243,7 @@ depends_on = ["database", "redis"]
 ports = ["3000:3000"]
 ```
 
-### [dependencies] <Badge type="tip" text="v0.6.0+" />
+### `[dependencies]` <Badge type="tip" text="v0.6.0+" />
 
 Smart dependency management:
 
@@ -228,11 +259,14 @@ registry = "https://registry.npmmirror.com"
 
 [dependencies.python]
 index_url = "https://pypi.tuna.tsinghua.edu.cn/simple"
+
+[dependencies.go]
+proxy = "https://goproxy.cn,direct"
 ```
 
 ## Global Configuration
 
-Located at `~/.config/vx/config.toml`:
+Located at `~/.config/vx/config.toml` (Windows: `%APPDATA%\vx\config.toml`):
 
 ```toml
 [defaults]
@@ -241,7 +275,7 @@ parallel_install = true
 cache_duration = "7d"
 
 [tools]
-# Default versions for tools
+# Default runtime versions
 node = "lts"
 python = "3.11"
 ```
@@ -303,7 +337,7 @@ vx init --template nodejs
 vx init --template python
 vx init --template fullstack
 
-# Specify tools
+# Specify runtimes
 vx init --tools node,uv,go
 ```
 
@@ -326,7 +360,7 @@ See the [Migration Guide](/guide/migration) for detailed instructions.
 
 ## Next Steps
 
-- [vx.toml Reference](/config/vx-toml) - Complete configuration reference
-- [Environment Variables](/config/env-vars) - All environment variables
-- [Project Environments](/guide/project-environments) - Working with project environments
-- [Best Practices](/guide/best-practices) - Configuration best practices
+- [vx.toml Reference](/config/vx-toml) — Complete configuration reference
+- [vx.toml Syntax Guide](/guide/vx-toml-syntax) — Syntax patterns and best practices
+- [Global Configuration](/config/global) — Global configuration reference
+- [Command Syntax Rules](/guide/command-syntax-rules) — Canonical command forms

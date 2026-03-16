@@ -4,13 +4,19 @@
 //! All providers are loaded from `provider.star` files (RFC-0037).
 //! Static Rust providers are registered directly into the ProviderRegistry.
 
-use std::sync::Arc;
+use std::collections::HashMap;
+use std::path::Path;
+use std::sync::{Arc, OnceLock};
 use tracing::trace;
 use vx_paths::{PROJECT_VX_DIR, VxPaths, find_project_root};
 use vx_runtime::{
-    PluginLoader, Provider, ProviderRegistry, Runtime, RuntimeContext, default_plugin_paths,
+    ConstraintRule, DependencyConstraint, ManifestVersionPattern, Provider, ProviderRegistry,
+    Runtime, RuntimeContext, init_constraints_from_star,
 };
 use vx_runtime_http::create_runtime_context;
+use vx_starlark::provider::types::PackageAlias;
+use vx_starlark::{StarMetadata, StarlarkEngine};
+use vx_versions::{RangeOp, VersionConstraint, VersionRequest};
 
 // ---------------------------------------------------------------------------
 // Compile-time embedded provider.star contents (RFC-0037)
@@ -25,6 +31,9 @@ include!(concat!(env!("OUT_DIR"), "/provider_stars.rs"));
 mod embedded_bridges {
     include!(concat!(env!("OUT_DIR"), "/embedded_bridges.rs"));
 }
+
+static PROVIDER_HANDLES_INIT: tokio::sync::OnceCell<()> = tokio::sync::OnceCell::const_new();
+static CONSTRAINTS_INIT: OnceLock<()> = OnceLock::new();
 
 /// Register embedded bridge binaries into the global bridge registry.
 /// This must be called early in startup, before any provider attempts to deploy bridges.
@@ -41,13 +50,7 @@ pub fn register_embedded_bridges() {
 /// Uses static registration for Rust-implemented providers.
 /// `provider.star` files are loaded separately via `init_provider_handles()`.
 pub fn create_registry() -> ProviderRegistry {
-    let registry = create_static_registry();
-
-    if let Some(loader) = build_plugin_loader() {
-        registry.set_provider_loader(Arc::new(loader));
-    }
-
-    registry
+    create_static_registry()
 }
 
 /// Build a registry using static registration only.
@@ -58,19 +61,63 @@ pub fn create_registry() -> ProviderRegistry {
 fn create_static_registry() -> ProviderRegistry {
     let registry = ProviderRegistry::new();
 
-    // Register all builtin providers from the compile-time generated array.
+    // Register all builtin providers lazily from the compile-time generated array.
     // build.rs scans vx-providers/*/provider.star and embeds them all here.
-    // No manual list or special cases needed — any provider name works.
+    // Providers are only materialized when a runtime is actually requested.
     for (name, star_content) in ALL_PROVIDER_STARS {
-        registry.register(vx_starlark::create_provider(*name, *star_content));
+        register_builtin_provider_lazy(&registry, name, star_content);
     }
 
     // User / project-level providers added via `vx provider add`
     for (name, star_content) in load_star_overrides() {
-        registry.register(vx_starlark::create_provider(name, star_content));
+        register_dynamic_provider_lazy(&registry, name, star_content);
     }
 
     registry
+}
+
+fn register_builtin_provider_lazy(
+    registry: &ProviderRegistry,
+    name: &'static str,
+    star_content: &'static str,
+) {
+    let runtime_names = extract_runtime_lookup_names(name, star_content);
+    registry.register_lazy(
+        name.to_string(),
+        runtime_names,
+        Box::new(move || vx_starlark::create_provider(name, star_content)),
+    );
+}
+
+fn register_dynamic_provider_lazy(registry: &ProviderRegistry, name: String, star_content: String) {
+    let runtime_names = extract_runtime_lookup_names(&name, &star_content);
+    let provider_name = name.clone();
+
+    registry.register_lazy(
+        provider_name,
+        runtime_names,
+        Box::new(move || vx_starlark::create_provider(&name, &star_content)),
+    );
+}
+
+fn extract_runtime_lookup_names(provider_name: &str, star_content: &str) -> Vec<String> {
+    let meta = StarMetadata::parse(star_content);
+    let mut names = Vec::new();
+
+    for runtime in meta.runtimes {
+        if let Some(name) = runtime.name {
+            names.push(name);
+        }
+        names.extend(runtime.aliases);
+    }
+
+    if names.is_empty() {
+        names.push(provider_name.to_string());
+    }
+
+    names.sort();
+    names.dedup();
+    names
 }
 
 /// Load user and project-level `provider.star` overrides.
@@ -116,29 +163,6 @@ fn collect_star_files(dir: &std::path::Path, out: &mut Vec<(String, String)>) {
     }
 }
 
-fn build_plugin_loader() -> Option<PluginLoader> {
-    let mut paths = Vec::new();
-
-    if let Ok(vx_paths) = VxPaths::new() {
-        paths.extend(default_plugin_paths(std::slice::from_ref(
-            &vx_paths.base_dir,
-        )));
-    }
-
-    if let Ok(cwd) = std::env::current_dir()
-        && let Some(project_root) = find_project_root(&cwd)
-    {
-        paths.push(project_root.join(PROJECT_VX_DIR).join("plugins"));
-    }
-
-    paths.retain(|p| p.exists());
-    if paths.is_empty() {
-        return None;
-    }
-
-    Some(PluginLoader::new(paths))
-}
-
 /// Initialize the global ProviderHandle registry with all built-in providers (RFC-0037)
 ///
 /// This function registers all embedded `provider.star` files into the
@@ -150,7 +174,7 @@ fn build_plugin_loader() -> Option<PluginLoader> {
 /// providers added via `vx provider add` are immediately available.
 ///
 /// Should be called once at CLI startup, before any command is dispatched.
-pub async fn init_provider_handles() {
+async fn init_provider_handles_inner() {
     use vx_starlark::handle::global_registry_mut;
 
     let mut reg = global_registry_mut().await;
@@ -185,6 +209,274 @@ pub async fn init_provider_handles() {
                 );
             }
         }
+    }
+}
+
+pub async fn init_provider_handles() {
+    ensure_provider_handles_initialized().await;
+}
+
+pub async fn ensure_provider_handles_initialized() {
+    PROVIDER_HANDLES_INIT
+        .get_or_init(|| async {
+            init_provider_handles_inner().await;
+        })
+        .await;
+}
+
+/// Initialize the global constraints registry from embedded provider.star files.
+///
+/// This parses the optional `constraints = [...]` variable in provider.star.
+/// Constraints are applied to the runtime whose name matches the provider,
+/// or the first runtime if no name matches.
+pub fn init_constraints_registry() {
+    let mut rules: HashMap<String, Vec<ConstraintRule>> = HashMap::new();
+
+    for (name, star_content) in ALL_PROVIDER_STARS {
+        collect_constraints_from_star(name, star_content, &mut rules);
+    }
+
+    for (name, star_content) in load_star_overrides() {
+        collect_constraints_from_star(&name, &star_content, &mut rules);
+    }
+
+    if let Err(e) = init_constraints_from_star(rules.into_iter().collect()) {
+        tracing::warn!("Failed to initialize constraints registry: {}", e);
+    }
+}
+
+pub fn ensure_constraints_registry_initialized() {
+    CONSTRAINTS_INIT.get_or_init(|| {
+        init_constraints_registry();
+    });
+}
+
+pub async fn ensure_provider_metadata_initialized() {
+    ensure_provider_handles_initialized().await;
+    ensure_constraints_registry_initialized();
+}
+
+pub fn find_package_alias(runtime_name: &str) -> Option<PackageAlias> {
+    for (name, star_content) in ALL_PROVIDER_STARS {
+        if let Some(alias) = find_package_alias_in_star(name, star_content, runtime_name) {
+            return Some(alias);
+        }
+    }
+
+    for (name, star_content) in load_star_overrides() {
+        if let Some(alias) = find_package_alias_in_star(&name, &star_content, runtime_name) {
+            return Some(alias);
+        }
+    }
+
+    None
+}
+
+pub fn available_runtime_names() -> Vec<String> {
+    let mut names = Vec::new();
+
+    for (name, star_content) in ALL_PROVIDER_STARS {
+        names.extend(extract_runtime_lookup_names(name, star_content));
+    }
+
+    for (name, star_content) in load_star_overrides() {
+        names.extend(extract_runtime_lookup_names(&name, &star_content));
+    }
+
+    names.sort();
+    names.dedup();
+    names
+}
+
+fn find_package_alias_in_star(
+    provider_name: &str,
+    star_content: &str,
+    runtime_name: &str,
+) -> Option<PackageAlias> {
+    let meta = StarMetadata::parse(star_content);
+    let matches_runtime = meta.find_runtime(runtime_name).is_some_and(|_| true)
+        || meta.name_or(provider_name) == runtime_name;
+
+    if !matches_runtime {
+        return None;
+    }
+
+    meta.package_alias.map(|(ecosystem, package)| PackageAlias {
+        ecosystem,
+        package,
+        executable: None,
+    })
+}
+
+fn collect_constraints_from_star(
+    provider_name: &str,
+    content: &str,
+    out: &mut HashMap<String, Vec<ConstraintRule>>,
+) {
+    let engine = StarlarkEngine::new();
+    let script_path = Path::new(provider_name);
+
+    let Ok(Some(value)) = engine.get_variable(script_path, content, "constraints") else {
+        return;
+    };
+
+    let meta = StarMetadata::parse(content);
+    let runtime_names: Vec<String> = meta
+        .runtimes
+        .iter()
+        .filter_map(|r| r.name.clone())
+        .collect();
+
+    let default_runtime = if runtime_names.iter().any(|n| n == provider_name) {
+        Some(provider_name.to_string())
+    } else {
+        runtime_names.first().cloned()
+    };
+
+    let Some(default_runtime) = default_runtime else {
+        return;
+    };
+
+    for (runtime, rules) in parse_constraints_value(&value, &default_runtime) {
+        out.entry(runtime).or_default().extend(rules);
+    }
+}
+
+fn parse_constraints_value(
+    value: &serde_json::Value,
+    default_runtime: &str,
+) -> Vec<(String, Vec<ConstraintRule>)> {
+    let Some(entries) = value.as_array() else {
+        return Vec::new();
+    };
+
+    let mut rules_by_runtime: HashMap<String, Vec<ConstraintRule>> = HashMap::new();
+
+    for entry in entries {
+        let Some(obj) = entry.as_object() else {
+            continue;
+        };
+
+        let when = obj.get("when").and_then(|v| v.as_str()).unwrap_or("*");
+
+        let runtime_name = obj
+            .get("runtime")
+            .and_then(|v| v.as_str())
+            .unwrap_or(default_runtime)
+            .to_string();
+
+        let mut constraints: Vec<DependencyConstraint> = Vec::new();
+
+        if let Some(reqs) = obj.get("requires").and_then(|v| v.as_array()) {
+            for req in reqs {
+                if let Some(dep) = parse_constraint_dep(req, false) {
+                    constraints.push(dep);
+                }
+            }
+        }
+
+        if let Some(reqs) = obj.get("recommends").and_then(|v| v.as_array()) {
+            for req in reqs {
+                if let Some(dep) = parse_constraint_dep(req, true) {
+                    constraints.push(dep);
+                }
+            }
+        }
+
+        if constraints.is_empty() {
+            continue;
+        }
+
+        let mut rule = ConstraintRule::with_manifest_pattern(ManifestVersionPattern::new(when));
+        for constraint in constraints {
+            rule = rule.with_constraint(constraint);
+        }
+
+        rules_by_runtime.entry(runtime_name).or_default().push(rule);
+    }
+
+    rules_by_runtime.into_iter().collect()
+}
+
+fn parse_constraint_dep(
+    value: &serde_json::Value,
+    force_optional: bool,
+) -> Option<DependencyConstraint> {
+    let obj = value.as_object()?;
+    let runtime = obj.get("runtime")?.as_str()?.to_string();
+    let version = obj.get("version").and_then(|v| v.as_str()).unwrap_or("*");
+
+    let (min, max) = parse_version_min_max(version);
+    let mut constraint = DependencyConstraint::required(runtime);
+
+    if let Some(min) = min {
+        constraint = constraint.min(min);
+    }
+    if let Some(max) = max {
+        constraint = constraint.max(max);
+    }
+
+    if let Some(rec) = obj.get("recommended").and_then(|v| v.as_str()) {
+        constraint = constraint.recommended(rec);
+    }
+
+    if let Some(reason) = obj.get("reason").and_then(|v| v.as_str()) {
+        constraint = constraint.reason(reason);
+    }
+
+    let optional = obj
+        .get("optional")
+        .and_then(|v| v.as_bool())
+        .unwrap_or(false)
+        || force_optional;
+
+    if optional {
+        constraint.optional = true;
+    }
+
+    Some(constraint)
+}
+
+fn parse_version_min_max(version_req: &str) -> (Option<String>, Option<String>) {
+    let req = VersionRequest::parse(version_req);
+    match &req.constraint {
+        VersionConstraint::Range(constraints) => {
+            let mut min = None;
+            let mut max = None;
+            for c in constraints {
+                match c.op {
+                    RangeOp::Gte | RangeOp::Gt => {
+                        min = Some(c.version.to_string());
+                    }
+                    RangeOp::Lte | RangeOp::Lt => {
+                        max = Some(c.version.to_string());
+                    }
+                    _ => {}
+                }
+            }
+            (min, max)
+        }
+        VersionConstraint::Caret(v) => {
+            let min = v.to_string();
+            let max = if v.major > 0 {
+                format!("{}.0.0", v.major + 1)
+            } else if v.minor > 0 {
+                format!("0.{}.0", v.minor + 1)
+            } else {
+                format!("0.0.{}", v.patch + 1)
+            };
+            (Some(min), Some(max))
+        }
+        VersionConstraint::Tilde(v) => {
+            let min = v.to_string();
+            let max = format!("{}.{}.0", v.major, v.minor + 1);
+            (Some(min), Some(max))
+        }
+        VersionConstraint::Exact(v) => {
+            let ver = v.to_string();
+            (Some(ver.clone()), Some(ver))
+        }
+        _ => (None, None),
     }
 }
 
@@ -294,8 +586,6 @@ impl ProviderRegistryExt for ProviderRegistry {
 // =============================================================================
 // Build Diagnostics Storage (RFC 0029 Phase 2)
 // =============================================================================
-
-use std::sync::OnceLock;
 
 /// Stored build diagnostics from `create_registry()`
 ///

@@ -9,7 +9,7 @@
 
 load("@vx//stdlib:provider.star",
      "runtime_def", "dep_def",
-     "github_permissions", "platform_map")
+     "github_permissions")
 load("@vx//stdlib:github.star", "make_fetch_versions")
 load("@vx//stdlib:env.star", "env_prepend")
 

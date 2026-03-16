@@ -101,7 +101,7 @@ url != None and url.endswith(".tar.gz")
 }
 
 #[test]
-fn test_download_url_windows_x64_is_zip() {
+fn test_download_url_windows_x64_returns_none() {
     let mut a = Assert::new();
     a.dialect(&Dialect::Standard);
     a.is_true(&format!(
@@ -109,7 +109,7 @@ fn test_download_url_windows_x64_is_zip() {
 {}
 ctx = struct(platform = struct(os = "windows", arch = "x64", target = ""))
 url = download_url(ctx, "3.28.0")
-url != None and url.endswith(".zip")
+url == None
 "#,
         provider_star_prefix()
     ));

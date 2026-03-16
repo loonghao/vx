@@ -492,52 +492,52 @@ mod stats_tests {
 */
 
 // ============================================================================
-// Plugin Command Tests
+// Provider Command Tests
 // ============================================================================
 
-mod plugin_tests {
+mod provider_tests {
     use super::*;
-    use vx_cli::cli::PluginCommand;
-    use vx_cli::commands::plugin;
+    use vx_cli::cli::ProviderCommand;
+    use vx_cli::commands::provider;
 
     #[rstest]
     #[tokio::test]
-    async fn test_plugin_list(#[future] registry: ProviderRegistry) {
+    async fn test_provider_list(#[future] registry: ProviderRegistry) {
         let registry = registry.await;
-        let result = plugin::handle(
+        let result = provider::handle(
             &registry,
-            PluginCommand::List {
+            ProviderCommand::List {
                 enabled: false,
                 category: None,
             },
         )
         .await;
-        assert!(result.is_ok(), "Plugin list should succeed");
+        assert!(result.is_ok(), "Provider list should succeed");
         cleanup_test_env();
     }
 
     #[rstest]
     #[tokio::test]
-    async fn test_plugin_list_enabled_only(#[future] registry: ProviderRegistry) {
+    async fn test_provider_list_enabled_only(#[future] registry: ProviderRegistry) {
         let registry = registry.await;
-        let result = plugin::handle(
+        let result = provider::handle(
             &registry,
-            PluginCommand::List {
+            ProviderCommand::List {
                 enabled: true,
                 category: None,
             },
         )
         .await;
-        assert!(result.is_ok(), "Plugin list enabled should succeed");
+        assert!(result.is_ok(), "Provider list enabled should succeed");
         cleanup_test_env();
     }
 
     #[rstest]
     #[tokio::test]
-    async fn test_plugin_stats(#[future] registry: ProviderRegistry) {
+    async fn test_provider_stats(#[future] registry: ProviderRegistry) {
         let registry = registry.await;
-        let result = plugin::handle(&registry, PluginCommand::Stats).await;
-        assert!(result.is_ok(), "Plugin stats should succeed");
+        let result = provider::handle(&registry, ProviderCommand::Stats).await;
+        assert!(result.is_ok(), "Provider stats should succeed");
         cleanup_test_env();
     }
 
@@ -546,32 +546,32 @@ mod plugin_tests {
     #[case("go")]
     #[case("uv")]
     #[tokio::test]
-    async fn test_plugin_info(#[future] registry: ProviderRegistry, #[case] plugin_name: &str) {
+    async fn test_provider_info(#[future] registry: ProviderRegistry, #[case] runtime_name: &str) {
         let registry = registry.await;
-        let result = plugin::handle(
+        let result = provider::handle(
             &registry,
-            PluginCommand::Info {
-                name: plugin_name.to_string(),
+            ProviderCommand::Info {
+                name: runtime_name.to_string(),
             },
         )
         .await;
-        // May fail if plugin not found, but should not panic
+        // May fail if runtime not found, but should not panic
         let _ = result;
         cleanup_test_env();
     }
 
     #[rstest]
     #[tokio::test]
-    async fn test_plugin_search(#[future] registry: ProviderRegistry) {
+    async fn test_provider_search(#[future] registry: ProviderRegistry) {
         let registry = registry.await;
-        let result = plugin::handle(
+        let result = provider::handle(
             &registry,
-            PluginCommand::Search {
+            ProviderCommand::Search {
                 query: "node".to_string(),
             },
         )
         .await;
-        assert!(result.is_ok(), "Plugin search should succeed");
+        assert!(result.is_ok(), "Provider search should succeed");
         cleanup_test_env();
     }
 }

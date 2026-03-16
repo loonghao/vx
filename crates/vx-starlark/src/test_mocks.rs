@@ -78,8 +78,48 @@ def ensure_dependencies(_runtime, check_file = None, lock_file = None, install_d
 def pre_run_ensure_deps(_runtime, trigger_args = None, check_file = None, lock_file = None, install_dir = None):
     return {"op": "pre_run_ensure_deps", "runtime": _runtime}
 
-def dep_def(_runtime, optional = False, reason = ""):
-    return {"runtime": _runtime, "optional": optional, "reason": reason}
+def dep_def(_runtime, version = "*", optional = False, reason = None,
+            recommended = None, provided_by = None):
+    result = {"runtime": _runtime, "version": version, "optional": optional}
+    if reason != None:
+        result["reason"] = reason
+    if recommended != None:
+        result["recommended"] = recommended
+    if provided_by != None:
+        result["provided_by"] = provided_by
+    return result
+
+def create_shim(name, target_executable, args = None, shim_dir = None):
+    result = {"__type": "create_shim", "name": name, "target": target_executable}
+    if args != None:
+        result["args"] = args
+    if shim_dir != None:
+        result["shim_dir"] = shim_dir
+    return result
+
+def set_permissions(path, mode = "755"):
+    return {"__type": "set_permissions", "path": path, "mode": mode}
+
+def run_command(executable, args, working_dir = None, env = None, on_failure = "warn"):
+    result = {
+        "__type": "run_command",
+        "executable": executable,
+        "args": args,
+        "on_failure": on_failure,
+    }
+    if working_dir != None:
+        result["working_dir"] = working_dir
+    if env != None:
+        result["env"] = env
+    return result
+
+def flatten_dir(pattern = None, keep_subdirs = None):
+    result = {"__type": "flatten_dir"}
+    if pattern != None:
+        result["pattern"] = pattern
+    if keep_subdirs != None:
+        result["keep_subdirs"] = keep_subdirs
+    return result
 "#;
 
 /// Standard mock for @vx//stdlib:provider.star
@@ -90,7 +130,7 @@ def dep_def(_runtime, optional = False, reason = ""):
 pub const MOCK_PROVIDER_STAR: &str = r#"
 # --- runtime.star ---
 def runtime_def(name, executable = None, aliases = None, description = None,
-                priority = 100, auto_installable = True, platform_constraint = None,
+                priority = 100, auto_installable = None, platform_constraint = None,
                 bundled_with = None, system_paths = None, test_commands = None,
                 version_pattern = None, **kwargs):
     result = {"name": name, "executable": executable or name}
@@ -98,6 +138,8 @@ def runtime_def(name, executable = None, aliases = None, description = None,
         result["aliases"] = aliases
     if description != None:
         result["description"] = description
+    if auto_installable != None:
+        result["auto_installable"] = auto_installable
     if platform_constraint != None:
         result["platform_constraint"] = platform_constraint
     if bundled_with != None:
@@ -111,7 +153,8 @@ def runtime_def(name, executable = None, aliases = None, description = None,
     return result
 
 def bundled_runtime_def(name, bundled_with, executable = None, aliases = None,
-                        description = None, version_pattern = None, **kwargs):
+                        description = None, version_pattern = None,
+                        auto_installable = None, platform_constraint = None, **kwargs):
     result = {"name": name, "executable": executable or name, "bundled_with": bundled_with}
     if aliases != None:
         result["aliases"] = aliases
@@ -119,10 +162,22 @@ def bundled_runtime_def(name, bundled_with, executable = None, aliases = None,
         result["description"] = description
     if version_pattern != None:
         result["version_pattern"] = version_pattern
+    if auto_installable != None:
+        result["auto_installable"] = auto_installable
+    if platform_constraint != None:
+        result["platform_constraint"] = platform_constraint
     return result
 
-def dep_def(runtime, optional = False, reason = ""):
-    return {"runtime": runtime, "optional": optional, "reason": reason}
+def dep_def(runtime, version = "*", optional = False, reason = None,
+            recommended = None, provided_by = None):
+    result = {"runtime": runtime, "version": version, "optional": optional}
+    if reason != None:
+        result["reason"] = reason
+    if recommended != None:
+        result["recommended"] = recommended
+    if provided_by != None:
+        result["provided_by"] = provided_by
+    return result
 
 # --- platform.star ---
 def platform_map(ctx, mapping):
@@ -140,8 +195,9 @@ def platform_select(ctx, windows = None, macos = None, linux = None, default = N
     return default
 
 # --- permissions.star ---
-def github_permissions(extra_hosts = None):
+def github_permissions(extra_hosts = None, exec_cmds = None, **kwargs):
     return []
+
 
 def system_permissions(**kwargs):
     return []
@@ -164,20 +220,52 @@ def bin_subdir_layout(executables, strip_prefix = None):
         return {"type": "archive", "strip_prefix": strip_prefix or "", "executable_paths": executables}
     return _layout
 
-def post_extract_flatten(**kwargs):
-    return {"action": "flatten"}
+def post_extract_flatten(pattern = None):
+    def _post_extract(_ctx, _version, _install_dir):
+        result = {"__type": "flatten_dir"}
+        if pattern != None:
+            result["pattern"] = pattern
+        return [result]
+    return _post_extract
 
-def post_extract_shim(**kwargs):
-    return {"action": "shim"}
+def post_extract_shim(shim_name = None, target_executable = None, args = None, **kwargs):
+    def _post_extract(_ctx, _version, _install_dir):
+        result = {"__type": "create_shim"}
+        if shim_name != None:
+            result["name"] = shim_name
+        if target_executable != None:
+            result["target"] = target_executable
+        if args != None:
+            result["args"] = args
+        return [result]
+    return _post_extract
 
-def post_extract_permissions(paths = None, **kwargs):
-    return []
+def post_extract_permissions(paths = None, mode = "755", unix_only = True, **kwargs):
+    def _post_extract(ctx, _version, _install_dir):
+        if unix_only and ctx.platform.os == "windows":
+            return []
+        return [{"__type": "set_permissions", "path": p, "mode": mode} for p in (paths or [])]
+    return _post_extract
 
-def post_extract_combine(*actions):
-    return list(actions)
+def post_extract_combine(hooks):
+    def _post_extract(ctx, version, install_dir):
+        result = []
+        for hook in hooks:
+            result = result + hook(ctx, version, install_dir)
+        return result
+    return _post_extract
 
 def pre_run_ensure_deps(runtime, trigger_args = None, check_file = None, lock_file = None, install_dir = None):
-    return {"runtime": runtime, "trigger_args": trigger_args, "check_file": check_file}
+    def _pre_run(_ctx, args, _executable):
+        if trigger_args != None:
+            if len(args) == 0 or args[0] not in trigger_args:
+                return []
+        result = {"__type": "ensure_dependencies", "package_manager": runtime, "check_file": check_file, "install_dir": install_dir}
+        if lock_file != None:
+            result["lock_file"] = lock_file
+        return [result]
+    return _pre_run
+
 
 def fetch_versions_from_api(url, kind):
     return {"url": url, "kind": kind}
@@ -275,19 +363,212 @@ def platform_script_install(**kwargs):
     return kwargs
 
 # --- provider_templates.star ---
-def github_rust_provider(owner, repo, executable, asset_pattern = None,
-                         strip_prefix = None, **kwargs):
-    return {"type": "github_rust", "owner": owner, "repo": repo, "executable": executable}
+def _mock_exe_suffix(ctx):
+    return ".exe" if ctx.platform.os == "windows" else ""
 
-def github_go_provider(owner, repo, executable, asset_pattern = None,
-                       strip_prefix = None, **kwargs):
-    return {"type": "github_go", "owner": owner, "repo": repo, "executable": executable}
+def _mock_archive_ext(ctx):
+    return "zip" if ctx.platform.os == "windows" else "tar.gz"
 
-def github_binary_provider(owner, repo, executable, asset_pattern = None, **kwargs):
-    return {"type": "github_binary", "owner": owner, "repo": repo, "executable": executable}
+def _mock_rust_triple(ctx, linux_libc = "musl"):
+    return {
+        "windows/x64": "x86_64-pc-windows-msvc",
+        "windows/arm64": "aarch64-pc-windows-msvc",
+        "macos/x64": "x86_64-apple-darwin",
+        "macos/arm64": "aarch64-apple-darwin",
+        "linux/x64": "x86_64-unknown-linux-" + linux_libc,
+        "linux/arm64": "aarch64-unknown-linux-" + linux_libc,
+        "linux/armv7": "armv7-unknown-linux-gnueabihf",
+    }.get(ctx.platform.os + "/" + ctx.platform.arch)
 
-def system_provider(**kwargs):
-    return {"type": "system"}
+def _mock_go_os_arch(ctx):
+    return {
+        "windows/x64": ("windows", "amd64"),
+        "windows/arm64": ("windows", "arm64"),
+        "macos/x64": ("darwin", "amd64"),
+        "macos/arm64": ("darwin", "arm64"),
+        "linux/x64": ("linux", "amd64"),
+        "linux/arm64": ("linux", "arm64"),
+        "linux/armv7": ("linux", "armv7"),
+    }.get(ctx.platform.os + "/" + ctx.platform.arch)
+
+def _mock_expand_asset(asset, ctx, version, triple = None, go_os = None, go_arch = None):
+    result = asset
+    for key, value in [
+        ("{version}", version),
+        ("{vversion}", "v" + version),
+        ("{triple}", triple or ""),
+        ("{os}", go_os or ""),
+        ("{arch}", go_arch or ""),
+        ("{go_os}", go_os or ""),
+        ("{go_arch}", go_arch or ""),
+        ("{ext}", _mock_archive_ext(ctx)),
+        ("{exe}", _mock_exe_suffix(ctx)),
+    ]:
+        result = result.replace(key, value)
+    return result
+
+def _mock_std_provider_fns(store_name, exe_name, path_env = True, extra_env = None):
+    def _store_root(ctx):
+        return ctx.vx_home + "/store/" + store_name
+
+    def _get_execute_path(ctx, _version):
+        return ctx.install_dir + "/" + exe_name + _mock_exe_suffix(ctx)
+
+    def _post_install(_ctx, _version):
+        return None
+
+    def _environment(ctx, _version):
+        ops = [{"op": "prepend", "key": "PATH", "value": ctx.install_dir}] if path_env else []
+        if extra_env != None:
+            ops = ops + extra_env
+        return ops
+
+    def _deps(_ctx, _version):
+        return []
+
+    return {
+        "store_root": _store_root,
+        "get_execute_path": _get_execute_path,
+        "post_install": _post_install,
+        "environment": _environment,
+        "deps": _deps,
+    }
+
+def github_rust_provider(owner, repo, asset = None, executable = None,
+                         store = None, tag_prefix = "v", linux_libc = "musl",
+                         prereleases = False, strip_prefix = None, path_env = True,
+                         extra_env = None, asset_pattern = None, **kwargs):
+    exe_name = executable if executable != None else repo
+    store_name = store if store != None else repo
+    asset_tmpl = asset if asset != None else asset_pattern
+    if asset_tmpl == None:
+        asset_tmpl = repo + "-{version}-{triple}.{ext}"
+
+    def _fetch_versions(_ctx):
+        return []
+
+    def _download_url(ctx, version):
+        triple = _mock_rust_triple(ctx, linux_libc)
+        if triple == None:
+            return None
+        fname = _mock_expand_asset(asset_tmpl, ctx, version, triple = triple)
+        return "https://github.com/{}/{}/releases/download/{}/{}".format(owner, repo, tag_prefix + version, fname)
+
+    def _install_layout(ctx, version):
+        exe = exe_name + _mock_exe_suffix(ctx)
+        strip = ""
+        if strip_prefix != None:
+            triple = _mock_rust_triple(ctx, linux_libc) or ""
+            strip = _mock_expand_asset(strip_prefix, ctx, version, triple = triple)
+        return {
+            "type": "archive",
+            "__type": "archive",
+            "strip_prefix": strip,
+            "executable_paths": [exe, exe_name],
+        }
+
+    fns = _mock_std_provider_fns(store_name, exe_name, path_env, extra_env)
+    fns["fetch_versions"] = _fetch_versions
+    fns["download_url"] = _download_url
+    fns["install_layout"] = _install_layout
+    return fns
+
+def github_go_provider(owner, repo, asset = None, executable = None,
+                       store = None, tag_prefix = "v", prereleases = False,
+                       strip_prefix = None, path_env = True, extra_env = None,
+                       asset_pattern = None, **kwargs):
+    exe_name = executable if executable != None else repo
+    store_name = store if store != None else repo
+    asset_tmpl = asset if asset != None else asset_pattern
+    if asset_tmpl == None:
+        asset_tmpl = repo + "_{version}_{os}_{arch}.{ext}"
+
+    def _fetch_versions(_ctx):
+        return []
+
+    def _download_url(ctx, version):
+        go_target = _mock_go_os_arch(ctx)
+        if go_target == None:
+            return None
+        go_os, go_arch = go_target[0], go_target[1]
+        fname = _mock_expand_asset(asset_tmpl, ctx, version, go_os = go_os, go_arch = go_arch)
+        return "https://github.com/{}/{}/releases/download/{}/{}".format(owner, repo, tag_prefix + version, fname)
+
+    def _install_layout(ctx, version):
+        exe = exe_name + _mock_exe_suffix(ctx)
+        strip = ""
+        if strip_prefix != None:
+            go_target = _mock_go_os_arch(ctx)
+            go_os = go_target[0] if go_target != None else ""
+            go_arch = go_target[1] if go_target != None else ""
+            strip = _mock_expand_asset(strip_prefix, ctx, version, go_os = go_os, go_arch = go_arch)
+        return {
+            "type": "archive",
+            "__type": "archive",
+            "strip_prefix": strip,
+            "executable_paths": [exe, exe_name],
+        }
+
+    fns = _mock_std_provider_fns(store_name, exe_name, path_env, extra_env)
+    fns["fetch_versions"] = _fetch_versions
+    fns["download_url"] = _download_url
+    fns["install_layout"] = _install_layout
+    return fns
+
+def github_binary_provider(owner, repo, asset = None, executable = None,
+                           store = None, tag_prefix = "v", prereleases = False,
+                           path_env = True, extra_env = None, asset_pattern = None,
+                           **kwargs):
+    exe_name = executable if executable != None else repo
+    store_name = store if store != None else repo
+    asset_tmpl = asset if asset != None else asset_pattern
+    if asset_tmpl == None:
+        asset_tmpl = repo + "-{version}-{os}-{arch}{exe}"
+
+    def _fetch_versions(_ctx):
+        return []
+
+    def _download_url(ctx, version):
+        go_target = _mock_go_os_arch(ctx)
+        go_os = go_target[0] if go_target != None else ""
+        go_arch = go_target[1] if go_target != None else ""
+        triple = _mock_rust_triple(ctx)
+        fname = _mock_expand_asset(asset_tmpl, ctx, version, triple = triple, go_os = go_os, go_arch = go_arch)
+        return "https://github.com/{}/{}/releases/download/{}/{}".format(owner, repo, tag_prefix + version, fname)
+
+    def _install_layout(ctx, _version):
+        exe = exe_name + _mock_exe_suffix(ctx)
+        return {
+            "type": "binary",
+            "__type": "binary",
+            "target_name": exe,
+            "target_dir": "bin",
+            "executable_paths": ["bin/" + exe, exe, exe_name],
+        }
+
+    fns = _mock_std_provider_fns(store_name, exe_name, path_env, extra_env)
+    fns["fetch_versions"] = _fetch_versions
+    fns["download_url"] = _download_url
+    fns["install_layout"] = _install_layout
+    return fns
+
+def system_provider(store_name, executable = None, path_env = True, extra_env = None, **kwargs):
+    exe_name = executable if executable != None else store_name
+
+    def _fetch_versions(_ctx):
+        return []
+
+    def _download_url(_ctx, _version):
+        return None
+
+    def _install_layout(_ctx, _version):
+        return None
+
+    fns = _mock_std_provider_fns(store_name, exe_name, path_env, extra_env)
+    fns["fetch_versions"] = _fetch_versions
+    fns["download_url"] = _download_url
+    fns["install_layout"] = _install_layout
+    return fns
 
 # --- misc ---
 def set_permissions(path, mode):
@@ -506,7 +787,7 @@ def fetch_versions_from_api(url, kind):
 
 # --- runtime.star ---
 def runtime_def(name, executable = None, aliases = None, description = None,
-                priority = 100, auto_installable = True, platform_constraint = None,
+                priority = 100, auto_installable = None, platform_constraint = None,
                 bundled_with = None, system_paths = None, test_commands = None,
                 version_pattern = None, **kwargs):
     result = {{"name": name, "executable": executable or name}}
@@ -514,6 +795,8 @@ def runtime_def(name, executable = None, aliases = None, description = None,
         result["aliases"] = aliases
     if description != None:
         result["description"] = description
+    if auto_installable != None:
+        result["auto_installable"] = auto_installable
     if platform_constraint != None:
         result["platform_constraint"] = platform_constraint
     if bundled_with != None:
@@ -527,7 +810,8 @@ def runtime_def(name, executable = None, aliases = None, description = None,
     return result
 
 def bundled_runtime_def(name, bundled_with, executable = None, aliases = None,
-                        description = None, version_pattern = None, **kwargs):
+                        description = None, version_pattern = None,
+                        auto_installable = None, platform_constraint = None, **kwargs):
     result = {{"name": name, "executable": executable or name, "bundled_with": bundled_with}}
     if aliases != None:
         result["aliases"] = aliases
@@ -535,15 +819,60 @@ def bundled_runtime_def(name, bundled_with, executable = None, aliases = None,
         result["description"] = description
     if version_pattern != None:
         result["version_pattern"] = version_pattern
+    if auto_installable != None:
+        result["auto_installable"] = auto_installable
+    if platform_constraint != None:
+        result["platform_constraint"] = platform_constraint
     return result
 
-def dep_def(runtime, optional = False, reason = ""):
-    return {{"runtime": runtime, "optional": optional, "reason": reason}}
+def dep_def(runtime, version = "*", optional = False, reason = None,
+            recommended = None, provided_by = None):
+    result = {{"runtime": runtime, "version": version, "optional": optional}}
+    if reason != None:
+        result["reason"] = reason
+    if recommended != None:
+        result["recommended"] = recommended
+    if provided_by != None:
+        result["provided_by"] = provided_by
+    return result
 
 def ensure_dependencies(_runtime, check_file = None, lock_file = None, install_dir = None):
     return {{"op": "ensure_dependencies", "runtime": _runtime}}
 
+def create_shim(name, target_executable, args = None, shim_dir = None):
+    result = {{"__type": "create_shim", "name": name, "target": target_executable}}
+    if args != None:
+        result["args"] = args
+    if shim_dir != None:
+        result["shim_dir"] = shim_dir
+    return result
+
+def set_permissions(path, mode = "755"):
+    return {{"__type": "set_permissions", "path": path, "mode": mode}}
+
+def run_command(executable, args, working_dir = None, env = None, on_failure = "warn"):
+    result = {{
+        "__type": "run_command",
+        "executable": executable,
+        "args": args,
+        "on_failure": on_failure,
+    }}
+    if working_dir != None:
+        result["working_dir"] = working_dir
+    if env != None:
+        result["env"] = env
+    return result
+
+def flatten_dir(pattern = None, keep_subdirs = None):
+    result = {{"__type": "flatten_dir"}}
+    if pattern != None:
+        result["pattern"] = pattern
+    if keep_subdirs != None:
+        result["keep_subdirs"] = keep_subdirs
+    return result
+
 # --- platform.star ---
+
 def platform_map(ctx, mapping):
     key = ctx.platform.os + "/" + ctx.platform.arch
     return mapping.get(key)
@@ -559,13 +888,14 @@ def platform_select(ctx, windows = None, macos = None, linux = None, default = N
     return default
 
 # --- permissions.star ---
-def github_permissions(extra_hosts = None):
+def github_permissions(extra_hosts = None, exec_cmds = None, **kwargs):
     return []
 
 def system_permissions(**kwargs):
     return []
 
 # --- layout.star ---
+
 def archive_layout(executable, strip_prefix = None):
     def _layout(ctx, version):
         exe = executable + (".exe" if ctx.platform.os == "windows" else "")
@@ -691,19 +1021,212 @@ def platform_script_install(**kwargs):
     return kwargs
 
 # --- provider_templates.star ---
-def github_rust_provider(owner, repo, executable, asset_pattern = None,
-                         strip_prefix = None, **kwargs):
-    return {{"type": "github_rust", "owner": owner, "repo": repo, "executable": executable}}
+def _mock_exe_suffix(ctx):
+    return ".exe" if ctx.platform.os == "windows" else ""
 
-def github_go_provider(owner, repo, executable, asset_pattern = None,
-                       strip_prefix = None, **kwargs):
-    return {{"type": "github_go", "owner": owner, "repo": repo, "executable": executable}}
+def _mock_archive_ext(ctx):
+    return "zip" if ctx.platform.os == "windows" else "tar.gz"
 
-def github_binary_provider(owner, repo, executable, asset_pattern = None, **kwargs):
-    return {{"type": "github_binary", "owner": owner, "repo": repo, "executable": executable}}
+def _mock_rust_triple(ctx, linux_libc = "musl"):
+    return {{
+        "windows/x64": "x86_64-pc-windows-msvc",
+        "windows/arm64": "aarch64-pc-windows-msvc",
+        "macos/x64": "x86_64-apple-darwin",
+        "macos/arm64": "aarch64-apple-darwin",
+        "linux/x64": "x86_64-unknown-linux-" + linux_libc,
+        "linux/arm64": "aarch64-unknown-linux-" + linux_libc,
+        "linux/armv7": "armv7-unknown-linux-gnueabihf",
+    }}.get(ctx.platform.os + "/" + ctx.platform.arch)
 
-def system_provider(**kwargs):
-    return {{"type": "system"}}
+def _mock_go_os_arch(ctx):
+    return {{
+        "windows/x64": ("windows", "amd64"),
+        "windows/arm64": ("windows", "arm64"),
+        "macos/x64": ("darwin", "amd64"),
+        "macos/arm64": ("darwin", "arm64"),
+        "linux/x64": ("linux", "amd64"),
+        "linux/arm64": ("linux", "arm64"),
+        "linux/armv7": ("linux", "armv7"),
+    }}.get(ctx.platform.os + "/" + ctx.platform.arch)
+
+def _mock_expand_asset(asset, ctx, version, triple = None, go_os = None, go_arch = None):
+    result = asset
+    for key, value in [
+        ("{{version}}", version),
+        ("{{vversion}}", "v" + version),
+        ("{{triple}}", triple or ""),
+        ("{{os}}", go_os or ""),
+        ("{{arch}}", go_arch or ""),
+        ("{{go_os}}", go_os or ""),
+        ("{{go_arch}}", go_arch or ""),
+        ("{{ext}}", _mock_archive_ext(ctx)),
+        ("{{exe}}", _mock_exe_suffix(ctx)),
+    ]:
+        result = result.replace(key, value)
+    return result
+
+def _mock_std_provider_fns(store_name, exe_name, path_env = True, extra_env = None):
+    def _store_root(ctx):
+        return ctx.vx_home + "/store/" + store_name
+
+    def _get_execute_path(ctx, _version):
+        return ctx.install_dir + "/" + exe_name + _mock_exe_suffix(ctx)
+
+    def _post_install(_ctx, _version):
+        return None
+
+    def _environment(ctx, _version):
+        ops = [{{"op": "prepend", "key": "PATH", "value": ctx.install_dir}}] if path_env else []
+        if extra_env != None:
+            ops = ops + extra_env
+        return ops
+
+    def _deps(_ctx, _version):
+        return []
+
+    return {{
+        "store_root": _store_root,
+        "get_execute_path": _get_execute_path,
+        "post_install": _post_install,
+        "environment": _environment,
+        "deps": _deps,
+    }}
+
+def github_rust_provider(owner, repo, asset = None, executable = None,
+                         store = None, tag_prefix = "v", linux_libc = "musl",
+                         prereleases = False, strip_prefix = None, path_env = True,
+                         extra_env = None, asset_pattern = None, **kwargs):
+    exe_name = executable if executable != None else repo
+    store_name = store if store != None else repo
+    asset_tmpl = asset if asset != None else asset_pattern
+    if asset_tmpl == None:
+        asset_tmpl = repo + "-{{version}}-{{triple}}.{{ext}}"
+
+    def _fetch_versions(_ctx):
+        return []
+
+    def _download_url(ctx, version):
+        triple = _mock_rust_triple(ctx, linux_libc)
+        if triple == None:
+            return None
+        fname = _mock_expand_asset(asset_tmpl, ctx, version, triple = triple)
+        return "https://github.com/{{}}/{{}}/releases/download/{{}}/{{}}".format(owner, repo, tag_prefix + version, fname)
+
+    def _install_layout(ctx, version):
+        exe = exe_name + _mock_exe_suffix(ctx)
+        strip = ""
+        if strip_prefix != None:
+            triple = _mock_rust_triple(ctx, linux_libc) or ""
+            strip = _mock_expand_asset(strip_prefix, ctx, version, triple = triple)
+        return {{
+            "type": "archive",
+            "__type": "archive",
+            "strip_prefix": strip,
+            "executable_paths": [exe, exe_name],
+        }}
+
+    fns = _mock_std_provider_fns(store_name, exe_name, path_env, extra_env)
+    fns["fetch_versions"] = _fetch_versions
+    fns["download_url"] = _download_url
+    fns["install_layout"] = _install_layout
+    return fns
+
+def github_go_provider(owner, repo, asset = None, executable = None,
+                       store = None, tag_prefix = "v", prereleases = False,
+                       strip_prefix = None, path_env = True, extra_env = None,
+                       asset_pattern = None, **kwargs):
+    exe_name = executable if executable != None else repo
+    store_name = store if store != None else repo
+    asset_tmpl = asset if asset != None else asset_pattern
+    if asset_tmpl == None:
+        asset_tmpl = repo + "_{{version}}_{{os}}_{{arch}}.{{ext}}"
+
+    def _fetch_versions(_ctx):
+        return []
+
+    def _download_url(ctx, version):
+        go_target = _mock_go_os_arch(ctx)
+        if go_target == None:
+            return None
+        go_os, go_arch = go_target[0], go_target[1]
+        fname = _mock_expand_asset(asset_tmpl, ctx, version, go_os = go_os, go_arch = go_arch)
+        return "https://github.com/{{}}/{{}}/releases/download/{{}}/{{}}".format(owner, repo, tag_prefix + version, fname)
+
+    def _install_layout(ctx, version):
+        exe = exe_name + _mock_exe_suffix(ctx)
+        strip = ""
+        if strip_prefix != None:
+            go_target = _mock_go_os_arch(ctx)
+            go_os = go_target[0] if go_target != None else ""
+            go_arch = go_target[1] if go_target != None else ""
+            strip = _mock_expand_asset(strip_prefix, ctx, version, go_os = go_os, go_arch = go_arch)
+        return {{
+            "type": "archive",
+            "__type": "archive",
+            "strip_prefix": strip,
+            "executable_paths": [exe, exe_name],
+        }}
+
+    fns = _mock_std_provider_fns(store_name, exe_name, path_env, extra_env)
+    fns["fetch_versions"] = _fetch_versions
+    fns["download_url"] = _download_url
+    fns["install_layout"] = _install_layout
+    return fns
+
+def github_binary_provider(owner, repo, asset = None, executable = None,
+                           store = None, tag_prefix = "v", prereleases = False,
+                           path_env = True, extra_env = None, asset_pattern = None,
+                           **kwargs):
+    exe_name = executable if executable != None else repo
+    store_name = store if store != None else repo
+    asset_tmpl = asset if asset != None else asset_pattern
+    if asset_tmpl == None:
+        asset_tmpl = repo + "-{{version}}-{{os}}-{{arch}}{{exe}}"
+
+    def _fetch_versions(_ctx):
+        return []
+
+    def _download_url(ctx, version):
+        go_target = _mock_go_os_arch(ctx)
+        go_os = go_target[0] if go_target != None else ""
+        go_arch = go_target[1] if go_target != None else ""
+        triple = _mock_rust_triple(ctx)
+        fname = _mock_expand_asset(asset_tmpl, ctx, version, triple = triple, go_os = go_os, go_arch = go_arch)
+        return "https://github.com/{{}}/{{}}/releases/download/{{}}/{{}}".format(owner, repo, tag_prefix + version, fname)
+
+    def _install_layout(ctx, _version):
+        exe = exe_name + _mock_exe_suffix(ctx)
+        return {{
+            "type": "binary",
+            "__type": "binary",
+            "target_name": exe,
+            "target_dir": "bin",
+            "executable_paths": ["bin/" + exe, exe, exe_name],
+        }}
+
+    fns = _mock_std_provider_fns(store_name, exe_name, path_env, extra_env)
+    fns["fetch_versions"] = _fetch_versions
+    fns["download_url"] = _download_url
+    fns["install_layout"] = _install_layout
+    return fns
+
+def system_provider(store_name, executable = None, path_env = True, extra_env = None, **kwargs):
+    exe_name = executable if executable != None else store_name
+
+    def _fetch_versions(_ctx):
+        return []
+
+    def _download_url(_ctx, _version):
+        return None
+
+    def _install_layout(_ctx, _version):
+        return None
+
+    fns = _mock_std_provider_fns(store_name, exe_name, path_env, extra_env)
+    fns["fetch_versions"] = _fetch_versions
+    fns["download_url"] = _download_url
+    fns["install_layout"] = _install_layout
+    return fns
 
 # --- misc ---
 def set_permissions(path, mode):

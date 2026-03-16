@@ -276,9 +276,7 @@ impl CommandContext {
     /// When a provider has `package_alias` in its metadata, executing `vx <name>` should
     /// be routed to `vx <ecosystem>:<package>` via the package execution path.
     pub fn get_package_alias(&self, runtime_name: &str) -> Option<PackageAlias> {
-        let registry = vx_starlark::handle::GLOBAL_REGISTRY.try_read().ok()?;
-        let handle = registry.get(runtime_name)?;
-        handle.provider_meta().package_alias.clone()
+        crate::registry::find_package_alias(runtime_name)
     }
 }
 

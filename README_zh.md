@@ -466,7 +466,7 @@ vx cargo run
 
 | 工具 | 命令 | 描述 |
 |------|----------|-------------|
-| **Docker** | `docker` | 容器运行时和工具 |
+| **Podman** | `podman` | 容器运行时和工具 |
 | **Terraform** | `terraform` | 基础设施即代码 |
 | **kubectl** | `kubectl` | Kubernetes 命令行工具 |
 | **Helm** | `helm` | Kubernetes 包管理器 |
@@ -570,11 +570,11 @@ yay -S vx-bin
 cargo install --git https://github.com/loonghao/vx
 ```
 
-### Docker
+### 容器镜像
 
 ```bash
-docker pull loonghao/vx:latest
-docker run --rm loonghao/vx --version
+podman pull loonghao/vx:latest
+podman run --rm loonghao/vx --version
 ```
 
 ### GitHub Actions

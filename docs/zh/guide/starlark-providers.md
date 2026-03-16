@@ -664,6 +664,6 @@ def _test():
 
 ## 相关链接
 
-- [声明式 Provider](./manifest-driven-providers.md) - 基本 Provider 结构
-- [Provider 函数参考](./manifest-driven-providers.md#provider-函数参考) - 完整 API 参考
-- [标准库参考](./manifest-driven-providers.md#标准库) - 可用的标准库函数
+- [声明式 Provider](./manifest-driven-providers.md) — Provider 创建入门指南
+- [provider.star 语言与标准库参考](./provider-star-reference.md) — 完整的 stdlib API、ctx 对象、模板、编码规范
+- [vx.toml 语法指南](./vx-toml-syntax.md) — 项目配置模式

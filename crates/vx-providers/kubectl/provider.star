@@ -8,9 +8,8 @@
 # Uses runtime_def + github_permissions from @vx//stdlib:provider.star
 
 load("@vx//stdlib:provider.star",
-     "runtime_def", "github_permissions",
-     "binary_layout", "path_fns", "path_env_fns")
-load("@vx//stdlib:github.star", "github_releases", "releases_to_versions")
+     "runtime_def", "github_permissions", "binary_layout")
+load("@vx//stdlib:github.star", "make_fetch_versions")
 
 # ---------------------------------------------------------------------------
 # Provider metadata
@@ -46,13 +45,7 @@ permissions = github_permissions(extra_hosts = ["dl.k8s.io"])
 # kubectl versions match Kubernetes versions (e.g., v1.31.0)
 # ---------------------------------------------------------------------------
 
-def fetch_versions(ctx):
-    # Fetch releases from kubernetes/kubernetes (not kubernetes/kubectl)
-    # kubectl version matches Kubernetes major.minor.patch version
-    releases = github_releases(ctx, "kubernetes", "kubernetes", False)
-    versions = releases_to_versions(releases)
-    # Filter to only include standard Kubernetes versions (v1.x.x)
-    return [v for v in versions if v["version"].startswith("1.")]
+fetch_versions = make_fetch_versions("kubernetes", "kubernetes")
 
 # ---------------------------------------------------------------------------
 # Platform helpers
@@ -79,17 +72,28 @@ def download_url(ctx, version):
         version, os_str, arch_str, exe)
 
 # ---------------------------------------------------------------------------
-# Layout + path/env functions (from stdlib)
+# Layout + path/env functions
 # ---------------------------------------------------------------------------
 
-install_layout   = binary_layout("kubectl")
-_paths           = path_fns("kubectl")
-store_root       = _paths["store_root"]
-get_execute_path = _paths["get_execute_path"]
+install_layout = binary_layout("kubectl")
 
-_env             = path_env_fns()
-post_install     = _env["post_install"]
-environment      = _env["environment"]
+
+def store_root(ctx):
+    return ctx.vx_home + "/store/kubectl"
+
+
+def get_execute_path(ctx, _version):
+    exe = "kubectl.exe" if ctx.platform.os == "windows" else "kubectl"
+    return ctx.install_dir + "/bin/" + exe
+
+
+def post_install(_ctx, _version):
+    return None
+
+
+def environment(ctx, _version):
+    return [{"op": "prepend", "name": "PATH", "value": ctx.install_dir + "/bin"}]
+
 
 def deps(_ctx, _version):
     return []

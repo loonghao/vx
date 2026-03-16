@@ -36,7 +36,7 @@ fn test_provider_runtimes() {
 #[rstest]
 #[case("code", true)]
 #[case("vscode", true)]
-#[case("visual-studio-code", true)]
+#[case("vs-code", true)]
 #[case("node", false)]
 fn test_provider_supports(#[case] name: &str, #[case] expected: bool) {
     let provider = create_provider();

@@ -52,7 +52,7 @@ function Test-PlatformCheck {
 # Test cases
 $testCases = @(
     @{Runtime = "deno"; Expected = "supported"}
-    @{Runtime = "docker"; Expected = "supported"}
+    @{Runtime = "podman"; Expected = "supported"}
     @{Runtime = "ffmpeg"; Expected = "supported"}
     @{Runtime = "go"; Expected = "supported"}
     @{Runtime = "node"; Expected = "supported"}
