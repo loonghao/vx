@@ -6,18 +6,41 @@ use crate::commands::global::{GlobalCommand, InstallGlobalArgs};
 use crate::ui::{ProgressSpinner, UI};
 use anyhow::Result;
 use std::env;
+use std::path::PathBuf;
 use vx_paths::project::{LOCK_FILE_NAME, find_vx_config};
 use vx_resolver::{LockFile, LockedTool};
 use vx_runtime::{InstallResult, ProviderRegistry, RuntimeContext};
 use vx_starlark::provider::types::PackageAlias;
 
-/// Parse tool specification in format "tool" or "tool@version"
-fn parse_tool_spec(spec: &str) -> (&str, Option<&str>) {
-    if let Some((tool, version)) = spec.split_once('@') {
-        (tool, Some(version))
-    } else {
-        (spec, None)
+/// Parse tool specification in format "tool", "tool@version", or "tool@version::exe"
+///
+/// Returns (tool_name, version) — the executable override is ignored for install.
+fn parse_tool_spec(spec: &str) -> (String, Option<String>) {
+    let request = vx_resolver::RuntimeRequest::parse(spec);
+    (request.name, request.version)
+}
+
+fn executable_lookup_candidates(runtime: &dyn vx_runtime::Runtime, tool_name: &str) -> Vec<String> {
+    let mut candidates = Vec::new();
+    let mut push = |candidate: &str| {
+        if !candidate.is_empty() && !candidates.iter().any(|existing| existing == candidate) {
+            candidates.push(candidate.to_string());
+        }
+    };
+
+    push(runtime.executable_name());
+    push(tool_name);
+    for alias in runtime.aliases() {
+        push(alias);
     }
+
+    candidates
+}
+
+fn find_runtime_on_path(runtime: &dyn vx_runtime::Runtime, tool_name: &str) -> Option<PathBuf> {
+    executable_lookup_candidates(runtime, tool_name)
+        .into_iter()
+        .find_map(|candidate| which::which(&candidate).ok())
 }
 
 /// Handle install command with Args
@@ -34,14 +57,14 @@ pub async fn handle(ctx: &CommandContext, args: &Args) -> Result<()> {
             UI::section(&format!("[{}/{}] {}", idx + 1, total, tool_spec));
         }
 
-        let result = if let Some(alias) = get_package_alias(tool_name) {
-            install_package_alias(ctx, tool_name, version, args.force, alias).await
+        let result = if let Some(alias) = get_package_alias(&tool_name) {
+            install_package_alias(ctx, &tool_name, version.as_deref(), args.force, alias).await
         } else {
             install_single(
                 ctx.registry(),
                 ctx.runtime_context(),
-                tool_name,
-                version,
+                &tool_name,
+                version.as_deref(),
                 args.force,
                 is_multi,
             )
@@ -95,7 +118,16 @@ pub async fn handle_install(
             UI::section(&format!("[{}/{}] {}", idx + 1, total, tool_spec));
         }
 
-        match install_single(registry, context, tool_name, version, force, is_multi).await {
+        match install_single(
+            registry,
+            context,
+            &tool_name,
+            version.as_deref(),
+            force,
+            is_multi,
+        )
+        .await
+        {
             Ok(()) => success_count += 1,
             Err(e) => {
                 UI::error(&format!("Failed to install {}: {}", tool_spec, e));
@@ -480,7 +512,73 @@ pub async fn install_quiet(
     if let Some(bundled_with) = runtime.metadata().get("bundled_with")
         && bundled_with != tool_name
     {
-        return Box::pin(install_quiet(registry, context, bundled_with)).await;
+        // Ensure parent runtime is installed first
+        let parent_result = Box::pin(install_quiet(registry, context, bundled_with)).await?;
+        let parent_version = parent_result.version.clone();
+
+        // Resolve bundled executable using the normal execution path.
+        // This preserves provider-specific bundled lookup logic instead of
+        // guessing from the parent's install layout.
+        let exec_ctx = vx_runtime::ExecutionContext {
+            working_dir: env::current_dir().ok(),
+            env: std::collections::HashMap::new(),
+            capture_output: false,
+            timeout: None,
+            executor: std::sync::Arc::new(vx_runtime::RealCommandExecutor),
+        };
+
+        if let Ok(prep) = runtime.prepare_execution(&parent_version, &exec_ctx).await {
+            if let Some(exe_path) = prep.executable_override {
+                return Ok(InstallResult::already_installed(
+                    parent_result.install_path,
+                    exe_path,
+                    parent_version,
+                ));
+            }
+
+            if prep.use_system_path
+                && let Some(exe_path) = find_runtime_on_path(runtime.as_ref(), tool_name)
+            {
+                return Ok(InstallResult::system_installed(
+                    parent_version,
+                    Some(exe_path),
+                ));
+            }
+        }
+
+        // Fall back to direct executable lookup in the runtime store.
+        if let Ok(Some(exe_path)) = runtime
+            .get_executable_path_for_version(&parent_version, context)
+            .await
+        {
+            return Ok(InstallResult::already_installed(
+                parent_result.install_path,
+                exe_path,
+                parent_version,
+            ));
+        }
+
+        // Fall back to system PATH for the bundled executable
+        if let Some(exe_path) = find_runtime_on_path(runtime.as_ref(), tool_name) {
+            return Ok(InstallResult::system_installed(
+                parent_version,
+                Some(exe_path),
+            ));
+        }
+
+        // Last resort: compute the expected path in the parent's store directory
+        let platform = vx_runtime::Platform::current();
+        let base_dir = context
+            .paths
+            .version_store_dir(runtime.store_name(), &parent_version);
+        let install_dir = base_dir.join(platform.as_str());
+        let exe_relative = runtime.executable_relative_path(&parent_version, &platform);
+        let exe_path = install_dir.join(exe_relative);
+        return Ok(InstallResult::already_installed(
+            install_dir,
+            exe_path,
+            parent_version,
+        ));
     }
 
     // Resolve latest version
@@ -494,14 +592,26 @@ pub async fn install_quiet(
         context_with_cache.set_download_url_cache(cache);
     }
 
-    // Check if already installed
-    if runtime
-        .is_installed(&target_version, &context_with_cache)
-        .await?
-    {
+    // Check if already installed in vx-managed store (CI tests should not
+    // short-circuit on system PATH)
+    let store_name = runtime.store_name();
+    let runtime_dir = context.paths.runtime_store_dir(store_name);
+    let installed_in_store = if runtime_dir.exists() {
+        if target_version == "latest" {
+            std::fs::read_dir(&runtime_dir)
+                .ok()
+                .map(|entries| entries.filter_map(|e| e.ok()).any(|e| e.path().is_dir()))
+                .unwrap_or(false)
+        } else {
+            runtime_dir.join(&target_version).is_dir()
+        }
+    } else {
+        false
+    };
+
+    if installed_in_store {
         // For already installed, use the runtime's method to get the correct executable path
         // This handles different directory structures (e.g., node-v24.13.0-win-x64/node.exe)
-        let store_name = runtime.store_name();
         let install_path = context.paths.version_store_dir(store_name, &target_version);
 
         // Use get_executable_path_for_version which properly handles each runtime's layout
@@ -517,8 +627,7 @@ pub async fn install_quiet(
         }
 
         // Fall back to system PATH if store path not found
-        let exe_name = runtime.name();
-        if let Ok(exe_path) = which::which(exe_name) {
+        if let Some(exe_path) = find_runtime_on_path(runtime.as_ref(), tool_name) {
             return Ok(InstallResult::system_installed(
                 target_version,
                 Some(exe_path),
