@@ -507,7 +507,7 @@ jobs:
             os: windows-latest
             artifact: vx-windows-x64
             binary: vx.exe
-            timeout_minutes: 45
+            timeout_minutes: 60
           - name: macOS-x86_64
             os: macos-latest
             artifact: vx-macos-x64
@@ -631,7 +631,7 @@ jobs:
             os: windows-latest
             artifact: vx-windows-x64
             binary: vx.exe
-            timeout_minutes: 45
+            timeout_minutes: 60
           - name: macOS-x86_64
             os: macos-latest
             artifact: vx-macos-x64
@@ -880,6 +880,7 @@ jobs:
       - code-quality
       - test-targeted
       - test-full
+      - provider-static
       - cross-build
       - security-audit
       - coverage
@@ -900,16 +901,12 @@ jobs:
             local job_name="$1"
             local result="$2"
             if [[ "$result" == "success" ]]; then
-              echo "- �?$job_name" >> $GITHUB_STEP_SUMMARY
+              echo "- ✅ $job_name" >> $GITHUB_STEP_SUMMARY
             elif [[ "$result" == "skipped" ]]; then
               echo "- ⏭️ $job_name (skipped)" >> $GITHUB_STEP_SUMMARY
-            elif [[ "$result" == "cancelled" ]]; then
-              # Cancelled jobs are acceptable - usually due to concurrency group
-              echo "- ⚠️ $job_name (cancelled)" >> $GITHUB_STEP_SUMMARY
             else
-              echo "- �?$job_name ($result)" >> $GITHUB_STEP_SUMMARY
-              # Don't fail on skipped or cancelled jobs
-              if [[ "$result" != "skipped" && "$result" != "cancelled" && "$result" != "" ]]; then
+              echo "- ❌ $job_name ($result)" >> $GITHUB_STEP_SUMMARY
+              if [[ "$result" != "skipped" && "$result" != "" ]]; then
                 failed=1
               fi
             fi
@@ -921,6 +918,7 @@ jobs:
           check_job "code-quality" "${{ needs.code-quality.result }}"
           check_job "test-targeted" "${{ needs.test-targeted.result }}"
           check_job "test-full" "${{ needs.test-full.result }}"
+          check_job "provider-static" "${{ needs.provider-static.result }}"
           check_job "security-audit" "${{ needs.security-audit.result }}"
 
 
@@ -936,9 +934,9 @@ jobs:
 
           if [[ $failed -eq 1 ]]; then
             echo "" >> $GITHUB_STEP_SUMMARY
-            echo "�?**CI failed**" >> $GITHUB_STEP_SUMMARY
+            echo "❌ **CI failed**" >> $GITHUB_STEP_SUMMARY
             exit 1
           fi
 
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "�?**All CI checks passed!**" >> $GITHUB_STEP_SUMMARY
+          echo "✅ **All CI checks passed!**" >> $GITHUB_STEP_SUMMARY

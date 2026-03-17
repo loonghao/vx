@@ -17,7 +17,10 @@ on:
       - "crates/vx-providers/**"
       - "crates/vx-runtime/**"
       - "crates/vx-installer/**"
+      - "crates/vx-starlark/**"
+      - "crates/vx-star-metadata/**"
       - "crates/vx-manifest/**"
+      - ".github/workflows/test-providers.yml"
       - ".github/scripts/discover-providers.sh"
       - ".github/scripts/summarize-test-results.sh"
   pull_request:
@@ -26,7 +29,10 @@ on:
       - "crates/vx-providers/**"
       - "crates/vx-runtime/**"
       - "crates/vx-installer/**"
+      - "crates/vx-starlark/**"
+      - "crates/vx-star-metadata/**"
       - "crates/vx-manifest/**"
+      - ".github/workflows/test-providers.yml"
       - ".github/scripts/discover-providers.sh"
       - ".github/scripts/summarize-test-results.sh"
   workflow_dispatch:
@@ -65,6 +71,8 @@ jobs:
       has-linux: ${{ steps.discover.outputs.has-linux }}
       has-macos: ${{ steps.discover.outputs.has-macos }}
       has-windows: ${{ steps.discover.outputs.has-windows }}
+      total-runtimes: ${{ steps.discover.outputs.total-runtimes }}
+      testable-runtimes: ${{ steps.discover.outputs.testable-runtimes }}
 
     steps:
       - name: Checkout code
@@ -126,6 +134,17 @@ jobs:
 
           # Run discovery script
           eval ".github/scripts/discover-providers.sh $ARGS"
+
+      - name: Validate provider discovery
+        shell: bash
+        run: |
+          echo "Discovered runtimes: ${{ steps.discover.outputs.total-runtimes }}"
+          echo "Testable runtimes:   ${{ steps.discover.outputs.testable-runtimes }}"
+
+          if [[ "${{ steps.discover.outputs.testable-runtimes }}" == "0" ]]; then
+            echo "No testable runtimes were discovered. Provider E2E coverage would be silently skipped." >&2
+            exit 1
+          fi
 
       - name: Upload VX binary (Linux)
         uses: actions/upload-artifact@v5
@@ -452,3 +471,91 @@ jobs:
             --reports-dir . \
             --summary "$GITHUB_STEP_SUMMARY" \
             --fail-on-error
+
+  provider-success:
+    name: Provider Success
+    runs-on: ubuntu-latest
+    needs:
+      - build-and-discover
+      - build-macos
+      - build-windows
+      - test-linux
+      - test-macos
+      - test-windows
+      - quick-test
+      - summary
+    if: always()
+
+    steps:
+      - name: Check provider workflow results
+        shell: bash
+        run: |
+          echo "## Provider Workflow Results" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+
+          failed=0
+          any_matrix=0
+
+          check_job() {
+            local job_name="$1"
+            local result="$2"
+
+            if [[ "$result" == "success" ]]; then
+              echo "- ✅ $job_name" >> "$GITHUB_STEP_SUMMARY"
+            elif [[ "$result" == "skipped" ]]; then
+              echo "- ⏭️ $job_name (skipped)" >> "$GITHUB_STEP_SUMMARY"
+            else
+              echo "- ❌ $job_name ($result)" >> "$GITHUB_STEP_SUMMARY"
+              failed=1
+            fi
+          }
+
+          check_job "build-and-discover" "${{ needs.build-and-discover.result }}"
+
+          if [[ "${{ needs.build-and-discover.outputs.testable-runtimes }}" == "0" ]]; then
+            echo "- ❌ no testable runtimes discovered" >> "$GITHUB_STEP_SUMMARY"
+            failed=1
+          fi
+
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "### Matrix Jobs" >> "$GITHUB_STEP_SUMMARY"
+          check_job "build-macos" "${{ needs.build-macos.result }}"
+          check_job "build-windows" "${{ needs.build-windows.result }}"
+          check_job "test-linux" "${{ needs.test-linux.result }}"
+          check_job "test-macos" "${{ needs.test-macos.result }}"
+          check_job "test-windows" "${{ needs.test-windows.result }}"
+
+          for result in "${{ needs.test-linux.result }}" "${{ needs.test-macos.result }}" "${{ needs.test-windows.result }}"; do
+            if [[ "$result" != "skipped" ]]; then
+              any_matrix=1
+              break
+            fi
+          done
+
+          if [[ $any_matrix -eq 0 ]]; then
+            echo "- ❌ all provider matrix jobs were skipped" >> "$GITHUB_STEP_SUMMARY"
+            failed=1
+          fi
+
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "### Fast Feedback" >> "$GITHUB_STEP_SUMMARY"
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            check_job "quick-test" "${{ needs.quick-test.result }}"
+          else
+            echo "- ⏭️ quick-test (pull_request only)" >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+          if [[ $any_matrix -eq 1 ]]; then
+            check_job "summary" "${{ needs.summary.result }}"
+          else
+            echo "- ⏭️ summary (no matrix jobs ran)" >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+          if [[ $failed -eq 1 ]]; then
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+            echo "❌ **Provider workflow failed**" >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
+
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "✅ **Provider workflow passed**" >> "$GITHUB_STEP_SUMMARY"
