@@ -233,7 +233,11 @@ impl StarlarkProvider {
                 if json.is_null() {
                     return Ok(None);
                 }
-                let type_str = json.get("__type").and_then(|t| t.as_str()).unwrap_or("");
+                let type_str = json
+                    .get("__type")
+                    .or_else(|| json.get("type"))
+                    .and_then(|t| t.as_str())
+                    .unwrap_or("");
                 match type_str {
                     "msi_install" => {
                         let url = json

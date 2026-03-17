@@ -1,5 +1,6 @@
 use std::collections::BTreeSet;
 use std::fs;
+use std::path::Path;
 use std::path::PathBuf;
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -105,7 +106,7 @@ fn create_temp_dir() -> PathBuf {
     dir
 }
 
-fn write_provider(root: &PathBuf, name: &str, source: &str) {
+fn write_provider(root: &Path, name: &str, source: &str) {
     let provider_dir = root.join(name);
     fs::create_dir_all(&provider_dir).expect("provider dir should be created");
     fs::write(provider_dir.join("provider.star"), source).expect("provider.star should be written");
