@@ -413,7 +413,7 @@ fn test_invalid_command() {
     vx().arg("invalid-command-xyz-12345")
         .assert()
         .failure()
-        .stderr(predicate::str::contains("Unknown runtime"));
+        .stderr(predicate::str::contains("is not supported by vx"));
 }
 
 #[test]
