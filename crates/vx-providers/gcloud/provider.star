@@ -34,7 +34,12 @@ runtimes = [
         ],
     ),
     bundled_runtime_def("gsutil", bundled_with = "gcloud"),
-    bundled_runtime_def("bq",     bundled_with = "gcloud"),
+    bundled_runtime_def("bq", bundled_with = "gcloud",
+        test_commands = [
+            {"command": "{executable} version", "name": "version_check",
+             "expected_output": "BigQuery CLI"},
+        ],
+    ),
 ]
 
 # ---------------------------------------------------------------------------
