@@ -43,6 +43,8 @@
 //! assert_eq!(meta.runtimes[1].bundled_with, Some("node".to_string()));
 //! ```
 
+mod discovery;
 mod parser;
 
+pub use discovery::{DiscoveryConfig, DiscoveryPlatform, DiscoveryResult, discover_providers};
 pub use parser::{StarMetadata, StarRuntimeMeta};

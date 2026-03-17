@@ -152,7 +152,12 @@ fn extract_string_literal(s: &str) -> Option<String> {
     Some(rest[..end].to_string())
 }
 
-/// Extract the OS list from `platforms = {"os": [...]}` or `def platforms(): return {"os": [...]}`.
+/// Extract the OS list from provider-level platform declarations.
+///
+/// Supports:
+/// - `platforms = {"os": [...]}`
+/// - `def platforms(): return {"os": [...]}`
+/// - `def supported_platforms(): return [{"os": "linux"}, ...]`
 fn extract_platforms_os(source: &str) -> Option<Vec<String>> {
     // Try top-level variable format first: `platforms = {"os": [...]}`
     for line in source.lines() {
@@ -161,31 +166,73 @@ fn extract_platforms_os(source: &str) -> Option<Vec<String>> {
             let after_eq = after_prefix.trim_start();
             if after_eq.starts_with('{')
                 && let Some(dict_body) = find_matching_bracket(after_eq, 0, '{', '}')
-                && let Some(os_pos) = dict_body.find("\"os\"")
             {
-                let after_os = &dict_body[os_pos + 4..];
-                let after_colon = after_os.trim_start().trim_start_matches(':').trim_start();
-                if after_colon.starts_with('[')
-                    && let Some(list_body) = find_matching_bracket(after_colon, 0, '[', ']')
-                {
-                    return Some(extract_string_list_items(list_body));
+                let values = extract_os_values(dict_body);
+                if !values.is_empty() {
+                    return Some(values);
                 }
             }
         }
     }
 
     // Fall back to function format: `def platforms(): return {"os": [...]}`
-    let pattern = "def platforms()";
-    let start = source.find(pattern)?;
-    let after_def = &source[start + pattern.len()..];
-    let window = &after_def[..after_def.len().min(500)];
-    let os_pos = window.find("\"os\"")?;
-    let after_os = &window[os_pos + 4..];
-    let list_start = after_os.find('[')?;
-    let list_content = &after_os[list_start + 1..];
-    let list_end = list_content.find(']')?;
-    let list_str = &list_content[..list_end];
-    Some(extract_string_list_items(list_str))
+    for func_name in ["platforms", "supported_platforms"] {
+        let pattern = format!("def {func_name}()");
+        let Some(start) = source.find(&pattern) else {
+            continue;
+        };
+        let after_def = &source[start + pattern.len()..];
+        let window = &after_def[..after_def.len().min(1200)];
+        let Some(return_pos) = window.find("return") else {
+            continue;
+        };
+        let after_return = window[return_pos + 6..].trim_start();
+        let Some(opener) = after_return.chars().next() else {
+            continue;
+        };
+
+        let values = match opener {
+            '{' => find_matching_bracket(after_return, 0, '{', '}')
+                .map(extract_os_values)
+                .unwrap_or_default(),
+            '[' => find_matching_bracket(after_return, 0, '[', ']')
+                .map(extract_os_values)
+                .unwrap_or_default(),
+            _ => Vec::new(),
+        };
+
+        if !values.is_empty() {
+            return Some(values);
+        }
+    }
+
+    None
+}
+
+fn extract_os_values(body: &str) -> Vec<String> {
+    let mut values = Vec::new();
+
+    for key_str in ["\"os\"", "'os'"] {
+        let mut remaining = body;
+        while let Some(pos) = remaining.find(key_str) {
+            let after_key = &remaining[pos + key_str.len()..];
+            let after_colon = after_key.trim_start().trim_start_matches(':').trim_start();
+
+            if after_colon.starts_with('[')
+                && let Some(list_body) = find_matching_bracket(after_colon, 0, '[', ']')
+            {
+                values.extend(extract_string_list_items(list_body));
+            } else if let Some(value) = extract_string_literal(after_colon) {
+                values.push(value);
+            }
+
+            remaining = after_colon;
+        }
+    }
+
+    values.sort();
+    values.dedup();
+    values
 }
 
 /// Extract string items from a comma-separated list body (without brackets).

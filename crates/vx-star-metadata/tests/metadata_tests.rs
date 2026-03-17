@@ -75,6 +75,19 @@ runtimes = [
 ]
 "#;
 
+const SAMPLE_STAR_SUPPORTED_PLATFORMS: &str = r#"
+name = "winget"
+
+def supported_platforms():
+    return [
+        {"os": "windows", "arch": "x64"},
+        {"os": "windows", "arch": "arm64"},
+        {"os": "linux", "arch": "x64"},
+    ]
+
+runtimes = [runtime_def("winget")]
+"#;
+
 // Test parsing of 7zip-style runtime_def with extra whitespace
 const SAMPLE_STAR_7ZIP_STYLE: &str = r#"
 name        = "7zip"
@@ -161,6 +174,15 @@ fn test_parse_ecosystem() {
 fn test_parse_platforms() {
     let meta = StarMetadata::parse(SAMPLE_STAR);
     assert_eq!(meta.platforms, Some(vec!["windows".to_string()]));
+}
+
+#[test]
+fn test_parse_supported_platforms_function() {
+    let meta = StarMetadata::parse(SAMPLE_STAR_SUPPORTED_PLATFORMS);
+    assert_eq!(
+        meta.platforms,
+        Some(vec!["linux".to_string(), "windows".to_string()])
+    );
 }
 
 #[test]
