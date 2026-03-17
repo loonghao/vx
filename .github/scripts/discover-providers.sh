@@ -83,167 +83,75 @@ if [ -n "$SKIP_LIST" ]; then
     SKIP_ALWAYS="$SKIP_ALWAYS,$SKIP_LIST"
 fi
 
-# Storage for discovered runtimes and their platform constraints
-declare -A RUNTIME_PLATFORMS
-ALL_RUNTIMES=""
-
 echo "Discovering providers from $PROVIDERS_DIR..."
 
-# Parse each provider.toml file
-for dir in "$PROVIDERS_DIR"/*/; do
-    MANIFEST="${dir}provider.toml"
-    if [ -f "$MANIFEST" ]; then
-        PROVIDER_NAME=$(basename "$dir")
+if command -v cargo >/dev/null 2>&1; then
+    CARGO_CMD=(cargo)
+elif command -v cargo.exe >/dev/null 2>&1; then
+    CARGO_CMD=(cargo.exe)
+else
+    echo "cargo is required for provider discovery but was not found on PATH" >&2
+    exit 1
+fi
 
-        # Extract provider-level platform constraint
-        # Look for: [provider.platforms] followed by os = ["windows"] etc.
-        PROVIDER_PLATFORMS=$(grep -A1 '^\[provider\.platforms\]' "$MANIFEST" 2>/dev/null | \
-            grep 'os = ' | \
-            sed 's/.*\[\([^]]*\)\].*/\1/' | \
-            tr -d '"' | tr -d ' ' || echo "")
+DISCOVERY_CMD=("${CARGO_CMD[@]}" run --quiet --release -p vx-star-metadata --bin vx-star-discover-providers --
+    --providers-dir "$PROVIDERS_DIR"
+    --chunk-size "$CHUNK_SIZE"
+    --skip "$SKIP_ALWAYS")
 
-        # Get all runtime names using Python for reliable TOML parsing
-        RUNTIME_NAMES=$(python3 << 'PYTHON_EOF'
-import re
-import sys
+if [ -n "$RUNTIME_FILTER" ]; then
+    DISCOVERY_CMD+=(--runtimes "$RUNTIME_FILTER")
+fi
 
-manifest = sys.argv[1] if len(sys.argv) > 1 else ""
-try:
-    with open(manifest, "r") as f:
-        content = f.read()
-    # Find all [[runtimes]] sections and extract their name fields
-    pattern = r'\[\[runtimes\]\][^\[]*?name\s*=\s*"([^"]+)"'
-    names = re.findall(pattern, content, re.MULTILINE | re.DOTALL)
-    for name in names:
-        print(name)
-except Exception as e:
-    pass
-PYTHON_EOF
-        "$MANIFEST" 2>/dev/null) || RUNTIME_NAMES=""
+DISCOVERY_OUTPUT=$("${DISCOVERY_CMD[@]}")
 
-        # Fallback: use provider directory name if no runtimes found
-        if [ -z "$RUNTIME_NAMES" ]; then
-            RUNTIME_NAMES="$PROVIDER_NAME"
-        fi
+TOTAL_RUNTIMES="0"
+TESTABLE_RUNTIMES="0"
+LINUX_COUNT="0"
+MACOS_COUNT="0"
+WINDOWS_COUNT="0"
+LINUX_RUNTIMES=""
+MACOS_RUNTIMES=""
+WINDOWS_RUNTIMES=""
+LINUX_MATRIX="[]"
+MACOS_MATRIX="[]"
+WINDOWS_MATRIX="[]"
+HAS_LINUX="false"
+HAS_MACOS="false"
+HAS_WINDOWS="false"
 
-        # Store each runtime with its platform constraint
-        for runtime in $RUNTIME_NAMES; do
-            ALL_RUNTIMES="$ALL_RUNTIMES $runtime"
-            if [ -n "$PROVIDER_PLATFORMS" ]; then
-                RUNTIME_PLATFORMS[$runtime]="$PROVIDER_PLATFORMS"
-            else
-                RUNTIME_PLATFORMS[$runtime]=""
-            fi
-        done
-    fi
-done
+while IFS='=' read -r key value; do
+    case "$key" in
+        total-runtimes) TOTAL_RUNTIMES="$value" ;;
+        testable-runtimes) TESTABLE_RUNTIMES="$value" ;;
+        linux-count) LINUX_COUNT="$value" ;;
+        macos-count) MACOS_COUNT="$value" ;;
+        windows-count) WINDOWS_COUNT="$value" ;;
+        linux-runtimes) LINUX_RUNTIMES="$value" ;;
+        macos-runtimes) MACOS_RUNTIMES="$value" ;;
+        windows-runtimes) WINDOWS_RUNTIMES="$value" ;;
+        matrix-linux) LINUX_MATRIX="$value" ;;
+        matrix-macos) MACOS_MATRIX="$value" ;;
+        matrix-windows) WINDOWS_MATRIX="$value" ;;
+        has-linux) HAS_LINUX="$value" ;;
+        has-macos) HAS_MACOS="$value" ;;
+        has-windows) HAS_WINDOWS="$value" ;;
+    esac
+done <<< "$DISCOVERY_OUTPUT"
 
-# Clean up and sort runtimes
-ALL_RUNTIMES=$(echo "$ALL_RUNTIMES" | xargs | tr ' ' '\n' | sort -u | tr '\n' ' ')
-RUNTIME_COUNT=$(echo "$ALL_RUNTIMES" | wc -w | xargs)
-
-echo "Found $RUNTIME_COUNT runtimes"
-
-# Filter runtimes for a specific platform
-filter_for_platform() {
-    local platform=$1
-    local result=()
-
-    for runtime in $ALL_RUNTIMES; do
-        local constraints="${RUNTIME_PLATFORMS[$runtime]:-}"
-
-        # Skip if platform constraints exist and don't include this platform
-        if [ -n "$constraints" ]; then
-            if ! echo "$constraints" | grep -qi "$platform"; then
-                continue
-            fi
-        fi
-
-        # Skip always-excluded runtimes
-        if echo ",$SKIP_ALWAYS," | grep -qi ",$runtime,"; then
-            continue
-        fi
-
-        # Apply user runtimes filter (if specified)
-        if [ -n "$RUNTIME_FILTER" ]; then
-            if ! echo ",$RUNTIME_FILTER," | grep -qi ",$runtime,"; then
-                continue
-            fi
-        fi
-
-        result+=("$runtime")
-    done
-
-    echo "${result[@]}"
-}
-
-# Chunk runtimes into groups for parallel testing
-chunk_runtimes() {
-    local runtimes_str="$1"
-    local chunk_size="$2"
-    local runtimes=($runtimes_str)
-    local chunks=()
-    local current_chunk=""
-    local count=0
-
-    for runtime in "${runtimes[@]}"; do
-        if [ $count -ge $chunk_size ]; then
-            chunks+=("$current_chunk")
-            current_chunk="$runtime"
-            count=1
-        else
-            if [ -z "$current_chunk" ]; then
-                current_chunk="$runtime"
-            else
-                current_chunk="$current_chunk,$runtime"
-            fi
-            ((count++)) || true
-        fi
-    done
-
-    if [ -n "$current_chunk" ]; then
-        chunks+=("$current_chunk")
-    fi
-
-    # Output as JSON array
-    if [ ${#chunks[@]} -eq 0 ]; then
-        echo "[]"
-    else
-        printf '%s\n' "${chunks[@]}" | jq -R -s -c 'split("\n") | map(select(length > 0))'
-    fi
-}
-
-# Get filtered lists for each platform
-LINUX_RUNTIMES=$(filter_for_platform "linux")
-MACOS_RUNTIMES=$(filter_for_platform "macos")
-WINDOWS_RUNTIMES=$(filter_for_platform "windows")
-
-# Trim whitespace
-LINUX_RUNTIMES=$(echo "$LINUX_RUNTIMES" | xargs)
-MACOS_RUNTIMES=$(echo "$MACOS_RUNTIMES" | xargs)
-WINDOWS_RUNTIMES=$(echo "$WINDOWS_RUNTIMES" | xargs)
+echo "Found $TOTAL_RUNTIMES runtimes"
 
 echo ""
 echo "Platform-specific runtimes:"
-echo "  Linux:   $(echo $LINUX_RUNTIMES | wc -w | xargs) runtimes"
-echo "  macOS:   $(echo $MACOS_RUNTIMES | wc -w | xargs) runtimes"
-echo "  Windows: $(echo $WINDOWS_RUNTIMES | wc -w | xargs) runtimes"
-
-# Generate matrix for each platform
-LINUX_MATRIX=$(chunk_runtimes "$LINUX_RUNTIMES" "$CHUNK_SIZE")
-MACOS_MATRIX=$(chunk_runtimes "$MACOS_RUNTIMES" "$CHUNK_SIZE")
-WINDOWS_MATRIX=$(chunk_runtimes "$WINDOWS_RUNTIMES" "$CHUNK_SIZE")
+echo "  Linux:   $LINUX_COUNT runtimes"
+echo "  macOS:   $MACOS_COUNT runtimes"
+echo "  Windows: $WINDOWS_COUNT runtimes"
 
 echo ""
 echo "Matrix chunks (chunk_size=$CHUNK_SIZE):"
 echo "  Linux:   $LINUX_MATRIX"
 echo "  macOS:   $MACOS_MATRIX"
 echo "  Windows: $WINDOWS_MATRIX"
-
-# Determine if there are any runtimes to test
-HAS_LINUX=$( [ "$LINUX_MATRIX" != "[]" ] && [ -n "$LINUX_RUNTIMES" ] && echo "true" || echo "false" )
-HAS_MACOS=$( [ "$MACOS_MATRIX" != "[]" ] && [ -n "$MACOS_RUNTIMES" ] && echo "true" || echo "false" )
-HAS_WINDOWS=$( [ "$WINDOWS_MATRIX" != "[]" ] && [ -n "$WINDOWS_RUNTIMES" ] && echo "true" || echo "false" )
 
 # Output results
 output_line() {
@@ -260,6 +168,8 @@ output_line "matrix-windows=$WINDOWS_MATRIX"
 output_line "has-linux=$HAS_LINUX"
 output_line "has-macos=$HAS_MACOS"
 output_line "has-windows=$HAS_WINDOWS"
+output_line "total-runtimes=$TOTAL_RUNTIMES"
+output_line "testable-runtimes=$TESTABLE_RUNTIMES"
 
 # Generate summary if requested
 if [ -n "$SUMMARY_FILE" ]; then
@@ -269,13 +179,14 @@ if [ -n "$SUMMARY_FILE" ]; then
         echo "### Runtimes per Platform"
         echo "| Platform | Count | Runtimes (first 10) |"
         echo "|----------|-------|---------------------|"
-        echo "| Linux | $(echo $LINUX_RUNTIMES | wc -w | xargs) | $(echo $LINUX_RUNTIMES | tr ' ' '\n' | head -10 | tr '\n' ' ')... |"
-        echo "| macOS | $(echo $MACOS_RUNTIMES | wc -w | xargs) | $(echo $MACOS_RUNTIMES | tr ' ' '\n' | head -10 | tr '\n' ' ')... |"
-        echo "| Windows | $(echo $WINDOWS_RUNTIMES | wc -w | xargs) | $(echo $WINDOWS_RUNTIMES | tr ' ' '\n' | head -10 | tr '\n' ' ')... |"
+        echo "| Linux | $LINUX_COUNT | $(echo $LINUX_RUNTIMES | tr ' ' '\n' | head -10 | tr '\n' ' ')... |"
+        echo "| macOS | $MACOS_COUNT | $(echo $MACOS_RUNTIMES | tr ' ' '\n' | head -10 | tr '\n' ' ')... |"
+        echo "| Windows | $WINDOWS_COUNT | $(echo $WINDOWS_RUNTIMES | tr ' ' '\n' | head -10 | tr '\n' ' ')... |"
         echo ""
         echo "### Configuration"
         echo "- Chunk size: $CHUNK_SIZE"
-        echo "- Total runtimes discovered: $RUNTIME_COUNT"
+        echo "- Total runtimes discovered: $TOTAL_RUNTIMES"
+        echo "- Testable runtimes after CI filters: $TESTABLE_RUNTIMES"
         echo ""
         echo "### Skipped Runtimes (CI-incompatible)"
         echo "\`$SKIP_ALWAYS\`"
