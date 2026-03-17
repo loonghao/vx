@@ -62,6 +62,7 @@ runtimes = [
     runtime_def("clang-cl",
         bundled_with  = "llvm",
         description   = "MSVC-compatible Clang frontend (Windows)",
+        platform_constraint = {"os": ["windows"]},
         system_paths  = _CLANG_CL_WIN_PATHS,
         test_commands = [
             {"command": "{executable} --version", "name": "version_check",

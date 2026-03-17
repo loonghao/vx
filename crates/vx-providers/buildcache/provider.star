@@ -33,7 +33,7 @@ aliases     = ["msvc-cache", "visual-studio-cache"]
 runtimes = [
     runtime_def("buildcache",
         aliases         = ["msvc-cache", "visual-studio-cache"],
-        version_pattern = "buildcache",
+        version_pattern = "BuildCache version",
     ),
 ]
 

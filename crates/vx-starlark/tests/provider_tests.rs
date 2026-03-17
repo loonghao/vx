@@ -367,3 +367,39 @@ runtimes = [{"name": "node", "executable": "node"}]
     let meta = provider.meta();
     assert!(meta.package_prefixes.is_empty());
 }
+
+#[tokio::test]
+async fn test_install_layout_accepts_legacy_type_field() {
+    use vx_starlark::provider::InstallLayout;
+
+    let content = r#"
+name = "legacy-layout"
+description = "Legacy install_layout test"
+
+runtimes = [{"name": "legacy-layout", "executable": "legacy-layout"}]
+
+def install_layout(_ctx, _version):
+    return {
+        "type": "archive",
+        "strip_prefix": "legacy-layout-1.0.0",
+        "executable_paths": ["bin/legacy-layout"],
+    }
+"#;
+
+    let provider = StarlarkProvider::from_content("legacy-layout", content)
+        .await
+        .unwrap();
+
+    let layout = provider.install_layout("1.0.0").await.unwrap();
+    match layout {
+        Some(InstallLayout::Archive {
+            strip_prefix,
+            executable_paths,
+            ..
+        }) => {
+            assert_eq!(strip_prefix.as_deref(), Some("legacy-layout-1.0.0"));
+            assert_eq!(executable_paths, vec!["bin/legacy-layout"]);
+        }
+        other => panic!("unexpected install layout: {other:?}"),
+    }
+}

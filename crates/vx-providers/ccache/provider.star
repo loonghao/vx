@@ -55,7 +55,7 @@ fetch_versions = make_fetch_versions("ccache", "ccache")
 # ccache releases use:
 #   - Windows: ccache-{version}-windows-x86_64.zip
 #   - macOS: ccache-{version}-darwin.tar.gz (universal binary)
-#   - Linux: ccache-{version}-linux-x86_64.tar.gz
+#   - Linux: ccache-{version}-linux-x86_64-glibc.tar.xz
 # ---------------------------------------------------------------------------
 
 def _ccache_platform(ctx):
@@ -66,7 +66,7 @@ def _ccache_platform(ctx):
         ("windows", "x64"):   ("windows-x86_64", "zip"),
         ("macos",   "x64"):   ("darwin", "tar.gz"),  # Universal binary
         ("macos",   "arm64"): ("darwin", "tar.gz"),  # Universal binary
-        ("linux",   "x64"):   ("linux-x86_64", "tar.gz"),
+        ("linux",   "x64"):   ("linux-x86_64-glibc", "tar.xz"),
         ("linux",   "arm64"): ("linux-aarch64", "tar.gz"),
     }
 
