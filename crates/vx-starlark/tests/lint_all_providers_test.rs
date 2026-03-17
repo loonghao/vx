@@ -11,89 +11,8 @@
 
 use starlark::analysis::AstModuleLint;
 use starlark::syntax::{AstModule, Dialect};
-use std::collections::HashSet;
 use std::path::{Path, PathBuf};
-
-/// Globals that are always available in provider.star scripts.
-/// These come from the vx runtime or are standard Starlark builtins.
-fn known_globals() -> HashSet<String> {
-    [
-        // Standard Starlark builtins
-        "True",
-        "False",
-        "None",
-        "len",
-        "range",
-        "print",
-        "str",
-        "int",
-        "float",
-        "bool",
-        "list",
-        "dict",
-        "tuple",
-        "set",
-        "type",
-        "repr",
-        "hash",
-        "dir",
-        "hasattr",
-        "getattr",
-        "setattr",
-        "enumerate",
-        "zip",
-        "map",
-        "filter",
-        "sorted",
-        "reversed",
-        "min",
-        "max",
-        "sum",
-        "any",
-        "all",
-        "abs",
-        "round",
-        "divmod",
-        "pow",
-        "hex",
-        "oct",
-        "chr",
-        "ord",
-        "bytes",
-        "bytearray",
-        "struct",
-        "fail",
-        "assert_",
-        // vx stdlib symbols (from @vx//stdlib:http.star)
-        "fetch_json_versions",
-        "fetch_github_versions",
-        // vx stdlib symbols (from @vx//stdlib:install.star)
-        "set_permissions",
-        "ensure_dependencies",
-        // Common provider-level exports
-        "name",
-        "description",
-        "homepage",
-        "repository",
-        "license",
-        "ecosystem",
-        "runtimes",
-        "permissions",
-        "requires",
-        // Common function names in provider.star
-        "fetch_versions",
-        "download_url",
-        "install_layout",
-        "environment",
-        "post_install",
-        "pre_run",
-        "uninstall",
-        "ctx",
-    ]
-    .iter()
-    .map(|s| s.to_string())
-    .collect()
-}
+use vx_starlark::provider_test_support::provider_lint_known_globals;
 
 /// Find all provider.star files under the given root directory.
 fn find_provider_stars(root: &Path) -> Vec<PathBuf> {
@@ -136,7 +55,7 @@ fn lint_all_provider_stars() {
 
     println!("\n=== Linting {} provider.star files ===\n", stars.len());
 
-    let globals = known_globals();
+    let globals = provider_lint_known_globals();
     let mut total_issues = 0usize;
     let mut files_with_issues = Vec::new();
 

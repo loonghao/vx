@@ -571,6 +571,36 @@ vx lint provider.star
 vx lint provider.star --fix
 ```
 
+### Drift-Resistant Provider Unit Tests
+
+When adding or updating `starlark_logic_tests.rs`, prefer **semantic assertions** over brittle implementation details:
+
+| Provider archetype | Prefer asserting | Avoid asserting |
+|--------------------|------------------|-----------------|
+| `system` | `download_url() == None`, `environment()` semantics, `system_paths` presence/absence | exact platform-specific path strings unless required |
+| `package_alias` | `package_alias` target, `download_url() == None`, empty/minimal environment | archive layout or binary download behavior |
+| `binary_direct` | correct host/domain, unsupported platform returns `None`, binary layout type | exact CDN query parameters |
+| `archive_extract` | layout type, strip-prefix semantics, executable presence | every archive filename suffix across redirects |
+| `redirect_api` | endpoint family/domain, platform token, unsupported platform behavior | `.zip` / `.tar.gz` suffix when the URL is an indirection endpoint |
+
+Use the shared lint helper instead of maintaining a per-provider `known_globals` list:
+
+```rust
+#[test]
+fn test_provider_star_lint_clean() {
+    vx_starlark::provider_test_support::assert_provider_star_lint_clean(
+        vx_provider_example::PROVIDER_STAR,
+    );
+}
+```
+
+Recommended local verification flow:
+
+```bash
+vx just test-providers-static
+vx just test-providers
+```
+
 ## Best Practices
 
 ### 1. Use Standard Library Functions
