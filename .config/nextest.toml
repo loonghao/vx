@@ -1,0 +1,7 @@
+[test-groups]
+vx-benchmarks = { max-threads = 1 }
+
+[[profile.default.overrides]]
+filter = 'package(vx) & test(bench_)'
+test-group = 'vx-benchmarks'
+threads-required = 'num-test-threads'
