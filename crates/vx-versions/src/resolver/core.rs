@@ -387,6 +387,8 @@ pub fn parse_constraint(version_str: &str) -> VersionConstraint {
 
     if trimmed.contains(">=")
         || trimmed.contains("<=")
+        || trimmed.contains("==")
+        || trimmed.starts_with('=')
         || trimmed.contains('>')
         || trimmed.contains('<')
         || trimmed.contains("!=")
@@ -441,11 +443,12 @@ pub fn parse_constraint(version_str: &str) -> VersionConstraint {
 
 fn parse_range_constraints(s: &str) -> Vec<RangeConstraint> {
     let mut constraints = Vec::new();
+    let mut parts = s.split([',', ' ']).filter(|p| !p.is_empty()).peekable();
 
-    for part in s.split([',', ' ']).filter(|p| !p.is_empty()) {
+    while let Some(part) = parts.next() {
         let part = part.trim();
 
-        let (op, version_str) = if let Some(rest) = part.strip_prefix(">=") {
+        let (op, mut version_str) = if let Some(rest) = part.strip_prefix(">=") {
             (RangeOp::Gte, rest)
         } else if let Some(rest) = part.strip_prefix("<=") {
             (RangeOp::Lte, rest)
@@ -462,6 +465,10 @@ fn parse_range_constraints(s: &str) -> Vec<RangeConstraint> {
         } else {
             continue;
         };
+
+        if version_str.trim().is_empty() {
+            version_str = parts.next().unwrap_or("");
+        }
 
         if let Some(version) = Version::parse(version_str.trim()) {
             constraints.push(RangeConstraint { op, version });

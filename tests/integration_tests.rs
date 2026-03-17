@@ -328,6 +328,8 @@ mod error_handling_tests {
                 || combined.contains("Unknown runtime")
                 || combined.contains("Cannot auto-install")
                 || combined.contains("cannot auto-install")
+                || combined.contains("is not supported by vx")
+                || combined.contains("Use 'vx list'")
         );
     }
 

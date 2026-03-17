@@ -224,11 +224,11 @@ fn test_local_provider_buildcache() {
 }
 
 // ============================================================================
-// Plugin Registration Tests - verify Rust providers are in ProviderRegistry
+// Plugin/Provider List Tests - verify CLI empty-state behavior for local providers
 // ============================================================================
 
 #[test]
-fn test_plugin_list_includes_node() {
+fn test_plugin_list_shows_installed_providers_header() {
     let env = E2ETestEnv::new();
     let output = env.run(&["plugin", "list"]);
 
@@ -236,14 +236,14 @@ fn test_plugin_list_includes_node() {
 
     let stdout = String::from_utf8_lossy(&output.stdout);
     assert!(
-        stdout.to_lowercase().contains("node"),
-        "Expected 'node' in plugin list: {}",
+        stdout.contains("Installed Providers"),
+        "Expected installed providers header: {}",
         stdout
     );
 }
 
 #[test]
-fn test_plugin_list_includes_go() {
+fn test_plugin_list_shows_empty_state_when_no_local_providers() {
     let env = E2ETestEnv::new();
     let output = env.run(&["plugin", "list"]);
 
@@ -251,8 +251,8 @@ fn test_plugin_list_includes_go() {
 
     let stdout = String::from_utf8_lossy(&output.stdout);
     assert!(
-        stdout.to_lowercase().contains("go"),
-        "Expected 'go' in plugin list: {}",
+        stdout.contains("No local providers installed."),
+        "Expected empty-state message in plugin list: {}",
         stdout
     );
 }

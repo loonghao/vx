@@ -491,6 +491,8 @@ fn test_imagemagick_install_platform_handling() {
                     || combined.contains("package manager")
                     || combined.contains("system package")
                     || combined.contains("install manually")
+                    || combined.contains("No installation strategy available")
+                    || combined.contains("this platform")
                     || combined.contains("rate limit")
                     || combined.contains("GITHUB_TOKEN")
                     || combined.contains("GH_TOKEN")

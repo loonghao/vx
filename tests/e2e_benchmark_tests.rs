@@ -68,16 +68,18 @@ mod thresholds {
     pub const CLI_STARTUP_MS: u64 = 3000;
 
     /// Maximum time for help command
-    /// Note: Increased to 500ms to account for debug builds and system load variability
+    /// Note: Windows full-workspace nextest runs show substantially higher
+    /// startup variance than isolated runs, so keep a more generous threshold there.
     #[cfg(windows)]
-    pub const HELP_MS: u64 = 500;
+    pub const HELP_MS: u64 = 1000;
     #[cfg(not(windows))]
     pub const HELP_MS: u64 = 350;
 
     /// Maximum time for version command
-    /// Note: Increased to 500ms to account for debug builds and system load variability
+    /// Note: Windows full-workspace nextest runs can show significantly higher
+    /// startup variance than isolated runs, so keep a more generous threshold there.
     #[cfg(windows)]
-    pub const VERSION_MS: u64 = 500;
+    pub const VERSION_MS: u64 = 1000;
     #[cfg(not(windows))]
     pub const VERSION_MS: u64 = 350;
 
@@ -102,9 +104,13 @@ mod thresholds {
     pub const SETUP_DRYRUN_SMALL_MS: u64 = 1000;
 
     /// Maximum time for setup dry-run (large config)
-    #[cfg(target_os = "macos")]
+    /// Note: Windows full-workspace nextest runs can exceed the non-macOS threshold
+    /// due to process startup and filesystem contention in debug builds.
+    #[cfg(windows)]
+    pub const SETUP_DRYRUN_LARGE_MS: u64 = 7000;
+    #[cfg(all(not(windows), target_os = "macos"))]
     pub const SETUP_DRYRUN_LARGE_MS: u64 = 4000;
-    #[cfg(not(target_os = "macos"))]
+    #[cfg(all(not(windows), not(target_os = "macos")))]
     pub const SETUP_DRYRUN_LARGE_MS: u64 = 3000;
 
     /// Maximum time for script listing
