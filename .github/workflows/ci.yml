@@ -457,10 +457,10 @@ jobs:
         with:
           rust-components: "rustfmt, clippy"
           shared-key: quality
+          install-tools: "cargo-hakari"
 
       - name: Verify workspace-hack (cargo-hakari)
         run: |
-          cargo install cargo-hakari --locked
           cargo hakari generate --diff
           cargo hakari manage-deps --dry-run
 
@@ -489,7 +489,7 @@ jobs:
       needs.detect-changes.outputs.should_test == 'true' &&
       needs.detect-changes.outputs.test_packages != '' &&
       !contains(needs.detect-changes.outputs.test_packages, '--workspace')
-    timeout-minutes: 25
+    timeout-minutes: ${{ matrix.platform.timeout_minutes }}
     env:
       RUSTC_WRAPPER: sccache
       SCCACHE_DIR: ${{ github.workspace }}/.cache/sccache
@@ -502,14 +502,17 @@ jobs:
             os: ubuntu-latest
             artifact: vx-linux-x64
             binary: vx
+            timeout_minutes: 25
           - name: Windows-x86_64
             os: windows-latest
             artifact: vx-windows-x64
             binary: vx.exe
+            timeout_minutes: 45
           - name: macOS-x86_64
             os: macos-latest
             artifact: vx-macos-x64
             binary: vx
+            timeout_minutes: 30
 
     steps:
       - uses: actions/checkout@v6
@@ -610,7 +613,7 @@ jobs:
     if: |
       needs.detect-changes.outputs.should_test == 'true' &&
       contains(needs.detect-changes.outputs.test_packages, '--workspace')
-    timeout-minutes: 25
+    timeout-minutes: ${{ matrix.platform.timeout_minutes }}
     env:
       RUSTC_WRAPPER: sccache
       SCCACHE_DIR: ${{ github.workspace }}/.cache/sccache
@@ -623,14 +626,17 @@ jobs:
             os: ubuntu-latest
             artifact: vx-linux-x64
             binary: vx
+            timeout_minutes: 25
           - name: Windows-x86_64
             os: windows-latest
             artifact: vx-windows-x64
             binary: vx.exe
+            timeout_minutes: 45
           - name: macOS-x86_64
             os: macos-latest
             artifact: vx-macos-x64
             binary: vx
+            timeout_minutes: 30
 
     steps:
       - uses: actions/checkout@v6
