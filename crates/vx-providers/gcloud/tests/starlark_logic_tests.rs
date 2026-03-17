@@ -207,7 +207,7 @@ fn test_environment_prepends_bin_dir() {
 {}
 ctx = struct(platform = struct(os = "linux", arch = "x64", target = ""), install_dir = "/opt/gcloud", vx_home = "/home/user/.vx")
 env = environment(ctx, "470.0.0")
-path_ops = [op for op in env if op.get("name") == "PATH"]
+path_ops = [op for op in env if op.get("key") == "PATH"]
 len(path_ops) > 0 and "/opt/gcloud/bin" in path_ops[0].get("value", "")
 "#,
         provider_star_prefix()
@@ -218,54 +218,7 @@ len(path_ops) > 0 and "/opt/gcloud/bin" in path_ops[0].get("value", "")
 
 #[test]
 fn test_provider_star_lint_clean() {
-    use starlark::analysis::AstModuleLint;
-    use starlark::syntax::{AstModule, Dialect};
-    use std::collections::HashSet;
-
-    let ast = AstModule::parse(
-        "provider.star",
-        vx_provider_gcloud::PROVIDER_STAR.to_string(),
-        &Dialect::Standard,
-    )
-    .expect("provider.star should parse without errors");
-
-    let known_globals: HashSet<String> = [
-        "fetch_versions",
-        "download_url",
-        "install_layout",
-        "environment",
-        "post_install",
-        "pre_run",
-        "uninstall",
-        "deps",
-        "ctx",
-        "name",
-        "description",
-        "homepage",
-        "repository",
-        "license",
-        "ecosystem",
-        "runtimes",
-        "permissions",
-        "aliases",
-        "store_root",
-        "get_execute_path",
-        "True",
-        "False",
-        "None",
-    ]
-    .iter()
-    .map(|s| s.to_string())
-    .collect();
-
-    let lints = ast.lint(Some(&known_globals));
-    assert!(
-        lints.is_empty(),
-        "provider.star has lint issues:\n{}",
-        lints
-            .iter()
-            .map(|l| format!("  [{}] {} at {}", l.short_name, l.problem, l.location))
-            .collect::<Vec<_>>()
-            .join("\n")
+    vx_starlark::provider_test_support::assert_provider_star_lint_clean(
+        vx_provider_gcloud::PROVIDER_STAR,
     );
 }

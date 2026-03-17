@@ -132,50 +132,7 @@ url = download_url(ctx, "1.0.0")
 
 #[test]
 fn test_provider_star_lint_clean() {
-    use starlark::analysis::AstModuleLint;
-    use starlark::syntax::{AstModule, Dialect};
-    use std::collections::HashSet;
-
-    let ast = AstModule::parse(
-        "provider.star",
-        vx_provider_actrun::PROVIDER_STAR.to_string(),
-        &Dialect::Standard,
-    )
-    .expect("provider.star should parse without errors");
-
-    let known_globals: HashSet<String> = [
-        "fetch_versions",
-        "download_url",
-        "install_layout",
-        "environment",
-        "post_install",
-        "pre_run",
-        "uninstall",
-        "ctx",
-        "name",
-        "description",
-        "homepage",
-        "repository",
-        "license",
-        "ecosystem",
-        "runtimes",
-        "permissions",
-        "True",
-        "False",
-        "None",
-    ]
-    .iter()
-    .map(|s| s.to_string())
-    .collect();
-
-    let lints = ast.lint(Some(&known_globals));
-    assert!(
-        lints.is_empty(),
-        "provider.star has lint issues:\n{}",
-        lints
-            .iter()
-            .map(|l| format!("  [{}] {} at {}", l.short_name, l.problem, l.location))
-            .collect::<Vec<_>>()
-            .join("\n")
+    vx_starlark::provider_test_support::assert_provider_star_lint_clean(
+        vx_provider_actrun::PROVIDER_STAR,
     );
 }

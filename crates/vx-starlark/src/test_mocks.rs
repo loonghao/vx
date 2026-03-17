@@ -51,7 +51,7 @@ def fetch_versions_from_api(_ctx, _url, _kind):
 
 /// Standard mock for @vx//stdlib:github.star
 pub const MOCK_GITHUB_STAR: &str = r#"
-def make_fetch_versions(_owner, _repo):
+def make_fetch_versions(_owner, _repo, include_prereleases = False, **kwargs):
     """Mock: returns a fetch_versions function."""
     def _fetch_versions(_ctx):
         return []
@@ -308,34 +308,37 @@ def path_env_fns(extra_env = None):
 
 # --- system_install.star ---
 def pkg_strategy(manager, package, **kwargs):
-    return {"manager": manager, "package": package}
+    result = {"manager": manager, "package": package}
+    for key in kwargs:
+        result[key] = kwargs[key]
+    return result
 
 def system_install_strategies(strategies):
     return strategies
 
 def winget_install(package, **kwargs):
-    return {"manager": "winget", "package": package}
+    return pkg_strategy("winget", package, **kwargs)
 
 def choco_install(package, **kwargs):
-    return {"manager": "choco", "package": package}
+    return pkg_strategy("choco", package, **kwargs)
 
 def scoop_install(package, **kwargs):
-    return {"manager": "scoop", "package": package}
+    return pkg_strategy("scoop", package, **kwargs)
 
 def brew_install(package, **kwargs):
-    return {"manager": "brew", "package": package}
+    return pkg_strategy("brew", package, **kwargs)
 
 def apt_install(package, **kwargs):
-    return {"manager": "apt", "package": package}
+    return pkg_strategy("apt", package, **kwargs)
 
 def dnf_install(package, **kwargs):
-    return {"manager": "dnf", "package": package}
+    return pkg_strategy("dnf", package, **kwargs)
 
 def pacman_install(package, **kwargs):
-    return {"manager": "pacman", "package": package}
+    return pkg_strategy("pacman", package, **kwargs)
 
 def snap_install(package, **kwargs):
-    return {"manager": "snap", "package": package}
+    return pkg_strategy("snap", package, **kwargs)
 
 def cross_platform_install(**kwargs):
     return kwargs
@@ -916,7 +919,7 @@ def bin_subdir_layout(executables, strip_prefix = None):
 def post_extract_flatten(**kwargs):
     return {{"action": "flatten"}}
 
-def post_extract_shim(**kwargs):
+def post_extract_shim(shim_name = None, target_executable = None, args = None, shim_dir = None, **kwargs):
     return {{"action": "shim"}}
 
 def post_extract_permissions(paths = None, **kwargs):
@@ -966,34 +969,37 @@ def path_env_fns(extra_env = None):
 
 # --- system_install.star ---
 def pkg_strategy(manager, package, **kwargs):
-    return {{"manager": manager, "package": package}}
+    result = {{"manager": manager, "package": package}}
+    for key in kwargs:
+        result[key] = kwargs[key]
+    return result
 
 def system_install_strategies(strategies):
     return strategies
 
 def winget_install(package, **kwargs):
-    return {{"manager": "winget", "package": package}}
+    return pkg_strategy("winget", package, **kwargs)
 
 def choco_install(package, **kwargs):
-    return {{"manager": "choco", "package": package}}
+    return pkg_strategy("choco", package, **kwargs)
 
 def scoop_install(package, **kwargs):
-    return {{"manager": "scoop", "package": package}}
+    return pkg_strategy("scoop", package, **kwargs)
 
 def brew_install(package, **kwargs):
-    return {{"manager": "brew", "package": package}}
+    return pkg_strategy("brew", package, **kwargs)
 
 def apt_install(package, **kwargs):
-    return {{"manager": "apt", "package": package}}
+    return pkg_strategy("apt", package, **kwargs)
 
 def dnf_install(package, **kwargs):
-    return {{"manager": "dnf", "package": package}}
+    return pkg_strategy("dnf", package, **kwargs)
 
 def pacman_install(package, **kwargs):
-    return {{"manager": "pacman", "package": package}}
+    return pkg_strategy("pacman", package, **kwargs)
 
 def snap_install(package, **kwargs):
-    return {{"manager": "snap", "package": package}}
+    return pkg_strategy("snap", package, **kwargs)
 
 def cross_platform_install(**kwargs):
     return kwargs
@@ -1232,7 +1238,7 @@ def system_provider(store_name, executable = None, path_env = True, extra_env = 
 def set_permissions(path, mode):
     return {{"op": "set_permissions", "path": path, "mode": mode}}
 
-def make_fetch_versions(_owner, _repo):
+def make_fetch_versions(_owner, _repo, include_prereleases = False, **kwargs):
     def _fetch_versions(_ctx):
         return []
     return _fetch_versions

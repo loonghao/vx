@@ -22,6 +22,10 @@ inputs:
     description: "Install cargo-nextest"
     required: false
     default: "false"
+  install-tools:
+    description: "Comma-separated cargo tools to install with taiki-e/install-action"
+    required: false
+    default: ""
 
 runs:
   using: "composite"
@@ -107,8 +111,14 @@ runs:
       shell: bash
       run: sccache --start-server || true
 
+    - name: Install requested cargo tools
+      if: inputs.install-tools != ''
+      uses: taiki-e/install-action@v2
+      with:
+        tool: ${{ inputs.install-tools }}
+
     - name: Install cargo-nextest
-      if: inputs.install-nextest == 'true'
+      if: inputs.install-nextest == 'true' && !contains(inputs.install-tools, 'cargo-nextest')
       uses: taiki-e/install-action@v2
       with:
         tool: cargo-nextest

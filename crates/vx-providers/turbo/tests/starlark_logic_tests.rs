@@ -53,7 +53,7 @@ names = [r["name"] for r in runtimes]
 // ── download_url logic ────────────────────────────────────────────────────────
 
 #[test]
-fn test_download_url_linux_x64_returns_url() {
+fn test_download_url_linux_x64_returns_none() {
     let mut a = Assert::new();
     a.dialect(&Dialect::Standard);
     a.is_true(&format!(
@@ -61,14 +61,14 @@ fn test_download_url_linux_x64_returns_url() {
 {}
 ctx = struct(platform = struct(os = "linux", arch = "x64", target = ""))
 url = download_url(ctx, "2.0.0")
-url != None and "github.com" in url
+url == None
 "#,
         provider_star_prefix()
     ));
 }
 
 #[test]
-fn test_download_url_windows_x64_returns_url() {
+fn test_download_url_returns_none_for_package_alias() {
     let mut a = Assert::new();
     a.dialect(&Dialect::Standard);
     a.is_true(&format!(
@@ -76,14 +76,14 @@ fn test_download_url_windows_x64_returns_url() {
 {}
 ctx = struct(platform = struct(os = "windows", arch = "x64", target = ""))
 url = download_url(ctx, "2.0.0")
-url != None and "github.com" in url
+url == None
 "#,
         provider_star_prefix()
     ));
 }
 
 #[test]
-fn test_download_url_macos_arm64_returns_url() {
+fn test_download_url_macos_arm64_returns_none() {
     let mut a = Assert::new();
     a.dialect(&Dialect::Standard);
     a.is_true(&format!(
@@ -91,14 +91,14 @@ fn test_download_url_macos_arm64_returns_url() {
 {}
 ctx = struct(platform = struct(os = "macos", arch = "arm64", target = ""))
 url = download_url(ctx, "2.0.0")
-url != None and "github.com" in url
+url == None
 "#,
         provider_star_prefix()
     ));
 }
 
 #[test]
-fn test_download_url_contains_version() {
+fn test_download_url_is_none_for_versioned_package_alias() {
     let mut a = Assert::new();
     a.dialect(&Dialect::Standard);
     a.is_true(&format!(
@@ -106,7 +106,7 @@ fn test_download_url_contains_version() {
 {}
 ctx = struct(platform = struct(os = "linux", arch = "x64", target = ""))
 url = download_url(ctx, "2.0.0")
-"2.0.0" in url
+url == None
 "#,
         provider_star_prefix()
     ));
@@ -115,15 +115,13 @@ url = download_url(ctx, "2.0.0")
 // ── install_layout logic ──────────────────────────────────────────────────────
 
 #[test]
-fn test_install_layout_is_binary() {
+fn test_package_alias_routes_to_npm_turbo() {
     let mut a = Assert::new();
     a.dialect(&Dialect::Standard);
     a.is_true(&format!(
         r#"
 {}
-ctx = struct(platform = struct(os = "linux", arch = "x64", target = ""))
-layout = install_layout(ctx, "2.0.0")
-layout["type"] == "binary"
+package_alias["ecosystem"] == "npm" and package_alias["package"] == "turbo"
 "#,
         provider_star_prefix()
     ));
@@ -132,7 +130,7 @@ layout["type"] == "binary"
 // ── environment logic ─────────────────────────────────────────────────────────
 
 #[test]
-fn test_environment_prepends_path() {
+fn test_environment_is_empty_for_package_alias_runtime() {
     let mut a = Assert::new();
     a.dialect(&Dialect::Standard);
     a.is_true(&format!(
@@ -140,8 +138,7 @@ fn test_environment_prepends_path() {
 {}
 ctx = struct(platform = struct(os = "linux", arch = "x64", target = ""), install_dir = "/opt/turbo", vx_home = "/home/user/.vx")
 env = environment(ctx, "2.0.0")
-path_ops = [op for op in env if op.get("key") == "PATH"]
-len(path_ops) > 0
+len(env) == 0
 "#,
         provider_star_prefix()
     ));
@@ -151,50 +148,7 @@ len(path_ops) > 0
 
 #[test]
 fn test_provider_star_lint_clean() {
-    use starlark::analysis::AstModuleLint;
-    use starlark::syntax::{AstModule, Dialect};
-    use std::collections::HashSet;
-
-    let ast = AstModule::parse(
-        "provider.star",
-        vx_provider_turbo::PROVIDER_STAR.to_string(),
-        &Dialect::Standard,
-    )
-    .expect("provider.star should parse without errors");
-
-    let known_globals: HashSet<String> = [
-        "fetch_versions",
-        "download_url",
-        "install_layout",
-        "environment",
-        "post_install",
-        "pre_run",
-        "uninstall",
-        "ctx",
-        "name",
-        "description",
-        "homepage",
-        "repository",
-        "license",
-        "ecosystem",
-        "runtimes",
-        "permissions",
-        "True",
-        "False",
-        "None",
-    ]
-    .iter()
-    .map(|s| s.to_string())
-    .collect();
-
-    let lints = ast.lint(Some(&known_globals));
-    assert!(
-        lints.is_empty(),
-        "provider.star has lint issues:\n{}",
-        lints
-            .iter()
-            .map(|l| format!("  [{}] {} at {}", l.short_name, l.problem, l.location))
-            .collect::<Vec<_>>()
-            .join("\n")
+    vx_starlark::provider_test_support::assert_provider_star_lint_clean(
+        vx_provider_turbo::PROVIDER_STAR,
     );
 }

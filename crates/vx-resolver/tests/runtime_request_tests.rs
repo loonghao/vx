@@ -181,11 +181,11 @@ fn test_parse_canonical_version_before_shell() {
 }
 
 #[test]
-fn test_parse_noncanonical_version_after_exe_is_not_supported() {
+fn test_parse_compatibility_version_after_exe() {
     let req = RuntimeRequest::parse("msvc::cl@14.42");
     assert_eq!(req.name, "msvc");
-    assert_eq!(req.executable, Some("cl@14.42".to_string()));
-    assert_eq!(req.version, None);
+    assert_eq!(req.executable, Some("cl".to_string()));
+    assert_eq!(req.version, Some("14.42".to_string()));
 }
 
 #[test]

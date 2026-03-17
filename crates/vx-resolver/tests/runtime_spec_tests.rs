@@ -43,7 +43,7 @@ fn test_optional_dependency() {
 
 #[rstest]
 fn test_ecosystem_display() {
-    assert_eq!(format!("{}", Ecosystem::NodeJs), "node");
+    assert_eq!(format!("{}", Ecosystem::NodeJs), "nodejs");
     assert_eq!(format!("{}", Ecosystem::Python), "python");
     assert_eq!(format!("{}", Ecosystem::Rust), "rust");
     assert_eq!(format!("{}", Ecosystem::Go), "go");
