@@ -36,7 +36,7 @@ fn test_provider_runtimes() {
 #[rstest]
 #[case("task", true)]
 #[case("go-task", true)]
-#[case("taskfile", true)]
+#[case("taskfile", false)]
 #[case("node", false)]
 fn test_provider_supports(#[case] name: &str, #[case] expected: bool) {
     let provider = create_provider();

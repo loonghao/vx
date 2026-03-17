@@ -123,17 +123,26 @@ impl RuntimeRequest {
     pub fn parse(spec: &str) -> Self {
         // Check for `::` executable/shell override syntax first
         if let Some((runtime_part, exe_or_shell)) = spec.split_once("::") {
-            // Parse version from runtime part
-            let (name, version) = if let Some((name, version)) = runtime_part.split_once('@') {
-                let version = if version.is_empty() {
-                    None
+            // Parse version from runtime part (canonical: runtime@version::executable)
+            let (name, version, exe_or_shell) =
+                if let Some((name, version)) = runtime_part.split_once('@') {
+                    let version = if version.is_empty() {
+                        None
+                    } else {
+                        Some(version.to_string())
+                    };
+                    (name, version, exe_or_shell)
+                } else if let Some((exe_or_shell, version)) = exe_or_shell.rsplit_once('@') {
+                    // Compatibility form: runtime::executable@version
+                    let version = if version.is_empty() {
+                        None
+                    } else {
+                        Some(version.to_string())
+                    };
+                    (runtime_part, version, exe_or_shell)
                 } else {
-                    Some(version.to_string())
+                    (runtime_part, None, exe_or_shell)
                 };
-                (name, version)
-            } else {
-                (runtime_part, None)
-            };
 
             // Determine if this is a shell or an executable
             let (executable, shell) = if exe_or_shell.is_empty() {

@@ -9,7 +9,7 @@
 load("@vx//stdlib:provider.star",
      "runtime_def", "github_permissions",
      "fetch_versions_with_tag_prefix",
-     "binary_layout", "bin_subdir_env", "bin_subdir_execute_path", "path_fns")
+     "binary_layout", "path_fns")
 load("@vx//stdlib:github.star", "github_asset_url")
 
 # ---------------------------------------------------------------------------
@@ -88,4 +88,3 @@ def get_execute_path(ctx, _version):
 
 def environment(ctx, _version):
     return [{"op": "prepend", "name": "PATH", "value": ctx.install_dir + "/bin"}]
-

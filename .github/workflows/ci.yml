@@ -66,6 +66,7 @@ jobs:
       project_analyzer: ${{ steps.filter.outputs.project_analyzer }}
       console: ${{ steps.filter.outputs.console }}
       cli: ${{ steps.filter.outputs.cli }}
+      starlark: ${{ steps.filter.outputs.starlark }}
       providers: ${{ steps.filter.outputs.providers }}
 
       # Computed flags
@@ -135,6 +136,8 @@ jobs:
               - 'crates/vx-project-analyzer/**'
             console:
               - 'crates/vx-console/**'
+            starlark:
+              - 'crates/vx-starlark/**'
 
             # Application layer
             cli:
@@ -214,6 +217,10 @@ jobs:
 
             if [[ "${{ steps.filter.outputs.console }}" == "true" ]]; then
               AFFECTED+=("vx-console" "vx-cli")
+            fi
+
+            if [[ "${{ steps.filter.outputs.starlark }}" == "true" ]]; then
+              AFFECTED+=("vx-starlark" "providers" "vx-cli")
             fi
 
             if [[ "${{ steps.filter.outputs.cli }}" == "true" ]]; then
@@ -329,6 +336,7 @@ jobs:
           echo "| vx-args | ${{ steps.filter.outputs.args }} |" >> $GITHUB_STEP_SUMMARY
           echo "| vx-project-analyzer | ${{ steps.filter.outputs.project_analyzer }} |" >> $GITHUB_STEP_SUMMARY
           echo "| vx-console | ${{ steps.filter.outputs.console }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| vx-starlark | ${{ steps.filter.outputs.starlark }} |" >> $GITHUB_STEP_SUMMARY
           echo "| vx-cli | ${{ steps.filter.outputs.cli }} |" >> $GITHUB_STEP_SUMMARY
           echo "| providers | ${{ steps.filter.outputs.providers }} |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
@@ -548,6 +556,49 @@ jobs:
           cargo nextest run --no-fail-fast ${{ needs.detect-changes.outputs.test_packages }}
         env:
           CARGO_TARGET_DIR: target
+
+  # ============================================================================
+  # Stage 3a.5: Provider static checks (lint + provider unit tests)
+  # ============================================================================
+  provider-static:
+    name: Provider Static Checks
+    runs-on: ubuntu-latest
+    needs: detect-changes
+    if: |
+      needs.detect-changes.outputs.providers == 'true' ||
+      needs.detect-changes.outputs.starlark == 'true' ||
+      needs.detect-changes.outputs.ci == 'true'
+    timeout-minutes: 20
+    env:
+      RUSTC_WRAPPER: sccache
+      SCCACHE_DIR: ${{ github.workspace }}/.cache/sccache
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Setup Rust + sccache
+        uses: ./.github/actions/setup-rust-sccache
+        with:
+          shared-key: provider-static
+          install-tools: "cargo-nextest"
+
+      - name: Run provider static checks
+        shell: bash
+        run: |
+          cargo test -p vx-starlark --test lint_all_providers_test -- --nocapture
+          cargo nextest run --no-fail-fast -p 'vx-provider-*'
+        env:
+          CARGO_TARGET_DIR: target
+
+      - name: Summarize provider static scope
+        shell: bash
+        run: |
+          echo "## Provider Static Checks" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Triggered because providers/starlark/CI files changed." >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- provider.star batch lint" >> $GITHUB_STEP_SUMMARY
+          echo "- all vx-provider-* unit/static tests" >> $GITHUB_STEP_SUMMARY
 
   # ============================================================================
   # Stage 3b: Full workspace tests (when core changes or CI changes)

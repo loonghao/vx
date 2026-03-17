@@ -75,6 +75,11 @@ test-fast:
 test-pkgs PKGS:
     vx cargo nextest run --no-fail-fast {{PKGS}}
 
+# Fast static checks for provider.star logic and provider unit tests
+test-providers-static:
+    vx cargo test -p vx-starlark --test lint_all_providers_test -- --nocapture
+    vx cargo nextest run --no-fail-fast -p 'vx-provider-*'
+
 
 # Test all providers in a clean temporary environment
 test-providers:

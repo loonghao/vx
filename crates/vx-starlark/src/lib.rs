@@ -28,6 +28,7 @@ pub mod error;
 pub mod handle;
 pub mod loader;
 pub mod provider;
+pub mod provider_test_support;
 pub mod sandbox;
 pub mod stdlib;
 

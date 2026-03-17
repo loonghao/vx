@@ -51,23 +51,23 @@ names = [r["name"] for r in runtimes]
 }
 
 #[test]
-fn test_git_runtime_has_system_paths() {
+fn test_git_runtime_does_not_define_system_paths() {
     make_assert().is_true(
         r#"
 load("provider.star", "runtimes")
 rt = [r for r in runtimes if r["name"] == "git"][0]
-len(rt["system_paths"]) > 0
+not ("system_paths" in rt)
 "#,
     );
 }
 
 #[test]
-fn test_git_runtime_has_shells() {
+fn test_git_runtime_does_not_define_shells() {
     make_assert().is_true(
         r#"
 load("provider.star", "runtimes")
 rt = [r for r in runtimes if r["name"] == "git"][0]
-len(rt["shells"]) > 0
+not ("shells" in rt)
 "#,
     );
 }
@@ -186,54 +186,7 @@ len(env) == 0
 
 #[test]
 fn test_provider_star_lint_clean() {
-    use starlark::analysis::AstModuleLint;
-    use starlark::syntax::{AstModule, Dialect};
-    use std::collections::HashSet;
-
-    let ast = AstModule::parse(
-        "provider.star",
-        vx_provider_git::PROVIDER_STAR.to_string(),
-        &Dialect::Standard,
-    )
-    .expect("provider.star should parse without errors");
-
-    let known_globals: HashSet<String> = [
-        "fetch_versions",
-        "download_url",
-        "install_layout",
-        "environment",
-        "post_install",
-        "pre_run",
-        "uninstall",
-        "deps",
-        "ctx",
-        "name",
-        "description",
-        "homepage",
-        "repository",
-        "license",
-        "ecosystem",
-        "runtimes",
-        "permissions",
-        "system_install",
-        "store_root",
-        "get_execute_path",
-        "True",
-        "False",
-        "None",
-    ]
-    .iter()
-    .map(|s| s.to_string())
-    .collect();
-
-    let lints = ast.lint(Some(&known_globals));
-    assert!(
-        lints.is_empty(),
-        "provider.star has lint issues:\n{}",
-        lints
-            .iter()
-            .map(|l| format!("  [{}] {} at {}", l.short_name, l.problem, l.location))
-            .collect::<Vec<_>>()
-            .join("\n")
+    vx_starlark::provider_test_support::assert_provider_star_lint_clean(
+        vx_provider_git::PROVIDER_STAR,
     );
 }

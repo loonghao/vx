@@ -1152,6 +1152,16 @@ Use this checklist when creating a new provider:
 - [ ] Declare `deps()` if the tool depends on other runtimes
 - [ ] Add `system_install` for system package manager fallback
 - [ ] Add `test_commands` in runtime definition
+- [ ] Classify the provider archetype before writing tests:
+  - [ ] `system`
+  - [ ] `package_alias`
+  - [ ] `binary_direct`
+  - [ ] `archive_extract`
+  - [ ] `redirect_api`
+- [ ] Add `starlark_logic_tests.rs` with semantic assertions that match the chosen archetype
+- [ ] Use the shared lint helper instead of a provider-local `known_globals` list:
+  - [ ] `vx_starlark::provider_test_support::assert_provider_star_lint_clean(PROVIDER_STAR)`
+- [ ] Run static provider checks locally: `vx just test-providers-static`
 - [ ] Test: `vx <runtime> --version`
 - [ ] Test on all supported platforms (Windows, macOS, Linux)
 

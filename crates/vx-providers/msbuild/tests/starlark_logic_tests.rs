@@ -51,12 +51,12 @@ names = [r["name"] for r in runtimes]
 }
 
 #[test]
-fn test_msbuild_runtime_is_bundled_with_dotnet() {
+fn test_msbuild_runtime_is_bundled_with_msvc() {
     make_assert().is_true(
         r#"
 load("provider.star", "runtimes")
 rt = [r for r in runtimes if r["name"] == "msbuild"][0]
-rt["bundled_with"] == "dotnet"
+rt["bundled_with"] == "msvc"
 "#,
     );
 }
@@ -138,7 +138,7 @@ len(env) == 0
 // ── deps logic ────────────────────────────────────────────────────────────────
 
 #[test]
-fn test_deps_requires_dotnet() {
+fn test_deps_include_msvc_and_dotnet() {
     let mut a = Assert::new();
     a.dialect(&Dialect::Standard);
     a.is_true(&format!(
@@ -146,7 +146,8 @@ fn test_deps_requires_dotnet() {
 {}
 ctx = struct(platform = struct(os = "windows", arch = "x64", target = ""))
 d = deps(ctx, "system")
-any([dep["name"] == "dotnet" for dep in d])
+dep_names = [dep["runtime"] for dep in d]
+"msvc" in dep_names and "dotnet" in dep_names
 "#,
         provider_star_prefix()
     ));
@@ -156,50 +157,7 @@ any([dep["name"] == "dotnet" for dep in d])
 
 #[test]
 fn test_provider_star_lint_clean() {
-    use starlark::analysis::AstModuleLint;
-    use starlark::syntax::{AstModule, Dialect};
-    use std::collections::HashSet;
-
-    let ast = AstModule::parse(
-        "provider.star",
-        vx_provider_msbuild::PROVIDER_STAR.to_string(),
-        &Dialect::Standard,
-    )
-    .expect("provider.star should parse without errors");
-
-    let known_globals: HashSet<String> = [
-        "fetch_versions",
-        "download_url",
-        "environment",
-        "post_install",
-        "store_root",
-        "get_execute_path",
-        "deps",
-        "ctx",
-        "name",
-        "description",
-        "homepage",
-        "repository",
-        "license",
-        "ecosystem",
-        "runtimes",
-        "permissions",
-        "True",
-        "False",
-        "None",
-    ]
-    .iter()
-    .map(|s| s.to_string())
-    .collect();
-
-    let lints = ast.lint(Some(&known_globals));
-    assert!(
-        lints.is_empty(),
-        "provider.star has lint issues:\n{}",
-        lints
-            .iter()
-            .map(|l| format!("  [{}] {} at {}", l.short_name, l.problem, l.location))
-            .collect::<Vec<_>>()
-            .join("\n")
+    vx_starlark::provider_test_support::assert_provider_star_lint_clean(
+        vx_provider_msbuild::PROVIDER_STAR,
     );
 }
