@@ -60,6 +60,18 @@ def download_url(_ctx, _version):
     return None
 
 # ---------------------------------------------------------------------------
+# system_install — use pip/uvx as fallback
+# ---------------------------------------------------------------------------
+
+def system_install(_ctx, _version):
+    return {
+        "strategies": [
+            {"manager": "uvx", "package": "rez", "priority": 95},
+            {"manager": "pip", "package": "rez", "priority": 80},
+        ],
+    }
+
+# ---------------------------------------------------------------------------
 # Path queries + environment
 # ---------------------------------------------------------------------------
 

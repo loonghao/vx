@@ -43,13 +43,55 @@ permissions = github_permissions()
 # yq asset naming: yq_{os}_{arch}[.exe]
 # - os: windows, darwin, linux
 # - arch: amd64, arm64, arm, 386
+# Note: uses Go-style os naming (darwin, not macos)
 # ---------------------------------------------------------------------------
+
+load("@vx//stdlib:github.star", "github_asset_url")
+
+_OS_MAP = {
+    "windows": "windows",
+    "macos":   "darwin",
+    "linux":   "linux",
+}
+
+_ARCH_MAP = {
+    "x64":   "amd64",
+    "arm64": "arm64",
+    "x86":   "386",
+    "arm":   "arm",
+}
 
 _p = github_binary_provider(
     "mikefarah", "yq",
     asset = "yq_{os}_{arch}{exe}",
     tag_prefix = "v",
 )
+
+fetch_versions   = _p["fetch_versions"]
+store_root       = _p["store_root"]
+get_execute_path = _p["get_execute_path"]
+post_install     = _p["post_install"]
+environment      = _p["environment"]
+
+# Override download_url to use correct os naming
+def download_url(ctx, version):
+    os_str = _OS_MAP.get(ctx.platform.os)
+    arch_str = _ARCH_MAP.get(ctx.platform.arch)
+    if not os_str or not arch_str:
+        return None
+    ext = ".exe" if ctx.platform.os == "windows" else ""
+    asset = "yq_{}_{}{}".format(os_str, arch_str, ext)
+    return github_asset_url("mikefarah", "yq", "v" + version, asset)
+
+# Override install_layout to return proper binary layout
+def install_layout(ctx, _version):
+    exe = "yq.exe" if ctx.platform.os == "windows" else "yq"
+    return {
+        "type":             "binary",
+        "target_name":      exe,
+        "target_dir":       "bin",
+        "executable_paths": ["bin/" + exe],
+    }
 
 fetch_versions   = _p["fetch_versions"]
 download_url     = _p["download_url"]

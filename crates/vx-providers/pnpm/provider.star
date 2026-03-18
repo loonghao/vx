@@ -55,15 +55,18 @@ fetch_versions = make_fetch_versions("pnpm", "pnpm")
 # pnpm asset: pnpm-{os}-{arch}[.exe]  (win/macos/linux × x64/arm64)
 # ---------------------------------------------------------------------------
 
+# pnpm asset: pnpm-{os}-{arch}[.exe] (all lowercase)
+# Actual assets: pnpm-linux-x64, pnpm-macos-arm64, pnpm-win-x64.exe, etc.
 _PNPM_PLATFORMS = {
-    "windows/x64":  ("win",   "x64"),
-    "macos/x64":    ("macos", "x64"),
-    "macos/arm64":  ("macos", "arm64"),
-    "linux/x64":    ("linux", "x64"),
-    "linux/arm64":  ("linux", "arm64"),
+    "windows/x64":  "win-x64",
+    "windows/arm64": "win-arm64",
+    "macos/x64":    "macos-x64",
+    "macos/arm64":  "macos-arm64",
+    "linux/x64":    "linux-x64",
+    "linux/arm64":  "linux-arm64",
 }
 
-def _pnpm_platform(ctx):
+def _pnpm_platform_suffix(ctx):
     return _PNPM_PLATFORMS.get("{}/{}".format(ctx.platform.os, ctx.platform.arch))
 
 # ---------------------------------------------------------------------------
@@ -71,14 +74,13 @@ def _pnpm_platform(ctx):
 # ---------------------------------------------------------------------------
 
 def download_url(ctx, version):
-    platform = _pnpm_platform(ctx)
-    if not platform:
+    platform_suffix = _pnpm_platform_suffix(ctx)
+    if not platform_suffix:
         return None
-    pnpm_os, pnpm_arch = platform[0], platform[1]
     if ctx.platform.os == "windows":
-        asset = "pnpm-{}-{}.exe".format(pnpm_os, pnpm_arch)
+        asset = "pnpm-{}.exe".format(platform_suffix)
     else:
-        asset = "pnpm-{}-{}".format(pnpm_os, pnpm_arch)
+        asset = "pnpm-{}".format(platform_suffix)
     return github_asset_url("pnpm", "pnpm", "v" + version, asset)
 
 # ---------------------------------------------------------------------------
@@ -99,15 +101,14 @@ def install_layout(ctx, _version):
 # ---------------------------------------------------------------------------
 
 def post_extract(ctx, _version, _install_dir):
-    platform = _pnpm_platform(ctx)
-    if not platform:
+    platform_suffix = _pnpm_platform_suffix(ctx)
+    if not platform_suffix:
         return []
-    pnpm_os, pnpm_arch = platform[0], platform[1]
     if ctx.platform.os == "windows":
-        src = "pnpm-{}-{}.exe".format(pnpm_os, pnpm_arch)
+        src = "pnpm-{}.exe".format(platform_suffix)
         dst = "pnpm.exe"
     else:
-        src = "pnpm-{}-{}".format(pnpm_os, pnpm_arch)
+        src = "pnpm-{}".format(platform_suffix)
         dst = "pnpm"
     return [
         run_command(

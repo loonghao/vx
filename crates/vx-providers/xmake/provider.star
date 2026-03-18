@@ -54,52 +54,30 @@ fetch_versions = make_fetch_versions("xmake-io", "xmake")
 
 # ---------------------------------------------------------------------------
 # Platform helpers
-# xmake asset naming: xmake-v{version}.{os}.{arch}.{ext}
-# Windows: xmake-v2.9.7.win64.exe  (installer, but also zip available)
-# macOS:   xmake-v2.9.7.macosx.arm64.pkg  (but we use the archive)
-# Linux:   xmake-v2.9.7.linux.x86_64.tar.gz
+# xmake asset naming: xmake-bundle-v{version}.{os}.{arch} (Linux/macOS)
+# Windows: xmake-bundle-v{version}.win64.exe
+# macOS:   xmake-bundle-v{version}.macos.arm64 or xmake-bundle-v{version}.macos.x86_64
+# Linux:   xmake-bundle-v{version}.linux.x86_64
 # ---------------------------------------------------------------------------
 
 _XMAKE_PLATFORMS = {
-    "windows/x64":   ("win64",   "exe"),
-    "windows/x86":   ("win32",   "exe"),
-    "macos/x64":     ("macosx",  "tar.gz"),
-    "macos/arm64":   ("macosx",  "tar.gz"),
-    "linux/x64":     ("linux",   "tar.gz"),
-    "linux/arm64":   ("linux",   "tar.gz"),
+    "windows/x64":   ("win64",   "exe",      ""),
+    "windows/x86":   ("win32",   "exe",      ""),
+    "macos/x64":     ("macos",   "",         ".x86_64"),
+    "macos/arm64":   ("macos",   "",         ".arm64"),
+    "linux/x64":     ("linux",   "",         ".x86_64"),
+    "linux/arm64":   None,  # No arm64 linux binary available
 }
-
-_XMAKE_ARCH = {
-    "windows/x64":   "",
-    "windows/x86":   "",
-    "macos/x64":     ".x86_64",
-    "macos/arm64":   ".arm64",
-    "linux/x64":     ".x86_64",
-    "linux/arm64":   ".aarch64",
-}
-
-def _xmake_platform(ctx):
-    key = "{}/{}".format(ctx.platform.os, ctx.platform.arch)
-    return _XMAKE_PLATFORMS.get(key)
-
-def _xmake_arch_suffix(ctx):
-    key = "{}/{}".format(ctx.platform.os, ctx.platform.arch)
-    return _XMAKE_ARCH.get(key, "")
-
-# ---------------------------------------------------------------------------
-# download_url
-# ---------------------------------------------------------------------------
 
 def download_url(ctx, version):
-    platform = _xmake_platform(ctx)
+    key = "{}/{}".format(ctx.platform.os, ctx.platform.arch)
+    platform = _XMAKE_PLATFORMS.get(key)
     if not platform:
         return None
-    os_str, ext = platform
-    arch_suffix = _xmake_arch_suffix(ctx)
-    # e.g. xmake-v2.9.7.win64.exe  or  xmake-v2.9.7.linux.x86_64.tar.gz
-    asset = "xmake-v{}.{}{}.{}".format(version, os_str, arch_suffix, ext)
-    return "https://github.com/xmake-io/xmake/releases/download/v{}/{}".format(
-        version, asset)
+    os_str, ext, arch_suffix = platform
+    # xmake-bundle-v3.0.7.win64.exe or xmake-bundle-v3.0.7.linux.x86_64
+    asset = "xmake-bundle-v{}.{}{}{}".format(version, os_str, arch_suffix, ext if ext else "")
+    return "https://github.com/xmake-io/xmake/releases/download/v{}/{}".format(version, asset)
 
 # ---------------------------------------------------------------------------
 # install_layout
