@@ -103,7 +103,8 @@ fetch_versions = fetch_versions_with_tag_prefix(
 # Platform helpers
 # ---------------------------------------------------------------------------
 
-_LLVM_PLATFORMS = {
+# Old format (LLVM < 20): clang+llvm-{version}-{triple}.tar.xz
+_OLD_PLATFORMS = {
     "windows/x64":   ("x86_64-pc-windows-msvc", "tar.xz"),
     "macos/x64":     ("x86_64-apple-darwin", "tar.xz"),
     "macos/arm64":   ("arm64-apple-macos11", "tar.xz"),
@@ -111,22 +112,55 @@ _LLVM_PLATFORMS = {
     "linux/arm64":   ("aarch64-linux-gnu", "tar.xz"),
 }
 
+# New format (LLVM >= 20): LLVM-{version}-{OS}-{Arch}.tar.xz
+# Note: Windows still uses the old clang+llvm format even in >= 20
+_NEW_PLATFORMS = {
+    "macos/arm64":   ("macOS", "ARM64"),
+    "linux/x64":     ("Linux", "X64"),
+    "linux/arm64":   ("Linux", "ARM64"),
+}
 
-def _llvm_platform(ctx):
-    key = "{}/{}".format(ctx.platform.os, ctx.platform.arch)
-    return _LLVM_PLATFORMS.get(key)
+def _major_version(version):
+    """Extract major version number from a version string like '22.1.1'."""
+    parts = version.split(".")
+    if len(parts) > 0:
+        return int(parts[0])
+    return 0
+
+def _uses_new_format(version):
+    """LLVM >= 20 uses new asset naming for Linux/macOS."""
+    major = _major_version(version)
+    return major >= 20
 
 # ---------------------------------------------------------------------------
 # download_url
 # ---------------------------------------------------------------------------
 
 def download_url(ctx, version):
-    platform = _llvm_platform(ctx)
-    if not platform:
-        return None
-    triple, ext = platform
+    key = "{}/{}".format(ctx.platform.os, ctx.platform.arch)
     tag = "llvmorg-{}".format(version)
-    asset = "clang+llvm-{}-{}.{}".format(version, triple, ext)
+
+    if _uses_new_format(version):
+        # Windows still uses old format even in >= 20
+        if ctx.platform.os == "windows":
+            old = _OLD_PLATFORMS.get(key)
+            if not old:
+                return None
+            triple, ext = old
+            asset = "clang+llvm-{}-{}.{}".format(version, triple, ext)
+        else:
+            new = _NEW_PLATFORMS.get(key)
+            if not new:
+                return None
+            os_name, arch_name = new
+            asset = "LLVM-{}-{}-{}.tar.xz".format(version, os_name, arch_name)
+    else:
+        old = _OLD_PLATFORMS.get(key)
+        if not old:
+            return None
+        triple, ext = old
+        asset = "clang+llvm-{}-{}.{}".format(version, triple, ext)
+
     return "https://github.com/llvm/llvm-project/releases/download/{}/{}".format(tag, asset)
 
 # ---------------------------------------------------------------------------
@@ -134,11 +168,21 @@ def download_url(ctx, version):
 # ---------------------------------------------------------------------------
 
 def install_layout(ctx, version):
-    platform = _llvm_platform(ctx)
-    if not platform:
-        return None
-    triple, _ext = platform
-    strip_prefix = "clang+llvm-{}-{}".format(version, triple)
+    key = "{}/{}".format(ctx.platform.os, ctx.platform.arch)
+
+    if _uses_new_format(version) and ctx.platform.os != "windows":
+        new = _NEW_PLATFORMS.get(key)
+        if not new:
+            return None
+        os_name, arch_name = new
+        strip_prefix = "LLVM-{}-{}-{}".format(version, os_name, arch_name)
+    else:
+        old = _OLD_PLATFORMS.get(key)
+        if not old:
+            return None
+        triple, _ext = old
+        strip_prefix = "clang+llvm-{}-{}".format(version, triple)
+
     if ctx.platform.os == "windows":
         exe_paths = [
             "bin/clang.exe", "bin/clang++.exe", "bin/clang-cl.exe",

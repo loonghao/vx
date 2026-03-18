@@ -22,7 +22,7 @@ homepage    = "https://github.com/mozilla/sccache"
 repository  = "https://github.com/mozilla/sccache"
 license     = "Apache-2.0"
 ecosystem   = "devtools"
-aliases     = ["shared-cache", "compiler-cache"]
+aliases     = ["shared-cache"]
 
 # ---------------------------------------------------------------------------
 # Runtime definitions
@@ -30,7 +30,7 @@ aliases     = ["shared-cache", "compiler-cache"]
 
 runtimes = [
     runtime_def("sccache",
-        aliases         = ["shared-cache", "compiler-cache"],
+        aliases         = ["shared-cache"],
         version_pattern = "sccache",
     ),
 ]
@@ -50,8 +50,8 @@ permissions = github_permissions()
 
 _p = github_rust_provider(
     "mozilla", "sccache",
-    asset        = "sccache-{version}-{triple}.{ext}",
-    strip_prefix = "sccache-{version}-{triple}",
+    asset        = "sccache-v{version}-{triple}.{ext}",
+    strip_prefix = "sccache-v{version}-{triple}",
 )
 
 fetch_versions   = _p["fetch_versions"]

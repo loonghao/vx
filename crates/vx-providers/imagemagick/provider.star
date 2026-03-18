@@ -59,11 +59,12 @@ fetch_versions = make_fetch_versions("ImageMagick", "ImageMagick")
 # ---------------------------------------------------------------------------
 # download_url — Linux AppImage only; Windows/macOS use system_install
 # ---------------------------------------------------------------------------
+# Note: AppImage filename includes a commit hash that changes per release.
+# Use system package manager on Linux instead (apt_install), or rely on
+# download_url returning None to trigger system_install fallback.
 
 def download_url(ctx, version):
-    if ctx.platform.os == "linux" and ctx.platform.arch == "x64":
-        asset = "ImageMagick--gcc-x86_64.AppImage"
-        return github_asset_url("ImageMagick", "ImageMagick", version, asset)
+    # AppImage has unpredictable hash in filename; let system_install handle it
     return None
 
 # ---------------------------------------------------------------------------

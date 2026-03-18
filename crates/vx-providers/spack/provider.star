@@ -56,8 +56,9 @@ fetch_versions = make_fetch_versions("spack", "spack")
 def download_url(ctx, version):
     if ctx.platform.os == "windows":
         return None
+    # spack tag format: v1.1.1, asset: spack-1.1.1.tar.gz (no 'v' prefix in asset)
     asset = "spack-{}.tar.gz".format(version)
-    return github_asset_url("spack", "spack", version, asset)
+    return github_asset_url("spack", "spack", "v" + version, asset)
 
 # ---------------------------------------------------------------------------
 # install_layout

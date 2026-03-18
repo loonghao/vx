@@ -47,8 +47,8 @@ fetch_versions = make_fetch_versions("actionforge", "actrun-cli")
 
 # ---------------------------------------------------------------------------
 # Platform helpers
-# Asset: actrun-v{version}.cli-{arch}-{os}.{ext}
-# macOS uses .pkg — not supported
+# Asset: actrun-v{version}.cli-{arch}-{os}.zip (Windows) or .pkg (macOS)
+# Note: macOS uses .pkg installer, Linux uses tar.gz
 # ---------------------------------------------------------------------------
 
 _ACTRUN_PLATFORMS = {
@@ -56,6 +56,8 @@ _ACTRUN_PLATFORMS = {
     "windows/arm64": ("arm64", "windows", "zip"),
     "linux/x64":     ("x64",   "linux",   "tar.gz"),
     "linux/arm64":   ("arm64", "linux",   "tar.gz"),
+    "macos/x64":     ("x64",   "macos",   "pkg"),
+    "macos/arm64":   ("arm64", "macos",   "pkg"),
 }
 
 def download_url(ctx, version):
@@ -63,7 +65,12 @@ def download_url(ctx, version):
     if not platform:
         return None
     act_arch, act_os, ext = platform[0], platform[1], platform[2]
-    asset = "actrun-v{}.cli-{}-{}.{}".format(version, act_arch, act_os, ext)
+    # macOS uses .pkg installer which requires special handling
+    if ext == "pkg":
+        # Use Python wheel instead for macOS (zip archive)
+        asset = "actrun-v{}.py-{}-{}.zip".format(version, act_arch, act_os)
+    else:
+        asset = "actrun-v{}.cli-{}-{}.{}".format(version, act_arch, act_os, ext)
     return github_asset_url("actionforge", "actrun-cli", "v" + version, asset)
 
 # ---------------------------------------------------------------------------

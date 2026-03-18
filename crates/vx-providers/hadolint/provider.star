@@ -69,10 +69,11 @@ fetch_versions   = _p["fetch_versions"]
 # Windows only supports x86_64.
 # ---------------------------------------------------------------------------
 
+# Asset naming: hadolint-{os}-{arch}[.exe] (all lowercase)
 _OS_MAP = {
-    "linux":   "Linux",
-    "macos":   "Darwin",
-    "windows": "Windows",
+    "linux":   "linux",
+    "macos":   "macos",
+    "windows": "windows",
 }
 
 _ARCH_MAP = {
