@@ -94,9 +94,11 @@ def install_layout(ctx, _version):
             "executable_paths": ["xmake.exe", "xmake"],
         }
     else:
+        # Linux/macOS: self-extracting bundle — treat as binary
         return {
-            "__type":           "archive",
-            "strip_prefix":     "",
+            "__type":           "binary",
+            "target_name":      "xmake",
+            "target_dir":       "",
             "executable_paths": ["xmake"],
         }
 

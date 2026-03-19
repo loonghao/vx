@@ -39,9 +39,17 @@ runtimes = [
     ),
     bundled_runtime_def("ffprobe", "ffmpeg",
         description = "FFmpeg media stream analyzer",
+        test_commands = [
+            {"command": "{executable} -version", "name": "version_check",
+             "expected_output": "ffprobe version"},
+        ],
     ),
     bundled_runtime_def("ffplay", "ffmpeg",
         description = "FFmpeg media player",
+        test_commands = [
+            {"command": "{executable} -version", "name": "version_check",
+             "expected_output": "ffplay version"},
+        ],
     ),
 ]
 
