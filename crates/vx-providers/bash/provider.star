@@ -7,7 +7,7 @@
 
 load("@vx//stdlib:provider.star",
      "runtime_def", "github_permissions",
-     "multi_platform_install", "winget_install", "choco_install",
+     "system_install_strategies", "winget_install", "choco_install",
      "scoop_install", "brew_install", "apt_install", "dnf_install",
      "pacman_install")
 load("@vx//stdlib:github.star",   "make_fetch_versions", "github_asset_url")
@@ -91,21 +91,31 @@ def install_layout(ctx, _version):
 # system_install
 # ---------------------------------------------------------------------------
 
-system_install = multi_platform_install(
-    windows_strategies = [
-        winget_install("Git.Git", priority = 95),
-        choco_install("git",      priority = 80),
-        scoop_install("git",      priority = 60),
-    ],
-    macos_strategies = [
-        brew_install("bash"),
-    ],
-    linux_strategies = [
-        apt_install("bash",    priority = 90),
-        dnf_install("bash",    priority = 85),
-        pacman_install("bash", priority = 80),
-    ],
-)
+# ---------------------------------------------------------------------------
+# system_install
+# ---------------------------------------------------------------------------
+# NOTE: Use explicit function (not multi_platform_install closure) so that
+# parse_system_install_strategies can reliably detect and call it.
+
+def system_install(ctx):
+    os = ctx.platform.os
+    if os == "windows":
+        return system_install_strategies([
+            winget_install("Git.Git", priority = 95),
+            choco_install("git",      priority = 80),
+            scoop_install("git",      priority = 60),
+        ])
+    elif os == "macos":
+        return system_install_strategies([
+            brew_install("bash"),
+        ])
+    elif os == "linux":
+        return system_install_strategies([
+            apt_install("bash",    priority = 90),
+            dnf_install("bash",    priority = 85),
+            pacman_install("bash", priority = 80),
+        ])
+    return {}
 
 # ---------------------------------------------------------------------------
 # Path queries + environment
