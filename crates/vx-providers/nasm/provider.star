@@ -9,7 +9,8 @@ load("@vx//stdlib:provider.star",
      "runtime_def", "fetch_versions_with_tag_prefix",
      "system_permissions",
      "post_extract_permissions",
-     "cross_platform_install")
+     "system_install_strategies",
+     "winget_install", "brew_install", "apt_install")
 load("@vx//stdlib:env.star", "env_prepend")
 
 # ---------------------------------------------------------------------------
@@ -94,12 +95,27 @@ post_extract = post_extract_permissions(["nasm", "ndisasm"])
 # system_install
 # ---------------------------------------------------------------------------
 
-system_install = cross_platform_install(
-    windows = "NASM.NASM",
-    macos   = "nasm",
-    linux   = "nasm",
-    windows_priority = 80,
-)
+# ---------------------------------------------------------------------------
+# system_install
+# ---------------------------------------------------------------------------
+# NOTE: Use explicit function (not cross_platform_install closure) so that
+# parse_system_install_strategies can reliably detect and call it.
+
+def system_install(ctx):
+    os = ctx.platform.os
+    if os == "windows":
+        return system_install_strategies([
+            winget_install("NASM.NASM", priority = 80),
+        ])
+    elif os == "macos":
+        return system_install_strategies([
+            brew_install("nasm"),
+        ])
+    elif os == "linux":
+        return system_install_strategies([
+            apt_install("nasm"),
+        ])
+    return {}
 
 # ---------------------------------------------------------------------------
 # Path queries + environment

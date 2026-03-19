@@ -12,7 +12,7 @@
 load("@vx//stdlib:provider.star",
      "runtime_def", "bundled_runtime_def", "github_permissions", "post_extract_flatten",
      "path_fns",
-     "multi_platform_install", "brew_install", "apt_install", "choco_install",
+     "system_install_strategies", "brew_install", "apt_install", "choco_install",
      "winget_install")
 load("@vx//stdlib:github.star", "make_fetch_versions", "github_asset_url")
 
@@ -134,18 +134,28 @@ def post_install(_ctx, _version):
 # system_install — macOS via brew (evermeet.cx doesn't support ARM)
 # ---------------------------------------------------------------------------
 
-system_install = multi_platform_install(
-    macos_strategies = [
-        brew_install("ffmpeg"),
-    ],
-    linux_strategies = [
-        apt_install("ffmpeg"),
-    ],
-    windows_strategies = [
-        winget_install("Gyan.FFmpeg", priority = 90),
-        choco_install("ffmpeg", priority = 70),
-    ],
-)
+# ---------------------------------------------------------------------------
+# system_install — macOS via brew (evermeet.cx doesn't support ARM)
+# ---------------------------------------------------------------------------
+# NOTE: Use explicit function (not multi_platform_install closure) so that
+# parse_system_install_strategies can reliably detect and call it.
+
+def system_install(ctx):
+    os = ctx.platform.os
+    if os == "macos":
+        return system_install_strategies([
+            brew_install("ffmpeg"),
+        ])
+    elif os == "linux":
+        return system_install_strategies([
+            apt_install("ffmpeg"),
+        ])
+    elif os == "windows":
+        return system_install_strategies([
+            winget_install("Gyan.FFmpeg", priority = 90),
+            choco_install("ffmpeg", priority = 70),
+        ])
+    return {}
 
 def deps(_ctx, _version):
     return []

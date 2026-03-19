@@ -1,15 +1,14 @@
 # provider.star - rez provider
 #
 # Rez: Cross-platform package manager for deterministic environments
-# Installed via uvx/pip — no direct binary download.
-# Bundled runtimes: rez-env, rez-build
+# Executed via `uvx rez` — vx rez == vx uvx:rez (RFC 0033 package_alias routing)
+# Bundled runtimes: rez-env, rez-build (available when rez is pip-installed)
 #
 # Uses stdlib templates from @vx//stdlib:provider.star
 
 load("@vx//stdlib:provider.star",
      "runtime_def", "bundled_runtime_def",
-     "github_permissions", "dep_def")
-load("@vx//stdlib:github.star", "make_fetch_versions")
+     "dep_def", "system_permissions")
 
 # ---------------------------------------------------------------------------
 # Provider metadata
@@ -20,6 +19,9 @@ homepage    = "https://rez.readthedocs.io"
 repository  = "https://github.com/AcademySoftwareFoundation/rez"
 license     = "Apache-2.0"
 ecosystem   = "python"
+
+# RFC 0033: route `vx rez` → `vx uvx:rez`
+package_alias = {"ecosystem": "uvx", "package": "rez"}
 
 # Supported package prefixes for ecosystem:package syntax (RFC 0027)
 # Enables `vx rez:<package>` for VFX package installation
@@ -44,43 +46,27 @@ runtimes = [
 # Permissions
 # ---------------------------------------------------------------------------
 
-permissions = github_permissions()
+permissions = system_permissions(
+    extra_hosts = ["pypi.org"],
+    exec_cmds   = ["uvx", "uv"],
+)
 
 # ---------------------------------------------------------------------------
-# fetch_versions
-# ---------------------------------------------------------------------------
-
-fetch_versions = make_fetch_versions("AcademySoftwareFoundation", "rez")
-
-# ---------------------------------------------------------------------------
-# download_url — installed via uvx/pip, not direct download
+# download_url — not applicable (runs via uvx)
 # ---------------------------------------------------------------------------
 
 def download_url(_ctx, _version):
     return None
 
 # ---------------------------------------------------------------------------
-# system_install — use pip/uvx as fallback
-# ---------------------------------------------------------------------------
-
-def system_install(_ctx, _version):
-    return {
-        "strategies": [
-            {"manager": "uvx", "package": "rez", "priority": 95},
-            {"manager": "pip", "package": "rez", "priority": 80},
-        ],
-    }
-
-# ---------------------------------------------------------------------------
-# Path queries + environment
+# Path queries
 # ---------------------------------------------------------------------------
 
 def store_root(ctx):
     return ctx.vx_home + "/store/rez"
 
-def get_execute_path(ctx, _version):
-    exe = "rez.exe" if ctx.platform.os == "windows" else "rez"
-    return ctx.install_dir + "/" + exe
+def get_execute_path(_ctx, _version):
+    return None
 
 def post_install(_ctx, _version):
     return None
@@ -89,11 +75,10 @@ def environment(_ctx, _version):
     return []
 
 # ---------------------------------------------------------------------------
-# deps
+# deps — requires uv
 # ---------------------------------------------------------------------------
 
 def deps(_ctx, _version):
     return [
-        dep_def("python", version = ">=3.8",
-                reason = "Rez requires Python 3.8+"),
+        dep_def("uv", reason = "Rez is installed and run via uv/uvx"),
     ]
