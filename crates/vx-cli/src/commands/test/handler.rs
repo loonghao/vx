@@ -607,6 +607,34 @@ async fn run_ci_test_for_runtime(
 
     // exe_path was already computed from InstallResult above
     if !exe_path.exists() {
+        // For system installs (winget/choco/apt), the exe may not be in the vx store.
+        // Try to find it via PATH (winget may have updated PATH since install).
+        let is_system_version = version.contains("system");
+        if is_system_version
+            && let Some(system_exe) =
+                find_runtime_executable_for_test(&runtime, runtime_name, &version).await
+        {
+            // Found via PATH/system_paths — use that instead
+            if opts.verbose && !opts.quiet && !opts.json {
+                println!("    ℹ Using system executable: {}", system_exe.display());
+            }
+
+            let test_config = ctx
+                .get_runtime_manifest(runtime_name)
+                .and_then(|def| def.test.clone());
+
+            let mut tester = RuntimeTester::new(runtime_name).with_executable(system_exe);
+            if let Some(config) = test_config {
+                tester = tester.with_config(config);
+            }
+
+            let test_result = tester.run_all();
+            result.functional_tests = test_result.test_cases;
+            result.functional_success = result.functional_tests.iter().all(|t| t.passed);
+            result.overall_passed = result.functional_success;
+
+            return result;
+        }
         result.error = Some(format!("Executable not found: {}", exe_path.display()));
         return result;
     }
