@@ -35,6 +35,8 @@ runtimes = [
     ),
     bundled_runtime_def("gofmt", "go",
         description     = "Go source code formatter",
+        # gofmt has no --version flag; skip functional test
+        test_commands   = [],
     ),
 ]
 
