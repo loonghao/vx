@@ -61,8 +61,8 @@ fetch_versions = make_fetch_versions("xmake-io", "xmake")
 # ---------------------------------------------------------------------------
 
 _XMAKE_PLATFORMS = {
-    "windows/x64":   ("win64",   "exe",      ""),
-    "windows/x86":   ("win32",   "exe",      ""),
+    "windows/x64":   ("win64",   ".exe",     ""),
+    "windows/x86":   ("win32",   ".exe",     ""),
     "macos/x64":     ("macos",   "",         ".x86_64"),
     "macos/arm64":   ("macos",   "",         ".arm64"),
     "linux/x64":     ("linux",   "",         ".x86_64"),
@@ -76,7 +76,7 @@ def download_url(ctx, version):
         return None
     os_str, ext, arch_suffix = platform
     # xmake-bundle-v3.0.7.win64.exe or xmake-bundle-v3.0.7.linux.x86_64
-    asset = "xmake-bundle-v{}.{}{}{}".format(version, os_str, arch_suffix, ext if ext else "")
+    asset = "xmake-bundle-v{}.{}{}{}".format(version, os_str, arch_suffix, ext)
     return "https://github.com/xmake-io/xmake/releases/download/v{}/{}".format(version, asset)
 
 # ---------------------------------------------------------------------------
@@ -84,16 +84,18 @@ def download_url(ctx, version):
 # ---------------------------------------------------------------------------
 
 def install_layout(ctx, _version):
-    os = ctx.platform.os
-    if os == "windows":
+    os_name = ctx.platform.os
+    if os_name == "windows":
         # Windows: self-extracting exe — treat as binary
         return {
-            "type":             "binary",
+            "__type":           "binary",
+            "target_name":      "xmake.exe",
+            "target_dir":       "",
             "executable_paths": ["xmake.exe", "xmake"],
         }
     else:
         return {
-            "type":             "archive",
+            "__type":           "archive",
             "strip_prefix":     "",
             "executable_paths": ["xmake"],
         }

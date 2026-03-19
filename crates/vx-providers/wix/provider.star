@@ -34,6 +34,17 @@ license     = "MS-RL"
 ecosystem   = "dotnet"
 
 # ---------------------------------------------------------------------------
+# System paths for WiX v4 (dotnet tool or standalone install)
+# ---------------------------------------------------------------------------
+
+_WIX4_PATHS = [
+    "C:/Program Files/WiX Toolset v4*/bin/wix.exe",
+    "C:/Program Files (x86)/WiX Toolset v4*/bin/wix.exe",
+    "C:/Program Files/WiX Toolset v5*/bin/wix.exe",
+    "C:/Program Files (x86)/WiX Toolset v5*/bin/wix.exe",
+]
+
+# ---------------------------------------------------------------------------
 # System paths for WiX v3 (standalone install)
 # ---------------------------------------------------------------------------
 
@@ -67,11 +78,12 @@ _WIX3_SMOKE_PATHS = [
 # ---------------------------------------------------------------------------
 
 runtimes = [
-    # WiX v4 CLI (primary, installed via dotnet tool)
+    # WiX v4 CLI (primary, installed via dotnet tool or winget)
     runtime_def("wix",
         aliases             = ["wix4", "wix-toolset"],
         auto_installable    = True,
         platform_constraint = {"os": ["windows"]},
+        system_paths        = _WIX4_PATHS,
         test_commands       = [
             {"command": "{executable} --version", "name": "version_check",
              "expected_output": "\\d+\\.\\d+"},

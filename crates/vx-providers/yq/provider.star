@@ -3,10 +3,17 @@
 # yq: portable command-line YAML, JSON, XML, CSV, TOML processor
 # Asset: yq_{os}_{arch}[.exe]  (direct binary, no archive)
 #
-# Uses github_binary_provider template from @vx//stdlib:provider.star
+# Inheritance level: 2 (partial override)
+#   - fetch_versions: fully inherited from github_binary_provider
+#   - download_url:   overridden — yq uses Go-style os naming (darwin, not macos)
+#   - install_layout: overridden — rename downloaded binary to yq[.exe]
+#
+# Release URL format:
+#   https://github.com/mikefarah/yq/releases/download/v{version}/yq_{os}_{arch}[.exe]
 
 load("@vx//stdlib:provider.star",
      "github_binary_provider", "runtime_def", "github_permissions")
+load("@vx//stdlib:github.star", "github_asset_url")
 
 # ---------------------------------------------------------------------------
 # Provider metadata
@@ -46,8 +53,6 @@ permissions = github_permissions()
 # Note: uses Go-style os naming (darwin, not macos)
 # ---------------------------------------------------------------------------
 
-load("@vx//stdlib:github.star", "github_asset_url")
-
 _OS_MAP = {
     "windows": "windows",
     "macos":   "darwin",
@@ -67,13 +72,22 @@ _p = github_binary_provider(
     tag_prefix = "v",
 )
 
+# Inherit unmodified functions from template
 fetch_versions   = _p["fetch_versions"]
 store_root       = _p["store_root"]
 get_execute_path = _p["get_execute_path"]
 post_install     = _p["post_install"]
 environment      = _p["environment"]
+deps             = _p["deps"]
 
-# Override download_url to use correct os naming
+# ---------------------------------------------------------------------------
+# download_url — custom override
+#
+# yq uses Go-style os naming (darwin, not macos) and Go-style arch naming
+# (amd64, arm64, 386, arm).
+# Asset: yq_{os}_{arch}[.exe]
+# ---------------------------------------------------------------------------
+
 def download_url(ctx, version):
     os_str = _OS_MAP.get(ctx.platform.os)
     arch_str = _ARCH_MAP.get(ctx.platform.arch)
@@ -83,27 +97,21 @@ def download_url(ctx, version):
     asset = "yq_{}_{}{}".format(os_str, arch_str, ext)
     return github_asset_url("mikefarah", "yq", "v" + version, asset)
 
-# Override install_layout to return proper binary layout
+# ---------------------------------------------------------------------------
+# install_layout — binary, rename yq_{os}_{arch}[.exe] → bin/yq[.exe]
+# ---------------------------------------------------------------------------
+
 def install_layout(ctx, _version):
-    exe = "yq.exe" if ctx.platform.os == "windows" else "yq"
+    os_str   = _OS_MAP.get(ctx.platform.os, ctx.platform.os)
+    arch_str = _ARCH_MAP.get(ctx.platform.arch, ctx.platform.arch)
+    ext      = ".exe" if ctx.platform.os == "windows" else ""
+
+    source_name = "yq_{}_{}{}".format(os_str, arch_str, ext)
+    target_name = "yq" + ext
+
     return {
-        "type":             "binary",
-        "target_name":      exe,
+        "source_name":      source_name,
+        "target_name":      target_name,
         "target_dir":       "bin",
-        "executable_paths": ["bin/" + exe],
+        "executable_paths": ["bin/" + target_name],
     }
-
-fetch_versions   = _p["fetch_versions"]
-download_url     = _p["download_url"]
-install_layout   = _p["install_layout"]
-store_root       = _p["store_root"]
-get_execute_path = _p["get_execute_path"]
-post_install     = _p["post_install"]
-environment      = _p["environment"]
-
-# ---------------------------------------------------------------------------
-# deps
-# ---------------------------------------------------------------------------
-
-def deps(_ctx, _version):
-    return []

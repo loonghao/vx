@@ -304,16 +304,16 @@ impl StarlarkProvider {
                             executable_paths,
                         }))
                     }
-                    "binary_install" => {
+                    "binary_install" | "binary" => {
+                        // "binary" is the layout-only format (no URL, used by templates)
+                        // "binary_install" includes the URL for complete install info
                         let url = json
                             .get("url")
                             .and_then(|u| u.as_str())
-                            .ok_or_else(|| {
-                                Error::EvalError("binary_install descriptor missing 'url'".into())
-                            })?
-                            .to_string();
+                            .map(|s| s.to_string());
                         let executable_name = json
                             .get("executable_name")
+                            .or_else(|| json.get("target_name"))
                             .and_then(|n| n.as_str())
                             .map(|s| s.to_string());
                         let permissions = json
@@ -321,12 +321,47 @@ impl StarlarkProvider {
                             .and_then(|p| p.as_str())
                             .unwrap_or("755")
                             .to_string();
-                        debug!(provider = %self.meta.name, url = %url, "Resolved binary_install descriptor");
-                        Ok(Some(InstallLayout::Binary {
-                            url,
-                            executable_name,
-                            permissions,
-                        }))
+                        if let Some(url) = url {
+                            debug!(provider = %self.meta.name, url = %url, "Resolved binary_install descriptor");
+                            Ok(Some(InstallLayout::Binary {
+                                url,
+                                executable_name,
+                                permissions,
+                            }))
+                        } else {
+                            // No URL — treat as layout hints (similar to archive without URL)
+                            let executable_paths = json
+                                .get("executable_paths")
+                                .and_then(|p| p.as_array())
+                                .map(|arr| {
+                                    arr.iter()
+                                        .filter_map(|v| v.as_str().map(|s| s.to_string()))
+                                        .collect()
+                                })
+                                .unwrap_or_else(|| {
+                                    // Build executable_paths from target_dir + target_name
+                                    let mut paths = Vec::new();
+                                    let target_dir = json
+                                        .get("target_dir")
+                                        .and_then(|d| d.as_str())
+                                        .unwrap_or("");
+                                    if let Some(name) = &executable_name {
+                                        if target_dir.is_empty() {
+                                            paths.push(name.clone());
+                                        } else {
+                                            paths.push(format!("{}/{}", target_dir, name));
+                                            paths.push(name.clone());
+                                        }
+                                    }
+                                    paths
+                                });
+                            debug!(provider = %self.meta.name, ?executable_paths, "Resolved binary layout descriptor (no URL, using archive hint)");
+                            Ok(Some(InstallLayout::Archive {
+                                url: None,
+                                strip_prefix: None,
+                                executable_paths,
+                            }))
+                        }
                     }
                     "system_find" => {
                         let executable = json

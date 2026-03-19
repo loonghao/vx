@@ -80,7 +80,7 @@ def download_url(ctx, version):
 def install_layout(ctx, _version):
     exe = "vcpkg.exe" if ctx.platform.os == "windows" else "vcpkg"
     return {
-        "type":             "binary",
+        "__type":           "binary",
         "target_name":      exe,
         "target_dir":       "bin",
         "executable_paths": ["bin/" + exe, exe, "vcpkg"],
