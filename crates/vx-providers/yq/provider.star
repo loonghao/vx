@@ -110,6 +110,7 @@ def install_layout(ctx, _version):
     target_name = "yq" + ext
 
     return {
+        "__type":           "binary_install",
         "source_name":      source_name,
         "target_name":      target_name,
         "target_dir":       "bin",

@@ -10,7 +10,7 @@ load("@vx//stdlib:provider.star",
      "runtime_def", "bundled_runtime_def", "github_permissions",
      "multi_platform_install", "winget_install", "choco_install",
      "scoop_install", "brew_install", "apt_install", "dnf_install")
-load("@vx//stdlib:github.star", "make_fetch_versions", "github_asset_url")
+load("@vx//stdlib:github.star", "make_fetch_versions")
 load("@vx//stdlib:env.star",    "env_prepend")
 
 # ---------------------------------------------------------------------------

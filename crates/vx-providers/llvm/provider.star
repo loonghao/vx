@@ -70,7 +70,11 @@ runtimes = [
         ],
     ),
     bundled_runtime_def("lld", bundled_with = "llvm",
-        description = "LLVM linker"),
+        description = "LLVM linker",
+        # lld is a multi-call binary; plain `lld --version` requires a flavor arg.
+        # Skip functional test (lld-link --version works, handled separately).
+        test_commands = [],
+    ),
     bundled_runtime_def("lld-link", bundled_with = "llvm",
         description = "LLVM linker (MSVC-compatible interface)"),
     bundled_runtime_def("llvm-ar", bundled_with = "llvm",
