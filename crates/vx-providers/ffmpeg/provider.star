@@ -5,13 +5,15 @@
 #
 # Windows: GyanD/codexffmpeg releases (essentials build)
 # Linux:   johnvansickle.com static builds
-# macOS:   evermeet.cx binaries
+# macOS:   brew install (evermeet.cx only has Intel, uses different versioning)
 #
 # Uses stdlib templates from @vx//stdlib:provider.star
 
 load("@vx//stdlib:provider.star",
      "runtime_def", "bundled_runtime_def", "github_permissions", "post_extract_flatten",
-     "path_fns")
+     "path_fns",
+     "multi_platform_install", "brew_install", "apt_install", "choco_install",
+     "winget_install")
 load("@vx//stdlib:github.star", "make_fetch_versions", "github_asset_url")
 
 # ---------------------------------------------------------------------------
@@ -82,7 +84,9 @@ def download_url(ctx, version):
             return None
         return "https://johnvansickle.com/ffmpeg/releases/ffmpeg-release-{}-static.tar.xz".format(arch_str)
     elif os == "macos":
-        return "https://evermeet.cx/ffmpeg/ffmpeg-{}.zip".format(version)
+        # evermeet.cx uses its own versioning (not compatible with GyanD tags)
+        # and only provides Intel binaries. Use system_install (brew) instead.
+        return None
     return None
 
 # ---------------------------------------------------------------------------
@@ -125,6 +129,23 @@ def environment(ctx, _version):
 
 def post_install(_ctx, _version):
     return None
+
+# ---------------------------------------------------------------------------
+# system_install — macOS via brew (evermeet.cx doesn't support ARM)
+# ---------------------------------------------------------------------------
+
+system_install = multi_platform_install(
+    macos_strategies = [
+        brew_install("ffmpeg"),
+    ],
+    linux_strategies = [
+        apt_install("ffmpeg"),
+    ],
+    windows_strategies = [
+        winget_install("Gyan.FFmpeg", priority = 90),
+        choco_install("ffmpeg", priority = 70),
+    ],
+)
 
 def deps(_ctx, _version):
     return []

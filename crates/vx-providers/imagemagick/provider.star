@@ -63,7 +63,7 @@ fetch_versions = make_fetch_versions("ImageMagick", "ImageMagick")
 # Use system package manager on Linux instead (apt_install), or rely on
 # download_url returning None to trigger system_install fallback.
 
-def download_url(ctx, version):
+def download_url(_ctx, _version):
     # AppImage has unpredictable hash in filename; let system_install handle it
     return None
 
