@@ -9,7 +9,7 @@
 load("@vx//stdlib:provider.star",
      "runtime_def",
      "system_permissions",
-     "multi_platform_install", "brew_install", "apt_install",
+     "system_install_strategies", "brew_install", "apt_install",
      "dnf_install", "pacman_install")
 
 # ---------------------------------------------------------------------------
@@ -86,18 +86,24 @@ def download_url(_ctx, _version):
 # ---------------------------------------------------------------------------
 # system_install — package manager strategies
 # ---------------------------------------------------------------------------
+# NOTE: Use explicit function (not multi_platform_install closure) so that
+# parse_system_install_strategies can reliably detect and call it.
 
-system_install = multi_platform_install(
-    macos_strategies = [
-        brew_install("make"),
-    ],
-    linux_strategies = [
-        brew_install("make",    priority = 90),
-        apt_install("make",     priority = 90),
-        dnf_install("make",     priority = 90),
-        pacman_install("make",  priority = 90),
-    ],
-)
+def system_install(ctx):
+    """Install make via system package manager."""
+    os = ctx.platform.os
+    if os == "macos":
+        return system_install_strategies([
+            brew_install("make"),
+        ])
+    elif os == "linux":
+        return system_install_strategies([
+            brew_install("make",    priority = 90),
+            apt_install("make",     priority = 90),
+            dnf_install("make",     priority = 90),
+            pacman_install("make",  priority = 90),
+        ])
+    return {}
 
 # ---------------------------------------------------------------------------
 # Path queries (RFC 0037)

@@ -8,7 +8,8 @@
 
 load("@vx//stdlib:provider.star",
      "runtime_def", "bundled_runtime_def", "github_permissions",
-     "multi_platform_install", "winget_install", "choco_install",
+     "system_install_strategies",
+     "winget_install", "choco_install",
      "scoop_install", "brew_install", "apt_install", "dnf_install")
 load("@vx//stdlib:github.star", "make_fetch_versions")
 load("@vx//stdlib:env.star",    "env_prepend")
@@ -78,23 +79,29 @@ def install_layout(_ctx, _version):
     }
 
 # ---------------------------------------------------------------------------
-# system_install — Windows and macOS
+# system_install — all platforms via system package managers
 # ---------------------------------------------------------------------------
+# NOTE: Use explicit function (not multi_platform_install closure) so that
+# parse_system_install_strategies can reliably detect and call it.
 
-system_install = multi_platform_install(
-    windows_strategies = [
-        winget_install("ImageMagick.ImageMagick", priority = 95),
-        choco_install("imagemagick",               priority = 80),
-        scoop_install("imagemagick",               priority = 60),
-    ],
-    macos_strategies = [
-        brew_install("imagemagick"),
-    ],
-    linux_strategies = [
-        apt_install("imagemagick"),
-        dnf_install("ImageMagick"),
-    ],
-)
+def system_install(ctx):
+    os = ctx.platform.os
+    if os == "windows":
+        return system_install_strategies([
+            winget_install("ImageMagick.ImageMagick", priority = 95),
+            choco_install("imagemagick",               priority = 80),
+            scoop_install("imagemagick",               priority = 60),
+        ])
+    elif os == "macos":
+        return system_install_strategies([
+            brew_install("imagemagick"),
+        ])
+    elif os == "linux":
+        return system_install_strategies([
+            apt_install("imagemagick"),
+            dnf_install("ImageMagick"),
+        ])
+    return {}
 
 # ---------------------------------------------------------------------------
 # Path queries + environment
