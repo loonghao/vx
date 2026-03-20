@@ -56,19 +56,32 @@ pub async fn detect_version(
 /// This is used by `prepare_execution` to find bundled executables that may
 /// be nested inside an extra directory level (e.g., when strip_prefix was
 /// not applied or the archive has a different nesting structure than expected).
+///
+/// On Windows, searches for `.exe`, `.cmd`, and bare name in priority order.
+/// Prefers extension-bearing files (`.exe`, `.cmd`) over bare names to avoid
+/// accidentally picking up Unix shell scripts (e.g., `npm` bash script vs `npm.cmd`).
 pub fn find_executable_recursive(
     dir: &std::path::Path,
     exe_name: &str,
-    exe_with_ext: &str,
+    _exe_with_ext: &str,
     max_depth: usize,
 ) -> Option<std::path::PathBuf> {
-    find_exe_recurse(dir, exe_name, exe_with_ext, 0, max_depth)
+    // Build candidate names in priority order
+    let candidates: Vec<String> = if cfg!(windows) {
+        vec![
+            format!("{}.exe", exe_name),
+            format!("{}.cmd", exe_name),
+            exe_name.to_string(),
+        ]
+    } else {
+        vec![exe_name.to_string()]
+    };
+    find_exe_recurse(dir, &candidates, 0, max_depth)
 }
 
 fn find_exe_recurse(
     dir: &std::path::Path,
-    exe_name: &str,
-    exe_with_ext: &str,
+    candidates: &[String],
     current_depth: usize,
     max_depth: usize,
 ) -> Option<std::path::PathBuf> {
@@ -79,30 +92,46 @@ fn find_exe_recurse(
         Ok(e) => e,
         Err(_) => return None,
     };
+
+    // Collect files and subdirectories in one pass
+    let mut found_files: Vec<std::path::PathBuf> = Vec::new();
+    let mut subdirs: Vec<std::path::PathBuf> = Vec::new();
+
     for entry in entries.filter_map(|e| e.ok()) {
         let path = entry.path();
-        if let Some(name) = path.file_name().and_then(|n| n.to_str())
-            && path.is_file()
-            && (name == exe_name || name == exe_with_ext)
-        {
-            return Some(path);
-        }
-        if path.is_dir() {
-            // Skip known non-target directories
-            if let Some(dir_name) = path.file_name().and_then(|n| n.to_str())
-                && matches!(
-                    dir_name,
+        if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
+            if path.is_file() && candidates.iter().any(|c| c == name) {
+                found_files.push(path);
+            } else if path.is_dir() {
+                // Skip known non-target directories
+                if !matches!(
+                    name,
                     "node_modules" | "lib" | "share" | "include" | "man" | "doc" | "docs"
-                )
-            {
-                continue;
-            }
-            if let Some(found) =
-                find_exe_recurse(&path, exe_name, exe_with_ext, current_depth + 1, max_depth)
-            {
-                return Some(found);
+                ) {
+                    subdirs.push(path);
+                }
             }
         }
     }
+
+    // Return the best match according to candidate priority order
+    // (e.g., .exe before .cmd before bare name)
+    for candidate in candidates {
+        if let Some(path) = found_files.iter().find(|p| {
+            p.file_name()
+                .and_then(|n| n.to_str())
+                .is_some_and(|n| n == candidate.as_str())
+        }) {
+            return Some(path.clone());
+        }
+    }
+
+    // Recurse into subdirectories
+    for subdir in subdirs {
+        if let Some(found) = find_exe_recurse(&subdir, candidates, current_depth + 1, max_depth) {
+            return Some(found);
+        }
+    }
+
     None
 }

@@ -601,17 +601,24 @@ impl Runtime for ManifestDrivenRuntime {
             }
 
             let exe_name = &self.executable;
-            let exe_with_ext = if cfg!(windows) {
+            // On Windows, build a list of possible extensions to try.
+            // Many bundled runtimes (npm, npx, yarn, corepack) use .cmd on Windows,
+            // not .exe. We must try both extensions to find the correct executable.
+            let exe_candidates: Vec<String> = if cfg!(windows) {
                 if exe_name.ends_with(".exe")
                     || exe_name.ends_with(".cmd")
                     || exe_name.ends_with(".bat")
                 {
-                    exe_name.to_string()
+                    vec![exe_name.to_string()]
                 } else {
-                    format!("{}.exe", exe_name)
+                    vec![
+                        format!("{}.exe", exe_name),
+                        format!("{}.cmd", exe_name),
+                        exe_name.to_string(),
+                    ]
                 }
             } else {
-                exe_name.clone()
+                vec![exe_name.clone()]
             };
 
             for parent_version in &candidate_versions {
@@ -620,12 +627,14 @@ impl Runtime for ManifestDrivenRuntime {
                 let search_dirs = [&platform_dir, &version_dir];
 
                 for dir in &search_dirs {
-                    let candidates = [
-                        dir.join(&exe_with_ext),
-                        dir.join(exe_name),
-                        dir.join("bin").join(&exe_with_ext),
-                        dir.join("bin").join(exe_name),
-                    ];
+                    // Build candidates from all possible executable names × locations
+                    let mut candidates: Vec<std::path::PathBuf> = Vec::new();
+                    for ext_name in &exe_candidates {
+                        candidates.push(dir.join(ext_name));
+                    }
+                    for ext_name in &exe_candidates {
+                        candidates.push(dir.join("bin").join(ext_name));
+                    }
 
                     for path in &candidates {
                         if path.exists() {
@@ -647,9 +656,13 @@ impl Runtime for ManifestDrivenRuntime {
                         }
                     }
 
+                    let primary_ext = exe_candidates
+                        .first()
+                        .cloned()
+                        .unwrap_or_else(|| exe_name.clone());
                     if dir.exists()
                         && let Some(found) =
-                            detection::find_executable_recursive(dir, exe_name, &exe_with_ext, 4)
+                            detection::find_executable_recursive(dir, exe_name, &primary_ext, 4)
                     {
                         debug!(
                             "Found bundled executable {} via recursive search at {} (parent version: {})",

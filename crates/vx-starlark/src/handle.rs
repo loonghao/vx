@@ -686,46 +686,44 @@ impl ProviderHandle {
         // Get executable name for the current runtime
         let exe_name = self.runtime_executable_name();
 
-        // Build candidate paths to search
-        let mut candidates = vec![
-            // 1. Direct in version dir
-            version_dir.join(vx_paths::with_executable_extension(&exe_name)),
-            version_dir.join(&exe_name),
+        // Build all possible executable file names.
+        // On Windows, many bundled runtimes (npm, npx, yarn, corepack) use .cmd,
+        // not .exe. We must search for both extensions.
+        let exe_names: Vec<String> = {
+            let with_ext = vx_paths::with_executable_extension(&exe_name);
+            if cfg!(windows) && with_ext != exe_name {
+                // with_executable_extension adds .exe; also try .cmd
+                vec![with_ext, format!("{}.cmd", exe_name), exe_name.clone()]
+            } else {
+                vec![with_ext, exe_name.clone()]
+            }
+        };
+        // Deduplicate (e.g. when exe_name already has an extension)
+        let exe_names: Vec<String> = {
+            let mut seen = std::collections::HashSet::new();
+            exe_names
+                .into_iter()
+                .filter(|n| seen.insert(n.clone()))
+                .collect()
+        };
+
+        // Directories to search within the version dir
+        let platform_dir_name = vx_paths::platform_dir_name();
+        let search_dirs: Vec<std::path::PathBuf> = vec![
+            version_dir.clone(),
+            version_dir.join("bin"),
+            version_dir.join(platform_dir_name),
+            version_dir.join(platform_dir_name).join("bin"),
+            version_dir.join(&self.name),
         ];
 
-        // 2. In bin/ subdirectory
-        candidates.push(
-            version_dir
-                .join("bin")
-                .join(vx_paths::with_executable_extension(&exe_name)),
-        );
-        candidates.push(version_dir.join("bin").join(&exe_name));
-
-        // 3. Platform subdirectory (e.g., windows-x64, linux-x64)
-        // Many tools install with a platform-specific subdirectory
-        let platform_dir_name = vx_paths::platform_dir_name();
-        candidates.push(
-            version_dir
-                .join(platform_dir_name)
-                .join(vx_paths::with_executable_extension(&exe_name)),
-        );
-        candidates.push(version_dir.join(platform_dir_name).join(&exe_name));
-
-        // 4. Platform subdirectory with bin/
-        candidates.push(
-            version_dir
-                .join(platform_dir_name)
-                .join("bin")
-                .join(vx_paths::with_executable_extension(&exe_name)),
-        );
-
-        // 5. Also check for common tool-specific subdirectories
-        // e.g., python/python.exe (from python-build-standalone)
-        candidates.push(
-            version_dir
-                .join(&self.name)
-                .join(vx_paths::with_executable_extension(&exe_name)),
-        );
+        // Build candidate paths: each directory × each executable name
+        let mut candidates: Vec<PathBuf> = Vec::new();
+        for dir in &search_dirs {
+            for name in &exe_names {
+                candidates.push(dir.join(name));
+            }
+        }
 
         for candidate in &candidates {
             if candidate.exists() {
