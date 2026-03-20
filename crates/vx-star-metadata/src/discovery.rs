@@ -114,6 +114,12 @@ fn collect_runtime_platforms(
         }
 
         for runtime in metadata.runtimes {
+            // Skip bundled runtimes — they are tested as part of their parent runtime
+            // e.g., npm/npx are tested when node is tested, ffplay when ffmpeg is tested
+            if runtime.bundled_with.is_some() {
+                continue;
+            }
+
             let runtime_name = runtime.name.unwrap_or_else(|| provider_name.clone());
             let runtime_platforms_for_entry = normalize_platforms(Some(&runtime.platform_os))
                 .or_else(|| provider_platforms.clone());

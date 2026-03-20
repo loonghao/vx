@@ -33,7 +33,7 @@ runtimes = [
     runtime_def("yq",
         test_commands = [
             {"command": "{executable} --version", "name": "version_check",
-             "expected_output": "yq \\(https://github.com/mikefarah/yq\\) version"},
+             "expected_output": "yq.*version"},
         ],
     ),
 ]

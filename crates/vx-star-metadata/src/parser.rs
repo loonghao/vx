@@ -159,17 +159,26 @@ fn extract_string_literal(s: &str) -> Option<String> {
 /// - `def platforms(): return {"os": [...]}`
 /// - `def supported_platforms(): return [{"os": "linux"}, ...]`
 fn extract_platforms_os(source: &str) -> Option<Vec<String>> {
-    // Try top-level variable format first: `platforms = {"os": [...]}`
-    for line in source.lines() {
+    // Try top-level variable format: `platforms = {"os": [...]}` (single-line or multi-line)
+    // First, find the `platforms =` assignment in the source and use full source for bracket matching
+    for (line_start, line) in source_line_offsets(source) {
         let trimmed = line.trim();
         if let Some(after_prefix) = trimmed.strip_prefix("platforms =") {
             let after_eq = after_prefix.trim_start();
-            if after_eq.starts_with('{')
-                && let Some(dict_body) = find_matching_bracket(after_eq, 0, '{', '}')
-            {
-                let values = extract_os_values(dict_body);
-                if !values.is_empty() {
-                    return Some(values);
+            if after_eq.starts_with('{') {
+                // Calculate the position of '{' in the full source
+                let eq_offset =
+                    line_start + line.find("platforms =").unwrap() + "platforms =".len();
+                let brace_offset = source[eq_offset..]
+                    .find('{')
+                    .map(|p| eq_offset + p)
+                    .unwrap_or(eq_offset);
+                // Use full source for bracket matching (handles multi-line dicts)
+                if let Some(dict_body) = find_matching_bracket(source, brace_offset, '{', '}') {
+                    let values = extract_os_values(dict_body);
+                    if !values.is_empty() {
+                        return Some(values);
+                    }
                 }
             }
         }
@@ -410,10 +419,17 @@ fn parse_runtime_def_call(args_body: &str, source: &str) -> StarRuntimeMeta {
     }
 }
 
-/// Parse a `bundled_runtime_def("name", bundled_with="parent", ...)` call.
+/// Parse a `bundled_runtime_def("name", "parent", ...)` or
+/// `bundled_runtime_def("name", bundled_with="parent", ...)` call.
+///
+/// The second positional argument is treated as the parent runtime name
+/// (`bundled_with`) when the keyword form is not used.
 fn parse_bundled_runtime_def_call(args_body: &str) -> StarRuntimeMeta {
     let name = extract_first_positional_string(args_body);
-    let bundled_with = extract_kwarg_string(args_body, "bundled_with");
+    // Try keyword form first: bundled_with = "parent"
+    let bundled_with = extract_kwarg_string(args_body, "bundled_with")
+        // Fall back to second positional argument: bundled_runtime_def("name", "parent", ...)
+        .or_else(|| extract_second_positional_string(args_body));
     let executable = extract_kwarg_string(args_body, "executable").or_else(|| name.clone());
     let description = extract_kwarg_string(args_body, "description");
     let aliases = extract_kwarg_string_list(args_body, "aliases");
@@ -440,6 +456,32 @@ fn parse_bundled_runtime_def_call(args_body: &str) -> StarRuntimeMeta {
 fn extract_first_positional_string(args_body: &str) -> Option<String> {
     let trimmed = args_body.trim_start();
     extract_string_literal(trimmed)
+}
+
+/// Extract the second positional string argument from a function call args body.
+///
+/// Skips the first quoted string, then finds the next comma followed by a quoted string
+/// (ignoring keyword arguments like `key = "value"`).
+fn extract_second_positional_string(args_body: &str) -> Option<String> {
+    let trimmed = args_body.trim_start();
+    // Find the first positional string
+    let quote = trimmed.chars().next()?;
+    if quote != '"' && quote != '\'' {
+        return None;
+    }
+    let rest = &trimmed[1..];
+    let end = rest.find(quote)?;
+    let after_first = &rest[end + 1..];
+    // Find the comma after the first arg
+    let comma_pos = after_first.find(',')?;
+    let after_comma = after_first[comma_pos + 1..].trim_start();
+    // Check that this is a positional arg (not a keyword like `key = "value"`)
+    // A positional arg starts directly with a quote character
+    let next_char = after_comma.chars().next()?;
+    if next_char == '"' || next_char == '\'' {
+        return extract_string_literal(after_comma);
+    }
+    None
 }
 
 /// Extract a keyword argument string value from a function call args body.
@@ -697,6 +739,17 @@ fn extract_kwarg_u32(args_body: &str, key: &str) -> Option<u32> {
 #[allow(dead_code)]
 fn parse_runtime_dicts(list_body: &str) -> Vec<StarRuntimeMeta> {
     parse_runtime_entries(list_body, "")
+}
+
+/// Iterate over lines with their byte offsets in the source.
+fn source_line_offsets(source: &str) -> Vec<(usize, &str)> {
+    let mut result = Vec::new();
+    let mut offset = 0;
+    for line in source.lines() {
+        result.push((offset, line));
+        offset += line.len() + 1; // +1 for newline
+    }
+    result
 }
 
 /// Given the source and the position of an opening bracket, return the content

@@ -68,7 +68,7 @@ runtimes = [runtime_def("runtime-supported")]
 }
 
 #[test]
-fn discovery_runtime_filter_limits_output() {
+fn discovery_excludes_bundled_runtimes() {
     let root = create_temp_dir();
 
     write_provider(
@@ -84,14 +84,43 @@ runtimes = [
 "#,
     );
 
+    let config = DiscoveryConfig::new(&root, 10);
+
+    let result = discover_providers(&config).expect("discovery should succeed");
+
+    // Only "node" should be discovered; npm and npx are bundled and excluded
+    assert_eq!(result.total_runtimes, 1);
+    assert_eq!(result.testable_runtimes, 1);
+    assert_eq!(result.linux.runtimes, vec!["node"]);
+
+    fs::remove_dir_all(root).ok();
+}
+
+#[test]
+fn discovery_runtime_filter_on_bundled_returns_empty() {
+    let root = create_temp_dir();
+
+    write_provider(
+        &root,
+        "node",
+        r#"
+name = "node"
+runtimes = [
+    runtime_def("node"),
+    bundled_runtime_def("npm", bundled_with = "node"),
+    bundled_runtime_def("npx", bundled_with = "node"),
+]
+"#,
+    );
+
+    // Filtering for bundled runtimes should return empty since they are excluded
     let mut config = DiscoveryConfig::new(&root, 2);
     config.runtime_filter = BTreeSet::from(["npm".to_string(), "npx".to_string()]);
 
     let result = discover_providers(&config).expect("discovery should succeed");
 
-    assert_eq!(result.testable_runtimes, 2);
-    assert_eq!(result.linux.runtimes, vec!["npm", "npx"]);
-    assert_eq!(result.linux.matrix, vec!["npm,npx"]);
+    assert_eq!(result.testable_runtimes, 0);
+    assert!(result.linux.runtimes.is_empty());
 
     fs::remove_dir_all(root).ok();
 }
@@ -110,4 +139,75 @@ fn write_provider(root: &Path, name: &str, source: &str) {
     let provider_dir = root.join(name);
     fs::create_dir_all(&provider_dir).expect("provider dir should be created");
     fs::write(provider_dir.join("provider.star"), source).expect("provider.star should be written");
+}
+
+#[test]
+fn discovery_excludes_bundled_runtimes_positional_arg() {
+    let root = create_temp_dir();
+
+    // Use positional second arg form (as in real ffmpeg provider.star)
+    write_provider(
+        &root,
+        "ffmpeg",
+        r#"
+name = "ffmpeg"
+runtimes = [
+    runtime_def("ffmpeg"),
+    bundled_runtime_def("ffprobe", "ffmpeg",
+        description = "FFmpeg media stream analyzer",
+    ),
+    bundled_runtime_def("ffplay", "ffmpeg",
+        description = "FFmpeg media player",
+    ),
+]
+"#,
+    );
+
+    let config = DiscoveryConfig::new(&root, 10);
+    let result = discover_providers(&config).expect("discovery should succeed");
+
+    // Only "ffmpeg" should be discovered; ffprobe and ffplay are bundled
+    assert_eq!(result.total_runtimes, 1);
+    assert_eq!(result.testable_runtimes, 1);
+    assert_eq!(result.linux.runtimes, vec!["ffmpeg"]);
+
+    fs::remove_dir_all(root).ok();
+}
+
+#[test]
+fn discovery_multiline_platforms_excludes_from_other_os() {
+    let root = create_temp_dir();
+
+    // Multi-line platforms dict (as in real rcedit provider.star)
+    write_provider(
+        &root,
+        "rcedit",
+        r#"
+name = "rcedit"
+
+platforms = {
+    "os": ["windows"],
+}
+
+runtimes = [runtime_def("rcedit")]
+"#,
+    );
+
+    let config = DiscoveryConfig::new(&root, 10);
+    let result = discover_providers(&config).expect("discovery should succeed");
+
+    // rcedit should only appear for windows, not linux or macos
+    assert!(
+        result.linux.runtimes.is_empty(),
+        "rcedit should NOT appear in Linux: {:?}",
+        result.linux.runtimes
+    );
+    assert!(
+        result.macos.runtimes.is_empty(),
+        "rcedit should NOT appear in macOS: {:?}",
+        result.macos.runtimes
+    );
+    assert_eq!(result.windows.runtimes, vec!["rcedit"]);
+
+    fs::remove_dir_all(root).ok();
 }
