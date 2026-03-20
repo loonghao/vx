@@ -31,6 +31,49 @@ use anyhow::Result;
 use async_trait::async_trait;
 use tracing::{debug, warn};
 
+/// On Windows, if `path` has no known executable extension, check for `.cmd` /
+/// `.exe` / `.bat` variants in the same directory and return the first one that
+/// exists.  This prevents accidentally executing a bare Unix shell script
+/// (e.g., `npm` instead of `npm.cmd`) which causes OS error 193.
+///
+/// Returns the original path unchanged on non-Windows platforms or when the
+/// path already has a recognized extension.
+#[cfg(windows)]
+fn prefer_windows_executable(path: std::path::PathBuf) -> std::path::PathBuf {
+    let ext = path
+        .extension()
+        .and_then(|e| e.to_str())
+        .unwrap_or("")
+        .to_lowercase();
+
+    if matches!(ext.as_str(), "exe" | "cmd" | "bat" | "com" | "ps1") {
+        return path;
+    }
+
+    // Try Windows-native extensions in priority order
+    for try_ext in &["cmd", "exe", "bat"] {
+        let variant = path.with_extension(try_ext);
+        if variant.is_file() {
+            debug!(
+                "prefer_windows_executable: {} → {} (prefer .{} over bare script)",
+                path.display(),
+                variant.display(),
+                try_ext
+            );
+            return variant;
+        }
+    }
+
+    path
+}
+
+/// Identity passthrough on non-Windows platforms.
+#[cfg(not(windows))]
+#[allow(dead_code)]
+fn prefer_windows_executable(path: std::path::PathBuf) -> std::path::PathBuf {
+    path
+}
+
 /// Search a list of glob patterns and return the first matching **file** path.
 ///
 /// Used to locate system-installed tools (e.g. MSVC `cl.exe`) that are not
@@ -638,14 +681,15 @@ impl Runtime for ManifestDrivenRuntime {
 
                     for path in &candidates {
                         if path.exists() {
+                            let resolved = prefer_windows_executable(path.clone());
                             debug!(
                                 "Found bundled executable {} at {} (parent version: {})",
                                 self.name,
-                                path.display(),
+                                resolved.display(),
                                 parent_version
                             );
                             return Ok(crate::ExecutionPrep {
-                                executable_override: Some(path.clone()),
+                                executable_override: Some(resolved),
                                 proxy_ready: true,
                                 message: Some(format!(
                                     "Using {} from {} {} installation",
@@ -664,14 +708,15 @@ impl Runtime for ManifestDrivenRuntime {
                         && let Some(found) =
                             detection::find_executable_recursive(dir, exe_name, &primary_ext, 4)
                     {
+                        let resolved = prefer_windows_executable(found);
                         debug!(
                             "Found bundled executable {} via recursive search at {} (parent version: {})",
                             self.name,
-                            found.display(),
+                            resolved.display(),
                             parent_version
                         );
                         return Ok(crate::ExecutionPrep {
-                            executable_override: Some(found),
+                            executable_override: Some(resolved),
                             proxy_ready: true,
                             message: Some(format!(
                                 "Using {} from {} {} installation",
