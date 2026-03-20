@@ -55,6 +55,7 @@ names = [r["name"] for r in runtimes]
 #[test]
 fn test_download_url_linux_x64_returns_binary() {
     // hadolint uses direct binary download (no archive)
+    // Asset naming uses lowercase OS: hadolint-linux-x86_64
     let mut a = Assert::new();
     a.dialect(&Dialect::Standard);
     a.is_true(&format!(
@@ -62,7 +63,7 @@ fn test_download_url_linux_x64_returns_binary() {
 {}
 ctx = struct(platform = struct(os = "linux", arch = "x64", target = ""))
 url = download_url(ctx, "2.12.0")
-url != None and "hadolint-Linux-x86_64" in url
+url != None and "hadolint-linux-x86_64" in url
 "#,
         provider_star_prefix()
     ));
@@ -77,7 +78,7 @@ fn test_download_url_linux_arm64_returns_binary() {
 {}
 ctx = struct(platform = struct(os = "linux", arch = "arm64", target = ""))
 url = download_url(ctx, "2.12.0")
-url != None and "hadolint-Linux-arm64" in url
+url != None and "hadolint-linux-arm64" in url
 "#,
         provider_star_prefix()
     ));
@@ -92,7 +93,7 @@ fn test_download_url_macos_x64_returns_binary() {
 {}
 ctx = struct(platform = struct(os = "macos", arch = "x64", target = ""))
 url = download_url(ctx, "2.12.0")
-url != None and "hadolint-Darwin-x86_64" in url
+url != None and "hadolint-macos-x86_64" in url
 "#,
         provider_star_prefix()
     ));

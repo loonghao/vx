@@ -84,26 +84,18 @@ def download_url(_ctx, _version):
     return None
 
 # ---------------------------------------------------------------------------
-# system_install — package manager strategies
+# system_install — static dict with all platforms' strategies
 # ---------------------------------------------------------------------------
-# NOTE: Use explicit function (not multi_platform_install closure) so that
-# parse_system_install_strategies can reliably detect and call it.
+# NOTE: Use static dict (not function) so parse_system_install_strategies
+# can read it directly without calling. Platform filtering is handled
+# automatically by the per-manager helpers which set the "platforms" field.
 
-def system_install(ctx):
-    """Install make via system package manager."""
-    os = ctx.platform.os
-    if os == "macos":
-        return system_install_strategies([
-            brew_install("make"),
-        ])
-    elif os == "linux":
-        return system_install_strategies([
-            brew_install("make",    priority = 90),
-            apt_install("make",     priority = 90),
-            dnf_install("make",     priority = 90),
-            pacman_install("make",  priority = 90),
-        ])
-    return {}
+system_install = system_install_strategies([
+    brew_install("make"),
+    apt_install("make",     priority = 90),
+    dnf_install("make",     priority = 90),
+    pacman_install("make",  priority = 90),
+])
 
 # ---------------------------------------------------------------------------
 # Path queries (RFC 0037)

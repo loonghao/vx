@@ -329,38 +329,12 @@ impl StarlarkProvider {
                                 permissions,
                             }))
                         } else {
-                            // No URL — treat as layout hints (similar to archive without URL)
-                            let executable_paths = json
-                                .get("executable_paths")
-                                .and_then(|p| p.as_array())
-                                .map(|arr| {
-                                    arr.iter()
-                                        .filter_map(|v| v.as_str().map(|s| s.to_string()))
-                                        .collect()
-                                })
-                                .unwrap_or_else(|| {
-                                    // Build executable_paths from target_dir + target_name
-                                    let mut paths = Vec::new();
-                                    let target_dir = json
-                                        .get("target_dir")
-                                        .and_then(|d| d.as_str())
-                                        .unwrap_or("");
-                                    if let Some(name) = &executable_name {
-                                        if target_dir.is_empty() {
-                                            paths.push(name.clone());
-                                        } else {
-                                            paths.push(format!("{}/{}", target_dir, name));
-                                            paths.push(name.clone());
-                                        }
-                                    }
-                                    paths
-                                });
-                            debug!(provider = %self.meta.name, ?executable_paths, "Resolved binary layout descriptor (no URL, using archive hint)");
-                            Ok(Some(InstallLayout::Archive {
-                                url: None,
-                                strip_prefix: None,
-                                executable_paths,
-                            }))
+                            // No URL — return None so the bridge layer falls through
+                            // to install_layout_raw(), which preserves all fields
+                            // (source_name, target_name, target_dir, executable_paths)
+                            // that build_layout_meta() needs for binary rename operations.
+                            debug!(provider = %self.meta.name, "binary_install without URL — deferring to raw layout");
+                            Ok(None)
                         }
                     }
                     "system_find" => {
@@ -429,13 +403,35 @@ impl StarlarkProvider {
                 if json.is_null() {
                     return Ok(None);
                 }
-                // Only return raw JSON if it has useful fields (source_name, executable_paths, etc.)
-                // and no __type (which would have been handled by execute_install_layout already).
-                let has_type = json.get("__type").is_some();
-                if has_type {
-                    return Ok(None); // Already handled by execute_install_layout
+                // Check for __type field
+                let type_str = json
+                    .get("__type")
+                    .or_else(|| json.get("type"))
+                    .and_then(|t| t.as_str())
+                    .unwrap_or("");
+
+                // For binary_install/binary types that were deferred from the typed
+                // path (no URL), strip __type/type and return the raw dict so that
+                // build_layout_meta() can read source_name/target_name/target_dir.
+                if type_str == "binary_install" || type_str == "binary" {
+                    let mut obj = json;
+                    if let Some(map) = obj.as_object_mut() {
+                        map.remove("__type");
+                        map.remove("type");
+                    }
+                    debug!(provider = %self.meta.name, "binary layout deferred from typed path — returning raw dict");
+                    return Ok(Some(obj));
                 }
+
+                // For other types with __type, they were already handled by
+                // execute_install_layout — skip them here.
+                if !type_str.is_empty() {
+                    return Ok(None);
+                }
+
                 let has_useful_fields = json.get("source_name").is_some()
+                    || json.get("target_name").is_some()
+                    || json.get("target_dir").is_some()
                     || json.get("executable_paths").is_some()
                     || json.get("strip_prefix").is_some();
                 if has_useful_fields {
