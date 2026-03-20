@@ -34,7 +34,7 @@ runtimes = [
             "/usr/bin/pwsh",
         ],
         test_commands = [
-            {"command": "{executable} -Command \"$PSVersionTable.PSVersion\"",
+            {"command": "{executable} --version",
              "name": "version_check", "expected_output": "\\d+\\.\\d+"},
         ],
     ),
