@@ -101,10 +101,13 @@ def install_layout(ctx, version):
             "strip_prefix":     "ffmpeg-{}-essentials_build".format(version),
             "executable_paths": ["bin/ffmpeg.exe", "bin/ffprobe.exe", "bin/ffplay.exe"],
         }
+    # Linux static build (johnvansickle.com) does NOT include ffplay
+    # (ffplay requires SDL which can't be statically linked).
+    # The archive has a top-level directory like "ffmpeg-7.0-amd64-static/"
     return {
         "type":             "archive",
         "strip_prefix":     "",
-        "executable_paths": ["ffmpeg", "ffprobe", "ffplay"],
+        "executable_paths": ["ffmpeg", "ffprobe"],
     }
 
 # ---------------------------------------------------------------------------
@@ -131,31 +134,19 @@ def post_install(_ctx, _version):
     return None
 
 # ---------------------------------------------------------------------------
-# system_install — macOS via brew (evermeet.cx doesn't support ARM)
+# system_install — static dict with all platforms' strategies
 # ---------------------------------------------------------------------------
+# NOTE: Use static dict (not function) so parse_system_install_strategies
+# can read it directly without calling. Platform filtering is handled
+# automatically by the per-manager helpers (brew_install, apt_install, etc.)
+# which set the "platforms" field on each strategy dict.
 
-# ---------------------------------------------------------------------------
-# system_install — macOS via brew (evermeet.cx doesn't support ARM)
-# ---------------------------------------------------------------------------
-# NOTE: Use explicit function (not multi_platform_install closure) so that
-# parse_system_install_strategies can reliably detect and call it.
-
-def system_install(ctx):
-    os = ctx.platform.os
-    if os == "macos":
-        return system_install_strategies([
-            brew_install("ffmpeg"),
-        ])
-    elif os == "linux":
-        return system_install_strategies([
-            apt_install("ffmpeg"),
-        ])
-    elif os == "windows":
-        return system_install_strategies([
-            winget_install("Gyan.FFmpeg", priority = 90),
-            choco_install("ffmpeg", priority = 70),
-        ])
-    return {}
+system_install = system_install_strategies([
+    brew_install("ffmpeg"),
+    apt_install("ffmpeg"),
+    winget_install("Gyan.FFmpeg", priority = 90),
+    choco_install("ffmpeg", priority = 70),
+])
 
 def deps(_ctx, _version):
     return []

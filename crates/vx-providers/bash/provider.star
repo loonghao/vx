@@ -88,34 +88,21 @@ def install_layout(ctx, _version):
     }
 
 # ---------------------------------------------------------------------------
-# system_install
+# system_install — static dict with all platforms' strategies
 # ---------------------------------------------------------------------------
+# NOTE: Use static dict (not function) so parse_system_install_strategies
+# can read it directly without calling. Platform filtering is handled
+# automatically by the per-manager helpers which set the "platforms" field.
 
-# ---------------------------------------------------------------------------
-# system_install
-# ---------------------------------------------------------------------------
-# NOTE: Use explicit function (not multi_platform_install closure) so that
-# parse_system_install_strategies can reliably detect and call it.
-
-def system_install(ctx):
-    os = ctx.platform.os
-    if os == "windows":
-        return system_install_strategies([
-            winget_install("Git.Git", priority = 95),
-            choco_install("git",      priority = 80),
-            scoop_install("git",      priority = 60),
-        ])
-    elif os == "macos":
-        return system_install_strategies([
-            brew_install("bash"),
-        ])
-    elif os == "linux":
-        return system_install_strategies([
-            apt_install("bash",    priority = 90),
-            dnf_install("bash",    priority = 85),
-            pacman_install("bash", priority = 80),
-        ])
-    return {}
+system_install = system_install_strategies([
+    winget_install("Git.Git", priority = 95),
+    choco_install("git",      priority = 80),
+    scoop_install("git",      priority = 60),
+    brew_install("bash"),
+    apt_install("bash",    priority = 90),
+    dnf_install("bash",    priority = 85),
+    pacman_install("bash", priority = 80),
+])
 
 # ---------------------------------------------------------------------------
 # Path queries + environment

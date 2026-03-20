@@ -88,12 +88,22 @@ def download_url(ctx, version):
 # ---------------------------------------------------------------------------
 
 def install_layout(ctx, _version):
-    exe = "pnpm.exe" if ctx.platform.os == "windows" else "pnpm"
+    platform_suffix = _pnpm_platform_suffix(ctx)
+    if not platform_suffix:
+        return None
+    if ctx.platform.os == "windows":
+        source = "pnpm-{}.exe".format(platform_suffix)
+        target = "pnpm.exe"
+    else:
+        source = "pnpm-{}".format(platform_suffix)
+        target = "pnpm"
     return {
-        "type":               "binary",
-        "target_name":        exe,
+        "__type":             "binary_install",
+        "source_name":        source,
+        "target_name":        target,
         "target_dir":         "bin",
         "target_permissions": "755",
+        "executable_paths":   ["bin/" + target],
     }
 
 # ---------------------------------------------------------------------------

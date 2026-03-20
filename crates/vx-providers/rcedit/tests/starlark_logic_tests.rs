@@ -140,7 +140,7 @@ fn test_install_layout_windows_is_binary() {
 {}
 ctx = struct(platform = struct(os = "windows", arch = "x64", target = ""))
 layout = install_layout(ctx, "1.0.0")
-layout["type"] == "binary"
+layout["__type"] == "binary_install"
 "#,
         provider_star_prefix()
     ));
@@ -155,7 +155,7 @@ fn test_install_layout_windows_renames_to_rcedit_exe() {
 {}
 ctx = struct(platform = struct(os = "windows", arch = "x64", target = ""))
 layout = install_layout(ctx, "1.0.0")
-layout["executable_name"] == "rcedit.exe"
+layout["target_name"] == "rcedit.exe" and "bin/rcedit.exe" in layout["executable_paths"]
 "#,
         provider_star_prefix()
     ));

@@ -89,7 +89,8 @@ url != None and url.endswith(".zip")
 }
 
 #[test]
-fn test_download_url_linux_x64_is_tar_gz() {
+fn test_download_url_linux_x64_is_tar_xz() {
+    // Linux x64 uses glibc build distributed as .tar.xz
     let mut a = Assert::new();
     a.dialect(&Dialect::Standard);
     a.is_true(&format!(
@@ -97,7 +98,7 @@ fn test_download_url_linux_x64_is_tar_gz() {
 {}
 ctx = struct(platform = struct(os = "linux", arch = "x64", target = ""))
 url = download_url(ctx, "4.9.1")
-url != None and url.endswith(".tar.gz")
+url != None and url.endswith(".tar.xz")
 "#,
         provider_star_prefix()
     ));

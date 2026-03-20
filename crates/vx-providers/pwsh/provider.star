@@ -5,7 +5,8 @@
 
 load("@vx//stdlib:provider.star",
      "runtime_def", "github_permissions",
-     "system_install_strategies", "winget_install", "choco_install")
+     "system_install_strategies", "winget_install", "choco_install",
+     "brew_install", "apt_install")
 load("@vx//stdlib:github.star", "make_fetch_versions", "github_asset_url")
 load("@vx//stdlib:env.star", "env_prepend")
 
@@ -94,6 +95,8 @@ def install_layout(ctx, _version):
 system_install = system_install_strategies([
     winget_install("Microsoft.PowerShell", priority = 90),
     choco_install("powershell-core", priority = 80),
+    brew_install("powershell", priority = 70),
+    apt_install("powershell", priority = 60),
 ])
 
 # ---------------------------------------------------------------------------

@@ -149,7 +149,7 @@ fn test_install_layout_is_binary() {
 {}
 ctx = struct(platform = struct(os = "linux", arch = "x64", target = ""))
 layout = install_layout(ctx, "9.0.0")
-layout["type"] == "binary"
+layout["__type"] == "binary_install"
 "#,
         provider_star_prefix()
     ));

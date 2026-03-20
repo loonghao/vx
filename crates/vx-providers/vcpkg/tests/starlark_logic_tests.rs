@@ -123,7 +123,7 @@ fn test_install_layout_is_binary() {
 {}
 ctx = struct(platform = struct(os = "linux", arch = "x64", target = ""))
 layout = install_layout(ctx, "2024.04.26")
-layout["type"] == "binary"
+layout["__type"] == "binary"
 "#,
         provider_star_prefix()
     ));
