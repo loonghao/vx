@@ -124,7 +124,9 @@ url != None and "johnvansickle.com" in url and "arm64" in url
 }
 
 #[test]
-fn test_download_url_macos_uses_evermeet() {
+fn test_download_url_macos_returns_none() {
+    // macOS uses system_install (brew) instead of direct download.
+    // evermeet.cx uses incompatible versioning and only provides Intel binaries.
     let mut a = Assert::new();
     a.dialect(&Dialect::Standard);
     a.is_true(&format!(
@@ -132,7 +134,7 @@ fn test_download_url_macos_uses_evermeet() {
 {}
 ctx = struct(platform = struct(os = "macos", arch = "x64", target = ""))
 url = download_url(ctx, "7.0")
-url != None and "evermeet.cx" in url
+url == None
 "#,
         provider_star_prefix()
     ));

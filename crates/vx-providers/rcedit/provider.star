@@ -102,7 +102,9 @@ def download_url(ctx, version):
 def install_layout(ctx, _version):
     arch = _ARCH_MAP.get(ctx.platform.arch, "x64")
     return {
-        "type":            "binary",
-        "source_name":     "rcedit-{}.exe".format(arch),
-        "executable_name": "rcedit.exe",
+        "__type":           "binary_install",
+        "source_name":      "rcedit-{}.exe".format(arch),
+        "target_name":      "rcedit.exe",
+        "target_dir":       "bin",
+        "executable_paths": ["bin/rcedit.exe"],
     }

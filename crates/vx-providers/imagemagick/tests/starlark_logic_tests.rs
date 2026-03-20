@@ -75,7 +75,9 @@ rt = [r for r in runtimes if r["name"] == "magick"][0]
 // ── download_url logic ────────────────────────────────────────────────────────
 
 #[test]
-fn test_download_url_linux_x64_returns_appimage() {
+fn test_download_url_linux_x64_returns_none() {
+    // AppImage filename includes unpredictable commit hash;
+    // download_url returns None for all platforms, relying on system_install.
     let mut a = Assert::new();
     a.dialect(&Dialect::Standard);
     a.is_true(&format!(
@@ -83,7 +85,7 @@ fn test_download_url_linux_x64_returns_appimage() {
 {}
 ctx = struct(platform = struct(os = "linux", arch = "x64", target = ""))
 url = download_url(ctx, "7.1.1-33")
-url != None and "AppImage" in url
+url == None
 "#,
         provider_star_prefix()
     ));
@@ -138,15 +140,17 @@ url == None
 }
 
 #[test]
-fn test_download_url_linux_uses_github() {
+fn test_download_url_all_platforms_return_none() {
+    // download_url returns None for all platforms; system_install handles installation
     let mut a = Assert::new();
     a.dialect(&Dialect::Standard);
     a.is_true(&format!(
         r#"
 {}
-ctx = struct(platform = struct(os = "linux", arch = "x64", target = ""))
-url = download_url(ctx, "7.1.1-33")
-"github.com" in url
+ctx_linux = struct(platform = struct(os = "linux", arch = "x64", target = ""))
+ctx_macos = struct(platform = struct(os = "macos", arch = "arm64", target = ""))
+ctx_win   = struct(platform = struct(os = "windows", arch = "x64", target = ""))
+download_url(ctx_linux, "7.1.1-33") == None and download_url(ctx_macos, "7.1.1-33") == None and download_url(ctx_win, "7.1.1-33") == None
 "#,
         provider_star_prefix()
     ));

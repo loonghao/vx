@@ -79,29 +79,21 @@ def install_layout(_ctx, _version):
     }
 
 # ---------------------------------------------------------------------------
-# system_install — all platforms via system package managers
+# system_install — static dict with all platforms' strategies
 # ---------------------------------------------------------------------------
-# NOTE: Use explicit function (not multi_platform_install closure) so that
-# parse_system_install_strategies can reliably detect and call it.
+# NOTE: Use static dict (not function) so parse_system_install_strategies
+# can read it directly without calling. Platform filtering is handled
+# automatically by the per-manager helpers (winget_install, brew_install, etc.)
+# which set the "platforms" field on each strategy dict.
 
-def system_install(ctx):
-    os = ctx.platform.os
-    if os == "windows":
-        return system_install_strategies([
-            winget_install("ImageMagick.ImageMagick", priority = 95),
-            choco_install("imagemagick",               priority = 80),
-            scoop_install("imagemagick",               priority = 60),
-        ])
-    elif os == "macos":
-        return system_install_strategies([
-            brew_install("imagemagick"),
-        ])
-    elif os == "linux":
-        return system_install_strategies([
-            apt_install("imagemagick"),
-            dnf_install("ImageMagick"),
-        ])
-    return {}
+system_install = system_install_strategies([
+    winget_install("ImageMagick.ImageMagick", priority = 95),
+    choco_install("imagemagick",               priority = 80),
+    scoop_install("imagemagick",               priority = 60),
+    brew_install("imagemagick"),
+    apt_install("imagemagick"),
+    dnf_install("ImageMagick"),
+])
 
 # ---------------------------------------------------------------------------
 # Path queries + environment

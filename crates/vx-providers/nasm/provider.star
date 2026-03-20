@@ -92,30 +92,17 @@ def install_layout(ctx, version):
 post_extract = post_extract_permissions(["nasm", "ndisasm"])
 
 # ---------------------------------------------------------------------------
-# system_install
+# system_install — static dict with all platforms' strategies
 # ---------------------------------------------------------------------------
+# NOTE: Use static dict (not function) so parse_system_install_strategies
+# can read it directly without calling. Platform filtering is handled
+# automatically by the per-manager helpers which set the "platforms" field.
 
-# ---------------------------------------------------------------------------
-# system_install
-# ---------------------------------------------------------------------------
-# NOTE: Use explicit function (not cross_platform_install closure) so that
-# parse_system_install_strategies can reliably detect and call it.
-
-def system_install(ctx):
-    os = ctx.platform.os
-    if os == "windows":
-        return system_install_strategies([
-            winget_install("NASM.NASM", priority = 80),
-        ])
-    elif os == "macos":
-        return system_install_strategies([
-            brew_install("nasm"),
-        ])
-    elif os == "linux":
-        return system_install_strategies([
-            apt_install("nasm"),
-        ])
-    return {}
+system_install = system_install_strategies([
+    winget_install("NASM.NASM", priority = 80),
+    brew_install("nasm"),
+    apt_install("nasm"),
+])
 
 # ---------------------------------------------------------------------------
 # Path queries + environment

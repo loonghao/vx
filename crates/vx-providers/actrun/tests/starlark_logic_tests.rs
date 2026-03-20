@@ -83,8 +83,8 @@ url != None and url.endswith(".zip")
 }
 
 #[test]
-fn test_download_url_macos_returns_none() {
-    // actrun does not support macOS (uses .pkg which is unsupported)
+fn test_download_url_macos_returns_url() {
+    // actrun falls back to Python wheel for macOS (since .pkg is not supported)
     let mut a = Assert::new();
     a.dialect(&Dialect::Standard);
     a.is_true(&format!(
@@ -92,7 +92,7 @@ fn test_download_url_macos_returns_none() {
 {}
 ctx = struct(platform = struct(os = "macos", arch = "x64", target = ""))
 url = download_url(ctx, "1.0.0")
-url == None
+url != None and url.endswith(".zip")
 "#,
         provider_star_prefix()
     ));
