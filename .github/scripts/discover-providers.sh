@@ -42,11 +42,15 @@ PROVIDERS_DIR="${VX_PROVIDERS_DIR:-crates/vx-providers}"
 # - awscli, azcli: use MSI installer format, can't be extracted in CI
 # - curl: only has manifest, no implementation
 # - nasm: not registered in provider registry
+# - magick: Ubuntu apt provides ImageMagick 6.x which only has 'convert', not 'magick' (IM7+ only)
+# - actrun: macOS uses .pkg/.py format which is not supported; Linux binary may require specific deps
+# - code (VS Code): GUI application, not suitable for headless CI testing
+# - pwsh: complex installation (GitHub download for Linux/macOS unreliable); system tool
 # - rust, rustc, cargo, rustup: require system install (winget/brew), not suitable for CI
 # - ollama: download URL issues with proxy
 # - python: requires system install, network timeout issues
 # - brew, homebrew: require script installation, not suitable for CI
-SKIP_ALWAYS="msbuild,msvc,systemctl,journalctl,systemd-analyze,loginctl,choco,xcodebuild,xcrun,xcode-select,swift,swiftc,make,awscli,aws,azcli,az,curl,nasm,rust,rustc,cargo,rustup,ollama,python,brew,homebrew"
+SKIP_ALWAYS="msbuild,msvc,systemctl,journalctl,systemd-analyze,loginctl,choco,xcodebuild,xcrun,xcode-select,swift,swiftc,make,awscli,aws,azcli,az,curl,nasm,rust,rustc,cargo,rustup,ollama,python,brew,homebrew,magick,convert,actrun,code,vscode,pwsh,powershell"
 
 # Parse arguments
 while [[ $# -gt 0 ]]; do

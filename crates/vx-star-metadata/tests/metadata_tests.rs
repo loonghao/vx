@@ -420,3 +420,75 @@ runtimes = [{"name": "newtool", "executable": "newtool"}]
         "Expected vx_version with extra whitespace to parse correctly"
     );
 }
+
+#[test]
+fn test_parse_bundled_runtime_def_positional_bundled_with() {
+    // Test that bundled_runtime_def("name", "parent", ...) works with positional args
+    let source = r#"
+name = "ffmpeg"
+runtimes = [
+    runtime_def("ffmpeg"),
+    bundled_runtime_def("ffprobe", "ffmpeg",
+        description = "FFmpeg media stream analyzer",
+    ),
+    bundled_runtime_def("ffplay", "ffmpeg",
+        description = "FFmpeg media player",
+    ),
+]
+"#;
+    let meta = StarMetadata::parse(source);
+    assert_eq!(meta.runtimes.len(), 3);
+    assert_eq!(meta.runtimes[0].name, Some("ffmpeg".to_string()));
+    assert_eq!(meta.runtimes[0].bundled_with, None);
+    assert_eq!(meta.runtimes[1].name, Some("ffprobe".to_string()));
+    assert_eq!(
+        meta.runtimes[1].bundled_with,
+        Some("ffmpeg".to_string()),
+        "Expected positional second arg to be parsed as bundled_with"
+    );
+    assert_eq!(meta.runtimes[2].name, Some("ffplay".to_string()));
+    assert_eq!(
+        meta.runtimes[2].bundled_with,
+        Some("ffmpeg".to_string()),
+        "Expected positional second arg to be parsed as bundled_with"
+    );
+}
+
+#[test]
+fn test_parse_platforms_multiline_dict() {
+    // Test that multi-line platforms = { ... } is parsed correctly
+    let source = r#"
+name = "rcedit"
+
+platforms = {
+    "os": ["windows"],
+}
+
+runtimes = [runtime_def("rcedit")]
+"#;
+    let meta = StarMetadata::parse(source);
+    assert_eq!(
+        meta.platforms,
+        Some(vec!["windows".to_string()]),
+        "Expected multi-line platforms dict to be parsed correctly"
+    );
+}
+
+#[test]
+fn test_parse_platforms_multiline_multiple_os() {
+    let source = r#"
+name = "mytool"
+
+platforms = {
+    "os": ["windows", "macos"],
+}
+
+runtimes = [runtime_def("mytool")]
+"#;
+    let meta = StarMetadata::parse(source);
+    assert_eq!(
+        meta.platforms,
+        Some(vec!["macos".to_string(), "windows".to_string()]),
+        "Expected multi-OS platforms to be sorted"
+    );
+}
