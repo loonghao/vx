@@ -32,7 +32,21 @@ pub fn build_command(
     // The outer quotes are stripped by /c, leaving the inner quotes intact.
     #[cfg(windows)]
     let mut cmd = {
-        let ext = executable
+        // Resolve the actual executable to use on Windows.
+        //
+        // Some code paths (ExecPathCache, ResolutionCache, or edge cases in
+        // directory search) may resolve to a bare Unix shell script (e.g.,
+        // `npm` instead of `npm.cmd`).  Attempting to spawn a shell script
+        // directly on Windows produces OS error 193 ("%1 is not a valid Win32
+        // application").
+        //
+        // As a safety net we check: if the executable has no extension (or an
+        // unknown extension), try `.cmd` / `.exe` variants in the same
+        // directory.  If a variant exists, use that instead.
+        let resolved = resolve_windows_executable(executable);
+        let resolved_ref = resolved.as_deref().unwrap_or(executable.as_path());
+
+        let ext = resolved_ref
             .extension()
             .and_then(|e| e.to_str())
             .unwrap_or("")
@@ -44,13 +58,13 @@ pub fn build_command(
 
             // Build the complete command string with proper quoting
             // Format: ""path" args..." where outer quotes are stripped by /c
-            let cmd_string = build_cmd_string(executable, &resolution.command_prefix, args);
+            let cmd_string = build_cmd_string(resolved_ref, &resolution.command_prefix, args);
             c.raw_arg(cmd_string);
 
             // Return early since we've already added all arguments via raw_arg
             return finalize_command(c, runtime_env, inherit_vx_path, vx_tools_path, resolution);
         } else {
-            Command::new(executable)
+            Command::new(resolved_ref)
         }
     };
 
@@ -66,6 +80,52 @@ pub fn build_command(
     cmd.args(args);
 
     finalize_command(cmd, runtime_env, inherit_vx_path, vx_tools_path, resolution)
+}
+
+/// Resolve a Windows executable path, handling bare Unix scripts.
+///
+/// On Windows, some executables (e.g., `npm`, `npx`) ship as both a Unix shell
+/// script (no extension) and a `.cmd` batch wrapper.  If the resolved path has
+/// no known Windows-executable extension, this function checks for `.cmd`,
+/// `.bat`, and `.exe` variants in the same directory and returns the first one
+/// found.
+///
+/// Returns `None` if the executable already has a known extension or no better
+/// variant exists (caller should use the original path).
+#[cfg(windows)]
+fn resolve_windows_executable(executable: &std::path::Path) -> Option<std::path::PathBuf> {
+    // Only act on absolute paths (relative names go through PATH resolution)
+    if !executable.is_absolute() {
+        return None;
+    }
+
+    let ext = executable
+        .extension()
+        .and_then(|e| e.to_str())
+        .unwrap_or("")
+        .to_lowercase();
+
+    // Already has a known Windows extension — nothing to do
+    if matches!(ext.as_str(), "exe" | "cmd" | "bat" | "com" | "ps1") {
+        return None;
+    }
+
+    // Try Windows-native extensions in priority order
+    // .cmd first because tools like npm/npx use .cmd wrappers
+    for try_ext in &["cmd", "exe", "bat"] {
+        let variant = executable.with_extension(try_ext);
+        if variant.is_file() {
+            trace!(
+                "resolve_windows_executable: {} → {} (resolved extensionless file)",
+                executable.display(),
+                variant.display()
+            );
+            return Some(variant);
+        }
+    }
+
+    // No variant found — caller will use the original path
+    None
 }
 
 /// Build a command string for cmd.exe /c with proper quoting
