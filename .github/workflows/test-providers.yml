@@ -147,7 +147,7 @@ jobs:
           fi
 
       - name: Upload VX binary (Linux)
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         with:
           name: vx-linux
           path: target/release/vx
@@ -193,7 +193,7 @@ jobs:
             target/
           key: macos-cargo-build-${{ hashFiles('**/Cargo.lock') }}
       - run: cargo build --release
-      - uses: actions/upload-artifact@v5
+      - uses: actions/upload-artifact@v7
         with:
           name: vx-macos
           path: target/release/vx
@@ -258,7 +258,7 @@ jobs:
             target/
           key: windows-cargo-build-${{ hashFiles('**/Cargo.lock') }}
       - run: cargo build --release
-      - uses: actions/upload-artifact@v5
+      - uses: actions/upload-artifact@v7
         with:
           name: vx-windows
           path: target/release/vx.exe
@@ -303,7 +303,7 @@ jobs:
 
       - name: Upload test report
         if: always()
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         with:
           name: report-linux-${{ strategy.job-index }}
           path: test-report.json
@@ -348,7 +348,7 @@ jobs:
 
       - name: Upload test report
         if: always()
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         with:
           name: report-macos-${{ strategy.job-index }}
           path: test-report.json
@@ -391,7 +391,7 @@ jobs:
 
       - name: Upload test report
         if: always()
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         with:
           name: report-windows-${{ strategy.job-index }}
           path: test-report.json

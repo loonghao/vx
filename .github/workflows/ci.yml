@@ -409,7 +409,7 @@ jobs:
           ./target/${{ matrix.platform.target }}/release/${{ matrix.platform.binary }} --help
 
       - name: Upload vx binary
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: ${{ matrix.platform.artifact }}
           path: target/${{ matrix.platform.target }}/release/${{ matrix.platform.binary }}

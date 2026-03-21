@@ -139,7 +139,7 @@ jobs:
           ls -la *.deb
 
       - name: Upload DEB artifact
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         with:
           name: deb-${{ matrix.arch }}
           path: "*.deb"
@@ -228,7 +228,7 @@ jobs:
           ls -la *.rpm
 
       - name: Upload RPM artifact
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         with:
           name: rpm-${{ matrix.arch }}
           path: "*.rpm"
