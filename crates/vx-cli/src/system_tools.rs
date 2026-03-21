@@ -137,24 +137,87 @@ fn find_system_tool(runtime: &std::sync::Arc<dyn Runtime>) -> (Option<PathBuf>, 
     (None, None)
 }
 
-/// Try to get the version of a tool by running it with --version
-fn get_tool_version(path: &PathBuf) -> Option<String> {
-    // Try common version flags
-    for flag in &["--version", "-V", "-v", "version"] {
-        if let Ok(output) = std::process::Command::new(path).arg(flag).output()
-            && output.status.success()
-        {
-            let stdout = String::from_utf8_lossy(&output.stdout);
-            let stderr = String::from_utf8_lossy(&output.stderr);
-            let combined = format!("{}{}", stdout, stderr);
+/// Timeout for version detection commands (per invocation)
+const VERSION_DETECT_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(5);
 
-            // Try to extract version number
-            if let Some(version) = extract_version(&combined) {
-                return Some(version);
-            }
+/// Try to get the version of a tool by running it with --version.
+///
+/// Each subprocess is given a strict timeout to avoid hanging on slow tools
+/// (e.g., Python/Java wrappers on Windows). Only `--version` and `-V` are
+/// attempted — `-v` (often "verbose") and bare `version` sub-commands are
+/// omitted to prevent unexpected behaviour.
+fn get_tool_version(path: &PathBuf) -> Option<String> {
+    // Only try the two most reliable flags; `-v` and `version` cause issues
+    // with many tools (verbose mode, GUI prompts, etc.)
+    for flag in &["--version", "-V"] {
+        if let Some(version) = try_version_flag(path, flag) {
+            return Some(version);
         }
     }
     None
+}
+
+/// Run a single version-detection command with a timeout.
+fn try_version_flag(path: &PathBuf, flag: &str) -> Option<String> {
+    let mut cmd = std::process::Command::new(path);
+    cmd.arg(flag)
+        .stdin(std::process::Stdio::null()) // prevent interactive prompts
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::piped());
+
+    // On Windows, prevent console window pop-ups for GUI-less tools
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        const CREATE_NO_WINDOW: u32 = 0x08000000;
+        cmd.creation_flags(CREATE_NO_WINDOW);
+    }
+
+    let mut child = cmd.spawn().ok()?;
+
+    // Poll with timeout instead of blocking indefinitely
+    let start = std::time::Instant::now();
+    loop {
+        match child.try_wait() {
+            Ok(Some(status)) => {
+                // Process exited
+                if status.success() {
+                    let stdout = child
+                        .stdout
+                        .take()
+                        .and_then(|mut s| {
+                            let mut buf = String::new();
+                            std::io::Read::read_to_string(&mut s, &mut buf).ok()?;
+                            Some(buf)
+                        })
+                        .unwrap_or_default();
+                    let stderr = child
+                        .stderr
+                        .take()
+                        .and_then(|mut s| {
+                            let mut buf = String::new();
+                            std::io::Read::read_to_string(&mut s, &mut buf).ok()?;
+                            Some(buf)
+                        })
+                        .unwrap_or_default();
+                    let combined = format!("{}{}", stdout, stderr);
+                    return extract_version(&combined);
+                }
+                return None;
+            }
+            Ok(None) => {
+                // Still running — check timeout
+                if start.elapsed() > VERSION_DETECT_TIMEOUT {
+                    tracing::debug!("version check timed out for {} {}", path.display(), flag);
+                    let _ = child.kill();
+                    let _ = child.wait(); // reap the zombie
+                    return None;
+                }
+                std::thread::sleep(std::time::Duration::from_millis(50));
+            }
+            Err(_) => return None,
+        }
+    }
 }
 
 /// Extract version number from output string

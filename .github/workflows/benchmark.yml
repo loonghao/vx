@@ -42,7 +42,7 @@ jobs:
       github.event_name != 'push' ||
       !startsWith(github.event.head_commit.message, 'chore: release')
     runs-on: ${{ matrix.platform.os }}
-    timeout-minutes: 30
+    timeout-minutes: ${{ matrix.platform.timeout_minutes }}
     env:
       RUSTC_WRAPPER: sccache
       SCCACHE_DIR: ${{ github.workspace }}/.cache/sccache
@@ -53,15 +53,18 @@ jobs:
           - name: Linux-x86_64
             os: ubuntu-latest
             target: x86_64-unknown-linux-gnu
+            timeout_minutes: 30
           - name: Windows-x86_64
             os: windows-latest
             target: x86_64-pc-windows-msvc
+            timeout_minutes: 45
           - name: macOS-ARM64
             os: macos-latest
             target: aarch64-apple-darwin
+            timeout_minutes: 30
 
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
 
       - name: Setup vx
         uses: ./
@@ -210,7 +213,7 @@ jobs:
           echo "}" >> benchmark.json
 
       - name: Upload benchmark results
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: benchmark-${{ matrix.platform.name }}
           path: |
