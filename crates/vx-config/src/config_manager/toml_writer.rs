@@ -103,29 +103,25 @@ impl TomlWriter {
 
     /// Add a key-value pair with string value
     pub fn kv(mut self, key: &str, value: &str) -> Self {
-        let decorated = self.create_decorated_value(Value::from(value));
-        self.set_value(key, Item::Value(decorated));
+        self.set_value(key, Item::Value(Value::from(value)));
         self
     }
 
     /// Add a key-value pair with boolean value
     pub fn kv_bool(mut self, key: &str, value: bool) -> Self {
-        let decorated = self.create_decorated_value(Value::from(value));
-        self.set_value(key, Item::Value(decorated));
+        self.set_value(key, Item::Value(Value::from(value)));
         self
     }
 
     /// Add a key-value pair with integer value
     pub fn kv_int(mut self, key: &str, value: i64) -> Self {
-        let decorated = self.create_decorated_value(Value::from(value));
-        self.set_value(key, Item::Value(decorated));
+        self.set_value(key, Item::Value(Value::from(value)));
         self
     }
 
     /// Add a key-value pair with float value
     pub fn kv_float(mut self, key: &str, value: f64) -> Self {
-        let decorated = self.create_decorated_value(Value::from(value));
-        self.set_value(key, Item::Value(decorated));
+        self.set_value(key, Item::Value(Value::from(value)));
         self
     }
 
@@ -135,8 +131,7 @@ impl TomlWriter {
         for v in values {
             array.push(*v);
         }
-        let decorated = self.create_decorated_value(Value::Array(array));
-        self.set_value(key, Item::Value(decorated));
+        self.set_value(key, Item::Value(Value::Array(array)));
         self
     }
 
@@ -161,13 +156,14 @@ impl TomlWriter {
             inline.insert(k, Value::from(v.as_str()));
         }
 
-        let decorated = self.create_decorated_value(Value::InlineTable(inline));
-        self.set_value(key, Item::Value(decorated));
+        self.set_value(key, Item::Value(Value::InlineTable(inline)));
         self
     }
 
     /// Add multiple key-value pairs from a HashMap (sorted by key)
-    /// This is an alias for `kv_map` which already sorts.
+    ///
+    /// This is an alias for `kv_map` which already sorts. Prefer using `kv_map` directly.
+    #[deprecated(note = "use `kv_map` instead, which already sorts entries")]
     pub fn kv_map_sorted(self, map: &HashMap<String, String>) -> Self {
         self.kv_map(map)
     }
@@ -197,8 +193,7 @@ impl TomlWriter {
             Value::from(raw_value)
         };
 
-        let decorated = self.create_decorated_value(value);
-        self.set_value(key, Item::Value(decorated));
+        self.set_value(key, Item::Value(value));
         self
     }
 
@@ -265,16 +260,11 @@ impl TomlWriter {
         }
     }
 
-    // Helper: Create a value (comments are now handled in set_value)
-    fn create_decorated_value(&mut self, value: Value) -> Value {
-        // Comments are now applied in set_value, not here
-        value
-    }
-
-    // Helper: Flush pending comments to section header
+    // Helper: Flush pending comments when entering a new section.
+    //
+    // TODO: Apply pending comments as section header decorations via toml_edit's
+    // decor system instead of simply discarding them.
     fn flush_comments_to_section(&mut self, _section: &str) {
-        // Comments before sections are handled by toml_edit's decor system
-        // For now, we just clear pending comments when starting a new section
         self.pending_comments.clear();
     }
 }

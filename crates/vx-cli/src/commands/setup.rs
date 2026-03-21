@@ -472,7 +472,7 @@ fn write_vx_config(path: &Path, config: &ConfigView) -> Result<()> {
         .comment("Run 'vx dev' to enter the development environment.");
 
     // Tools section
-    writer = writer.section("tools").kv_map_sorted(&config.tools);
+    writer = writer.section("tools").kv_map(&config.tools);
 
     // Settings section
     if !config.settings.is_empty() {
@@ -484,14 +484,14 @@ fn write_vx_config(path: &Path, config: &ConfigView) -> Result<()> {
 
     // Env section
     if !config.env.is_empty() {
-        writer = writer.section("env").kv_map_sorted(&config.env);
+        writer = writer.section("env").kv_map(&config.env);
     }
 
     // Scripts section
     if !config.scripts.is_empty() {
         writer = writer
             .section("scripts")
-            .kv_map_sorted(&config.scripts_as_simple_hashmap());
+            .kv_map(&config.scripts_as_simple_hashmap());
     }
 
     fs::write(path, writer.build())?;
