@@ -42,6 +42,13 @@ pub const NODEJS_RULES: &[ScriptRule] = &[
     // =========================================================================
     // Linting
     // =========================================================================
+    ScriptRule::new(
+        "lint",
+        "npx oxlint .",
+        "Run oxlint (fast Rust-based linter)",
+    )
+    .triggers(&["oxlintrc.json", ".oxlintrc.json"])
+    .priority(100),
     ScriptRule::new("lint", "npx eslint .", "Run ESLint")
         .triggers(&[
             ".eslintrc",
@@ -51,14 +58,34 @@ pub const NODEJS_RULES: &[ScriptRule] = &[
             "eslint.config.js",
             "eslint.config.mjs",
         ])
+        .excludes(&["oxlintrc.json", ".oxlintrc.json"])
         .priority(80),
     ScriptRule::new("lint", "npx biome check .", "Run Biome linter")
         .triggers(&["biome.json", "biome.jsonc"])
-        .excludes(&[".eslintrc", ".eslintrc.js", "eslint.config.js"])
+        .excludes(&[
+            ".eslintrc",
+            ".eslintrc.js",
+            "eslint.config.js",
+            "oxlintrc.json",
+            ".oxlintrc.json",
+        ])
         .priority(90),
     // =========================================================================
     // Formatting
     // =========================================================================
+    ScriptRule::new(
+        "format",
+        "npx oxfmt .",
+        "Format with oxfmt (fast Rust-based formatter)",
+    )
+    .triggers(&["oxlintrc.json", ".oxlintrc.json"])
+    .excludes(&[
+        ".prettierrc",
+        ".prettierrc.js",
+        "prettier.config.js",
+        "biome.json",
+    ])
+    .priority(100),
     ScriptRule::new("format", "npx prettier --write .", "Format with Prettier")
         .triggers(&[
             ".prettierrc",
@@ -66,10 +93,17 @@ pub const NODEJS_RULES: &[ScriptRule] = &[
             ".prettierrc.json",
             "prettier.config.js",
         ])
+        .excludes(&["oxlintrc.json", ".oxlintrc.json"])
         .priority(80),
     ScriptRule::new("format", "npx biome format --write .", "Format with Biome")
         .triggers(&["biome.json", "biome.jsonc"])
-        .excludes(&[".prettierrc", ".prettierrc.js", "prettier.config.js"])
+        .excludes(&[
+            ".prettierrc",
+            ".prettierrc.js",
+            "prettier.config.js",
+            "oxlintrc.json",
+            ".oxlintrc.json",
+        ])
         .priority(90),
     // =========================================================================
     // Type checking

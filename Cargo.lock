@@ -5008,6 +5008,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "vx-provider-cross"
+version = "0.8.4"
+dependencies = [
+ "rstest",
+ "starlark",
+ "vx-runtime",
+ "vx-starlark",
+ "workspace-hack",
+]
+
+[[package]]
 name = "vx-provider-curl"
 version = "0.8.4"
 dependencies = [

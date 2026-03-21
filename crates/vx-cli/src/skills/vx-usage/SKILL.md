@@ -193,17 +193,19 @@ vx msvc@14.40 cl main.cpp
 | lib | `vx msvc lib` | Library manager |
 | nmake | `vx msvc nmake` | Make utility |
 
-## Supported Tools (50+)
+## Supported Tools (75+)
 
 | Category | Tools |
 |----------|-------|
 | JavaScript | node, npm, npx, bun, deno, pnpm, yarn, vite |
-| Python | uv, uvx, python, pip |
+| JS Tooling | oxlint, oxfmt, turbo, nx |
+| Python | uv, uvx, python, pip, ruff, maturin |
 | Rust | cargo, rustc, rustup |
 | Go | go, gofmt |
 | System | git, just, jq, cmake, make, ninja, meson |
 | Cloud | podman, kubectl, helm, awscli, azcli, gcloud, terraform |
 | .NET | dotnet, msbuild, nuget |
+| AI Agents | openclaw, clawhub |
 | Other | zig, java, protoc, ffmpeg, gh, ollama, dagu, skills |
 
 ## Important Rules for AI Agents

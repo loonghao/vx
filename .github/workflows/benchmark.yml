@@ -1,4 +1,4 @@
-﻿name: Performance Benchmark
+name: Performance Benchmark
 
 # Run benchmarks on every PR and main push to detect performance regressions
 on:
@@ -213,7 +213,7 @@ jobs:
           echo "}" >> benchmark.json
 
       - name: Upload benchmark results
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: benchmark-${{ matrix.platform.name }}
           path: |
@@ -235,7 +235,7 @@ jobs:
     if: always()
     steps:
       - name: Download all benchmark artifacts
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@v7
         with:
           pattern: benchmark-*
           path: benchmarks/
