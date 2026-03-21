@@ -129,9 +129,12 @@ impl PythonPatternProvider {
     /// Create a new Python pattern provider
     pub fn new() -> Self {
         Self {
-            uv_run: Regex::new(r"uv\s+run\s+([a-zA-Z0-9_-]+)(?:\s+(.*))?").unwrap(),
-            uvx: Regex::new(r"uvx\s+([a-zA-Z0-9_-]+)(?:\s+(.*))?").unwrap(),
-            python_m: Regex::new(r"python(?:3)?\s+-m\s+([a-zA-Z0-9_]+)(?:\s+(.*))?").unwrap(),
+            uv_run: Regex::new(r"uv\s+run\s+([a-zA-Z0-9_-]+)(?:\s+(.*))?")
+                .expect("uv_run regex should compile"),
+            uvx: Regex::new(r"uvx\s+([a-zA-Z0-9_-]+)(?:\s+(.*))?")
+                .expect("uvx regex should compile"),
+            python_m: Regex::new(r"python(?:3)?\s+-m\s+([a-zA-Z0-9_]+)(?:\s+(.*))?")
+                .expect("python_m regex should compile"),
         }
     }
 
@@ -141,7 +144,11 @@ impl PythonPatternProvider {
 
     fn try_uv_run(&self, command: &str) -> Option<ScriptTool> {
         self.uv_run.captures(command).map(|caps| {
-            let name = caps.get(1).unwrap().as_str().to_string();
+            let name = caps
+                .get(1)
+                .expect("uv_run regex group 1 should match")
+                .as_str()
+                .to_string();
             let args = caps
                 .get(2)
                 .map(|m| Self::parse_args(m.as_str()))
@@ -156,7 +163,11 @@ impl PythonPatternProvider {
 
     fn try_uvx(&self, command: &str) -> Option<ScriptTool> {
         self.uvx.captures(command).map(|caps| {
-            let name = caps.get(1).unwrap().as_str().to_string();
+            let name = caps
+                .get(1)
+                .expect("uvx regex group 1 should match")
+                .as_str()
+                .to_string();
             let args = caps
                 .get(2)
                 .map(|m| Self::parse_args(m.as_str()))
@@ -171,7 +182,11 @@ impl PythonPatternProvider {
 
     fn try_python_m(&self, command: &str) -> Option<ScriptTool> {
         self.python_m.captures(command).map(|caps| {
-            let name = caps.get(1).unwrap().as_str().to_string();
+            let name = caps
+                .get(1)
+                .expect("python_m regex group 1 should match")
+                .as_str()
+                .to_string();
             let args = caps
                 .get(2)
                 .map(|m| Self::parse_args(m.as_str()))
@@ -285,11 +300,16 @@ impl NodeJsPatternProvider {
     /// Create a new Node.js pattern provider
     pub fn new() -> Self {
         Self {
-            npx: Regex::new(r"npx\s+(?:--yes\s+)?([a-zA-Z0-9@/_-]+)(?:\s+(.*))?").unwrap(),
-            pnpm_exec: Regex::new(r"pnpm\s+exec\s+([a-zA-Z0-9_-]+)(?:\s+(.*))?").unwrap(),
-            pnpm_run: Regex::new(r"pnpm\s+(?:run\s+)?([a-zA-Z0-9_:-]+)(?:\s+(.*))?").unwrap(),
-            yarn_exec: Regex::new(r"yarn\s+(?:exec\s+)?([a-zA-Z0-9_-]+)(?:\s+(.*))?").unwrap(),
-            bunx: Regex::new(r"bunx?\s+([a-zA-Z0-9@/_-]+)(?:\s+(.*))?").unwrap(),
+            npx: Regex::new(r"npx\s+(?:--yes\s+)?([a-zA-Z0-9@/_-]+)(?:\s+(.*))?")
+                .expect("npx regex should compile"),
+            pnpm_exec: Regex::new(r"pnpm\s+exec\s+([a-zA-Z0-9_-]+)(?:\s+(.*))?")
+                .expect("pnpm_exec regex should compile"),
+            pnpm_run: Regex::new(r"pnpm\s+(?:run\s+)?([a-zA-Z0-9_:-]+)(?:\s+(.*))?")
+                .expect("pnpm_run regex should compile"),
+            yarn_exec: Regex::new(r"yarn\s+(?:exec\s+)?([a-zA-Z0-9_-]+)(?:\s+(.*))?")
+                .expect("yarn_exec regex should compile"),
+            bunx: Regex::new(r"bunx?\s+([a-zA-Z0-9@/_-]+)(?:\s+(.*))?")
+                .expect("bunx regex should compile"),
         }
     }
 
@@ -299,7 +319,11 @@ impl NodeJsPatternProvider {
 
     fn try_npx(&self, command: &str) -> Option<ScriptTool> {
         self.npx.captures(command).map(|caps| {
-            let name = caps.get(1).unwrap().as_str().to_string();
+            let name = caps
+                .get(1)
+                .expect("npx regex group 1 should match")
+                .as_str()
+                .to_string();
             let args = caps
                 .get(2)
                 .map(|m| Self::parse_args(m.as_str()))
@@ -315,7 +339,10 @@ impl NodeJsPatternProvider {
     fn try_pnpm(&self, command: &str, context: &ParseContext) -> Option<ScriptTool> {
         // First try explicit exec pattern
         if let Some(caps) = self.pnpm_exec.captures(command) {
-            let name = caps.get(1).unwrap().as_str();
+            let name = caps
+                .get(1)
+                .expect("pnpm_exec regex group 1 should match")
+                .as_str();
             if PM_BUILTINS.contains(&name) || context.known_scripts.contains(&name) {
                 return None;
             }
@@ -330,7 +357,10 @@ impl NodeJsPatternProvider {
 
         // Then try pnpm run pattern
         if let Some(caps) = self.pnpm_run.captures(command) {
-            let name = caps.get(1).unwrap().as_str();
+            let name = caps
+                .get(1)
+                .expect("pnpm_run regex group 1 should match")
+                .as_str();
             if PM_BUILTINS.contains(&name) || context.known_scripts.contains(&name) {
                 return None;
             }
@@ -352,7 +382,10 @@ impl NodeJsPatternProvider {
 
     fn try_yarn(&self, command: &str, context: &ParseContext) -> Option<ScriptTool> {
         self.yarn_exec.captures(command).and_then(|caps| {
-            let name = caps.get(1).unwrap().as_str();
+            let name = caps
+                .get(1)
+                .expect("yarn_exec regex group 1 should match")
+                .as_str();
             if PM_BUILTINS.contains(&name) || context.known_scripts.contains(&name) {
                 return None;
             }
@@ -369,7 +402,11 @@ impl NodeJsPatternProvider {
 
     fn try_bunx(&self, command: &str) -> Option<ScriptTool> {
         self.bunx.captures(command).map(|caps| {
-            let name = caps.get(1).unwrap().as_str().to_string();
+            let name = caps
+                .get(1)
+                .expect("bunx regex group 1 should match")
+                .as_str()
+                .to_string();
             let args = caps
                 .get(2)
                 .map(|m| Self::parse_args(m.as_str()))

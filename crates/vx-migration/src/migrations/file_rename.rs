@@ -10,7 +10,11 @@ use crate::version::{Version, VersionRange};
 use async_trait::async_trait;
 use std::any::Any;
 
-/// Migration for renaming vx.toml to vx.toml
+/// Placeholder migration for config file renames.
+///
+/// NOTE: This migration is currently a no-op because both the source and target
+/// file names are `vx.toml`. It exists as a template for future file rename
+/// migrations (e.g., if a legacy config name like `.vx.toml` is ever introduced).
 pub struct FileRenameMigration;
 
 impl FileRenameMigration {
@@ -32,7 +36,7 @@ impl Migration for FileRenameMigration {
         MigrationMetadata::new(
             "file-rename",
             "Config File Rename",
-            "Renames vx.toml to vx.toml",
+            "Placeholder for config file rename migration (currently a no-op)",
         )
         .with_versions(VersionRange::any(), Version::new(2, 0, 0))
         .with_category(MigrationCategory::FileStructure)
@@ -41,7 +45,8 @@ impl Migration for FileRenameMigration {
     }
 
     async fn check(&self, ctx: &MigrationContext) -> MigrationResult<bool> {
-        // Check if vx.toml exists and vx.toml doesn't
+        // NOTE: Both paths currently point to "vx.toml", so this always returns false.
+        // This will be meaningful once a legacy filename (e.g., ".vx.toml") is introduced.
         let old_exists = ctx.file_exists("vx.toml").await;
         let new_exists = ctx.file_exists("vx.toml").await;
 

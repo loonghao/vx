@@ -3,8 +3,10 @@
 //! This module provides:
 //! - `build_vx_tools_path()`: Build a PATH string containing all vx-managed tool bin directories
 //! - `select_version_for_runtime()`: Select the best version for a runtime based on project config
+//!
+//! NOTE: These functions are the modularized versions of the corresponding methods on
+//! `EnvironmentManager`. They will fully replace those methods in a future refactor.
 
-use std::collections::HashSet;
 use tracing::{trace, warn};
 use vx_runtime::RuntimeContext;
 
