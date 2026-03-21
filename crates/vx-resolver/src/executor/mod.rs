@@ -15,6 +15,7 @@
 //! - `project_config` - Project configuration loading from vx.toml
 //! - `bundle` - Offline bundle support for disconnected environments
 
+mod bin_dir_cache;
 mod bundle;
 mod command;
 mod environment;
@@ -22,15 +23,18 @@ mod environment;
 mod executor;
 mod fallback;
 mod installation;
+#[allow(dead_code)]
+mod path_builder;
 pub mod pipeline;
 mod project_config;
+mod version_utils;
 
 // Re-export main types
+pub use bin_dir_cache::{clear_bin_dir_cache, invalidate_bin_dir_cache};
 pub use bundle::{
     BUNDLE_DIR, BUNDLE_MANIFEST, BundleContext, BundleManifest, BundledToolInfo, execute_bundle,
     execute_system_runtime, has_bundle, is_online, try_get_bundle_context,
 };
-pub use environment::{clear_bin_dir_cache, invalidate_bin_dir_cache};
 pub use executor::Executor;
 pub use project_config::ProjectToolsConfig;
 
