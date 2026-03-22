@@ -12,6 +12,7 @@
 load("@vx//stdlib:provider.star",
      "runtime_def", "bundled_runtime_def",
      "system_permissions", "dep_def")
+load("@vx//stdlib:http.star", "fetch_json_versions")
 load("@vx//stdlib:env.star", "env_prepend")
 
 # ---------------------------------------------------------------------------
@@ -49,7 +50,10 @@ runtimes = [
 # Permissions — npm-based, no direct binary download
 # ---------------------------------------------------------------------------
 
-permissions = system_permissions()
+permissions = system_permissions(
+    extra_hosts = ["registry.npmjs.org"],
+    exec_cmds   = ["npm", "npx", "node"],
+)
 
 # ---------------------------------------------------------------------------
 # Installation via npm global install
@@ -57,10 +61,7 @@ permissions = system_permissions()
 
 def fetch_versions(ctx):
     # OpenClaw versions are fetched from npm registry
-    return {
-        "type": "npm_registry",
-        "package": "openclaw",
-    }
+    return fetch_json_versions(ctx, "https://registry.npmjs.org/openclaw", "npm_registry")
 
 def download_url(_ctx, _version):
     # Not a direct binary download — installed via npm

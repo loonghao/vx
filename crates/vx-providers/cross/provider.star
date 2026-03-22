@@ -92,7 +92,7 @@ def install_layout(ctx, _version):
         exe_paths = ["cross", "cross-util"]
     return {
         "__type":           "archive",
-        "strip_prefix":     None,
+        "strip_prefix":     "",
         "executable_paths": exe_paths,
     }
 

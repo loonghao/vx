@@ -9,10 +9,10 @@
 
 load("@vx//stdlib:provider.star",
      "runtime_def", "bundled_runtime_def", "github_permissions",
-     "archive_layout", "path_fns",
      "fetch_versions_with_tag_prefix")
 load("@vx//stdlib:github.star", "github_asset_url")
 load("@vx//stdlib:env.star",    "env_prepend")
+load("@vx//stdlib:platform.star", "exe_suffix")
 
 # ---------------------------------------------------------------------------
 # Provider metadata
@@ -86,18 +86,40 @@ def download_url(ctx, version):
     return github_asset_url("oxc-project", "oxc", "apps_v" + version, asset)
 
 # ---------------------------------------------------------------------------
-# install_layout — archive contains oxlint (+ oxfmt) binary at root
+# install_layout — archive contains oxlint-{triple} binary (not just "oxlint")
+# The tar.gz files contain a single file named "oxlint-{triple}" (e.g.
+# "oxlint-x86_64-unknown-linux-gnu").  We must declare the full name in
+# executable_paths so the installer can locate and rename it correctly.
 # ---------------------------------------------------------------------------
 
-install_layout = archive_layout("oxlint")
+def install_layout(ctx, _version):
+    triple = _oxc_triple(ctx)
+    if not triple:
+        return None
+    # On Windows the tar.gz contains "oxlint-{triple}.exe"
+    suffix = exe_suffix(ctx)
+    src_name = "oxlint-{}{}".format(triple, suffix)
+    dst_name = "oxlint{}".format(suffix)
+    return {
+        "type":             "archive",
+        "strip_prefix":     "",
+        "executable_paths": [dst_name, src_name],
+    }
 
 # ---------------------------------------------------------------------------
 # Path queries + environment
+# The executable inside the archive is named "oxlint-{triple}" (not "oxlint"),
+# so get_execute_path must return the triple-named path.
 # ---------------------------------------------------------------------------
 
-paths            = path_fns("oxlint")
-store_root       = paths["store_root"]
-get_execute_path = paths["get_execute_path"]
+def store_root(ctx):
+    return ctx.vx_home + "/store/oxlint"
+
+def get_execute_path(ctx, _version):
+    triple = _oxc_triple(ctx)
+    if not triple:
+        return ctx.install_dir + "/oxlint" + exe_suffix(ctx)
+    return ctx.install_dir + "/oxlint-{}{}".format(triple, exe_suffix(ctx))
 
 def post_install(_ctx, _version):
     return None
