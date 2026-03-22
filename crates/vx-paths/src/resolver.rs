@@ -89,7 +89,7 @@ impl PathResolver {
     /// end of a command execution, or after install/uninstall).
     pub fn save_cache(&self) {
         if let Some(ref cache_dir) = self.cache_dir {
-            let cache = self.exec_cache.lock().unwrap();
+            let cache = self.exec_cache.lock().expect("exec_cache lock poisoned");
             if let Err(e) = cache.save(cache_dir) {
                 tracing::debug!("Failed to save exec path cache: {}", e);
             }
@@ -101,7 +101,7 @@ impl PathResolver {
     /// Call this after installing or uninstalling a runtime version.
     pub fn invalidate_runtime_cache(&self, runtime_name: &str) {
         let runtime_store_dir = self.manager.runtime_store_dir(runtime_name);
-        let mut cache = self.exec_cache.lock().unwrap();
+        let mut cache = self.exec_cache.lock().expect("exec_cache lock poisoned");
         cache.invalidate_runtime(&runtime_store_dir);
         // Persist immediately after invalidation
         if let Some(ref cache_dir) = self.cache_dir
@@ -113,7 +113,7 @@ impl PathResolver {
 
     /// Clear the entire exec path cache.
     pub fn clear_exec_cache(&self) {
-        let mut cache = self.exec_cache.lock().unwrap();
+        let mut cache = self.exec_cache.lock().expect("exec_cache lock poisoned");
         cache.clear();
         if let Some(ref cache_dir) = self.cache_dir {
             let _ = ExecPathCache::remove_file(cache_dir);
@@ -568,7 +568,7 @@ impl PathResolver {
 
         // Check cache first
         {
-            let mut cache = self.exec_cache.lock().unwrap();
+            let mut cache = self.exec_cache.lock().expect("exec_cache lock poisoned");
             if let Some(cached) = cache.get(dir, exe_name) {
                 tracing::trace!(
                     "find_executable_in_dir: cache hit for '{}' in {} -> {}",
@@ -615,7 +615,7 @@ impl PathResolver {
         // Most runtimes have their executable in root, bin/, or one-level subdirectory.
         // This avoids traversing deep trees like node_modules/ for the common case.
         if let Some(result) = self.quick_find_executable(dir, &possible_names, &platform_patterns) {
-            let mut cache = self.exec_cache.lock().unwrap();
+            let mut cache = self.exec_cache.lock().expect("exec_cache lock poisoned");
             cache.put(dir, exe_name, result.clone());
             return Some(result);
         }
@@ -653,7 +653,7 @@ impl PathResolver {
                 "find_executable_in_dir: found executable at {}",
                 path.display()
             );
-            let mut cache = self.exec_cache.lock().unwrap();
+            let mut cache = self.exec_cache.lock().expect("exec_cache lock poisoned");
             cache.put(dir, exe_name, path.clone());
         } else {
             tracing::trace!(

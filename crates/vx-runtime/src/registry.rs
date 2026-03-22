@@ -73,12 +73,15 @@ impl ProviderRegistry {
 
     /// Register a provider (eager — immediately materialized)
     pub fn register(&self, provider: Arc<dyn Provider>) {
-        let mut providers = self.providers.write().unwrap();
+        let mut providers = self.providers.write().expect("providers lock poisoned");
         let index = providers.len();
 
         // Update cache for all runtimes in this provider
         {
-            let mut cache = self.runtime_cache.write().unwrap();
+            let mut cache = self
+                .runtime_cache
+                .write()
+                .expect("runtime_cache lock poisoned");
             for runtime in provider.runtimes() {
                 cache.insert(runtime.name().to_string(), index);
                 for alias in runtime.aliases() {
@@ -108,7 +111,10 @@ impl ProviderRegistry {
 
         // Build the pending index: runtime name/alias → provider name
         {
-            let mut index = self.pending_index.write().unwrap();
+            let mut index = self
+                .pending_index
+                .write()
+                .expect("pending_index lock poisoned");
             for name in runtime_names {
                 // Detect alias conflicts: warn if a runtime name/alias is already
                 // claimed by a different provider. The last writer wins, which can
@@ -131,7 +137,10 @@ impl ProviderRegistry {
 
         // Store the factory
         {
-            let mut factories = self.pending_factories.lock().unwrap();
+            let mut factories = self
+                .pending_factories
+                .lock()
+                .expect("pending_factories lock poisoned");
             factories.insert(provider_name, factory);
         }
     }
@@ -143,7 +152,10 @@ impl ProviderRegistry {
     fn materialize_provider(&self, provider_name: &str) -> bool {
         // Take the factory out of pending (if present)
         let factory = {
-            let mut factories = self.pending_factories.lock().unwrap();
+            let mut factories = self
+                .pending_factories
+                .lock()
+                .expect("pending_factories lock poisoned");
             factories.remove(provider_name)
         };
 
@@ -157,7 +169,10 @@ impl ProviderRegistry {
 
         // Remove all pending index entries for this provider
         {
-            let mut index = self.pending_index.write().unwrap();
+            let mut index = self
+                .pending_index
+                .write()
+                .expect("pending_index lock poisoned");
             index.retain(|_, v| v != provider_name);
         }
 
@@ -173,7 +188,10 @@ impl ProviderRegistry {
     fn materialize_all(&self) {
         // Drain all pending factories
         let factories: Vec<(String, ProviderFactory)> = {
-            let mut pending = self.pending_factories.lock().unwrap();
+            let mut pending = self
+                .pending_factories
+                .lock()
+                .expect("pending_factories lock poisoned");
             pending.drain().collect()
         };
 
@@ -183,7 +201,10 @@ impl ProviderRegistry {
 
         // Clear the pending index
         {
-            let mut index = self.pending_index.write().unwrap();
+            let mut index = self
+                .pending_index
+                .write()
+                .expect("pending_index lock poisoned");
             index.clear();
         }
 
@@ -197,13 +218,19 @@ impl ProviderRegistry {
 
     /// Check if there are any pending (not yet materialized) factories
     pub fn has_pending(&self) -> bool {
-        let factories = self.pending_factories.lock().unwrap();
+        let factories = self
+            .pending_factories
+            .lock()
+            .expect("pending_factories lock poisoned");
         !factories.is_empty()
     }
 
     /// Get the count of pending (not yet materialized) factories
     pub fn pending_factories_count(&self) -> usize {
-        let factories = self.pending_factories.lock().unwrap();
+        let factories = self
+            .pending_factories
+            .lock()
+            .expect("pending_factories lock poisoned");
         factories.len()
     }
 
@@ -211,9 +238,12 @@ impl ProviderRegistry {
     pub fn get_runtime(&self, name: &str) -> Option<Arc<dyn Runtime>> {
         // Fast path: check runtime_cache for already-materialized providers
         {
-            let cache = self.runtime_cache.read().unwrap();
+            let cache = self
+                .runtime_cache
+                .read()
+                .expect("runtime_cache lock poisoned");
             if let Some(&index) = cache.get(name) {
-                let providers = self.providers.read().unwrap();
+                let providers = self.providers.read().expect("providers lock poisoned");
                 if let Some(provider) = providers.get(index) {
                     return provider.get_runtime(name);
                 }
@@ -222,7 +252,10 @@ impl ProviderRegistry {
 
         // Check if there's a pending factory for this runtime name
         let provider_name = {
-            let index = self.pending_index.read().unwrap();
+            let index = self
+                .pending_index
+                .read()
+                .expect("pending_index lock poisoned");
             let result = index.get(name).cloned();
             trace!(
                 "get_runtime('{}'): pending_index lookup = {:?}",
@@ -240,9 +273,12 @@ impl ProviderRegistry {
             );
 
             // Now look up in the freshly populated cache
-            let cache = self.runtime_cache.read().unwrap();
+            let cache = self
+                .runtime_cache
+                .read()
+                .expect("runtime_cache lock poisoned");
             if let Some(&index) = cache.get(name) {
-                let providers = self.providers.read().unwrap();
+                let providers = self.providers.read().expect("providers lock poisoned");
                 if let Some(provider) = providers.get(index) {
                     return provider.get_runtime(name);
                 }
@@ -250,7 +286,7 @@ impl ProviderRegistry {
         }
 
         // Fallback: search all materialized providers
-        let providers = self.providers.read().unwrap();
+        let providers = self.providers.read().expect("providers lock poisoned");
         for provider in providers.iter() {
             if let Some(runtime) = provider.get_runtime(name) {
                 return Some(runtime);
@@ -264,7 +300,7 @@ impl ProviderRegistry {
     pub fn get_provider(&self, name: &str) -> Option<Arc<dyn Provider>> {
         // Try materialized providers first
         {
-            let providers = self.providers.read().unwrap();
+            let providers = self.providers.read().expect("providers lock poisoned");
             if let Some(p) = providers.iter().find(|p| p.name() == name) {
                 return Some(p.clone());
             }
@@ -272,7 +308,7 @@ impl ProviderRegistry {
 
         // Try to materialize from pending
         if self.materialize_provider(name) {
-            let providers = self.providers.read().unwrap();
+            let providers = self.providers.read().expect("providers lock poisoned");
             return providers.iter().find(|p| p.name() == name).cloned();
         }
 
@@ -282,13 +318,16 @@ impl ProviderRegistry {
     /// Get all registered providers (materializes all pending factories)
     pub fn providers(&self) -> Vec<Arc<dyn Provider>> {
         self.materialize_all();
-        self.providers.read().unwrap().clone()
+        self.providers
+            .read()
+            .expect("providers lock poisoned")
+            .clone()
     }
 
     /// Get all available runtime names (materializes all pending factories)
     pub fn runtime_names(&self) -> Vec<String> {
         self.materialize_all();
-        let providers = self.providers.read().unwrap();
+        let providers = self.providers.read().expect("providers lock poisoned");
         let mut names = Vec::new();
         for provider in providers.iter() {
             for runtime in provider.runtimes() {
@@ -302,7 +341,10 @@ impl ProviderRegistry {
     pub fn supports(&self, name: &str) -> bool {
         // Check materialized cache first
         {
-            let cache = self.runtime_cache.read().unwrap();
+            let cache = self
+                .runtime_cache
+                .read()
+                .expect("runtime_cache lock poisoned");
             if cache.contains_key(name) {
                 return true;
             }
@@ -310,7 +352,10 @@ impl ProviderRegistry {
 
         // Check pending index
         {
-            let index = self.pending_index.read().unwrap();
+            let index = self
+                .pending_index
+                .read()
+                .expect("pending_index lock poisoned");
             if index.contains_key(name) {
                 return true;
             }
@@ -321,10 +366,22 @@ impl ProviderRegistry {
 
     /// Clear all registered providers and pending factories
     pub fn clear(&self) {
-        self.providers.write().unwrap().clear();
-        self.runtime_cache.write().unwrap().clear();
-        self.pending_factories.lock().unwrap().clear();
-        self.pending_index.write().unwrap().clear();
+        self.providers
+            .write()
+            .expect("providers lock poisoned")
+            .clear();
+        self.runtime_cache
+            .write()
+            .expect("runtime_cache lock poisoned")
+            .clear();
+        self.pending_factories
+            .lock()
+            .expect("pending_factories lock poisoned")
+            .clear();
+        self.pending_index
+            .write()
+            .expect("pending_index lock poisoned")
+            .clear();
     }
 
     /// Get all runtimes that support the current platform (materializes all pending)
@@ -338,7 +395,7 @@ impl ProviderRegistry {
     /// Get all runtimes that support a specific platform (materializes all pending)
     pub fn supported_runtimes_for(&self, platform: &Platform) -> Vec<Arc<dyn Runtime>> {
         self.materialize_all();
-        let providers = self.providers.read().unwrap();
+        let providers = self.providers.read().expect("providers lock poisoned");
         let mut runtimes = Vec::new();
 
         for provider in providers.iter() {
@@ -399,7 +456,7 @@ impl ProviderRegistry {
     pub fn runtimes_by_platform_support(&self) -> (Vec<Arc<dyn Runtime>>, Vec<Arc<dyn Runtime>>) {
         self.materialize_all();
         let current = Platform::current();
-        let providers = self.providers.read().unwrap();
+        let providers = self.providers.read().expect("providers lock poisoned");
         let mut supported = Vec::new();
         let mut unsupported = Vec::new();
 
