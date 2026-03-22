@@ -442,7 +442,9 @@ impl TomlDocument {
             if current.get(part).is_none() {
                 current[part] = Item::Table(Table::new());
             }
-            current = current[*part].as_table_mut().unwrap();
+            current = current[*part]
+                .as_table_mut()
+                .expect("intermediate table must exist (just created above)");
         }
 
         // Set the final value
