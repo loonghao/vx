@@ -723,6 +723,11 @@ jobs:
 
       - name: Build with cross
         run: vx just cross-build ${{ matrix.target }}
+        env:
+          # Disable sccache inside cross Docker containers — sccache is not
+          # installed there, and .cargo/config.toml sets rustc-wrapper=sccache
+          # which would cause "No such file or directory" errors.
+          RUSTC_WRAPPER: ""
 
   # ============================================================================
   # Stage 6: Security audit (only if rust changed)
