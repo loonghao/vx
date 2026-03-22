@@ -1,7 +1,8 @@
 # vx - Universal Development Tool Manager
 # Just command runner recipes
 
-# Set shell for Windows compatibility
+# Set shell for cross-platform compatibility
+set shell := ["bash", "-cu"]
 set windows-shell := ["pwsh", "-NoProfile", "-Command"]
 
 # Default recipe - show available commands
@@ -176,9 +177,10 @@ security-audit-ci:
 coverage-ci:
     vx cargo llvm-cov --all-features --workspace --lcov --output-path lcov.info
 
-# Cross build (CI)
+# Cross build (CI) — installs cross via cargo, then builds
 cross-build TARGET:
-    vx cross build --release --target {{TARGET}} --no-default-features
+    vx cargo install cross --locked
+    vx cargo:cross build --release --target {{TARGET}} --no-default-features
 
 
 # ============================================

@@ -112,8 +112,6 @@ members = [
   "crates/vx-providers/systemctl",
   "crates/vx-providers/xcodebuild",
 
-  # Rust cross-compilation
-  "crates/vx-providers/cross",
   # Build cache
   "crates/vx-providers/sccache",
   "crates/vx-providers/ccache",
@@ -293,8 +291,6 @@ vx-provider-vscode = { path = "crates/vx-providers/vscode" }
 vx-provider-systemctl = { path = "crates/vx-providers/systemctl" }
 
 vx-provider-xcodebuild = { path = "crates/vx-providers/xcodebuild" }
-# Rust cross-compilation
-vx-provider-cross = { path = "crates/vx-providers/cross" }
 # Build cache
 vx-provider-sccache = { path = "crates/vx-providers/sccache" }
 vx-provider-ccache = { path = "crates/vx-providers/ccache" }

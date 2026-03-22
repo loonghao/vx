@@ -2,6 +2,7 @@ use std::collections::BTreeSet;
 use std::fs;
 use std::path::Path;
 use std::path::PathBuf;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use vx_star_metadata::{DiscoveryConfig, discover_providers};
@@ -126,11 +127,14 @@ runtimes = [
 }
 
 fn create_temp_dir() -> PathBuf {
+    static COUNTER: AtomicU64 = AtomicU64::new(0);
     let unique = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .expect("system time should be after unix epoch")
         .as_nanos();
-    let dir = std::env::temp_dir().join(format!("vx-star-discovery-tests-{unique}"));
+    let seq = COUNTER.fetch_add(1, Ordering::Relaxed);
+    let pid = std::process::id();
+    let dir = std::env::temp_dir().join(format!("vx-star-discovery-tests-{unique}-{pid}-{seq}"));
     fs::create_dir_all(&dir).expect("temp dir should be created");
     dir
 }
