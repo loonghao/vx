@@ -7,6 +7,7 @@
 #
 # NOTE: cross assets do NOT include the version number in the filename.
 # Only x86_64 pre-built binaries are available (no arm64).
+# macOS arm64 uses the x86_64 binary via Rosetta 2.
 # Requires Docker or Podman to be installed on the host.
 # License: MIT OR Apache-2.0
 # Homepage: https://github.com/cross-rs/cross
@@ -14,7 +15,8 @@
 load("@vx//stdlib:provider.star",
      "runtime_def", "dep_def",
      "github_permissions",
-     "platform_map")
+     "platform_map",
+     "post_extract_permissions")
 load("@vx//stdlib:github.star", "make_fetch_versions")
 load("@vx//stdlib:env.star", "env_prepend")
 
@@ -64,14 +66,18 @@ fetch_versions = make_fetch_versions("cross-rs", "cross")
 #   cross-x86_64-pc-windows-msvc.tar.gz
 #   cross-x86_64-apple-darwin.tar.gz
 #
-# NOTE: Asset filenames do NOT contain the version number.
+# NOTE: No arm64 binaries exist. macOS arm64 uses the x86_64 binary
+# via Rosetta 2, which is available on all Apple Silicon Macs.
 # ---------------------------------------------------------------------------
 
 _PLATFORMS = {
     "linux/x64":    "x86_64-unknown-linux-musl",
     "windows/x64":  "x86_64-pc-windows-msvc",
     "macos/x64":    "x86_64-apple-darwin",
-    "macos/arm64":  "x86_64-apple-darwin",  # Rosetta 2 fallback
+    # macOS arm64 uses x86_64 binary via Rosetta 2 — cross does not publish
+    # native aarch64 binaries, but Rosetta 2 is reliably available on all
+    # Apple Silicon Macs (including CI runners like GitHub Actions M1).
+    "macos/arm64":  "x86_64-apple-darwin",
 }
 
 def download_url(ctx, version):
@@ -91,10 +97,16 @@ def install_layout(ctx, _version):
     else:
         exe_paths = ["cross", "cross-util"]
     return {
-        "__type":           "archive",
+        "type":             "archive",
         "strip_prefix":     "",
         "executable_paths": exe_paths,
     }
+
+# ---------------------------------------------------------------------------
+# post_extract — ensure execute permissions on Unix
+# ---------------------------------------------------------------------------
+
+post_extract = post_extract_permissions(["cross", "cross-util"])
 
 # ---------------------------------------------------------------------------
 # Path queries + environment

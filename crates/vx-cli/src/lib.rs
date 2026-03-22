@@ -3,7 +3,7 @@
 use anyhow::{Context, Result};
 use clap::Parser;
 use vx_core::WithDependency;
-use vx_ecosystem_pm::{InstallOptions, get_installer};
+use vx_ecosystem_pm::{EcosystemInstaller, InstallOptions, get_installer};
 use vx_paths::global_packages::{GlobalPackage, PackageRegistry};
 use vx_paths::shims;
 use vx_resolver::RuntimeRequest;
@@ -577,14 +577,14 @@ async fn auto_install_package(ctx: &CommandContext, pkg_request: &PackageRequest
     };
 
     // Get the appropriate installer for this ecosystem
-    // For npm/npx ecosystem, we need to use the npm executable from the installed node
+    // For npm/npx ecosystem, prefer bun (faster) with npm as fallback
     // For uvx ecosystem, we need to use the uv executable from the installed uv
     let installer: Box<dyn vx_ecosystem_pm::EcosystemInstaller> = match ecosystem.as_str() {
         "npm" | "node" | "npx" => {
-            // For npm/npx ecosystem, try to find npm executable from the installed node
-            // Use vx-paths RuntimeRoot to get bundled tool path
-            let npm_path = if runtime_installed {
-                match vx_paths::get_bundled_tool_path("node", "npm") {
+            // Prefer bun if available (faster), fall back to npm
+            // Try bun from vx store first
+            let bun_path = if runtime_installed {
+                match vx_paths::get_bundled_tool_path("bun", "bun") {
                     Ok(Some(path)) if path.exists() => Some(path),
                     _ => None,
                 }
@@ -592,13 +592,37 @@ async fn auto_install_package(ctx: &CommandContext, pkg_request: &PackageRequest
                 None
             };
 
-            if let Some(path) = npm_path {
-                tracing::debug!("Using npm from: {}", path.display());
-                Box::new(vx_ecosystem_pm::installers::NpmInstaller::with_npm_path(
+            if let Some(path) = bun_path {
+                tracing::debug!("Using bun (preferred) from: {}", path.display());
+                Box::new(vx_ecosystem_pm::installers::BunInstaller::with_bun_path(
                     path,
                 ))
             } else {
-                Box::new(vx_ecosystem_pm::installers::NpmInstaller::new())
+                // Bun not in vx store, check system PATH
+                let bun_installer = vx_ecosystem_pm::installers::BunInstaller::new();
+                if bun_installer.is_available() {
+                    tracing::debug!("Using bun (preferred) from system PATH");
+                    Box::new(bun_installer)
+                } else {
+                    // Fall back to npm
+                    let npm_path = if runtime_installed {
+                        match vx_paths::get_bundled_tool_path("node", "npm") {
+                            Ok(Some(path)) if path.exists() => Some(path),
+                            _ => None,
+                        }
+                    } else {
+                        None
+                    };
+
+                    if let Some(path) = npm_path {
+                        tracing::debug!("Using npm (fallback) from: {}", path.display());
+                        Box::new(vx_ecosystem_pm::installers::NpmInstaller::with_npm_path(
+                            path,
+                        ))
+                    } else {
+                        Box::new(vx_ecosystem_pm::installers::NpmInstaller::new())
+                    }
+                }
             }
         }
         "uvx" => {

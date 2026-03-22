@@ -10,6 +10,7 @@
 load("@vx//stdlib:provider.star",
      "runtime_def", "bundled_runtime_def", "github_permissions",
      "fetch_versions_with_tag_prefix")
+load("@vx//stdlib:install.star", "set_permissions")
 load("@vx//stdlib:github.star", "github_asset_url")
 load("@vx//stdlib:env.star",    "env_prepend")
 load("@vx//stdlib:platform.star", "exe_suffix")
@@ -33,7 +34,7 @@ runtimes = [
         aliases = ["oxc-lint"],
         test_commands = [
             {"command": "{executable} --version", "name": "version_check",
-             "expected_output": "oxlint \\d+"},
+             "expected_output": "Version: \\d+"},
         ],
     ),
     bundled_runtime_def("oxfmt", bundled_with = "oxlint",
@@ -96,15 +97,29 @@ def install_layout(ctx, _version):
     triple = _oxc_triple(ctx)
     if not triple:
         return None
-    # On Windows the tar.gz contains "oxlint-{triple}.exe"
+    # On Windows the zip contains "oxlint-{triple}.exe"
     suffix = exe_suffix(ctx)
     src_name = "oxlint-{}{}".format(triple, suffix)
     dst_name = "oxlint{}".format(suffix)
     return {
         "type":             "archive",
         "strip_prefix":     "",
-        "executable_paths": [dst_name, src_name],
+        "executable_paths": [src_name, dst_name],
     }
+
+# ---------------------------------------------------------------------------
+# post_extract — set execute permissions on the extracted binary
+# The binary name includes the triple, so we build the name dynamically.
+# ---------------------------------------------------------------------------
+
+def post_extract(ctx, _version, _install_dir):
+    if ctx.platform.os == "windows":
+        return []
+    triple = _oxc_triple(ctx)
+    if not triple:
+        return []
+    # Set +x on the extracted oxlint-{triple} binary
+    return [set_permissions("oxlint-" + triple, "755")]
 
 # ---------------------------------------------------------------------------
 # Path queries + environment

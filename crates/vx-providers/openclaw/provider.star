@@ -3,17 +3,16 @@
 # OpenClaw: Open-source personal AI assistant / AI execution gateway
 # ClawHub: The public skill registry for OpenClaw
 #
-# OpenClaw is installed via npm: `npm install -g openclaw@latest`
-# ClawHub CLI is bundled with OpenClaw installation
+# OpenClaw is an npm package. `vx openclaw` routes to `vx npm:openclaw`
+# via RFC 0033 package_alias mechanism, just like vite, turbo, nx, etc.
 #
-# This provider manages the OpenClaw CLI and its bundled ClawHub commands.
+# ClawHub CLI is bundled with the OpenClaw npm package.
 # Requires Node.js >= 22.
 
 load("@vx//stdlib:provider.star",
      "runtime_def", "bundled_runtime_def",
      "system_permissions", "dep_def")
 load("@vx//stdlib:http.star", "fetch_json_versions")
-load("@vx//stdlib:env.star", "env_prepend")
 
 # ---------------------------------------------------------------------------
 # Provider metadata
@@ -25,9 +24,8 @@ repository  = "https://github.com/openclaw/openclaw"
 license     = "Apache-2.0"
 ecosystem   = "nodejs"
 
-# Supported package prefixes for ecosystem:package syntax (RFC 0027)
-# Enables `vx npm:openclaw` for installation
-package_prefixes = ["npm", "npx"]
+# RFC 0033: route `vx openclaw` → `vx npm:openclaw`
+package_alias = {"ecosystem": "npm", "package": "openclaw"}
 
 # ---------------------------------------------------------------------------
 # Runtime definitions
@@ -56,35 +54,18 @@ permissions = system_permissions(
 )
 
 # ---------------------------------------------------------------------------
-# Installation via npm global install
+# fetch_versions — npm registry
 # ---------------------------------------------------------------------------
 
 def fetch_versions(ctx):
-    # OpenClaw versions are fetched from npm registry
     return fetch_json_versions(ctx, "https://registry.npmjs.org/openclaw", "npm_registry")
 
+# ---------------------------------------------------------------------------
+# download_url — not applicable (npm package)
+# ---------------------------------------------------------------------------
+
 def download_url(_ctx, _version):
-    # Not a direct binary download — installed via npm
     return None
-
-def install_layout(_ctx, _version):
-    return {
-        "type": "npm_global",
-        "package": "openclaw",
-    }
-
-# ---------------------------------------------------------------------------
-# system_install — use npm global install
-# ---------------------------------------------------------------------------
-
-def system_install(_ctx, version):
-    pkg = "openclaw@{}".format(version) if version != "latest" else "openclaw@latest"
-    return {
-        "strategies": [
-            {"type": "npm_global", "package": pkg,
-             "command": "npm install -g {}".format(pkg)},
-        ],
-    }
 
 # ---------------------------------------------------------------------------
 # Path queries + environment
@@ -100,8 +81,12 @@ def get_execute_path(ctx, _version):
 def post_install(_ctx, _version):
     return None
 
-def environment(ctx, _version):
-    return [env_prepend("PATH", ctx.install_dir)]
+def environment(_ctx, _version):
+    return []
+
+# ---------------------------------------------------------------------------
+# deps — requires Node.js 22+
+# ---------------------------------------------------------------------------
 
 def deps(_ctx, _version):
     return [

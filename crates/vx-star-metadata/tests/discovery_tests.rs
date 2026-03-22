@@ -175,6 +175,64 @@ runtimes = [
 }
 
 #[test]
+fn discovery_excludes_package_alias_providers() {
+    let root = create_temp_dir();
+
+    // Regular provider (should be discovered)
+    write_provider(
+        &root,
+        "ripgrep",
+        r#"
+name = "ripgrep"
+runtimes = [runtime_def("rg", aliases = ["ripgrep"])]
+"#,
+    );
+
+    // Package alias provider (should be excluded)
+    write_provider(
+        &root,
+        "openclaw",
+        r#"
+name = "openclaw"
+package_alias = {"ecosystem": "npm", "package": "openclaw"}
+runtimes = [
+    runtime_def("openclaw", aliases = ["claw"]),
+    bundled_runtime_def("clawhub", bundled_with = "openclaw"),
+]
+"#,
+    );
+
+    // Another package alias provider
+    write_provider(
+        &root,
+        "vite",
+        r#"
+name = "vite"
+package_alias = {"ecosystem": "npm", "package": "vite"}
+runtimes = [runtime_def("vite")]
+"#,
+    );
+
+    let config = DiscoveryConfig::new(&root, 10);
+    let result = discover_providers(&config).expect("discovery should succeed");
+
+    // Only "rg" should be discovered; openclaw and vite are package_alias providers
+    assert_eq!(result.total_runtimes, 1);
+    assert_eq!(result.testable_runtimes, 1);
+    assert_eq!(result.linux.runtimes, vec!["rg"]);
+    assert!(
+        !result.linux.runtimes.contains(&"openclaw".to_string()),
+        "openclaw should NOT appear (package_alias)"
+    );
+    assert!(
+        !result.linux.runtimes.contains(&"vite".to_string()),
+        "vite should NOT appear (package_alias)"
+    );
+
+    fs::remove_dir_all(root).ok();
+}
+
+#[test]
 fn discovery_multiline_platforms_excludes_from_other_os() {
     let root = create_temp_dir();
 
