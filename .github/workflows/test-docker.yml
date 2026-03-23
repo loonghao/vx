@@ -315,11 +315,11 @@ jobs:
             local result="$2"
 
             if [[ "$result" == "success" ]]; then
-              echo "- 鉁?$job_name" >> "$GITHUB_STEP_SUMMARY"
+              echo "- ✅$job_name" >> "$GITHUB_STEP_SUMMARY"
             elif [[ "$result" == "skipped" ]]; then
-              echo "- 鈴笍 $job_name (skipped)" >> "$GITHUB_STEP_SUMMARY"
+              echo "- ⏭️ $job_name (skipped)" >> "$GITHUB_STEP_SUMMARY"
             else
-              echo "- 鉂?$job_name ($result)" >> "$GITHUB_STEP_SUMMARY"
+              echo "- ❌$job_name ($result)" >> "$GITHUB_STEP_SUMMARY"
               failed=1
             fi
           }
@@ -332,9 +332,9 @@ jobs:
 
           if [[ $failed -eq 1 ]]; then
             echo "" >> "$GITHUB_STEP_SUMMARY"
-            echo "鉂?**Docker workflow failed**" >> "$GITHUB_STEP_SUMMARY"
+            echo "❌**Docker workflow failed**" >> "$GITHUB_STEP_SUMMARY"
             exit 1
           fi
 
           echo "" >> "$GITHUB_STEP_SUMMARY"
-          echo "鉁?**Docker workflow passed**" >> "$GITHUB_STEP_SUMMARY"
+          echo "✅**Docker workflow passed**" >> "$GITHUB_STEP_SUMMARY"

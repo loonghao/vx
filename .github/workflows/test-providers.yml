@@ -526,11 +526,11 @@ jobs:
             local result="$2"
 
             if [[ "$result" == "success" ]]; then
-              echo "- 鉁?$job_name" >> "$GITHUB_STEP_SUMMARY"
+              echo "- ✅$job_name" >> "$GITHUB_STEP_SUMMARY"
             elif [[ "$result" == "skipped" ]]; then
-              echo "- 鈴笍 $job_name (skipped)" >> "$GITHUB_STEP_SUMMARY"
+              echo "- ⏭️ $job_name (skipped)" >> "$GITHUB_STEP_SUMMARY"
             else
-              echo "- 鉂?$job_name ($result)" >> "$GITHUB_STEP_SUMMARY"
+              echo "- ❌$job_name ($result)" >> "$GITHUB_STEP_SUMMARY"
               failed=1
             fi
           }
@@ -538,7 +538,7 @@ jobs:
           check_job "build-and-discover" "${{ needs.build-and-discover.result }}"
 
           if [[ "${{ needs.build-and-discover.outputs.testable-runtimes }}" == "0" ]]; then
-            echo "- 鉂?no testable runtimes discovered" >> "$GITHUB_STEP_SUMMARY"
+            echo "- ❌no testable runtimes discovered" >> "$GITHUB_STEP_SUMMARY"
             failed=1
           fi
 
@@ -558,7 +558,7 @@ jobs:
           done
 
           if [[ $any_matrix -eq 0 ]]; then
-            echo "- 鉂?all provider matrix jobs were skipped" >> "$GITHUB_STEP_SUMMARY"
+            echo "- ❌all provider matrix jobs were skipped" >> "$GITHUB_STEP_SUMMARY"
             failed=1
           fi
 
@@ -567,20 +567,20 @@ jobs:
           if [[ "${{ github.event_name }}" == "pull_request" ]]; then
             check_job "quick-test" "${{ needs.quick-test.result }}"
           else
-            echo "- 鈴笍 quick-test (pull_request only)" >> "$GITHUB_STEP_SUMMARY"
+            echo "- ⏭️ quick-test (pull_request only)" >> "$GITHUB_STEP_SUMMARY"
           fi
 
           if [[ $any_matrix -eq 1 ]]; then
             check_job "summary" "${{ needs.summary.result }}"
           else
-            echo "- 鈴笍 summary (no matrix jobs ran)" >> "$GITHUB_STEP_SUMMARY"
+            echo "- ⏭️ summary (no matrix jobs ran)" >> "$GITHUB_STEP_SUMMARY"
           fi
 
           if [[ $failed -eq 1 ]]; then
             echo "" >> "$GITHUB_STEP_SUMMARY"
-            echo "鉂?**Provider workflow failed**" >> "$GITHUB_STEP_SUMMARY"
+            echo "❌**Provider workflow failed**" >> "$GITHUB_STEP_SUMMARY"
             exit 1
           fi
 
           echo "" >> "$GITHUB_STEP_SUMMARY"
-          echo "鉁?**Provider workflow passed**" >> "$GITHUB_STEP_SUMMARY"
+          echo "✅**Provider workflow passed**" >> "$GITHUB_STEP_SUMMARY"

@@ -143,10 +143,10 @@ jobs:
             }
           }
           if (-not $found) {
-            Write-Warning "MSVC not found in standard paths �?vx will attempt to install it"
+            Write-Warning "MSVC not found in standard paths — vx will attempt to install it"
           }
 
-      - name: Run example �?fmt (cmake + MSVC)
+      - name: Run example — fmt (cmake + MSVC)
         shell: pwsh
         run: |
           if ("${{ inputs.script }}" -ne "" -and "${{ inputs.script }}" -ne "fmt.build.ps1") {
@@ -157,7 +157,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Run example �?node-pty (native addon)
+      - name: Run example — node-pty (native addon)
         shell: pwsh
         run: |
           if ("${{ inputs.script }}" -ne "" -and "${{ inputs.script }}" -ne "node-pty.build.ps1") {
@@ -168,7 +168,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Run example �?dotnet-samples (csc / Roslyn)
+      - name: Run example — dotnet-samples (csc / Roslyn)
         shell: pwsh
         run: |
           if ("${{ inputs.script }}" -ne "" -and "${{ inputs.script }}" -ne "dotnet-samples-csc.build.ps1") {
@@ -179,7 +179,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Run example �?aionui (Electron + native modules)
+      - name: Run example — aionui (Electron + native modules)
         shell: pwsh
         run: |
           if ("${{ inputs.script }}" -ne "" -and "${{ inputs.script }}" -ne "aionui.build.ps1") {
