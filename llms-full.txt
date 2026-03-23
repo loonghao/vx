@@ -2,26 +2,28 @@
 
 > vx is a universal development tool manager that lets you run any tool with zero setup — just prefix your commands with `vx` and it auto-installs the required runtime on first use.
 
-vx eliminates the complexity of managing multiple language runtimes (Node.js, Python, Go, Rust, etc.) while maintaining zero learning curve. Built with Rust for performance, it supports direct execution, project environments via `vx.toml`, MCP integration, and AI-native development workflows.
+vx eliminates the complexity of managing multiple language runtimes (Node.js, Python, Go, Rust, etc.) while maintaining zero learning curve. Built with Rust for performance, it supports direct execution, project environments via `vx.toml`, MCP integration, and AI-native development workflows. Providers are defined using Starlark DSL (`provider.star`) — a declarative, zero-compilation extension system.
 
 - **Install (Linux/macOS)**: `curl -fsSL https://raw.githubusercontent.com/loonghao/vx/main/install.sh | bash`
 - **Install (Windows)**: `powershell -c "irm https://raw.githubusercontent.com/loonghao/vx/main/install.ps1 | iex"`
 - **Platforms**: Windows, macOS, Linux (x86_64, aarch64)
-- **Language**: Rust 1.80+
+- **Language**: Rust 1.93+
 - **License**: MIT
 - **Repository**: https://github.com/loonghao/vx
 - **Releases**: https://github.com/loonghao/vx/releases
-- **GitHub Action**: `loonghao/vx@vx-v0.5.15`
+- **GitHub Action**: `loonghao/vx@main`
 
 ## Key Features
 
 - **Zero Learning Curve**: Use the same commands you already know — just prefix with `vx`. No new syntax to learn.
 - **Auto-Install on First Use**: Runtimes are downloaded and installed automatically when first needed.
-- **Multi-Language Support**: Node.js, Python/UV, Go, Rust, Bun, Deno, Java, Zig, and 30+ more tools.
+- **73+ Tools**: Node.js, Python/UV, Go, Rust, Bun, Deno, Java, Zig, MSVC, CMake, and many more.
 - **Project Environments**: Define tool requirements in `vx.toml`, then `vx setup` installs everything.
 - **Enhanced Script System**: `{{args}}` passthrough lets you pass complex flags directly to scripts.
 - **MCP Ready**: Replace `npx`/`uvx` with `vx` in MCP server configs — zero additional setup.
-- **Manifest-Driven Providers**: Define custom tools via `provider.toml` without writing Rust code.
+- **Starlark DSL Providers**: Define custom tools via `provider.star` (Starlark) without writing Rust code. 4 built-in templates cover 90% of cases.
+- **Package Aliases**: Short commands like `vx vite` auto-route to `vx npm:vite`, `vx meson` to `vx uv:meson`.
+- **Companion Tool Injection**: Tools like MSVC auto-inject env vars (VCINSTALLDIR, etc.) for all subprocesses.
 - **Shell Integration**: Auto-completion for bash, zsh, and fish shells.
 - **GitHub Actions**: First-class CI/CD support via `loonghao/vx` action.
 - **Metrics & Telemetry**: Execution timing and stage breakdown via `vx metrics`.
@@ -30,8 +32,11 @@ vx eliminates the complexity of managing multiple language runtimes (Node.js, Py
 
 ## Technical Stack
 
-- **Core**: Rust 1.80+, async/await with Tokio
-- **Architecture**: Provider/Runtime trait system, manifest-driven registration
+- **Core**: Rust 1.93+, async/await with Tokio
+- **Provider DSL**: Starlark (Python-like) via `provider.star` — declarative, zero-compilation
+- **Architecture**: 5-layer Provider/Runtime system with strict downward-only dependency rule
+- **Starlark Stdlib**: 14 modules (runtime, platform, env, layout, permissions, system_install, etc.)
+- **Provider Templates**: `github_rust_provider`, `github_go_provider`, `github_binary_provider`, `system_provider`
 - **Installer**: Supports .tar.gz, .tar.xz, .tar.bz2, .zip, binary formats
 - **Version Resolution**: Semantic versioning with range support (^, ~, >=)
 - **Telemetry**: OpenTelemetry + tracing, JSON metrics output
@@ -127,7 +132,7 @@ Replace `npx`/`uvx` with `vx` in your MCP server configuration:
 ### GitHub Actions
 
 ```yaml
-- uses: loonghao/vx@vx-v0.5.15
+- uses: loonghao/vx@main
   with:
     github-token: ${{ secrets.GITHUB_TOKEN }}
 
@@ -261,56 +266,91 @@ lint-fix = "eslint {{args}}"
 
 ## Architecture
 
-vx uses a Provider/Runtime architecture:
+vx uses a 5-layer Provider/Runtime architecture with Starlark DSL:
 
 ```
-vx-cli
-  └── Executor (resolves and runs commands)
-        ├── ProviderRegistry (finds the right Provider)
-        │     └── Provider (e.g., NodeProvider)
-        │           └── Runtime (e.g., NodeRuntime, NpmRuntime)
-        ├── Resolver (checks install status, resolves dependencies)
-        └── Installer (downloads and extracts archives)
+┌─────────────────────────────────────────────────────────┐
+│  vx-cli            (Application layer — CLI entry)      │
+├─────────────────────────────────────────────────────────┤
+│  vx-resolver       (Orchestration — resolve & execute)  │
+│  vx-setup / vx-migration / vx-extension                 │
+│  vx-project-analyzer (Project detection)                │
+├─────────────────────────────────────────────────────────┤
+│  vx-runtime        (Runtime management & registry)      │
+│  vx-starlark       (Starlark DSL engine for providers)  │
+│  vx-installer / vx-version-fetcher / vx-config          │
+│  vx-console / vx-env / vx-metrics                       │
+├─────────────────────────────────────────────────────────┤
+│  vx-core / vx-paths / vx-cache / vx-versions            │
+│  vx-manifest / vx-args (Foundation layer)               │
+├─────────────────────────────────────────────────────────┤
+│  vx-providers/*    (73+ Providers — provider.star DSL)  │
+│  vx-bridge         (Generic command bridge)             │
+└─────────────────────────────────────────────────────────┘
 ```
+
+**Dependency rule**: Each layer may only depend on layers **below** it. Never upward.
 
 ### Key Concepts
 
 - **Runtime**: A single executable tool (e.g., `node`, `npm`, `go`)
 - **Provider**: A group of related runtimes (e.g., `NodeProvider` provides `node`, `npm`, `npx`)
-- **Ecosystem**: Language ecosystem grouping (NodeJs, Python, Rust, Go, System)
-- **Manifest-Driven Provider**: A `provider.toml` file that defines a provider without Rust code
+- **Ecosystem**: Language ecosystem grouping (NodeJs, Python, Rust, Go, System, Custom)
+- **provider.star**: Starlark DSL file that declaratively describes a Provider — no Rust code needed
+- **Bundled Runtime**: A Runtime shipped inside another (e.g., npm bundled with node)
 
-### Manifest-Driven Provider Example
+### Execution Model (Two-Phase)
 
-```toml
-# ~/.vx/providers/mytools/provider.toml
-[provider]
-name = "mytools"
-description = "My custom tools"
-ecosystem = "custom"
+1. **Analysis Phase (Starlark)**: `provider.star` scripts run as pure computation, returning descriptor dicts (download URLs, install layouts, env vars). No I/O happens here.
+2. **Execution Phase (Rust)**: The Rust runtime interprets descriptors and performs actual downloads, file operations, and process execution.
 
-[provider.platforms]
-os = ["windows", "linux", "macos"]
+### Provider Example (provider.star)
 
-[[runtimes]]
-name = "mytool"
-description = "My awesome tool"
-executable = "mytool"
-aliases = ["mt"]
+```starlark
+# crates/vx-providers/ripgrep/provider.star
+load("@vx//stdlib:provider.star", "runtime_def", "github_permissions")
+load("@vx//stdlib:provider_templates.star", "github_rust_provider")
 
-[runtimes.versions]
-source = "github-releases"
-owner = "example"
-repo = "mytool"
-strip_v_prefix = true
+name        = "ripgrep"
+description = "ripgrep - recursively searches directories"
+ecosystem   = "custom"
 
-[runtimes.layout]
-download_type = "archive"
+runtimes = [runtime_def("rg", aliases=["ripgrep"])]
+permissions = github_permissions()
 
-[runtimes.layout.archive]
-strip_prefix = "mytool-{version}-{platform}"
-executable_paths = ["bin/mytool"]
+_p = github_rust_provider("BurntSushi", "ripgrep",
+    asset      = "rg-{version}-{triple}.{ext}",
+    executable = "rg",
+)
+
+fetch_versions   = _p["fetch_versions"]
+download_url     = _p["download_url"]
+install_layout   = _p["install_layout"]
+store_root       = _p["store_root"]
+get_execute_path = _p["get_execute_path"]
+environment      = _p["environment"]
 ```
+
+### Starlark Standard Library
+
+The stdlib provides a layered API (14 modules):
+
+| Module | Purpose |
+|--------|---------|
+| `provider.star` | Unified facade — re-exports all helpers |
+| `runtime.star` | `runtime_def`, `bundled_runtime_def`, `dep_def` |
+| `platform.star` | `platform_map`, `platform_select`, `rust_triple`, `go_os_arch` |
+| `env.star` | `env_set`, `env_prepend`, `env_append`, `env_unset` |
+| `layout.star` | `archive_layout`, `binary_layout`, `bin_subdir_layout`, hooks, path fns |
+| `permissions.star` | `github_permissions`, `system_permissions` |
+| `system_install.star` | `winget_install`, `brew_install`, `apt_install`, etc. |
+| `script_install.star` | `curl_bash_install`, `irm_iex_install`, etc. |
+| `provider_templates.star` | `github_rust_provider`, `github_go_provider`, `github_binary_provider`, `system_provider` |
+| `github.star` | GitHub API helpers |
+| `http.star` | HTTP descriptors |
+| `install.star` | Install descriptors |
+| `semver.star` | Version comparison |
+| `test.star` | Testing DSL |
 
 ## Pre-commit Hooks
 
@@ -444,8 +484,8 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: loonghao/vx@vx-v0.5.15
+      - uses: actions/checkout@v6
+      - uses: loonghao/vx@main
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
       - run: vx node --version
@@ -474,7 +514,8 @@ jobs:
 - [Migration Guide](https://github.com/loonghao/vx/blob/main/docs/guide/migration.md): Migrating from nvm, pyenv, asdf
 - [CDN Fallback](https://github.com/loonghao/vx/blob/main/docs/guide/cdn-fallback.md): Download acceleration
 - [Windows Long Path](https://github.com/loonghao/vx/blob/main/docs/guide/windows-long-path.md): Windows path length fix
-- [Manifest-Driven Providers](https://github.com/loonghao/vx/blob/main/docs/guide/manifest-driven-providers.md): Custom tool definitions
+- [Starlark Providers (provider.star)](https://github.com/loonghao/vx/blob/main/docs/guide/provider-star-reference.md): Complete provider.star DSL reference
+- [Creating a Provider](https://github.com/loonghao/vx/blob/main/docs/guide/creating-provider.md): Step-by-step guide to adding a new tool
 
 ## CLI Reference
 
@@ -530,8 +571,8 @@ jobs:
 - [RFC 0001: vx.toml v2 Enhancement](https://github.com/loonghao/vx/blob/main/docs/rfcs/0001-vx-toml-v2-enhancement.md): Project configuration design
 - [RFC 0002: Extension System](https://github.com/loonghao/vx/blob/main/docs/rfcs/0002-extension-system.md): Plugin/extension architecture
 - [RFC 0003: Dynamic Scripts](https://github.com/loonghao/vx/blob/main/docs/rfcs/0003-dynamic-scripts.md): Enhanced script system design
-- [RFC 0012: Provider Manifest](https://github.com/loonghao/vx/blob/main/docs/rfcs/0012-provider-manifest.md): Manifest-driven provider design
-- [RFC 0013: Manifest-Driven Registration](https://github.com/loonghao/vx/blob/main/docs/rfcs/0013-manifest-driven-registration.md): Provider registration system
+- [RFC 0012: Provider Manifest](https://github.com/loonghao/vx/blob/main/docs/rfcs/0012-provider-manifest.md): Original manifest-driven provider design (evolved into provider.star)
+- [RFC 0013: Manifest-Driven Registration](https://github.com/loonghao/vx/blob/main/docs/rfcs/0013-manifest-driven-registration.md): Provider registration system (now via Starlark engine)
 - [RFC 0027: Implicit Package Execution](https://github.com/loonghao/vx/blob/main/docs/rfcs/0027-implicit-package-execution.md): `vx vite` → `vx npx vite` design
 - [RFC 0035: AI Integration Optimization](https://github.com/loonghao/vx/blob/main/docs/rfcs/0035-ai-integration-optimization.md): AI-native development optimization
 
