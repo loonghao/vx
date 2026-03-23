@@ -206,7 +206,10 @@ impl ProviderLoader {
             .unwrap_or("")
             .to_string();
 
-        let source_path = path.parent().unwrap().to_path_buf();
+        let source_path = path
+            .parent()
+            .expect("provider file path should have a parent directory")
+            .to_path_buf();
         let source = self.determine_source(&source_path);
 
         // Parse runtimes

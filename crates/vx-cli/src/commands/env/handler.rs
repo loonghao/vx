@@ -354,7 +354,7 @@ async fn delete_env(name: Option<&str>, force: bool, global: bool) -> Result<()>
     }
 
     if global {
-        let env_name = name.unwrap();
+        let env_name = name.expect("global env deletion requires a name");
         path_manager.remove_env(env_name)?;
     } else {
         std::fs::remove_dir_all(&env_dir)?;
@@ -553,7 +553,9 @@ async fn remove_runtime(runtime: &str, env_name: Option<&str>, global: bool) -> 
 /// Sync project environment from vx.toml
 async fn sync_env() -> Result<()> {
     let (config_path, config) = load_config_view_cwd()?;
-    let current_dir = config_path.parent().unwrap();
+    let current_dir = config_path
+        .parent()
+        .expect("config file path should have a parent directory");
     let path_manager = PathManager::new()?;
     let env_dir = current_dir.join(PROJECT_ENV_DIR);
 

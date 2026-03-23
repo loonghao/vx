@@ -314,7 +314,9 @@ fn output_ci_paths(config: &ConfigView) -> Result<()> {
         // Sort versions and get the latest
         let mut sorted_versions = versions;
         sorted_versions.sort();
-        let latest_version = sorted_versions.last().unwrap();
+        let latest_version = sorted_versions
+            .last()
+            .expect("sorted_versions is non-empty (checked above)");
         let version_dir = tool_dir.join(latest_version);
 
         // Check for bin subdirectory
@@ -391,7 +393,10 @@ pub async fn add_tool(tool: &str, version: Option<&str>) -> Result<()> {
         UI::warn(&format!("Tool '{}' already configured", tool));
         UI::info(&format!(
             "Current version: {}",
-            config.tools.get(tool).unwrap()
+            config
+                .tools
+                .get(tool)
+                .expect("tool key was checked with contains_key")
         ));
         return Ok(());
     }

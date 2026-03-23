@@ -301,7 +301,8 @@ pub async fn get_token_status() -> Result<TokenStatus> {
     }
 
     // Get token and check with GitHub API
-    let token = load_github_token().unwrap();
+    let token = load_github_token()
+        .context("Failed to load GitHub token despite detecting a token source")?;
     let client = reqwest::Client::new();
 
     let response = client

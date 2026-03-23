@@ -31,7 +31,7 @@ static BIN_DIR_CACHE: Mutex<Option<BinDirCache>> = Mutex::new(None);
 ///
 /// Called by the Executor during construction to pre-warm the cache.
 pub(crate) fn init_bin_dir_cache(cache_dir: &std::path::Path) {
-    let mut cache = BIN_DIR_CACHE.lock().unwrap();
+    let mut cache = BIN_DIR_CACHE.lock().expect("BIN_DIR_CACHE mutex poisoned");
     if cache.is_none() {
         *cache = Some(BinDirCache::load(cache_dir));
     }
@@ -41,7 +41,7 @@ pub(crate) fn init_bin_dir_cache(cache_dir: &std::path::Path) {
 ///
 /// Called by the Executor after command execution to persist new entries.
 pub(crate) fn save_bin_dir_cache(cache_dir: &std::path::Path) {
-    let cache = BIN_DIR_CACHE.lock().unwrap();
+    let cache = BIN_DIR_CACHE.lock().expect("BIN_DIR_CACHE mutex poisoned");
     if let Some(ref c) = *cache
         && let Err(e) = c.save(cache_dir)
     {
@@ -53,7 +53,7 @@ pub(crate) fn save_bin_dir_cache(cache_dir: &std::path::Path) {
 ///
 /// Call this after installing or uninstalling a runtime.
 pub fn invalidate_bin_dir_cache(runtime_store_prefix: &str) {
-    let mut cache = BIN_DIR_CACHE.lock().unwrap();
+    let mut cache = BIN_DIR_CACHE.lock().expect("BIN_DIR_CACHE mutex poisoned");
     if let Some(ref mut c) = *cache {
         c.invalidate_runtime(runtime_store_prefix);
     }
@@ -61,7 +61,7 @@ pub fn invalidate_bin_dir_cache(runtime_store_prefix: &str) {
 
 /// Clear the entire bin directory cache.
 pub fn clear_bin_dir_cache() {
-    let mut cache = BIN_DIR_CACHE.lock().unwrap();
+    let mut cache = BIN_DIR_CACHE.lock().expect("BIN_DIR_CACHE mutex poisoned");
     *cache = None;
 }
 
@@ -1003,7 +1003,7 @@ impl<'a> EnvironmentManager<'a> {
                 return Some(version);
             } else {
                 // Requested version not installed, warn and fall back to latest
-                let mut warned = WARNED_TOOLS.lock().unwrap();
+                let mut warned = WARNED_TOOLS.lock().expect("WARNED_TOOLS mutex poisoned");
                 let warned_set = warned.get_or_insert_with(HashSet::new);
                 if warned_set.insert(runtime_name.to_string()) {
                     warn!(
@@ -1101,7 +1101,7 @@ impl<'a> EnvironmentManager<'a> {
 
         // Check process-level cache first (backed by disk persistence)
         {
-            let mut cache = BIN_DIR_CACHE.lock().unwrap();
+            let mut cache = BIN_DIR_CACHE.lock().expect("BIN_DIR_CACHE mutex poisoned");
             if let Some(ref mut c) = *cache
                 && let Some(cached) = c.get(&cache_key)
             {
@@ -1140,7 +1140,7 @@ impl<'a> EnvironmentManager<'a> {
         // Phase 1: Quick check common locations first (avoids walkdir entirely
         // for most runtimes like uv, go, bun, pnpm where exe is in root or bin/)
         if let Some(result) = self.quick_find_bin_dir(search_dir, &exe_names) {
-            let mut cache = BIN_DIR_CACHE.lock().unwrap();
+            let mut cache = BIN_DIR_CACHE.lock().expect("BIN_DIR_CACHE mutex poisoned");
             let c = cache.get_or_insert_with(BinDirCache::new);
             c.put(cache_key, result.clone());
             return Some(result);
@@ -1186,7 +1186,7 @@ impl<'a> EnvironmentManager<'a> {
                     parent.display()
                 );
                 let result = parent.to_path_buf();
-                let mut cache = BIN_DIR_CACHE.lock().unwrap();
+                let mut cache = BIN_DIR_CACHE.lock().expect("BIN_DIR_CACHE mutex poisoned");
                 let c = cache.get_or_insert_with(BinDirCache::new);
                 c.put(cache_key, result.clone());
                 return Some(result);
@@ -1196,7 +1196,7 @@ impl<'a> EnvironmentManager<'a> {
         // Fallback: check standard locations
         let bin_dir = platform_dir.join("bin");
         if bin_dir.exists() {
-            let mut cache = BIN_DIR_CACHE.lock().unwrap();
+            let mut cache = BIN_DIR_CACHE.lock().expect("BIN_DIR_CACHE mutex poisoned");
             let c = cache.get_or_insert_with(BinDirCache::new);
             c.put(cache_key, bin_dir.clone());
             return Some(bin_dir);
@@ -1204,7 +1204,7 @@ impl<'a> EnvironmentManager<'a> {
 
         let bin_dir = store_dir.join("bin");
         if bin_dir.exists() {
-            let mut cache = BIN_DIR_CACHE.lock().unwrap();
+            let mut cache = BIN_DIR_CACHE.lock().expect("BIN_DIR_CACHE mutex poisoned");
             let c = cache.get_or_insert_with(BinDirCache::new);
             c.put(cache_key, bin_dir.clone());
             return Some(bin_dir);
@@ -1212,7 +1212,7 @@ impl<'a> EnvironmentManager<'a> {
 
         // Last resort: return platform dir if it exists
         if platform_dir.exists() {
-            let mut cache = BIN_DIR_CACHE.lock().unwrap();
+            let mut cache = BIN_DIR_CACHE.lock().expect("BIN_DIR_CACHE mutex poisoned");
             let c = cache.get_or_insert_with(BinDirCache::new);
             c.put(cache_key, platform_dir.clone());
             return Some(platform_dir);

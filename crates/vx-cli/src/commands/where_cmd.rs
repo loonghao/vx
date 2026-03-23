@@ -250,11 +250,11 @@ pub async fn handle(
             let (path, source) = &locations[0];
             (Some(path.display().to_string()), *source, vec![])
         }
-    } else if explicit_version.is_some() {
+    } else if let Some(ref ev) = explicit_version {
         // When version is explicitly specified, don't fallback to system PATH
         UI::debug(&format!(
             "Version '{}' explicitly specified but not found in vx store, not falling back to system",
-            explicit_version.unwrap()
+            ev
         ));
         (None, ToolSource::NotFound, vec![])
     } else if let Some(ref rv) = resolved_version {
