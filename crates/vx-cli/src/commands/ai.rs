@@ -647,14 +647,18 @@ pub async fn handle_session(ctx: &CommandContext, command: &SessionCommand) -> R
 
 /// Session state file path
 fn session_file_path() -> PathBuf {
-    let home = dirs::home_dir().unwrap_or_else(|| std::env::current_dir().unwrap());
+    let home = dirs::home_dir()
+        .or_else(|| std::env::current_dir().ok())
+        .unwrap_or_else(|| PathBuf::from("."));
     home.join(".vx").join("ai-session.json")
 }
 
 /// Handle session init
 async fn handle_session_init(_ctx: &CommandContext) -> Result<()> {
     let session_path = session_file_path();
-    let session_dir = session_path.parent().unwrap();
+    let session_dir = session_path
+        .parent()
+        .expect("session file path should have a parent directory");
 
     std::fs::create_dir_all(session_dir).context("Failed to create vx session directory")?;
 

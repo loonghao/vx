@@ -179,7 +179,10 @@ impl VersionSolver {
                     .map(|s| s.as_ref())
                     .unwrap_or_else(|| {
                         // Fallback to Node.js strategy
-                        self.strategies.get(&Ecosystem::NodeJs).unwrap().as_ref()
+                        self.strategies
+                            .get(&Ecosystem::NodeJs)
+                            .expect("NodeJs strategy must always be registered")
+                            .as_ref()
                     })
             })
     }

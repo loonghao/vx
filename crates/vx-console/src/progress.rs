@@ -66,7 +66,7 @@ impl ProgressManager {
         let bar = self.multi.add(ProgressBar::new_spinner());
         bar.set_style(
             ProgressStyle::with_template("  {spinner:.green} {msg}")
-                .unwrap()
+                .expect("invalid progress template")
                 .tick_strings(&["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏", "✓"]),
         );
         bar.set_message(message.to_string());
@@ -89,7 +89,7 @@ impl ProgressManager {
             ProgressStyle::with_template(
                 "  {spinner:.green} {msg} {wide_bar:.cyan/blue} {bytes}/{total_bytes} ({bytes_per_sec}, {eta})"
             )
-            .unwrap()
+            .expect("invalid progress template")
             .progress_chars("━━╺"),
         );
         bar.set_message(message.to_string());
@@ -109,7 +109,7 @@ impl ProgressManager {
             ProgressStyle::with_template(
                 "  {spinner:.green} {msg} [{bar:40.cyan/blue}] {pos}/{len}",
             )
-            .unwrap()
+            .expect("invalid progress template")
             .progress_chars("━━╺"),
         );
         bar.set_message(message.to_string());
@@ -190,7 +190,7 @@ impl ManagedSpinner {
     pub fn finish_success(&self, message: &str) {
         self.bar.set_style(
             ProgressStyle::with_template("  {spinner:.green} {msg}")
-                .unwrap()
+                .expect("invalid progress template")
                 .tick_strings(&["✓"]),
         );
         self.bar
@@ -201,7 +201,7 @@ impl ManagedSpinner {
     pub fn finish_error(&self, message: &str) {
         self.bar.set_style(
             ProgressStyle::with_template("  {spinner:.red} {msg}")
-                .unwrap()
+                .expect("invalid progress template")
                 .tick_strings(&["✗"]),
         );
         self.bar
@@ -292,7 +292,7 @@ impl ProgressSpinner {
         let bar = ProgressBar::new_spinner();
         bar.set_style(
             ProgressStyle::with_template("  {spinner:.green} {msg}")
-                .unwrap()
+                .expect("invalid progress template")
                 .tick_strings(&["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏", "✓"]),
         );
         bar.set_message(message.to_string());
@@ -305,7 +305,7 @@ impl ProgressSpinner {
         let bar = ProgressBar::new_spinner();
         bar.set_style(
             ProgressStyle::with_template("  {spinner:.green} Downloading {msg}")
-                .unwrap()
+                .expect("invalid progress template")
                 .tick_strings(&["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏", "✓"]),
         );
         bar.set_message(message.to_string());
@@ -318,7 +318,7 @@ impl ProgressSpinner {
         let bar = ProgressBar::new_spinner();
         bar.set_style(
             ProgressStyle::with_template("  {spinner:.green} Installing {msg}")
-                .unwrap()
+                .expect("invalid progress template")
                 .tick_strings(&["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏", "✓"]),
         );
         bar.set_message(message.to_string());
@@ -345,7 +345,7 @@ impl ProgressSpinner {
     pub fn finish_with_error(&self, message: &str) {
         self.bar.set_style(
             ProgressStyle::with_template("  {spinner:.red} {msg}")
-                .unwrap()
+                .expect("invalid progress template")
                 .tick_strings(&["✗"]),
         );
         self.bar
@@ -380,7 +380,7 @@ impl DownloadProgress {
         let bar = ProgressBar::new_spinner();
         bar.set_style(
             ProgressStyle::with_template("  {spinner:.green} {msg} {bytes} ({bytes_per_sec})")
-                .unwrap(),
+                .expect("invalid progress template"),
         );
         bar.set_message(message.to_string());
         bar.enable_steady_tick(Duration::from_millis(100));
@@ -433,7 +433,7 @@ impl MultiStepProgress {
         let bar = ProgressBar::new(total);
         bar.set_style(
             ProgressStyle::with_template("  {spinner:.green} [{pos}/{len}] {msg}")
-                .unwrap()
+                .expect("invalid progress template")
                 .tick_strings(&["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏", "✓"]),
         );
 
@@ -482,7 +482,7 @@ impl InstallProgress {
         let main_bar = multi.add(ProgressBar::new(total_tools));
         main_bar.set_style(
             ProgressStyle::with_template("{msg} [{bar:40.cyan/blue}] {pos}/{len}")
-                .unwrap()
+                .expect("invalid progress template")
                 .progress_chars("━━╺"),
         );
         main_bar.set_message(title.to_string());
@@ -505,7 +505,7 @@ impl InstallProgress {
         let bar = self.multi.add(ProgressBar::new_spinner());
         bar.set_style(
             ProgressStyle::with_template("  {spinner:.green} Installing {msg}")
-                .unwrap()
+                .expect("invalid progress template")
                 .tick_strings(&["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏", "✓"]),
         );
         bar.set_message(name.to_string());
