@@ -382,7 +382,9 @@ async fn execute_dependencies(
     let mut env_vars = build_script_environment(config)?;
 
     // Load .env files
-    let current_dir = config_path.parent().unwrap();
+    let current_dir = config_path
+        .parent()
+        .expect("config file path should have a parent directory");
     load_dotenv_files(current_dir, &mut env_vars);
 
     // Add config env vars
@@ -459,7 +461,10 @@ fn topological_sort(
 
     // Cycle detection
     if stack.contains(&name.to_string()) {
-        let cycle_start = stack.iter().position(|s| s == name).unwrap();
+        let cycle_start = stack
+            .iter()
+            .position(|s| s == name)
+            .expect("name was confirmed to be in stack by contains() check above");
         let cycle: Vec<_> = stack[cycle_start..].to_vec();
         return Err(anyhow::anyhow!(
             "Circular dependency detected: {} -> {}",

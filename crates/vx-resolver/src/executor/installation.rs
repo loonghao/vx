@@ -628,7 +628,10 @@ impl<'a> InstallationManager<'a> {
                 .filter(|dep| {
                     let dep_runtime = dep.provided_by.as_deref().unwrap_or(&dep.runtime_name);
                     let resolution = self.resolver.resolve(dep_runtime);
-                    resolution.is_err() || resolution.as_ref().unwrap().runtime_needs_install
+                    match resolution {
+                        Err(_) => true,
+                        Ok(ref r) => r.runtime_needs_install,
+                    }
                 })
                 .collect();
 

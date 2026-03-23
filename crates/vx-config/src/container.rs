@@ -61,7 +61,10 @@ impl ContainerManager {
         let build_config = self.config.build.as_ref();
 
         if build_config.and_then(|b| b.multi_stage).unwrap_or(false) {
-            self.generate_multistage_dockerfile(dockerfile_config, build_config.unwrap())
+            self.generate_multistage_dockerfile(
+                dockerfile_config,
+                build_config.expect("build_config is Some when multi_stage is true"),
+            )
         } else {
             self.generate_simple_dockerfile(dockerfile_config)
         }

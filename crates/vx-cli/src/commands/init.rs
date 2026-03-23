@@ -3,7 +3,7 @@
 // Detects project type and generates appropriate vx configuration
 
 use crate::ui::UI;
-use anyhow::Result;
+use anyhow::{Context, Result};
 use std::collections::HashMap;
 use std::fs;
 use std::io::{self, Write};
@@ -239,16 +239,20 @@ async fn generate_interactive_config(existing: Option<&VxConfig>) -> Result<Stri
 
     // Get project name
     print!("Project name (optional, press Enter to skip): ");
-    io::stdout().flush().unwrap();
+    io::stdout().flush().context("Failed to flush stdout")?;
     let mut project_name = String::new();
-    io::stdin().read_line(&mut project_name).unwrap();
+    io::stdin()
+        .read_line(&mut project_name)
+        .context("Failed to read project name from stdin")?;
     let project_name = project_name.trim();
 
     // Get description
     print!("Description (optional): ");
-    io::stdout().flush().unwrap();
+    io::stdout().flush().context("Failed to flush stdout")?;
     let mut description = String::new();
-    io::stdin().read_line(&mut description).unwrap();
+    io::stdin()
+        .read_line(&mut description)
+        .context("Failed to read description from stdin")?;
     let description = description.trim();
 
     // Use detected tools or ask for selection
@@ -287,9 +291,11 @@ async fn generate_interactive_config(existing: Option<&VxConfig>) -> Result<Stri
             "Include {} ({}){}? (y/N, default: {}): ",
             tool, desc, marker, default
         );
-        io::stdout().flush().unwrap();
+        io::stdout().flush().context("Failed to flush stdout")?;
         let mut input = String::new();
-        io::stdin().read_line(&mut input).unwrap();
+        io::stdin()
+            .read_line(&mut input)
+            .context("Failed to read input from stdin")?;
         let input = input.trim().to_lowercase();
 
         let should_include = if input.is_empty() {

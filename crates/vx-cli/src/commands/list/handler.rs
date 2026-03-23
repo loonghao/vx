@@ -225,13 +225,12 @@ async fn list_tool_versions(
 ) -> Result<()> {
     // Check if tool is supported
     let runtime = registry.get_runtime(tool_name);
-    if runtime.is_none() {
+    let Some(runtime) = runtime else {
         let available_tools = registry.runtime_names();
         UI::tool_not_found(tool_name, &available_tools);
         return Ok(());
-    }
+    };
 
-    let runtime = runtime.unwrap();
     let current_platform = Platform::current();
     let platform_supported = is_platform_supported(&runtime, &current_platform);
     let canonical_name = runtime.name();
