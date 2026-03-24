@@ -182,11 +182,13 @@ cross-build TARGET:
     vx cargo install cross --locked
     vx cargo:cross build --release --target {{TARGET}} --no-default-features
 
-# Cross build (CI) — debug mode to verify compilation + linking without release optimizations.
-# musl static linking with --release takes 40+ minutes; debug builds finish in ~10 minutes.
+# Cross build (CI) — uses `cargo check` to verify compilation for the target
+# without code generation or linking. This catches type/borrow/trait errors
+# and is much faster than a full build (~5 min vs 30+ min for musl targets).
+# Full release builds happen in the release workflow, not PR CI.
 cross-build-ci TARGET:
     vx cargo install cross --locked
-    vx cargo:cross build --target {{TARGET}} --no-default-features
+    vx cargo:cross check --target {{TARGET}} --no-default-features
 
 
 # ============================================

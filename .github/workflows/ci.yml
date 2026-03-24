@@ -689,8 +689,8 @@ jobs:
     if: |
       needs.detect-changes.outputs.should_build == 'true' &&
       needs.detect-changes.outputs.is_main != 'true'
-    # Debug builds for cross-compilation CI — verifies code compiles and links.
-    # Release builds are handled by the release workflow on main branch.
+    # Uses `cargo check` to verify compilation without code generation/linking.
+    # Full builds happen in release workflow. cargo check is 5-10x faster.
     timeout-minutes: 30
     strategy:
       fail-fast: false
