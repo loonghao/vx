@@ -1,13 +1,16 @@
 [build.env]
 passthrough = ["GITHUB_TOKEN", "RUSTC_WRAPPER"]
 
-# musl targets now use rustls (pure Rust TLS), no OpenSSL needed
-# Install lld since .cargo/config.toml sets -fuse-ld=lld for musl targets
+# Install lld (required by .cargo/config.toml -fuse-ld=lld) and cmake (required by aws-lc-rs)
+[target.aarch64-unknown-linux-gnu]
+pre-build = ["apt-get update && apt-get install -y lld cmake"]
+
+# musl targets: lld for linker, cmake for aws-lc-rs C code cross-compilation
 [target.x86_64-unknown-linux-musl]
-pre-build = ["apt-get update && apt-get install -y lld"]
+pre-build = ["apt-get update && apt-get install -y lld cmake"]
 
 [target.aarch64-unknown-linux-musl]
-pre-build = ["apt-get update && apt-get install -y lld"]
+pre-build = ["apt-get update && apt-get install -y lld cmake"]
 
 # workaround for https://github.com/cross-rs/cross/issues/1345
 [target.x86_64-unknown-netbsd]
