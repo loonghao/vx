@@ -177,10 +177,16 @@ security-audit-ci:
 coverage-ci:
     vx cargo llvm-cov --all-features --workspace --lcov --output-path lcov.info
 
-# Cross build (CI) — installs cross via cargo, then builds
+# Cross build (release) — installs cross via cargo, then builds with optimizations
 cross-build TARGET:
     vx cargo install cross --locked
     vx cargo:cross build --release --target {{TARGET}} --no-default-features
+
+# Cross build (CI) — debug mode to verify compilation + linking without release optimizations.
+# musl static linking with --release takes 40+ minutes; debug builds finish in ~10 minutes.
+cross-build-ci TARGET:
+    vx cargo install cross --locked
+    vx cargo:cross build --target {{TARGET}} --no-default-features
 
 
 # ============================================

@@ -689,8 +689,9 @@ jobs:
     if: |
       needs.detect-changes.outputs.should_build == 'true' &&
       needs.detect-changes.outputs.is_main != 'true'
-    # musl targets need longer due to static linking (no build cache on first run)
-    timeout-minutes: 45
+    # Debug builds for cross-compilation CI — verifies code compiles and links.
+    # Release builds are handled by the release workflow on main branch.
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
@@ -738,13 +739,12 @@ jobs:
           cat .cargo/config.toml
 
       - name: Build with cross
-        run: vx just cross-build ${{ matrix.target }}
+        run: vx just cross-build-ci ${{ matrix.target }}
         env:
           RUSTC_WRAPPER: ""
           # Force cmake-based build for aws-lc-sys in cross-compilation.
-          # Note: AWS_LC_SYS_NO_ASM is NOT set because it panics in release
-          # builds (aws-lc-sys >=0.39). Using edge images with newer
-          # toolchains that support armv8.4-a assembly instructions.
+          # Using edge images with newer toolchains that support armv8.4-a
+          # assembly instructions (aws-lc-sys >=0.39).
           AWS_LC_SYS_CMAKE_BUILDER: "1"
 
   # ============================================================================
