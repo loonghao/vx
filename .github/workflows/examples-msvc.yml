@@ -93,7 +93,7 @@ jobs:
         run: cargo build --release
 
       - name: Upload VX binary
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         with:
           name: vx-windows-msvc-examples
           path: target/release/vx.exe
@@ -109,7 +109,7 @@ jobs:
       - uses: actions/checkout@v5
 
       - name: Download VX binary
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@v7
         with:
           name: vx-windows-msvc-examples
           path: ./bin
@@ -192,7 +192,7 @@ jobs:
 
       - name: Upload build logs
         if: always()
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         with:
           name: msvc-example-logs
           path: examples/msvc/logs/

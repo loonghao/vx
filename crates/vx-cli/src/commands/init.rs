@@ -195,16 +195,19 @@ fn find_or_create_config_path(dir: &Path) -> (PathBuf, Option<PathBuf>) {
 fn list_available_templates() -> Result<()> {
     UI::info("Available templates:");
     println!();
-    println!("  node        - Node.js project with npm");
-    println!("  node-pnpm   - Node.js project with pnpm");
-    println!("  node-yarn   - Node.js project with yarn");
-    println!("  node-bun    - Node.js project with bun");
-    println!("  python      - Python project with uv");
-    println!("  python-pip  - Python project with pip");
-    println!("  rust        - Rust project with cargo");
-    println!("  go          - Go project");
-    println!("  fullstack   - Full-stack project (Node.js + Python)");
-    println!("  minimal     - Minimal configuration");
+    println!("  node           - Node.js project with npm");
+    println!("  node-pnpm      - Node.js project with pnpm");
+    println!("  node-yarn      - Node.js project with yarn");
+    println!("  node-bun       - Node.js project with bun");
+    println!("  python         - Python project with uv");
+    println!("  python-pip     - Python project with pip");
+    println!("  rust           - Rust project with cargo");
+    println!("  rust-python    - Rust + Python hybrid project (maturin/PyO3)");
+    println!("  go             - Go project");
+    println!("  electron       - Electron desktop app (Node.js + frontend)");
+    println!("  fullstack      - Full-stack project (Node.js + Python)");
+    println!("  openclaw       - OpenClaw AI agent project with ClawHub skills");
+    println!("  minimal        - Minimal configuration");
     println!();
     println!("Usage: vx init --template <template>");
     Ok(())
@@ -382,6 +385,28 @@ fn generate_template_config(template_name: &str, existing: Option<&VxConfig>) ->
             tools.insert("uv".to_string(), "latest".to_string());
             tools
         }
+        "electron" => {
+            let mut tools = HashMap::new();
+            tools.insert("node".to_string(), "22".to_string());
+            tools.insert("pnpm".to_string(), "latest".to_string());
+            tools.insert("oxlint".to_string(), "latest".to_string());
+            tools
+        }
+        "rust-python" => {
+            let mut tools = HashMap::new();
+            tools.insert("rust".to_string(), "stable".to_string());
+            tools.insert("python".to_string(), "3.12".to_string());
+            tools.insert("uv".to_string(), "latest".to_string());
+            tools.insert("maturin".to_string(), "latest".to_string());
+            tools.insert("ruff".to_string(), "latest".to_string());
+            tools
+        }
+        "openclaw" => {
+            let mut tools = HashMap::new();
+            tools.insert("node".to_string(), "22".to_string());
+            tools.insert("openclaw".to_string(), "latest".to_string());
+            tools
+        }
         "minimal" => HashMap::new(),
         _ => {
             return Err(anyhow::anyhow!(
@@ -545,6 +570,77 @@ pub fn detect_project(dir: &Path) -> Result<ProjectDetection> {
         detection
             .hints
             .push("Justfile detected - 'just' command runner will be available".to_string());
+    }
+
+    // Check for oxlint/oxfmt configuration (modern JS/TS linter)
+    if dir.join("oxlintrc.json").exists() || dir.join(".oxlintrc.json").exists() {
+        detection
+            .tools
+            .insert("oxlint".to_string(), "latest".to_string());
+        detection.hints.push(
+            "oxlint config detected - fast Rust-based JavaScript/TypeScript linter".to_string(),
+        );
+    }
+
+    // Check for ruff configuration (modern Python linter)
+    if dir.join("ruff.toml").exists() || dir.join(".ruff.toml").exists() {
+        detection
+            .tools
+            .insert("ruff".to_string(), "latest".to_string());
+        detection
+            .hints
+            .push("ruff config detected - fast Rust-based Python linter and formatter".to_string());
+    }
+
+    // Check for maturin (Rust + Python hybrid project via PyO3)
+    if dir.join("Cargo.toml").exists()
+        && dir.join("pyproject.toml").exists()
+        && let Ok(cargo_content) = fs::read_to_string(dir.join("Cargo.toml"))
+        && (cargo_content.contains("pyo3")
+            || cargo_content.contains("maturin")
+            || cargo_content.contains("uniffi"))
+    {
+        detection
+            .tools
+            .insert("maturin".to_string(), "latest".to_string());
+        detection
+            .hints
+            .push("Rust+Python hybrid project detected (PyO3/maturin) - maturin build tool will be available".to_string());
+    }
+
+    // Check for Electron project
+    if dir.join("package.json").exists()
+        && let Ok(content) = fs::read_to_string(dir.join("package.json"))
+        && let Ok(json) = serde_json::from_str::<serde_json::Value>(&content)
+    {
+        let has_electron = json
+            .get("dependencies")
+            .and_then(|d| d.get("electron"))
+            .is_some()
+            || json
+                .get("devDependencies")
+                .and_then(|d| d.get("electron"))
+                .is_some();
+        if has_electron {
+            detection.hints.push(
+                "Electron desktop app detected - consider using 'vx init --template electron'"
+                    .to_string(),
+            );
+        }
+    }
+
+    // Check for OpenClaw project (has .openclaw/ dir or config.yaml)
+    if dir.join(".openclaw").exists()
+        || dir.join(".openclaw/config.yaml").exists()
+        || dir.join("SKILL.md").exists()
+        || dir.join("SOUL.md").exists()
+    {
+        detection
+            .tools
+            .insert("openclaw".to_string(), "latest".to_string());
+        detection
+            .hints
+            .push("OpenClaw project detected - AI agent with ClawHub skill registry".to_string());
     }
 
     // Mark as mixed if multiple project types

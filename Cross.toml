@@ -1,12 +1,22 @@
 [build.env]
-passthrough = ["GITHUB_TOKEN"]
+passthrough = ["GITHUB_TOKEN", "RUSTC_WRAPPER", "AWS_LC_SYS_CMAKE_BUILDER"]
 
-# musl targets now use rustls (pure Rust TLS), no OpenSSL needed
+# Use 'edge' images which are based on newer Ubuntu (not 16.04/xenial).
+# The default cross images (0.2.5/latest) are based on Ubuntu 16.04 which:
+# 1. Has no lld package available
+# 2. Has binutils too old for armv8.4-a assembly instructions (aws-lc-sys)
+# The edge images are based on Ubuntu 22.04+ and have modern toolchains.
+[target.aarch64-unknown-linux-gnu]
+image = "ghcr.io/cross-rs/aarch64-unknown-linux-gnu:edge"
+pre-build = ["apt-get update && apt-get install -y cmake g++ pkg-config"]
+
 [target.x86_64-unknown-linux-musl]
-pre-build = []
+image = "ghcr.io/cross-rs/x86_64-unknown-linux-musl:edge"
+pre-build = ["apt-get update && apt-get install -y cmake g++ pkg-config"]
 
 [target.aarch64-unknown-linux-musl]
-pre-build = []
+image = "ghcr.io/cross-rs/aarch64-unknown-linux-musl:edge"
+pre-build = ["apt-get update && apt-get install -y cmake g++ pkg-config"]
 
 # workaround for https://github.com/cross-rs/cross/issues/1345
 [target.x86_64-unknown-netbsd]

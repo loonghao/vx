@@ -62,17 +62,11 @@ impl E2ETestEnv {
 
 /// Get the path to the vx-providers directory
 fn providers_dir() -> PathBuf {
-    let mut path = env::current_exe().unwrap();
-    path.pop(); // Remove test binary name
-    if path.ends_with("deps") {
-        path.pop(); // Remove deps directory
-    }
-    // Navigate to project root
-    path.pop(); // Remove debug/release
-    path.pop(); // Remove target
-    path.push("crates");
-    path.push("vx-providers");
-    path
+    // Use CARGO_MANIFEST_DIR (set at compile time) for reliable path resolution
+    // This works correctly under cargo test, cargo nextest, cargo llvm-cov, etc.
+    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("crates")
+        .join("vx-providers")
 }
 
 // ============================================================================

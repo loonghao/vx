@@ -102,6 +102,14 @@ fn collect_runtime_platforms(
 
         let source = fs::read_to_string(&provider_path)?;
         let metadata = StarMetadata::parse(&source);
+
+        // Skip package_alias providers (RFC 0033) — they route `vx <name>` to
+        // `vx <ecosystem>:<package>` and are tested via ecosystem package managers,
+        // not direct install.  E.g., openclaw, vite, turbo, nx, meson, etc.
+        if metadata.package_alias.is_some() {
+            continue;
+        }
+
         let provider_name = metadata
             .name
             .clone()

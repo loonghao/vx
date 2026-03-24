@@ -2,6 +2,7 @@ use std::collections::BTreeSet;
 use std::fs;
 use std::path::Path;
 use std::path::PathBuf;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use vx_star_metadata::{DiscoveryConfig, discover_providers};
@@ -126,11 +127,14 @@ runtimes = [
 }
 
 fn create_temp_dir() -> PathBuf {
+    static COUNTER: AtomicU64 = AtomicU64::new(0);
     let unique = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .expect("system time should be after unix epoch")
         .as_nanos();
-    let dir = std::env::temp_dir().join(format!("vx-star-discovery-tests-{unique}"));
+    let seq = COUNTER.fetch_add(1, Ordering::Relaxed);
+    let pid = std::process::id();
+    let dir = std::env::temp_dir().join(format!("vx-star-discovery-tests-{unique}-{pid}-{seq}"));
     fs::create_dir_all(&dir).expect("temp dir should be created");
     dir
 }
@@ -170,6 +174,64 @@ runtimes = [
     assert_eq!(result.total_runtimes, 1);
     assert_eq!(result.testable_runtimes, 1);
     assert_eq!(result.linux.runtimes, vec!["ffmpeg"]);
+
+    fs::remove_dir_all(root).ok();
+}
+
+#[test]
+fn discovery_excludes_package_alias_providers() {
+    let root = create_temp_dir();
+
+    // Regular provider (should be discovered)
+    write_provider(
+        &root,
+        "ripgrep",
+        r#"
+name = "ripgrep"
+runtimes = [runtime_def("rg", aliases = ["ripgrep"])]
+"#,
+    );
+
+    // Package alias provider (should be excluded)
+    write_provider(
+        &root,
+        "openclaw",
+        r#"
+name = "openclaw"
+package_alias = {"ecosystem": "npm", "package": "openclaw"}
+runtimes = [
+    runtime_def("openclaw", aliases = ["claw"]),
+    bundled_runtime_def("clawhub", bundled_with = "openclaw"),
+]
+"#,
+    );
+
+    // Another package alias provider
+    write_provider(
+        &root,
+        "vite",
+        r#"
+name = "vite"
+package_alias = {"ecosystem": "npm", "package": "vite"}
+runtimes = [runtime_def("vite")]
+"#,
+    );
+
+    let config = DiscoveryConfig::new(&root, 10);
+    let result = discover_providers(&config).expect("discovery should succeed");
+
+    // Only "rg" should be discovered; openclaw and vite are package_alias providers
+    assert_eq!(result.total_runtimes, 1);
+    assert_eq!(result.testable_runtimes, 1);
+    assert_eq!(result.linux.runtimes, vec!["rg"]);
+    assert!(
+        !result.linux.runtimes.contains(&"openclaw".to_string()),
+        "openclaw should NOT appear (package_alias)"
+    );
+    assert!(
+        !result.linux.runtimes.contains(&"vite".to_string()),
+        "vite should NOT appear (package_alias)"
+    );
 
     fs::remove_dir_all(root).ok();
 }

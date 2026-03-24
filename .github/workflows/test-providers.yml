@@ -25,16 +25,6 @@ on:
       - ".github/scripts/summarize-test-results.sh"
   pull_request:
     branches: [main]
-    paths:
-      - "crates/vx-providers/**"
-      - "crates/vx-runtime/**"
-      - "crates/vx-installer/**"
-      - "crates/vx-starlark/**"
-      - "crates/vx-star-metadata/**"
-      - "crates/vx-manifest/**"
-      - ".github/workflows/test-providers.yml"
-      - ".github/scripts/discover-providers.sh"
-      - ".github/scripts/summarize-test-results.sh"
   workflow_dispatch:
     inputs:
       runtimes:
@@ -57,9 +47,36 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # ============================================================================
+  # Stage 0: Check if relevant files changed (ensures required check always reports)
+  # ============================================================================
+  check-changes:
+    name: Check Changes
+    runs-on: ubuntu-latest
+    outputs:
+      should_run: ${{ steps.filter.outputs.should_run }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            should_run:
+              - 'crates/vx-providers/**'
+              - 'crates/vx-runtime/**'
+              - 'crates/vx-installer/**'
+              - 'crates/vx-starlark/**'
+              - 'crates/vx-star-metadata/**'
+              - 'crates/vx-manifest/**'
+              - '.github/workflows/test-providers.yml'
+              - '.github/scripts/discover-providers.sh'
+              - '.github/scripts/summarize-test-results.sh'
+
   # Build VX and discover all testable providers
   build-and-discover:
     name: Build & Discover
+    needs: check-changes
+    if: needs.check-changes.outputs.should_run == 'true' || github.event_name == 'workflow_dispatch' || github.event_name == 'schedule'
     runs-on: ubuntu-latest
     env:
       RUSTC_WRAPPER: sccache
@@ -147,7 +164,7 @@ jobs:
           fi
 
       - name: Upload VX binary (Linux)
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         with:
           name: vx-linux
           path: target/release/vx
@@ -193,7 +210,7 @@ jobs:
             target/
           key: macos-cargo-build-${{ hashFiles('**/Cargo.lock') }}
       - run: cargo build --release
-      - uses: actions/upload-artifact@v5
+      - uses: actions/upload-artifact@v7
         with:
           name: vx-macos
           path: target/release/vx
@@ -258,7 +275,7 @@ jobs:
             target/
           key: windows-cargo-build-${{ hashFiles('**/Cargo.lock') }}
       - run: cargo build --release
-      - uses: actions/upload-artifact@v5
+      - uses: actions/upload-artifact@v7
         with:
           name: vx-windows
           path: target/release/vx.exe
@@ -280,7 +297,7 @@ jobs:
       - uses: actions/checkout@v5
 
       - name: Download VX binary
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@v7
         with:
           name: vx-linux
           path: ./bin
@@ -303,7 +320,7 @@ jobs:
 
       - name: Upload test report
         if: always()
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         with:
           name: report-linux-${{ strategy.job-index }}
           path: test-report.json
@@ -325,7 +342,7 @@ jobs:
       - uses: actions/checkout@v5
 
       - name: Download VX binary
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@v7
         with:
           name: vx-macos
           path: ./bin
@@ -348,7 +365,7 @@ jobs:
 
       - name: Upload test report
         if: always()
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         with:
           name: report-macos-${{ strategy.job-index }}
           path: test-report.json
@@ -370,7 +387,7 @@ jobs:
       - uses: actions/checkout@v5
 
       - name: Download VX binary
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@v7
         with:
           name: vx-windows
           path: ./bin
@@ -391,7 +408,7 @@ jobs:
 
       - name: Upload test report
         if: always()
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         with:
           name: report-windows-${{ strategy.job-index }}
           path: test-report.json
@@ -401,7 +418,8 @@ jobs:
   quick-test:
     name: Quick Smoke Test
     runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request'
+    needs: check-changes
+    if: github.event_name == 'pull_request' && needs.check-changes.outputs.should_run == 'true'
     timeout-minutes: 15
     env:
       RUSTC_WRAPPER: sccache
@@ -459,7 +477,7 @@ jobs:
       - uses: actions/checkout@v5
 
       - name: Download all reports
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@v7
         with:
           pattern: report-*
           merge-multiple: false
@@ -476,6 +494,7 @@ jobs:
     name: Provider Success
     runs-on: ubuntu-latest
     needs:
+      - check-changes
       - build-and-discover
       - build-macos
       - build-windows
@@ -493,6 +512,12 @@ jobs:
           echo "## Provider Workflow Results" >> "$GITHUB_STEP_SUMMARY"
           echo "" >> "$GITHUB_STEP_SUMMARY"
 
+          # If no relevant files changed, all jobs are skipped — that's a pass
+          if [[ "${{ needs.check-changes.outputs.should_run }}" != "true" && "${{ github.event_name }}" != "workflow_dispatch" && "${{ github.event_name }}" != "schedule" ]]; then
+            echo "No relevant files changed — skipping provider tests" >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
           failed=0
           any_matrix=0
 
@@ -501,11 +526,11 @@ jobs:
             local result="$2"
 
             if [[ "$result" == "success" ]]; then
-              echo "- ✅ $job_name" >> "$GITHUB_STEP_SUMMARY"
+              echo "- ✅$job_name" >> "$GITHUB_STEP_SUMMARY"
             elif [[ "$result" == "skipped" ]]; then
               echo "- ⏭️ $job_name (skipped)" >> "$GITHUB_STEP_SUMMARY"
             else
-              echo "- ❌ $job_name ($result)" >> "$GITHUB_STEP_SUMMARY"
+              echo "- ❌$job_name ($result)" >> "$GITHUB_STEP_SUMMARY"
               failed=1
             fi
           }
@@ -513,7 +538,7 @@ jobs:
           check_job "build-and-discover" "${{ needs.build-and-discover.result }}"
 
           if [[ "${{ needs.build-and-discover.outputs.testable-runtimes }}" == "0" ]]; then
-            echo "- ❌ no testable runtimes discovered" >> "$GITHUB_STEP_SUMMARY"
+            echo "- ❌no testable runtimes discovered" >> "$GITHUB_STEP_SUMMARY"
             failed=1
           fi
 
@@ -533,7 +558,7 @@ jobs:
           done
 
           if [[ $any_matrix -eq 0 ]]; then
-            echo "- ❌ all provider matrix jobs were skipped" >> "$GITHUB_STEP_SUMMARY"
+            echo "- ❌all provider matrix jobs were skipped" >> "$GITHUB_STEP_SUMMARY"
             failed=1
           fi
 
@@ -553,9 +578,9 @@ jobs:
 
           if [[ $failed -eq 1 ]]; then
             echo "" >> "$GITHUB_STEP_SUMMARY"
-            echo "❌ **Provider workflow failed**" >> "$GITHUB_STEP_SUMMARY"
+            echo "❌**Provider workflow failed**" >> "$GITHUB_STEP_SUMMARY"
             exit 1
           fi
 
           echo "" >> "$GITHUB_STEP_SUMMARY"
-          echo "✅ **Provider workflow passed**" >> "$GITHUB_STEP_SUMMARY"
+          echo "✅**Provider workflow passed**" >> "$GITHUB_STEP_SUMMARY"
