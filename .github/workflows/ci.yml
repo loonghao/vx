@@ -409,7 +409,7 @@ jobs:
           ./target/${{ matrix.platform.target }}/release/${{ matrix.platform.binary }} --help
 
       - name: Upload vx binary
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: ${{ matrix.platform.artifact }}
           path: target/${{ matrix.platform.target }}/release/${{ matrix.platform.binary }}
@@ -432,7 +432,7 @@ jobs:
       - uses: actions/checkout@v6
 
       - name: Download vx binary
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@v7
         with:
           name: vx-linux-x64
           path: ./bin
@@ -518,7 +518,7 @@ jobs:
       - uses: actions/checkout@v6
 
       - name: Download vx binary
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@v7
         with:
           name: ${{ matrix.platform.artifact }}
           path: ./bin
@@ -642,7 +642,7 @@ jobs:
       - uses: actions/checkout@v6
 
       - name: Download vx binary
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@v7
         with:
           name: ${{ matrix.platform.artifact }}
           path: ./bin
@@ -680,7 +680,7 @@ jobs:
           CARGO_TARGET_DIR: target
 
   # ============================================================================
-  # Stage 5: Cross-compilation (main branch only, if rust changed)
+  # Stage 5: Cross-compilation (PR only, skip on main since release builds cover it)
   # ============================================================================
   cross-build:
     name: Cross Build (${{ matrix.target }})
@@ -688,21 +688,27 @@ jobs:
     needs: [detect-changes, build-vx]
     if: |
       needs.detect-changes.outputs.should_build == 'true' &&
-      needs.detect-changes.outputs.is_main == 'true'
-    timeout-minutes: 30
+      needs.detect-changes.outputs.is_main != 'true'
+    # Uses `cargo check` to verify compilation without code generation/linking.
+    # Full builds happen in release workflow.
+    #
+    # NOTE: musl targets (x86_64-unknown-linux-musl, aarch64-unknown-linux-musl)
+    # are excluded from PR CI because `cargo check` still runs C dependency
+    # build scripts (aws-lc-sys cmake) which take >45 min in cross containers.
+    # musl targets are validated in the release workflow where full builds run.
+    # The gnu target below validates ARM64 cross-compilation in ~4 min.
+    timeout-minutes: 15
     strategy:
       fail-fast: false
       matrix:
         target:
           - aarch64-unknown-linux-gnu
-          - x86_64-unknown-linux-musl
-          - aarch64-unknown-linux-musl
 
     steps:
       - uses: actions/checkout@v6
 
       - name: Download vx binary
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@v7
         with:
           name: vx-linux-x64
           path: ./bin
@@ -715,19 +721,35 @@ jobs:
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
 
-      - name: Install cross
-        uses: taiki-e/install-action@v2
-        with:
-          tool: cross
-
       - name: Cache Rust
         uses: Swatinem/rust-cache@v2
         with:
           prefix-key: ${{ matrix.target }}
           shared-key: cross
 
+      - name: Prepare config for cross-build
+        shell: bash
+        run: |
+          # Remove sccache rustc-wrapper from .cargo/config.toml — sccache is
+          # not available inside cross Docker containers and would cause
+          # "No such file or directory" errors.
+          sed -i 's/^rustc-wrapper = .*/# rustc-wrapper disabled for cross-build/' .cargo/config.toml
+
+          # Remove lld linker references to avoid dependency on host lld
+          # inside cross Docker containers. The default linker works fine.
+          sed -i '/fuse-ld=lld/d' .cargo/config.toml
+
+          echo "Patched .cargo/config.toml:"
+          cat .cargo/config.toml
+
       - name: Build with cross
-        run: vx just cross-build ${{ matrix.target }}
+        run: vx just cross-build-ci ${{ matrix.target }}
+        env:
+          RUSTC_WRAPPER: ""
+          # Force cmake-based build for aws-lc-sys in cross-compilation.
+          # Using edge images with newer toolchains that support armv8.4-a
+          # assembly instructions (aws-lc-sys >=0.39).
+          AWS_LC_SYS_CMAKE_BUILDER: "1"
 
   # ============================================================================
   # Stage 6: Security audit (only if rust changed)
@@ -758,7 +780,7 @@ jobs:
         run: vx just security-audit-ci
 
   # ============================================================================
-  # Stage 7: Code coverage (main branch only)
+  # Stage 7: Code coverage (PR only, skip on main to save resources)
   # ============================================================================
   coverage:
     name: Code Coverage (via vx)
@@ -766,7 +788,7 @@ jobs:
     needs: [detect-changes, build-vx]
     if: |
       needs.detect-changes.outputs.should_build == 'true' &&
-      needs.detect-changes.outputs.is_main == 'true'
+      needs.detect-changes.outputs.is_main != 'true'
     timeout-minutes: 20
     env:
       RUSTC_WRAPPER: sccache
@@ -776,7 +798,7 @@ jobs:
       - uses: actions/checkout@v6
 
       - name: Download vx binary
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@v7
         with:
           name: vx-linux-x64
           path: ./bin
@@ -822,7 +844,7 @@ jobs:
       - uses: actions/checkout@v6
 
       - name: Download vx binary
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@v7
         with:
           name: vx-linux-x64
           path: ./bin
@@ -923,7 +945,7 @@ jobs:
 
 
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### Main Branch Only" >> $GITHUB_STEP_SUMMARY
+          echo "### Cross Build & Coverage (PR only)" >> $GITHUB_STEP_SUMMARY
           check_job "cross-build" "${{ needs.cross-build.result }}"
           check_job "coverage" "${{ needs.coverage.result }}"
 

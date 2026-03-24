@@ -103,6 +103,7 @@ pub static KNOWN_PYTHON_TOOLS: &[&str] = &[
     "hatch",
     "pdm",
     "poetry",
+    "maturin",
     // Documentation
     "sphinx",
     "mkdocs",
@@ -231,6 +232,9 @@ pub static KNOWN_NODEJS_TOOLS: &[&str] = &[
     "prettier",
     "stylelint",
     "tslint",
+    "oxlint",
+    "oxfmt",
+    "biome",
     // TypeScript
     "tsc",
     "typescript",
@@ -238,6 +242,9 @@ pub static KNOWN_NODEJS_TOOLS: &[&str] = &[
     "npm",
     "yarn",
     "pnpm",
+    // AI Agents & Tools
+    "openclaw",
+    "clawhub",
     // Other common tools
     "nodemon",
     "ts-node",

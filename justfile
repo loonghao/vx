@@ -1,7 +1,8 @@
 # vx - Universal Development Tool Manager
 # Just command runner recipes
 
-# Set shell for Windows compatibility
+# Set shell for cross-platform compatibility
+set shell := ["bash", "-cu"]
 set windows-shell := ["pwsh", "-NoProfile", "-Command"]
 
 # Default recipe - show available commands
@@ -176,9 +177,18 @@ security-audit-ci:
 coverage-ci:
     vx cargo llvm-cov --all-features --workspace --lcov --output-path lcov.info
 
-# Cross build (CI)
+# Cross build (release) — installs cross via cargo, then builds with optimizations
 cross-build TARGET:
-    vx cross build --release --target {{TARGET}} --no-default-features
+    vx cargo install cross --locked
+    vx cargo:cross build --release --target {{TARGET}} --no-default-features
+
+# Cross build (CI) — uses `cargo check` to verify compilation for the target
+# without code generation or linking. This catches type/borrow/trait errors
+# and is much faster than a full build (~5 min vs 30+ min for musl targets).
+# Full release builds happen in the release workflow, not PR CI.
+cross-build-ci TARGET:
+    vx cargo install cross --locked
+    vx cargo:cross check --target {{TARGET}} --no-default-features
 
 
 # ============================================

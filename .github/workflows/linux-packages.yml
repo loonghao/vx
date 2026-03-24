@@ -28,7 +28,7 @@ jobs:
     steps:
       - name: Download release tag artifact
         if: github.event_name == 'workflow_run'
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@v7
         with:
           name: release-tag
           path: .
@@ -139,7 +139,7 @@ jobs:
           ls -la *.deb
 
       - name: Upload DEB artifact
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         with:
           name: deb-${{ matrix.arch }}
           path: "*.deb"
@@ -228,7 +228,7 @@ jobs:
           ls -la *.rpm
 
       - name: Upload RPM artifact
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         with:
           name: rpm-${{ matrix.arch }}
           path: "*.rpm"
@@ -239,7 +239,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Download all artifacts
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@v7
         with:
           path: packages
 

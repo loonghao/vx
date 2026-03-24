@@ -137,7 +137,10 @@ pub fn get_installer(ecosystem: &str) -> anyhow::Result<Box<dyn EcosystemInstall
 ///
 /// This returns the recommended/faster installer for each ecosystem:
 /// - Python: uv (if available), falls back to pip
-/// - Node.js: npm (default), or specified alternative
+/// - Node.js/npm: bun (if available), falls back to npm
+///
+/// The preference order follows the same pattern as Python's uv→pip fallback:
+/// prefer the faster, more modern tool, with automatic fallback to the standard tool.
 ///
 /// # Arguments
 /// * `ecosystem` - The base ecosystem name (python, node, rust, go, ruby)
@@ -152,6 +155,15 @@ pub fn get_preferred_installer(ecosystem: &str) -> anyhow::Result<Box<dyn Ecosys
                 Ok(Box::new(uv))
             } else {
                 Ok(Box::new(PipInstaller::new()))
+            }
+        }
+        "npm" | "node" | "npx" => {
+            // Prefer bun if available (faster), fall back to npm
+            let bun = BunInstaller::new();
+            if bun.is_available() {
+                Ok(Box::new(bun))
+            } else {
+                Ok(Box::new(NpmInstaller::new()))
             }
         }
         // For other ecosystems, use the default
