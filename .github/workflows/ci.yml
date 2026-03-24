@@ -728,19 +728,22 @@ jobs:
           # not available inside cross Docker containers and would cause
           # "No such file or directory" errors.
           sed -i 's/^rustc-wrapper = .*/# rustc-wrapper disabled for cross-build/' .cargo/config.toml
+
+          # Remove lld linker references to avoid dependency on host lld
+          # inside cross Docker containers. The default linker works fine.
+          sed -i '/fuse-ld=lld/d' .cargo/config.toml
+
           echo "Patched .cargo/config.toml:"
-          grep -n "rustc-wrapper" .cargo/config.toml || true
+          cat .cargo/config.toml
 
       - name: Build with cross
         run: vx just cross-build ${{ matrix.target }}
         env:
           RUSTC_WRAPPER: ""
-          # Disable aws-lc-sys assembly optimizations for cross-compilation.
-          # The cross Docker containers' assemblers are too old for armv8.4-a
-          # instructions (sha3, eor3, rax1, xar, bcax) used by aws-lc-sys.
-          # Falls back to C implementation. See: aws/aws-lc-rs#889
-          AWS_LC_SYS_NO_ASM: "1"
-          # Force cmake-based build for aws-lc-sys in cross-compilation
+          # Force cmake-based build for aws-lc-sys in cross-compilation.
+          # Note: AWS_LC_SYS_NO_ASM is NOT set because it panics in release
+          # builds (aws-lc-sys >=0.39). Using edge images with newer
+          # toolchains that support armv8.4-a assembly instructions.
           AWS_LC_SYS_CMAKE_BUILDER: "1"
 
   # ============================================================================
