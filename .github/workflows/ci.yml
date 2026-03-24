@@ -689,7 +689,8 @@ jobs:
     if: |
       needs.detect-changes.outputs.should_build == 'true' &&
       needs.detect-changes.outputs.is_main != 'true'
-    timeout-minutes: 30
+    # musl targets need longer due to static linking (no build cache on first run)
+    timeout-minutes: 45
     strategy:
       fail-fast: false
       matrix:
