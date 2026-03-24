@@ -1,16 +1,16 @@
 [build.env]
-passthrough = ["GITHUB_TOKEN", "RUSTC_WRAPPER", "AWS_LC_SYS_NO_ASM"]
+passthrough = ["GITHUB_TOKEN", "RUSTC_WRAPPER", "AWS_LC_SYS_NO_ASM", "AWS_LC_SYS_CMAKE_BUILDER"]
 
-# Install lld (required by .cargo/config.toml -fuse-ld=lld) and cmake (required by aws-lc-rs)
+# Install lld (required by .cargo/config.toml -fuse-ld=lld), cmake and g++ (required by aws-lc-rs)
 [target.aarch64-unknown-linux-gnu]
-pre-build = ["apt-get update && apt-get install -y lld cmake"]
+pre-build = ["apt-get update && apt-get install -y lld cmake g++ pkg-config"]
 
-# musl targets: lld for linker, cmake for aws-lc-rs C code cross-compilation
+# musl targets: lld for linker, cmake + g++ for aws-lc-rs C code cross-compilation
 [target.x86_64-unknown-linux-musl]
-pre-build = ["apt-get update && apt-get install -y lld cmake"]
+pre-build = ["apt-get update && apt-get install -y lld cmake g++ pkg-config"]
 
 [target.aarch64-unknown-linux-musl]
-pre-build = ["apt-get update && apt-get install -y lld cmake"]
+pre-build = ["apt-get update && apt-get install -y lld cmake g++ pkg-config"]
 
 # workaround for https://github.com/cross-rs/cross/issues/1345
 [target.x86_64-unknown-netbsd]

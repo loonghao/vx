@@ -721,18 +721,27 @@ jobs:
           prefix-key: ${{ matrix.target }}
           shared-key: cross
 
+      - name: Prepare config for cross-build
+        shell: bash
+        run: |
+          # Remove sccache rustc-wrapper from .cargo/config.toml — sccache is
+          # not available inside cross Docker containers and would cause
+          # "No such file or directory" errors.
+          sed -i 's/^rustc-wrapper = .*/# rustc-wrapper disabled for cross-build/' .cargo/config.toml
+          echo "Patched .cargo/config.toml:"
+          grep -n "rustc-wrapper" .cargo/config.toml || true
+
       - name: Build with cross
         run: vx just cross-build ${{ matrix.target }}
         env:
-          # Disable sccache inside cross Docker containers — sccache is not
-          # installed there, and .cargo/config.toml sets rustc-wrapper=sccache
-          # which would cause "No such file or directory" errors.
           RUSTC_WRAPPER: ""
           # Disable aws-lc-sys assembly optimizations for cross-compilation.
           # The cross Docker containers' assemblers are too old for armv8.4-a
           # instructions (sha3, eor3, rax1, xar, bcax) used by aws-lc-sys.
           # Falls back to C implementation. See: aws/aws-lc-rs#889
           AWS_LC_SYS_NO_ASM: "1"
+          # Force cmake-based build for aws-lc-sys in cross-compilation
+          AWS_LC_SYS_CMAKE_BUILDER: "1"
 
   # ============================================================================
   # Stage 6: Security audit (only if rust changed)
