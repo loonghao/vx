@@ -52,7 +52,8 @@ PROVIDERS_DIR="${VX_PROVIDERS_DIR:-crates/vx-providers}"
 # - brew, homebrew: require script installation, not suitable for CI
 # - wix: Windows-only, winget install doesn't update PATH in CI; get_execute_path returns None
 # - xmake: winget install on Windows doesn't update PATH in CI; functional test fails
-SKIP_ALWAYS="msbuild,msvc,systemctl,journalctl,systemd-analyze,loginctl,choco,xcodebuild,xcrun,xcode-select,swift,swiftc,make,awscli,aws,azcli,az,curl,nasm,rust,rustc,cargo,rustup,ollama,python,brew,homebrew,magick,convert,actrun,code,vscode,pwsh,powershell,wix,candle,light,heat,torch,smoke,xmake"
+# - gws: Google Workspace CLI requires OAuth authentication; incomplete crate scaffolding (star-only provider)
+SKIP_ALWAYS="msbuild,msvc,systemctl,journalctl,systemd-analyze,loginctl,choco,xcodebuild,xcrun,xcode-select,swift,swiftc,make,awscli,aws,azcli,az,curl,nasm,rust,rustc,cargo,rustup,ollama,python,brew,homebrew,magick,convert,actrun,code,vscode,pwsh,powershell,wix,candle,light,heat,torch,smoke,xmake,gws"
 
 # Parse arguments
 while [[ $# -gt 0 ]]; do
