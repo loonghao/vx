@@ -728,6 +728,11 @@ jobs:
           # installed there, and .cargo/config.toml sets rustc-wrapper=sccache
           # which would cause "No such file or directory" errors.
           RUSTC_WRAPPER: ""
+          # Disable aws-lc-sys assembly optimizations for cross-compilation.
+          # The cross Docker containers' assemblers are too old for armv8.4-a
+          # instructions (sha3, eor3, rax1, xar, bcax) used by aws-lc-sys.
+          # Falls back to C implementation. See: aws/aws-lc-rs#889
+          AWS_LC_SYS_NO_ASM: "1"
 
   # ============================================================================
   # Stage 6: Security audit (only if rust changed)

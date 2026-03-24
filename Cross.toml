@@ -1,5 +1,5 @@
 [build.env]
-passthrough = ["GITHUB_TOKEN", "RUSTC_WRAPPER"]
+passthrough = ["GITHUB_TOKEN", "RUSTC_WRAPPER", "AWS_LC_SYS_NO_ASM"]
 
 # Install lld (required by .cargo/config.toml -fuse-ld=lld) and cmake (required by aws-lc-rs)
 [target.aarch64-unknown-linux-gnu]
