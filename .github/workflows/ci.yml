@@ -690,16 +690,19 @@ jobs:
       needs.detect-changes.outputs.should_build == 'true' &&
       needs.detect-changes.outputs.is_main != 'true'
     # Uses `cargo check` to verify compilation without code generation/linking.
-    # Full builds happen in release workflow. Note: musl targets still need
-    # ~35 min due to C dependency build scripts (aws-lc-sys cmake build).
-    timeout-minutes: 45
+    # Full builds happen in release workflow.
+    #
+    # NOTE: musl targets (x86_64-unknown-linux-musl, aarch64-unknown-linux-musl)
+    # are excluded from PR CI because `cargo check` still runs C dependency
+    # build scripts (aws-lc-sys cmake) which take >45 min in cross containers.
+    # musl targets are validated in the release workflow where full builds run.
+    # The gnu target below validates ARM64 cross-compilation in ~4 min.
+    timeout-minutes: 15
     strategy:
       fail-fast: false
       matrix:
         target:
           - aarch64-unknown-linux-gnu
-          - x86_64-unknown-linux-musl
-          - aarch64-unknown-linux-musl
 
     steps:
       - uses: actions/checkout@v6
