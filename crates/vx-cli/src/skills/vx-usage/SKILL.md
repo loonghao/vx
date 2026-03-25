@@ -1,6 +1,6 @@
 ---
 name: vx-usage
-description: "Teaches AI agents how to use vx, the universal dev tool manager. Use when the project has vx.toml or .vx/, or when the user mentions vx, tool version management, or cross-platform setup. vx auto-manages Node.js, Python, Go, Rust, and 73+ tools via Starlark DSL providers."
+description: "Teaches AI agents how to use vx, the universal dev tool manager. Use when the project has vx.toml or .vx/, or when the user mentions vx, tool version management, or cross-platform setup. vx auto-manages Node.js, Python, Go, Rust, and 78 tools via Starlark DSL providers."
 ---
 
 # VX - Universal Development Tool Manager
@@ -193,27 +193,31 @@ vx msvc@14.40 cl main.cpp
 | lib | `vx msvc lib` | Library manager |
 | nmake | `vx msvc nmake` | Make utility |
 
-## Supported Tools (75+ Providers)
+## Supported Tools (78 Providers)
 
 | Category | Tools |
 |----------|-------|
-| JavaScript | node, npm, npx, bun, deno, pnpm, yarn, vite, nx, turbo |
-| JS Tooling | oxlint, oxfmt |
-| Python | uv, uvx, python, pip, ruff, maturin, pre-commit |
-| Rust | cargo, rustc, rustup |
-| Go | go, gofmt |
-| System | git, just, jq, yq, cmake, make, ninja, meson, xmake, bash, curl, pwsh |
-| Build | protoc, conan, vcpkg, spack, task, ccache, buildcache, sccache |
-| Cloud | podman, kubectl, helm, awscli, azcli, gcloud, terraform, hadolint, dagu |
-| .NET | dotnet, msbuild, nuget |
-| C/C++ | msvc, llvm, nasm, rcedit |
-| AI Agents | openclaw, clawhub |
-| AI & Media | ollama, ffmpeg, imagemagick |
-| Other | zig, java, gh, starship, fd, bat, ripgrep, fzf, prek, actrun, wix, vscode, brew, choco, winget, 7zip, xcodebuild, systemctl, release-please, rez |
+| **JavaScript** | node, npm, npx, bun, deno, pnpm, yarn, vite, nx, turbo |
+| **JS Tooling** | oxlint |
+| **Python** | uv, uvx, python, pip, ruff, maturin, pre-commit |
+| **Rust** | cargo, rustc, rustup |
+| **Go** | go, gofmt, gws |
+| **System/CLI** | git, bash, curl, pwsh, jq, yq, fd, bat, ripgrep, fzf, starship, jj |
+| **Build Tools** | just, task, cmake, ninja, make, meson, xmake, protoc, conan, vcpkg, spack |
+| **DevOps** | kubectl, helm, podman, terraform, hadolint, dagu |
+| **Cloud CLI** | awscli, azcli, gcloud |
+| **.NET** | dotnet, msbuild, nuget |
+| **C/C++** | msvc, llvm, nasm, ccache, buildcache, sccache, rcedit |
+| **Media** | ffmpeg, imagemagick |
+| **Java** | java |
+| **AI** | ollama, openclaw |
+| **Other Langs** | zig |
+| **Package Managers** | brew, choco, winget |
+| **Misc** | gh, prek, actrun, wix, vscode, xcodebuild, systemctl, release-please, rez, 7zip |
 
 ## Provider System (Starlark DSL)
 
-All 75+ providers are defined using **provider.star** (Starlark DSL) — a declarative, zero-compilation approach. Each provider lives in `crates/vx-providers/<name>/provider.star`.
+All 78 providers are defined using **provider.star** (Starlark DSL) — a declarative, zero-compilation approach. Each provider lives in `crates/vx-providers/<name>/provider.star`.
 
 ### How to add a new tool
 

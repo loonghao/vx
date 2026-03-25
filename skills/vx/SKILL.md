@@ -4,7 +4,7 @@ description: |
   Teaches AI agents how to use vx, the universal development tool manager.
   Use when the project has vx.toml or .vx/ directory, or when the user mentions
   vx, tool version management, or cross-platform development setup.
-  vx transparently manages Node.js, Python, Go, Rust, and 50+ other tools
+  vx transparently manages Node.js, Python, Go, Rust, and 78 tools
   with zero configuration.
 ---
 
@@ -148,20 +148,27 @@ vx pre-commit        # Same as: vx uv:pre-commit
 vx meson             # Same as: vx uv:meson
 ```
 
-## Supported Tools (75+)
+## Supported Tools (78 Providers)
 
 | Category | Tools |
 |----------|-------|
-| JavaScript | node, npm, npx, bun, deno, pnpm, yarn, vite |
-| JS Tooling | oxlint, oxfmt, turbo, nx |
-| Python | uv, uvx, python, pip, ruff, maturin |
-| Rust | cargo, rustc, rustup |
-| Go | go, gofmt |
-| System | git, just, jq, cmake, make, ninja, meson |
-| Cloud | podman, kubectl, helm, awscli, azcli, gcloud, terraform |
-| .NET | dotnet, msbuild, nuget |
-| AI Agents | openclaw, clawhub |
-| Other | zig, java, protoc, ffmpeg, gh, ollama, dagu |
+| **JavaScript** | node, npm, npx, bun, deno, pnpm, yarn, vite, nx, turbo |
+| **JS Tooling** | oxlint |
+| **Python** | uv, uvx, python, pip, ruff, maturin, pre-commit |
+| **Rust** | cargo, rustc, rustup |
+| **Go** | go, gofmt, gws |
+| **System/CLI** | git, bash, curl, pwsh, jq, yq, fd, bat, ripgrep, fzf, starship, jj |
+| **Build Tools** | just, task, cmake, ninja, make, meson, xmake, protoc, conan, vcpkg, spack |
+| **DevOps** | kubectl, helm, podman, terraform, hadolint, dagu |
+| **Cloud CLI** | awscli, azcli, gcloud |
+| **.NET** | dotnet, msbuild, nuget |
+| **C/C++** | msvc, llvm, nasm, ccache, buildcache, sccache, rcedit |
+| **Media** | ffmpeg, imagemagick |
+| **Java** | java |
+| **AI** | ollama, openclaw |
+| **Other Langs** | zig |
+| **Package Managers** | brew, choco, winget |
+| **Misc** | gh, prek, actrun, wix, vscode, xcodebuild, systemctl, release-please, rez, 7zip |
 
 ## AI-Optimized Output
 
