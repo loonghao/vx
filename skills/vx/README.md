@@ -4,7 +4,7 @@ This skill teaches AI coding agents (OpenClaw, Claude Code, Cursor, Copilot, etc
 
 ## What is vx?
 
-vx automatically installs and manages 50+ development tools (Node.js, Python/uv, Go, Rust, etc.) with zero configuration. Just prefix any command with `vx`:
+vx automatically installs and manages 78 development tools (Node.js, Python/uv, Go, Rust, etc.) with zero configuration. Just prefix any command with `vx`:
 
 ```bash
 vx node --version      # Auto-installs Node.js if needed
