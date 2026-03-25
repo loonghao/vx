@@ -1,10 +1,21 @@
 # VX — Universal Development Tool Manager
 
 > **For AI agents**: This file is a **map**, not a manual. Start here, then drill into the linked docs as needed.
+> If you are working on a project that uses vx, **always prefix commands with `vx`** (e.g., `vx npm install`, `vx cargo build`).
 
 ## What is vx?
 
-vx is a **zero-config universal development tool manager**. Users prefix any command with `vx` (e.g., `vx node --version`, `vx cargo build`) and vx automatically installs, manages, and forwards to the correct tool version. vx currently ships **73 providers** covering language runtimes, build tools, DevOps CLIs, cloud platforms, and more — all defined via Starlark DSL (`provider.star`).
+vx is a **zero-config universal development tool manager**. Users prefix any command with `vx` (e.g., `vx node --version`, `vx cargo build`) and vx automatically installs, manages, and forwards to the correct tool version. vx currently ships **78 providers** covering language runtimes, build tools, DevOps CLIs, cloud platforms, and more — all defined via Starlark DSL (`provider.star`).
+
+**Key insight for agents**: vx is a transparent proxy. The user writes the exact same commands they already know — just prepended with `vx`. There is **no new syntax to learn** for tool execution.
+
+```bash
+# These are identical to native commands, just add `vx`:
+vx node --version          # Auto-installs Node.js if needed
+vx cargo build --release   # Auto-installs Rust if needed
+vx uv pip install flask    # Auto-installs uv if needed
+vx npx create-react-app x  # Auto-installs Node.js + runs npx
+```
 
 ## Quick Orientation
 
@@ -20,7 +31,25 @@ vx is a **zero-config universal development tool manager**. Users prefix any com
 | See all CLI commands                 | [`docs/cli/`](docs/cli/)                         |
 | Follow unified syntax rules          | [`docs/guide/command-syntax-rules.md`](docs/guide/command-syntax-rules.md) |
 | Check project configuration          | [`Cargo.toml`](Cargo.toml) (workspace root)      |
-| See all 73 providers                 | [`crates/vx-providers/`](crates/vx-providers/)   |
+| See all 78 providers                 | [`crates/vx-providers/`](crates/vx-providers/)   |
+| Contribute to the project            | [`docs/advanced/contributing.md`](docs/advanced/contributing.md) |
+| Understand vx.toml configuration     | [`docs/config/vx-toml.md`](docs/config/vx-toml.md) |
+| Troubleshoot issues                  | [`docs/appendix/troubleshooting.md`](docs/appendix/troubleshooting.md) |
+
+## Critical Rules for AI Agents
+
+**These rules MUST be followed when working on or with vx:**
+
+1. **Always use `vx` prefix** — Never suggest `npm install`, always `vx npm install`
+2. **Never suggest manual tool installation** — vx handles it automatically
+3. **Use correct terminology** — Runtime (not Tool), Provider (not Plugin), provider.star (not provider config)
+4. **Tests go in `tests/` directories** — Never write inline `#[cfg(test)]` modules in source files
+5. **Use `rstest`** for parameterized tests
+6. **Use `vx just`** for task runner commands (see [justfile](justfile))
+7. **Check `vx.toml`** first to understand project tool requirements
+8. **New providers use Starlark DSL only** — No Rust code required for new tool definitions
+9. **Layer dependencies go downward only** — Never import from a higher architectural layer
+10. **Provider count is 78** — Update any docs that reference old counts (73, 70+, 50+, etc.)
 
 ## Project Structure (Layered Architecture)
 
@@ -50,7 +79,7 @@ vx is a **zero-config universal development tool manager**. Users prefix any com
 │  vx-manifest       (Provider manifest parsing)          │
 │  vx-args           (Argument parsing)                   │
 ├─────────────────────────────────────────────────────────┤
-│  vx-providers/*    (73 Providers — provider.star DSL)   │
+│  vx-providers/*    (78 Providers — provider.star DSL)   │
 │  vx-bridge         (Generic command bridge)             │
 └─────────────────────────────────────────────────────────┘
 ```
@@ -67,6 +96,7 @@ vx is a **zero-config universal development tool manager**. Users prefix any com
 | **Ecosystem**  | A language/tool family (nodejs, python, rust, go, system, custom)     |
 | **Bundled Runtime** | A Runtime shipped inside another (npm bundled with node)         |
 | **Descriptor** | Dict returned by Starlark (phase 1) → interpreted by Rust (phase 2)  |
+| **Package Alias** | Short command that routes to an ecosystem package (e.g., `vx vite` = `vx npm:vite`) |
 
 ## Terminology Rules (Enforced)
 
@@ -136,17 +166,18 @@ _p = system_provider("7zip", executable = "7z")
 | `{ext}` | ✓ | ✓ | Archive extension (zip/tar.gz) |
 | `{exe}` | ✓ | ✓ | Executable suffix (.exe/"") |
 
-## All 73 Providers
+## All 78 Providers
 
 Organized by category:
 
 | Category | Providers |
 |----------|-----------|
 | **JavaScript** | node, bun, deno, pnpm, yarn, nx, turbo, vite |
-| **Python** | uv, python, pre-commit |
+| **JS Tooling** | oxlint |
+| **Python** | uv, python, pre-commit, maturin, ruff |
 | **Rust** | rust (cargo, rustc, rustup) |
-| **Go** | go |
-| **System/CLI** | git, bash, curl, pwsh, jq, yq, fd, bat, ripgrep, fzf, starship |
+| **Go** | go, gws |
+| **System/CLI** | git, bash, curl, pwsh, jq, yq, fd, bat, ripgrep, fzf, starship, jj |
 | **Build Tools** | just, task, cmake, ninja, make, meson, xmake, protoc, conan, vcpkg, spack |
 | **DevOps** | kubectl, helm, podman, terraform, hadolint, dagu |
 | **Cloud CLI** | awscli, azcli, gcloud |
@@ -156,10 +187,31 @@ Organized by category:
 | **Java** | java |
 | **Other Langs** | zig |
 | **Package Managers** | brew, choco, winget |
-| **AI** | ollama |
+| **AI** | ollama, openclaw |
 | **Misc** | gh, prek, actrun, wix, vscode, xcodebuild, systemctl, release-please, rez, 7zip |
 
-## Development Workflow
+## Common Tasks Quick Reference
+
+### For agents working on vx-managed projects
+
+```bash
+# Run any tool (auto-installs if missing)
+vx node app.js
+vx cargo build --release
+vx npm install
+vx python script.py
+
+# Project setup from vx.toml
+vx setup                       # Install all project tools
+vx dev                         # Enter dev environment
+vx run test                    # Run project scripts
+
+# Package aliases (shorter commands)
+vx vite                        # Same as: vx npm:vite
+vx meson                       # Same as: vx uv:meson
+```
+
+### For agents developing vx itself
 
 ```bash
 # Prerequisites: Rust toolchain (1.93+), just
@@ -183,44 +235,11 @@ vx just doctor                 # Diagnose dev environment
 # Quick pre-commit cycle
 vx just quick                  # format → lint → test → build
 
-# Documentation
-vx just docs-dev               # Start docs dev server
+# Scoped commands (faster feedback)
+vx cargo check -p vx-cli              # Type-check one crate
+vx cargo test -p vx-starlark          # Test one crate
+vx cargo clippy -p vx-resolver -- -D warnings  # Lint one crate
 ```
-
-### Scoped Commands (for single-file operations)
-
-```bash
-# Type-check a single crate
-vx cargo check -p vx-cli
-
-# Run tests for one crate only
-vx cargo test -p vx-starlark
-
-# Format a single file
-vx cargo fmt -- --check crates/vx-cli/src/cli.rs
-
-# Clippy a single crate
-vx cargo clippy -p vx-resolver -- -D warnings
-```
-
-## CI Pipeline Overview
-
-The CI is **change-aware** — it detects which crates changed and only tests affected code.
-
-```
-detect-changes → build-vx (multi-platform) → code-quality
-                                            → test-targeted / test-full
-                                            → security-audit
-                                            → coverage (main only)
-                                            → cross-build (main only)
-                                            → docs-build
-```
-
-**Key CI decisions**:
-- `codecov` is **informational only** (won't block merge)
-- `cancel-in-progress` prevents stale runs
-- `sccache` accelerates Rust compilation
-- `cargo-nextest` for parallel test execution
 
 ## Adding a New Provider
 
@@ -249,6 +268,25 @@ detect-changes → build-vx (multi-platform) → code-quality
 4. Test: `vx <runtime> --version`
 5. Full guide: [`docs/guide/creating-provider.md`](docs/guide/creating-provider.md)
 6. Complete DSL reference: [`docs/guide/provider-star-reference.md`](docs/guide/provider-star-reference.md)
+
+## CI Pipeline Overview
+
+The CI is **change-aware** — it detects which crates changed and only tests affected code.
+
+```
+detect-changes → build-vx (multi-platform) → code-quality
+                                            → test-targeted / test-full
+                                            → security-audit
+                                            → coverage (main only)
+                                            → cross-build (main only)
+                                            → docs-build
+```
+
+**Key CI decisions**:
+- `codecov` is **informational only** (won't block merge)
+- `cancel-in-progress` prevents stale runs
+- `sccache` accelerates Rust compilation
+- `cargo-nextest` for parallel test execution
 
 ## File Layout Conventions
 
@@ -303,18 +341,6 @@ Use these canonical forms consistently in docs and examples:
   - Compatibility alias: `vx global ...`
 - Project-aware execution and synchronization: `vx run`, `vx sync`, `vx lock`, `vx check`
 
-Parsing and state synchronization guardrails:
-
-- Keep parser behavior, docs, and CLI help examples synchronized with the canonical rules.
-- Keep project state synchronization explicit via `vx sync` + `vx lock` contracts.
-- For compatibility aliases, provide clear migration hints; avoid silent reinterpretation.
-
-Rust conventions:
-
-- Prefer `vx cargo` / `vx rustc` for daily use.
-- Configure `rustup` in `vx.toml` (not `rust` toolchain versions).
-- `rustup` version is not the same as `rustc`/`cargo` toolchain version.
-
 ## Key Files for Context
 
 | File | Purpose |
@@ -328,8 +354,8 @@ Rust conventions:
 | `.github/workflows/ci.yml` | Main CI pipeline |
 | `.github/workflows/maintenance.yml` | Automated tech debt scanning |
 | `vx.toml` | Project-level tool versions |
-| `llms.txt` | LLM-friendly project index |
-| `llms-full.txt` | Detailed LLM documentation |
+| `llms.txt` | LLM-friendly project index (summary) |
+| `llms-full.txt` | Detailed LLM documentation (complete) |
 
 ## Security Considerations
 
@@ -346,3 +372,35 @@ Rust conventions:
 - Run all tests: `vx just test`
 - Run single crate: `vx just test-pkgs "-p vx-starlark"`
 - E2E tests use `trycmd` for CLI snapshot testing
+- Provider static checks: `vx just test-providers-static`
+
+## GitHub Actions Integration
+
+vx provides a GitHub Action for CI/CD. See [`docs/guides/github-action.md`](docs/guides/github-action.md) for the full guide.
+
+```yaml
+# Minimal CI usage
+- uses: loonghao/vx@main
+  with:
+    tools: 'node@22 uv'
+    setup: 'true'
+    cache: 'true'
+- run: vx node --version
+- run: vx npm test
+```
+
+## Documentation Map
+
+```
+docs/
+├── architecture/     # System architecture (OVERVIEW.md)
+├── guide/            # User guides (22 files — getting-started, provider-star-reference, etc.)
+├── cli/              # CLI command reference (17 commands)
+├── config/           # Configuration reference (vx-toml, env-vars, etc.)
+├── tools/            # Tool category docs (14 categories)
+├── advanced/         # Contributing, security, extension development
+├── guides/           # Practical guides (GitHub Actions, use cases)
+├── rfcs/             # 50 design decision documents
+├── appendix/         # FAQ, troubleshooting
+└── zh/               # Chinese translations (72 files)
+```

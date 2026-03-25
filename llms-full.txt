@@ -17,7 +17,7 @@ vx eliminates the complexity of managing multiple language runtimes (Node.js, Py
 
 - **Zero Learning Curve**: Use the same commands you already know — just prefix with `vx`. No new syntax to learn.
 - **Auto-Install on First Use**: Runtimes are downloaded and installed automatically when first needed.
-- **73+ Tools**: Node.js, Python/UV, Go, Rust, Bun, Deno, Java, Zig, MSVC, CMake, and many more.
+- **78 Tools**: Node.js, Python/UV, Go, Rust, Bun, Deno, Java, Zig, MSVC, CMake, and many more.
 - **Project Environments**: Define tool requirements in `vx.toml`, then `vx setup` installs everything.
 - **Enhanced Script System**: `{{args}}` passthrough lets you pass complex flags directly to scripts.
 - **MCP Ready**: Replace `npx`/`uvx` with `vx` in MCP server configs — zero additional setup.
@@ -284,7 +284,7 @@ vx uses a 5-layer Provider/Runtime architecture with Starlark DSL:
 │  vx-core / vx-paths / vx-cache / vx-versions            │
 │  vx-manifest / vx-args (Foundation layer)               │
 ├─────────────────────────────────────────────────────────┤
-│  vx-providers/*    (73+ Providers — provider.star DSL)  │
+│  vx-providers/*    (78 Providers — provider.star DSL)  │
 │  vx-bridge         (Generic command bridge)             │
 └─────────────────────────────────────────────────────────┘
 ```

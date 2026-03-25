@@ -1,10 +1,6 @@
 ---
 name: vx-usage
-description: |
-  This skill teaches AI coding agents how to use vx - the universal development tool manager.
-  Use this skill whenever the user's project uses vx (has vx.toml or .vx/ directory),
-  or when the user mentions vx, tool version management, or cross-platform development setup.
-  vx transparently manages Node.js, Python, Go, Rust, and 50+ other tools with zero-config.
+description: "Teaches AI agents how to use vx, the universal dev tool manager. Use when the project has vx.toml or .vx/, or when the user mentions vx, tool version management, or cross-platform setup. vx auto-manages Node.js, Python, Go, Rust, and 78 tools via Starlark DSL providers."
 ---
 
 # VX - Universal Development Tool Manager
@@ -197,18 +193,65 @@ vx msvc@14.40 cl main.cpp
 | lib | `vx msvc lib` | Library manager |
 | nmake | `vx msvc nmake` | Make utility |
 
-## Supported Tools (50+)
+## Supported Tools (78 Providers)
 
 | Category | Tools |
 |----------|-------|
-| JavaScript | node, npm, npx, bun, deno, pnpm, yarn, vite |
-| Python | uv, uvx, python, pip |
-| Rust | cargo, rustc, rustup |
-| Go | go, gofmt |
-| System | git, just, jq, cmake, make, ninja, meson |
-| Cloud | docker, kubectl, helm, awscli, azcli, gcloud, terraform |
-| .NET | dotnet, msbuild, nuget |
-| Other | zig, java, protoc, ffmpeg, gh, ollama, dagu, skills |
+| **JavaScript** | node, npm, npx, bun, deno, pnpm, yarn, vite, nx, turbo |
+| **JS Tooling** | oxlint |
+| **Python** | uv, uvx, python, pip, ruff, maturin, pre-commit |
+| **Rust** | cargo, rustc, rustup |
+| **Go** | go, gofmt, gws |
+| **System/CLI** | git, bash, curl, pwsh, jq, yq, fd, bat, ripgrep, fzf, starship, jj |
+| **Build Tools** | just, task, cmake, ninja, make, meson, xmake, protoc, conan, vcpkg, spack |
+| **DevOps** | kubectl, helm, podman, terraform, hadolint, dagu |
+| **Cloud CLI** | awscli, azcli, gcloud |
+| **.NET** | dotnet, msbuild, nuget |
+| **C/C++** | msvc, llvm, nasm, ccache, buildcache, sccache, rcedit |
+| **Media** | ffmpeg, imagemagick |
+| **Java** | java |
+| **AI** | ollama, openclaw |
+| **Other Langs** | zig |
+| **Package Managers** | brew, choco, winget |
+| **Misc** | gh, prek, actrun, wix, vscode, xcodebuild, systemctl, release-please, rez, 7zip |
+
+## Provider System (Starlark DSL)
+
+All 78 providers are defined using **provider.star** (Starlark DSL) — a declarative, zero-compilation approach. Each provider lives in `crates/vx-providers/<name>/provider.star`.
+
+### How to add a new tool
+
+```starlark
+# crates/vx-providers/mytool/provider.star
+load("@vx//stdlib:provider.star", "runtime_def", "github_permissions")
+load("@vx//stdlib:provider_templates.star", "github_rust_provider")
+
+name        = "mytool"
+description = "My awesome tool"
+ecosystem   = "custom"
+
+runtimes = [runtime_def("mytool", aliases=["mt"])]
+permissions = github_permissions()
+
+# Use a template — covers 90% of tools
+_p = github_rust_provider("owner", "mytool",
+    asset = "mytool-{vversion}-{triple}.{ext}")
+fetch_versions   = _p["fetch_versions"]
+download_url     = _p["download_url"]
+install_layout   = _p["install_layout"]
+store_root       = _p["store_root"]
+get_execute_path = _p["get_execute_path"]
+environment      = _p["environment"]
+```
+
+### Available templates
+
+| Template | Use case |
+|----------|----------|
+| `github_rust_provider` | Rust tools on GitHub (most common) |
+| `github_go_provider` | Go tools on GitHub (goreleaser style) |
+| `github_binary_provider` | Single binary download (no archive) |
+| `system_provider` | System package manager only |
 
 ## Important Rules for AI Agents
 
@@ -220,6 +263,9 @@ vx msvc@14.40 cl main.cpp
 6. **Use `vx run <script>`** for project-defined scripts
 7. **Never suggest manual tool installation** - vx handles it automatically
 8. Commands like `vx install` are for explicit pre-installation; normal usage auto-installs
+9. **Use correct terminology**: Runtime (not Tool), Provider (not Plugin), provider.star (not provider config)
+10. **Provider development**: New tools are added via `provider.star` Starlark DSL in `crates/vx-providers/<name>/`
+11. **Tests go in `tests/` dirs** — never inline `#[cfg(test)]` in source files
 
 ## GitHub Actions Integration
 
@@ -295,9 +341,10 @@ jobs:
 | `version` | The installed vx version |
 | `cache-hit` | Whether the cache was hit |
 
-## Docker Support
+## Container Image Support
 
-vx provides a Docker image for containerized workflows:
+vx also provides a container image for containerized workflows, and it can be consumed from Podman-compatible environments:
+
 
 ```dockerfile
 # Use vx as base image
@@ -318,7 +365,7 @@ FROM nginx:alpine
 COPY --from=builder /home/vx/dist /usr/share/nginx/html
 ```
 
-### GitHub Actions with Docker
+### GitHub Actions Container Jobs
 
 ```yaml
 jobs:
