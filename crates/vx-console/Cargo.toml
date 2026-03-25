@@ -13,7 +13,7 @@ readme = "README.md"
 
 [dependencies]
 # Terminal handling (Cargo-style modern approach)
-anstream = "0.6"
+anstream = "1.0"
 anstyle = "1.0"
 console = { workspace = true }
 
