@@ -57,7 +57,7 @@ impl<'a> Executor<'a> {
             .ok();
 
         // Pre-warm the bin directory cache from disk
-        super::environment::init_bin_dir_cache(&context.paths.cache_dir());
+        super::bin_dir_cache::init_bin_dir_cache(&context.paths.cache_dir());
 
         // Load project configuration from vx.toml
         let project_config = ProjectToolsConfig::load();
@@ -290,7 +290,7 @@ impl<'a> Executor<'a> {
         // Persist caches (new entries discovered during resolution)
         self.resolver.save_exec_cache();
         if let Some(ctx) = self.context {
-            super::environment::save_bin_dir_cache(&ctx.paths.cache_dir());
+            super::bin_dir_cache::save_bin_dir_cache(&ctx.paths.cache_dir());
         }
 
         Ok(exit_code)

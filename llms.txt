@@ -2,12 +2,12 @@
 
 > vx is a universal development tool manager that lets you run any tool with zero setup — just prefix your commands with `vx` and it auto-installs the required runtime on first use.
 
-vx eliminates the complexity of managing multiple language runtimes (Node.js, Python, Go, Rust, etc.) while maintaining zero learning curve. Built with Rust for performance, it supports direct execution, project environments via `vx.toml`, MCP integration, and AI-native development workflows.
+vx eliminates the complexity of managing multiple language runtimes (Node.js, Python, Go, Rust, etc.) while maintaining zero learning curve. Built with Rust for performance, it supports direct execution, project environments via `vx.toml`, MCP integration, and AI-native development workflows. Providers are defined using Starlark DSL (`provider.star`) — a declarative, zero-compilation approach that covers 73+ tools.
 
 - **Install (Linux/macOS)**: `curl -fsSL https://raw.githubusercontent.com/loonghao/vx/main/install.sh | bash`
 - **Install (Windows)**: `powershell -c "irm https://raw.githubusercontent.com/loonghao/vx/main/install.ps1 | iex"`
 - **Platforms**: Windows, macOS, Linux (x86_64, aarch64)
-- **Language**: Rust 1.80+
+- **Language**: Rust 1.93+
 - **License**: MIT
 - **Repository**: https://github.com/loonghao/vx
 - **Releases**: https://github.com/loonghao/vx/releases
@@ -15,15 +15,18 @@ vx eliminates the complexity of managing multiple language runtimes (Node.js, Py
 ## Key Features
 
 - Zero learning curve — use the same commands you already know, just prefix with `vx`
-- Auto-installs runtimes on first use (Node.js, Python/UV, Go, Rust, Bun, Deno, and more)
+- Auto-installs runtimes on first use (Node.js, Python/UV, Go, Rust, Bun, Deno, and 73+ more tools)
 - Project environments via `vx.toml` with `vx setup` / `vx dev`
 - Enhanced script system with `{{args}}` passthrough for complex tool arguments
 - MCP (Model Context Protocol) ready — replace `npx`/`uvx` with `vx` in MCP configs
-- Manifest-driven providers via `provider.toml` for custom tool definitions
+- **Starlark DSL providers** (`provider.star`) — define custom tools declaratively without writing Rust code
+- Starlark stdlib with 4 provider templates: `github_rust_provider`, `github_go_provider`, `github_binary_provider`, `system_provider`
 - Shell integration with auto-completion (bash, zsh, fish)
 - GitHub Actions support via `loonghao/vx` action
 - Metrics and telemetry via `vx metrics`
 - Pre-commit hooks integration via prek
+- Package aliases: `vx vite` = `vx npm:vite`, `vx meson` = `vx uv:meson`
+- Companion tool environment injection (e.g., MSVC vars auto-injected for all subprocesses)
 
 ## Documentation
 
@@ -37,6 +40,12 @@ vx eliminates the complexity of managing multiple language runtimes (Node.js, Py
 - [Shell Integration](https://github.com/loonghao/vx/blob/main/docs/guide/shell-integration.md): Auto-completion setup
 - [Environment Variables](https://github.com/loonghao/vx/blob/main/docs/config/env-vars.md): All supported environment variables
 
+## Provider System (Starlark DSL)
+
+- [Creating a Provider](https://github.com/loonghao/vx/blob/main/docs/guide/creating-provider.md): Step-by-step guide to adding a new tool
+- [provider.star Reference](https://github.com/loonghao/vx/blob/main/docs/guide/provider-star-reference.md): Complete Starlark DSL reference (execution model, context objects, stdlib modules, templates)
+- [Starlark Providers — Advanced Guide](https://github.com/loonghao/vx/blob/main/docs/guide/starlark-providers.md): Multi-runtime, hooks, system integration
+
 ## CLI Reference
 
 - [CLI Overview](https://github.com/loonghao/vx/blob/main/docs/cli/overview.md): All commands at a glance
@@ -49,27 +58,29 @@ vx eliminates the complexity of managing multiple language runtimes (Node.js, Py
 
 ## Tools Reference
 
-- [Tools Overview](https://github.com/loonghao/vx/blob/main/docs/tools/overview.md): All supported tools
+- [Tools Overview](https://github.com/loonghao/vx/blob/main/docs/tools/overview.md): All 73+ supported tools
 - [Node.js Tools](https://github.com/loonghao/vx/blob/main/docs/tools/nodejs.md): node, npm, npx, bun, deno
 - [Python Tools](https://github.com/loonghao/vx/blob/main/docs/tools/python.md): uv, uvx, python, pip
 - [Rust Tools](https://github.com/loonghao/vx/blob/main/docs/tools/rust.md): cargo, rustc, rustup
 - [Go Tools](https://github.com/loonghao/vx/blob/main/docs/tools/go.md): go, gofmt
-- [Build Tools](https://github.com/loonghao/vx/blob/main/docs/tools/build-tools.md): just, task, cmake, ninja, vite, protoc
-- [DevOps Tools](https://github.com/loonghao/vx/blob/main/docs/tools/devops.md): docker, terraform, kubectl, helm
-- [AI Tools](https://github.com/loonghao/vx/blob/main/docs/tools/ai.md): AI/ML development tools
+- [Build Tools](https://github.com/loonghao/vx/blob/main/docs/tools/build-tools.md): just, task, cmake, ninja, vite, protoc, meson, xmake
+- [DevOps Tools](https://github.com/loonghao/vx/blob/main/docs/tools/devops.md): docker, terraform, kubectl, helm, podman
+- [AI Tools](https://github.com/loonghao/vx/blob/main/docs/tools/ai.md): AI/ML development tools (ollama)
 
 ## Guides
 
 - [GitHub Actions](https://github.com/loonghao/vx/blob/main/docs/guides/github-action.md): Using vx in CI/CD pipelines
 - [MCP Integration](https://github.com/loonghao/vx/blob/main/docs/guide/concepts.md): Using vx with Model Context Protocol servers
-- [Manifest-Driven Providers](https://github.com/loonghao/vx/blob/main/docs/guide/manifest-driven-providers.md): Custom tool definitions via provider.toml
+- [Creating a Provider](https://github.com/loonghao/vx/blob/main/docs/guide/creating-provider.md): Adding new tools via provider.star
 - [Best Practices](https://github.com/loonghao/vx/blob/main/docs/guide/best-practices.md): Recommended patterns for teams
 - [Migration Guide](https://github.com/loonghao/vx/blob/main/docs/guide/migration.md): Migrating from nvm, pyenv, asdf, etc.
 - [CDN Fallback](https://github.com/loonghao/vx/blob/main/docs/guide/cdn-fallback.md): Download acceleration for restricted networks
+- [Command Syntax Rules](https://github.com/loonghao/vx/blob/main/docs/guide/command-syntax-rules.md): Unified command syntax contract
 
 ## Advanced
 
-- [Architecture](https://github.com/loonghao/vx/blob/main/docs/advanced/architecture.md): Internal design — Providers, Runtimes, Resolver, Executor
+- [Architecture](https://github.com/loonghao/vx/blob/main/docs/architecture/OVERVIEW.md): Internal design — 5-layer architecture, crate dependency graph
+- [provider.star Reference](https://github.com/loonghao/vx/blob/main/docs/guide/provider-star-reference.md): Complete DSL reference
 - [Extension Development](https://github.com/loonghao/vx/blob/main/docs/advanced/extension-development.md): Building custom providers
 - [Pre-commit Hooks](https://github.com/loonghao/vx/blob/main/docs/advanced/pre-commit-hooks.md): cargo-hakari and justfile checks
 - [Security](https://github.com/loonghao/vx/blob/main/docs/advanced/security.md): Security model and best practices

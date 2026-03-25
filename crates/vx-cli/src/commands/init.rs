@@ -1204,7 +1204,7 @@ fn generate_config_content(
             .comment("python = \"3.12\"")
             .comment("uv = \"latest\"");
     } else {
-        writer = writer.kv_map_sorted(&cross_platform);
+        writer = writer.kv_map(&cross_platform);
     }
 
     // Write platform-specific tools as detailed config with os constraints
@@ -1256,7 +1256,7 @@ fn generate_config_content(
     }
 
     if !scripts.is_empty() {
-        writer = writer.section("scripts").kv_map_sorted(&scripts);
+        writer = writer.section("scripts").kv_map(&scripts);
     } else if include_extras {
         writer = writer
             .section("scripts")
@@ -1269,7 +1269,7 @@ fn generate_config_content(
     // Env section
     let env_vars = existing.map(|c| c.env_as_hashmap()).unwrap_or_default();
     if !env_vars.is_empty() {
-        writer = writer.section("env").kv_map_sorted(&env_vars);
+        writer = writer.section("env").kv_map(&env_vars);
     } else if include_extras {
         writer = writer
             .section("env")

@@ -39,7 +39,7 @@ fn generate_config_content(
             .comment("python = \"3.12\"")
             .comment("uv = \"latest\"");
     } else {
-        writer = writer.kv_map_sorted(detected_tools);
+        writer = writer.kv_map(detected_tools);
     }
 
     // Settings section
@@ -58,7 +58,7 @@ fn generate_config_content(
 
     // Scripts section
     if !detected_scripts.is_empty() {
-        writer = writer.section("scripts").kv_map_sorted(detected_scripts);
+        writer = writer.section("scripts").kv_map(detected_scripts);
     } else if include_extras {
         writer = writer
             .section("scripts")

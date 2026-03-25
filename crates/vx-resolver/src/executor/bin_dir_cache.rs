@@ -7,7 +7,7 @@
 use std::collections::HashSet;
 use std::path::PathBuf;
 use std::sync::Mutex;
-use tracing::{debug, trace};
+use tracing::trace;
 use vx_cache::BinDirCache;
 
 /// Track which tools have been warned about missing versions.
@@ -26,9 +26,7 @@ static BIN_DIR_CACHE: Mutex<Option<BinDirCache>> = Mutex::new(None);
 ///
 /// Called by the Executor during construction to pre-warm the cache.
 pub(crate) fn init_bin_dir_cache(cache_dir: &std::path::Path) {
-    let mut cache = BIN_DIR_CACHE
-        .lock()
-        .expect("BIN_DIR_CACHE mutex poisoned");
+    let mut cache = BIN_DIR_CACHE.lock().expect("BIN_DIR_CACHE mutex poisoned");
     if cache.is_none() {
         *cache = Some(BinDirCache::load(cache_dir));
     }
@@ -38,9 +36,7 @@ pub(crate) fn init_bin_dir_cache(cache_dir: &std::path::Path) {
 ///
 /// Called by the Executor after command execution to persist new entries.
 pub(crate) fn save_bin_dir_cache(cache_dir: &std::path::Path) {
-    let cache = BIN_DIR_CACHE
-        .lock()
-        .expect("BIN_DIR_CACHE mutex poisoned");
+    let cache = BIN_DIR_CACHE.lock().expect("BIN_DIR_CACHE mutex poisoned");
     if let Some(ref c) = *cache
         && let Err(e) = c.save(cache_dir)
     {
@@ -52,9 +48,7 @@ pub(crate) fn save_bin_dir_cache(cache_dir: &std::path::Path) {
 ///
 /// Call this after installing or uninstalling a runtime.
 pub fn invalidate_bin_dir_cache(runtime_store_prefix: &str) {
-    let mut cache = BIN_DIR_CACHE
-        .lock()
-        .expect("BIN_DIR_CACHE mutex poisoned");
+    let mut cache = BIN_DIR_CACHE.lock().expect("BIN_DIR_CACHE mutex poisoned");
     if let Some(ref mut c) = *cache {
         c.invalidate_runtime(runtime_store_prefix);
     }
@@ -62,9 +56,7 @@ pub fn invalidate_bin_dir_cache(runtime_store_prefix: &str) {
 
 /// Clear the entire bin directory cache.
 pub fn clear_bin_dir_cache() {
-    let mut cache = BIN_DIR_CACHE
-        .lock()
-        .expect("BIN_DIR_CACHE mutex poisoned");
+    let mut cache = BIN_DIR_CACHE.lock().expect("BIN_DIR_CACHE mutex poisoned");
     *cache = None;
 }
 
