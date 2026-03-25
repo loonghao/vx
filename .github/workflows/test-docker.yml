@@ -163,7 +163,7 @@ jobs:
         uses: docker/setup-buildx-action@v3
 
       - name: Build base image
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: .
           file: pkg/docker/Dockerfile.prebuilt
@@ -202,7 +202,7 @@ jobs:
         uses: docker/setup-buildx-action@v3
 
       - name: Build tools image
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: .
           file: pkg/docker/Dockerfile.tools
