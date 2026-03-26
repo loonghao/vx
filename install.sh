@@ -130,8 +130,44 @@ resolve_latest_version() {
 
     [[ -z "$json" ]] && return 1
 
-    local tag
-    tag=$(printf '%s' "$json" | grep -m 1 '"tag_name"' | sed -E 's/.*"tag_name"[[:space:]]*:[[:space:]]*"([^"]+)".*/\1/')
+    # Find the first non-draft, non-prerelease release that has actual binary
+    # assets.  This avoids selecting a release whose build workflow failed and
+    # left the release with zero downloadable files.
+    #
+    # Strategy: iterate through releases in the JSON and for each one check
+    # that it is not a draft/prerelease and that it contains at least one
+    # "browser_download_url" entry (which indicates an uploaded asset).
+    local tag=""
+    # Use POSIX-compatible awk (works on macOS and Linux)
+    tag=$(printf '%s' "$json" | awk '
+        BEGIN { in_release = 0; cur_tag = ""; is_draft = 0; is_pre = 0; has_assets = 0 }
+        /"tag_name"/ {
+            # Check if the previous release qualifies
+            if (in_release && cur_tag != "" && !is_draft && !is_pre && has_assets) {
+                print cur_tag
+                exit
+            }
+            # Start tracking a new release
+            in_release = 1
+            is_draft = 0
+            is_pre = 0
+            has_assets = 0
+            # Extract tag value (POSIX awk compatible)
+            s = $0
+            gsub(/.*"tag_name"[[:space:]]*:[[:space:]]*"/, "", s)
+            gsub(/".*/, "", s)
+            cur_tag = s
+        }
+        /"draft"[[:space:]]*:[[:space:]]*true/ { is_draft = 1 }
+        /"prerelease"[[:space:]]*:[[:space:]]*true/ { is_pre = 1 }
+        /"browser_download_url"/ { has_assets = 1 }
+        END {
+            if (in_release && cur_tag != "" && !is_draft && !is_pre && has_assets) {
+                print cur_tag
+            }
+        }
+    ')
+
     [[ -z "$tag" ]] && return 1
 
     tag="${tag#v}"
@@ -244,8 +280,9 @@ main() {
     done
 
     if [[ -z "$archive_path" ]]; then
+        local hint_ver="${latest_ver:-0.8.4}"
         fail "Download failed. Check your internet connection or specify a version:
-  VX_VERSION='0.8.4' curl -fsSL https://raw.githubusercontent.com/loonghao/vx/main/install.sh | bash"
+  VX_VERSION='$hint_ver' curl -fsSL https://raw.githubusercontent.com/loonghao/vx/main/install.sh | bash"
     fi
 
     # Extract
