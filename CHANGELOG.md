@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.7](https://github.com/loonghao/vx/compare/v0.8.6...v0.8.7) (2026-03-26)
+
+
+### Bug Fixes
+
+* add a ound flag so END block only prints when the match block did not. Also add head -1 safety to ensure only one line is captured. ([15ae81f](https://github.com/loonghao/vx/commit/15ae81f944b6e77f370cc00336bf2a4a1e39fd40))
+* **install:** prevent awk double-output in resolve_latest_version ([15ae81f](https://github.com/loonghao/vx/commit/15ae81f944b6e77f370cc00336bf2a4a1e39fd40))
+* **install:** skip releases without binary assets in version resolution ([ff7438a](https://github.com/loonghao/vx/commit/ff7438a2491346cbfe1c0bf941b1f206615957a4))
+* **release:** disable sccache rustc-wrapper in release workflow ([b202568](https://github.com/loonghao/vx/commit/b202568208b421a9eaa1e7f76a44d9900b58181a))
+
 ## [0.8.6](https://github.com/loonghao/vx/compare/v0.8.5...v0.8.6) (2026-03-26)
 
 
