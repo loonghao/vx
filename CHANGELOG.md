@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.8](https://github.com/loonghao/vx/compare/v0.8.7...v0.8.8) (2026-03-26)
+
+
+### Bug Fixes
+
+* resolve Python PYTHONHOME mismatch ([#696](https://github.com/loonghao/vx/issues/696)), improve version pagination, unify skills ([fbadc74](https://github.com/loonghao/vx/commit/fbadc745050d6ff951ea4822ad65eda807f344ca))
+
 ## [0.8.7](https://github.com/loonghao/vx/compare/v0.8.6...v0.8.7) (2026-03-26)
 
 
