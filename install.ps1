@@ -192,8 +192,9 @@ function Main {
 
 
         if (-not $archivePath) {
+            $hintVer = if ($latestVersion) { $latestVersion } else { "0.8.4" }
             Write-Fail "Download failed. Please check your internet connection or specify a version:"
-            Write-Host "  `$env:VX_VERSION='0.8.4'; irm https://raw.githubusercontent.com/loonghao/vx/main/install.ps1 | iex"
+            Write-Host "  `$env:VX_VERSION='$hintVer'; irm https://raw.githubusercontent.com/loonghao/vx/main/install.ps1 | iex"
             exit 1
         }
 
