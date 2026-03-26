@@ -101,21 +101,30 @@ const SUPPORTED_AGENTS: &[AgentConfig] = &[
 
 /// All built-in vx skills, embedded at compile time.
 ///
+/// Skills are stored in the top-level `skills/` directory — the single source of truth
+/// shared between `vx ai setup`, ClawHub publishing, and agent config directories.
+///
 /// Each tuple is `(skill_name, skill_content)`.
 const VX_SKILLS: &[(&str, &str)] = &[
-    ("vx-usage", include_str!("../skills/vx-usage/SKILL.md")),
+    (
+        "vx-usage",
+        include_str!("../../../../skills/vx-usage/SKILL.md"),
+    ),
     (
         "vx-commands",
-        include_str!("../skills/vx-commands/SKILL.md"),
+        include_str!("../../../../skills/vx-commands/SKILL.md"),
     ),
-    ("vx-project", include_str!("../skills/vx-project/SKILL.md")),
+    (
+        "vx-project",
+        include_str!("../../../../skills/vx-project/SKILL.md"),
+    ),
     (
         "vx-troubleshooting",
-        include_str!("../skills/vx-troubleshooting/SKILL.md"),
+        include_str!("../../../../skills/vx-troubleshooting/SKILL.md"),
     ),
     (
         "vx-best-practices",
-        include_str!("../skills/vx-best-practices/SKILL.md"),
+        include_str!("../../../../skills/vx-best-practices/SKILL.md"),
     ),
 ];
 

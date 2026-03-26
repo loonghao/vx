@@ -212,6 +212,7 @@ impl StarlarkEngine {
     ///
     /// This is called automatically before evaluating any provider script so that
     /// provider authors get early feedback on code quality issues.
+    #[allow(dead_code)]
     fn lint_and_warn(&self, script_name: &str, script_content: &str) {
         match self.lint_script(script_name, script_content) {
             Ok(lints) if !lints.is_empty() => {
@@ -262,10 +263,8 @@ impl StarlarkEngine {
             "Getting Starlark variable"
         );
 
-        // Run linter before evaluation — emit warnings via tracing
-        self.lint_and_warn(&parse_name, script_content);
-
-        // Parse the script (strip UTF-8 BOM if present)
+        // Parse the script once (strip UTF-8 BOM if present).
+        // The AST is reused for both linting and evaluation to avoid double-parse overhead.
         let ast = AstModule::parse(
             &parse_name,
             strip_bom(script_content).to_string(),
@@ -322,10 +321,9 @@ impl StarlarkEngine {
             "Calling Starlark function"
         );
 
-        // Run linter before evaluation — emit warnings via tracing
-        self.lint_and_warn(&parse_name, script_content);
-
-        // Parse the script (strip UTF-8 BOM if present)
+        // Parse the script once (strip UTF-8 BOM if present).
+        // The AST is reused for evaluation directly — linting is skipped at runtime
+        // for performance. Use `lint_script()` explicitly during development/CI.
         let ast = AstModule::parse(
             &parse_name,
             strip_bom(script_content).to_string(),

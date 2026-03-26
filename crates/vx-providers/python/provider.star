@@ -10,7 +10,7 @@ load("@vx//stdlib:provider.star",
      "runtime_def", "bundled_runtime_def", "github_permissions", "dep_def")
 load("@vx//stdlib:http.star",   "fetch_json_versions")
 load("@vx//stdlib:github.star", "github_asset_url")
-load("@vx//stdlib:env.star",    "env_set", "env_prepend")
+load("@vx//stdlib:env.star",    "env_prepend")
 
 # ---------------------------------------------------------------------------
 # Provider metadata
@@ -98,13 +98,16 @@ def download_url(ctx, version):
 # ---------------------------------------------------------------------------
 
 def install_layout(ctx, _version):
+    # The python-build-standalone tarball has a top-level "python/" directory.
+    # We explicitly strip it so the install dir contains bin/, lib/, etc. directly.
+    # This avoids the auto-flatten heuristic which caused PYTHONHOME mismatches (#696).
     if ctx.platform.os == "windows":
-        exe_paths = ["python/python.exe", "python.exe"]
+        exe_paths = ["python.exe"]
     else:
-        exe_paths = ["python/bin/python3", "python/bin/python", "bin/python3"]
+        exe_paths = ["bin/python3", "bin/python"]
     return {
         "type":             "archive",
-        "strip_prefix":     "",
+        "strip_prefix":     "python",
         "executable_paths": exe_paths,
     }
 
@@ -117,21 +120,22 @@ def store_root(ctx):
 
 def get_execute_path(ctx, _version):
     if ctx.platform.os == "windows":
-        return ctx.install_dir + "/python/python.exe"
-    return ctx.install_dir + "/python/bin/python3"
+        return ctx.install_dir + "/python.exe"
+    return ctx.install_dir + "/bin/python3"
 
 def post_install(_ctx, _version):
     return None
 
 def environment(ctx, _version):
+    # Do NOT set PYTHONHOME — python-build-standalone is self-contained and
+    # auto-detects its prefix.  Setting PYTHONHOME incorrectly causes
+    # "ModuleNotFoundError: No module named 'encodings'" (see #696).
     if ctx.platform.os == "windows":
         return [
-            env_set("PYTHONHOME", ctx.install_dir + "/python"),
-            env_prepend("PATH", ctx.install_dir + "/python"),
+            env_prepend("PATH", ctx.install_dir),
         ]
     return [
-        env_set("PYTHONHOME", ctx.install_dir + "/python"),
-        env_prepend("PATH", ctx.install_dir + "/python/bin"),
+        env_prepend("PATH", ctx.install_dir + "/bin"),
     ]
 
 # ---------------------------------------------------------------------------
