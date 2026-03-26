@@ -139,12 +139,15 @@ resolve_latest_version() {
     # "browser_download_url" entry (which indicates an uploaded asset).
     local tag=""
     # Use POSIX-compatible awk (works on macOS and Linux)
+    # NOTE: In awk, `exit` jumps to the END block rather than terminating
+    # immediately, so we use a `found` flag to prevent double-printing.
     tag=$(printf '%s' "$json" | awk '
-        BEGIN { in_release = 0; cur_tag = ""; is_draft = 0; is_pre = 0; has_assets = 0 }
+        BEGIN { found = 0; in_release = 0; cur_tag = ""; is_draft = 0; is_pre = 0; has_assets = 0 }
         /"tag_name"/ {
             # Check if the previous release qualifies
             if (in_release && cur_tag != "" && !is_draft && !is_pre && has_assets) {
                 print cur_tag
+                found = 1
                 exit
             }
             # Start tracking a new release
@@ -162,11 +165,14 @@ resolve_latest_version() {
         /"prerelease"[[:space:]]*:[[:space:]]*true/ { is_pre = 1 }
         /"browser_download_url"/ { has_assets = 1 }
         END {
-            if (in_release && cur_tag != "" && !is_draft && !is_pre && has_assets) {
+            if (!found && in_release && cur_tag != "" && !is_draft && !is_pre && has_assets) {
                 print cur_tag
             }
         }
     ')
+
+    # Safety: take only the first line in case awk produced multiple lines
+    tag=$(printf '%s' "$tag" | head -1)
 
     [[ -z "$tag" ]] && return 1
 
