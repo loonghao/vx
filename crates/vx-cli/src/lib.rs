@@ -111,6 +111,9 @@ async fn try_execute_lightweight_command(cli: &Cli) -> Option<Result<()>> {
     use crate::cli::{Commands, ConfigCommand};
 
     match &cli.command {
+        // `vx version` only prints the compiled-in version string.
+        Some(Commands::Version) => Some(commands::version::handle().await),
+
         // `vx config show` is used in benchmark parse tests and only needs local config I/O.
         Some(Commands::Config {
             command: Some(ConfigCommand::Show) | None,
@@ -121,6 +124,11 @@ async fn try_execute_lightweight_command(cli: &Cli) -> Option<Result<()>> {
             command: Some(ConfigCommand::Validate { path, verbose }),
         }) => Some(commands::config::handle_validate(path.clone(), *verbose).await),
 
+        // `vx config dir` only prints a path.
+        Some(Commands::Config {
+            command: Some(ConfigCommand::Dir),
+        }) => Some(commands::config::handle_dir().await),
+
         // `vx run --list` benchmark path: read/print scripts from vx.toml only.
         Some(Commands::Run {
             script: _,
@@ -128,6 +136,14 @@ async fn try_execute_lightweight_command(cli: &Cli) -> Option<Result<()>> {
             script_help: false,
             args: _,
         }) => Some(commands::run::handle(None, true, false, &[]).await),
+
+        // `vx metrics` reads JSON files from disk, no registry needed.
+        Some(Commands::Metrics {
+            last,
+            json,
+            html,
+            clean,
+        }) => Some(commands::metrics::handle(*last, *json, html.clone(), *clean).await),
 
         _ => None,
     }

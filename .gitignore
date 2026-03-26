@@ -48,3 +48,5 @@ $null
 .vite/
 test_toml.rs
 .jj/
+jobs/
+tasks/

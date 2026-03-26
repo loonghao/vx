@@ -382,9 +382,13 @@ impl StarlarkProvider {
 
     /// Resolve python-build-standalone versions by fetching GitHub releases with pagination.
     ///
-    /// Uses small page sizes (per_page=10) to avoid GitHub API timeouts that occur
+    /// Uses small page sizes (per_page=15) to avoid GitHub API timeouts that occur
     /// with large responses (per_page=50 reliably returns 504 for this repo).
-    /// Fetches up to 5 pages to collect enough Python versions.
+    /// Fetches up to 20 pages (300 releases) to cover all Python versions back to 3.7.
+    ///
+    /// The `astral-sh/python-build-standalone` repo releases frequently (multiple
+    /// per month as of 2025+), so we need enough pages to reach older Python versions
+    /// like 3.7.x and 3.8.x whose last builds were in 2023.
     async fn resolve_python_build_standalone_versions(
         &self,
         url: &str,
@@ -404,12 +408,12 @@ impl StarlarkProvider {
 
         let client = StarlarkHttpClient::new();
 
-        // Collect all releases across pages
+        // Collect all releases across pages.
+        // Use per_page=15 (safe size to avoid 504) × up to 20 pages = 300 releases.
+        // This covers ~5+ years of releases, ensuring Python 3.7/3.8 are included.
         let mut all_releases: Vec<serde_json::Value> = Vec::new();
-        // Fetch up to 5 pages with per_page=10 (50 releases total)
-        // python-build-standalone has ~1 release per month, so 50 covers ~4 years
-        for page in 1..=5u32 {
-            let page_url = format!("{}?per_page=10&page={}", base_url, page);
+        for page in 1..=20u32 {
+            let page_url = format!("{}?per_page=15&page={}", base_url, page);
             debug!(
                 provider = %self.meta.name,
                 page = page,
@@ -439,14 +443,15 @@ impl StarlarkProvider {
 
             all_releases.extend(page_releases.iter().cloned());
 
-            // Early exit: once we have enough distinct Python versions, stop fetching
-            // Check if we already have all major Python versions (3.8 through 3.13+)
+            // Early exit: once we have enough distinct Python minor versions, stop fetching.
+            // We need 3.7, 3.8, 3.9, 3.10, 3.11, 3.12, 3.13, 3.14 = at least 8 minor versions.
+            // Use a generous threshold to also catch future versions.
             let distinct_versions = Self::count_distinct_python_versions(&all_releases);
-            if distinct_versions >= 8 {
+            if distinct_versions >= 12 {
                 debug!(
                     provider = %self.meta.name,
                     distinct_versions = distinct_versions,
-                    "Found enough Python versions, stopping pagination"
+                    "Found enough Python versions (>= 12 distinct), stopping pagination"
                 );
                 break;
             }
