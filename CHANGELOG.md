@@ -5,6 +5,109 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.5](https://github.com/loonghao/vx/compare/v0.8.4...v0.8.5) (2026-03-26)
+
+
+### Features
+
+* add build cache providers (sccache, ccache, buildcache) ([62dbacb](https://github.com/loonghao/vx/commit/62dbacb7d67aafc5a0cd2208e4543c444992d923))
+* add dynamic package_prefixes from provider.star metadata ([2bfddd2](https://github.com/loonghao/vx/commit/2bfddd219b381c10c63099ed8fcabf0dfb4ad66b))
+* add llvm/conan/xmake/wix providers and enhance msvc/msbuild for C++/C# build automation ([cfc336a](https://github.com/loonghao/vx/commit/cfc336af1f1b64cb404353253ba5d48f1dad3b91))
+* add new oneshot runner ecosystems and update CLI help/docs ([eb78070](https://github.com/loonghao/vx/commit/eb78070dd4e5f1f7a188f9a032bd46e3f1a0bce1))
+* add Nx and Turborepo cache providers, fix CI sccache issue ([fdb59a3](https://github.com/loonghao/vx/commit/fdb59a3dd83dacbb7edb57259363e271da867b4e))
+* add starlark provider support with bash, curl, meson, openssl, pre-commit, release-please, rez, systemctl, xcodebuild providers ([4d0ff41](https://github.com/loonghao/vx/commit/4d0ff418b0efb9aaccd9d2740d8e3436f0c4bc35))
+* add vx skill for ClawHub publication ([#638](https://github.com/loonghao/vx/issues/638)) ([0430588](https://github.com/loonghao/vx/commit/0430588a71d78ff7901bf4edb5ac31dbae9301f7))
+* land provider and CLI improvements ([f173ca7](https://github.com/loonghao/vx/commit/f173ca7859a08d3b019d45046fab6064a21e870b))
+* **list:** sort tool list alphabetically (a-z) ([46147f9](https://github.com/loonghao/vx/commit/46147f93f0866a758972524d648b0080dc2e769f))
+* **resolver:** implement version priority with vx.lock support ([37cda5e](https://github.com/loonghao/vx/commit/37cda5e5d8dac4635003d6c0db3b047323f51c86))
+* **rfc-0037:** implement ProviderHandle unified facade for CLI commands ([8864cd1](https://github.com/loonghao/vx/commit/8864cd16fbf3bced1770166d84df5515311c415c))
+* wire provider dynamic deps and fix install routing ([d60c8b9](https://github.com/loonghao/vx/commit/d60c8b97182a2f3445703a10b52f12ad472f8cfc))
+
+
+### Bug Fixes
+
+* **7zip:** fix executable name and system_paths to point to binary file ([845419a](https://github.com/loonghao/vx/commit/845419a5d5884bbe00fbb3c68bc880e2289a56e3))
+* add is_version_installable and prepare_execution for bundled runtimes ([daf6a66](https://github.com/loonghao/vx/commit/daf6a66046d6a52e014fc0daca8082d46ecceebe))
+* add recursive search for bundled executables and remove wrong fallback ([5db6505](https://github.com/loonghao/vx/commit/5db65050952402709cc3c01e6ba533fe35a8a5b7))
+* add workspace-hack deps and remove invalid CI cache parameter ([fed823d](https://github.com/loonghao/vx/commit/fed823de6ca6e8eb4105de7820e85160b2fa8b67))
+* address provider CI regressions ([b0d6658](https://github.com/loonghao/vx/commit/b0d6658bb96d9bb95b5887d13e6669312df278e4))
+* **ai:** fix skills format and install all 5 skills on setup ([83bf579](https://github.com/loonghao/vx/commit/83bf57939ac92774106abbe680daa9fe78931c9c))
+* align starlark mock signatures with stdlib and fix provider tests ([8a8be08](https://github.com/loonghao/vx/commit/8a8be084061faaf1b01ba487ab82c7352d505454))
+* **cache:** skip NeedsInstall results in resolution cache; extend TTL to 24h ([0cd8c36](https://github.com/loonghao/vx/commit/0cd8c364445189dc8d38cd8dde4ae334f91978ba))
+* **ci:** add sccache setup to all CI workflows ([67237a6](https://github.com/loonghao/vx/commit/67237a685b901fd80c8ebbd99e88897a30fa89cc))
+* **ci:** add sccache setup to benchmark workflow ([dbaefc8](https://github.com/loonghao/vx/commit/dbaefc8a279c38df310b2da41629dc7ac0d776b3))
+* **ci:** fix discovery parser and CI skip list for Linux/macOS failures ([5d4b834](https://github.com/loonghao/vx/commit/5d4b8348bcd83512e011d8ee9aa9e738ad04f088))
+* **ci:** improve sccache path handling on Windows ([7412df4](https://github.com/loonghao/vx/commit/7412df4895b16b9866e83a11c60e92ed1a410623))
+* **ci:** increase Windows timeout to prevent CI failures ([313b008](https://github.com/loonghao/vx/commit/313b008dd616b9b18c108a7e210c2c3013679327))
+* **ci:** install sccache in quick-test job ([4e32e1a](https://github.com/loonghao/vx/commit/4e32e1acfcd03cdbc499f413182975903f0d5a33))
+* **ci:** skip wix and xmake in CI tests ([bccc34a](https://github.com/loonghao/vx/commit/bccc34a1c0c2f150570392699b5906bf7a97866b))
+* **ci:** use system cargo directly instead of vx cargo ([0b45f66](https://github.com/loonghao/vx/commit/0b45f6665845c2f3356c867dbe004790d15e7dbf))
+* ensure rust targets are installed in CI ([9bffec3](https://github.com/loonghao/vx/commit/9bffec3aa24b600c7aa44eab403e53dda45713d9))
+* exclude vx-star-metadata from cargo-hakari workspace-hack ([2a8bb5f](https://github.com/loonghao/vx/commit/2a8bb5ff6ffb995046670095da0b8b0f3d332733))
+* fix PSReadLine cursor positioning issue in PowerShell prompt ([e802fee](https://github.com/loonghao/vx/commit/e802fee8e36ffcdbd774179c03153b8464dbea44))
+* fix system_install providers and starlark test assertions (round 5) ([772edbd](https://github.com/loonghao/vx/commit/772edbd39371c01b279c46b8d99e6fbf2db6ab45))
+* flatten InstallLayout JSON so manifest_runtime can read strip_prefix ([ab4fea7](https://github.com/loonghao/vx/commit/ab4fea7bf54048a00035de3a4630c79c87d152dc))
+* hadolint asset name separator and uvx bundled_with support ([65a2fad](https://github.com/loonghao/vx/commit/65a2fad4c80b7feb0ac7572c7ae6c1d072824059))
+* handle VX_VERSION=latest in install scripts ([5351963](https://github.com/loonghao/vx/commit/5351963159e0abee0a93498d694778dfc8ce9e7e))
+* improve installer fallback and mirror release support ([a56b239](https://github.com/loonghao/vx/commit/a56b239c8b00e1df09ed8c0568c85ac022a7685e))
+* inject parent runtime env for bundled runtimes (npm/node PATH issue) ([0b3de77](https://github.com/loonghao/vx/commit/0b3de7724f670c8e37f4f09ea0057246772ad89e))
+* inject parent runtime PATH for bundled runtimes via spec env_config ([06ca8aa](https://github.com/loonghao/vx/commit/06ca8aa8a75d15a6e78689ff3daac36559bceec1))
+* **just:** correct version_pattern to match 'just X.Y' output ([942e6a3](https://github.com/loonghao/vx/commit/942e6a32a53fd9e8dcb615053fa2a5163a9049bc))
+* **lint:** resolve provider.star lint issues ([aaa95a3](https://github.com/loonghao/vx/commit/aaa95a31ad00e07c03059afc7ef3c8a628d8a88e))
+* **manifest-runtime:** override resolve_version to return 'system' for system tools ([0e0c101](https://github.com/loonghao/vx/commit/0e0c101b9598502f76e685ab5a7b5eefb065957c))
+* prevent bundled runtime executable misresolution (npm-&gt;node) ([12d5d50](https://github.com/loonghao/vx/commit/12d5d50cee8ab95976b84d6e01ef047d58c2a0f5))
+* propagate locked version to bundled runtime dependencies ([1fa037f](https://github.com/loonghao/vx/commit/1fa037faa473e077cec32eb3247ac8b4e72fd5e6))
+* **providers:** resolve CI download URL failures ([7391695](https://github.com/loonghao/vx/commit/7391695b724fae5c971353e1cdc29e62918b89fa))
+* remove BOM from all provider.star files and improve star syntax checker ([dbafa40](https://github.com/loonghao/vx/commit/dbafa40eee01a867e35011bc79ed3d433e16efc0))
+* remove unused loads and fix lint issues in provider.star files ([dc83b6f](https://github.com/loonghao/vx/commit/dc83b6f138d76f22d924b8ce87fa54a06ef92208))
+* repair provider test resolution and platform gating ([8dc3aa5](https://github.com/loonghao/vx/commit/8dc3aa55c40dcbcdc2d1426cd0f545603f0b7587))
+* replace all ctx dict access with struct attribute access in provider star files ([f1e93f1](https://github.com/loonghao/vx/commit/f1e93f150e2bb486abaccdd6942f0a4533908d56))
+* replace all ctx.http.get_json with fetch_json_versions descriptors in provider.star files ([7bcdd33](https://github.com/loonghao/vx/commit/7bcdd333b81a1e2cb5bdbb5eb5816984488f38c0))
+* resolve .cmd executables for bundled runtimes on Windows ([0442c91](https://github.com/loonghao/vx/commit/0442c91ff6f7704db4f65a3ab568ba9a256586a6))
+* resolve CI errors ([de08ab2](https://github.com/loonghao/vx/commit/de08ab29ac0a7e9a0c04350722ad464ec9b997d0))
+* resolve CI errors ([90a1a7c](https://github.com/loonghao/vx/commit/90a1a7cac4ede8305ff154f2f5cb65c236e47ff5))
+* resolve CI failures for imagemagick, ffmpeg, rez, bash, make, nasm ([d900aae](https://github.com/loonghao/vx/commit/d900aaed962ce47705dd419d620815d725135834))
+* resolve CI failures for yq, wix, xmake, vcpkg providers ([afee387](https://github.com/loonghao/vx/commit/afee38790239bd65ec19e9ebdc1c4781974ffc5b))
+* resolve compiler errors in test files ([fe12f86](https://github.com/loonghao/vx/commit/fe12f8697ff085080a00dcc847f434e7d73263ee))
+* resolve Linux CI failures for ffplay/ffprobe/gofmt/lld/xmake/yq ([f379ab2](https://github.com/loonghao/vx/commit/f379ab25b746ba94a17051cee6abb7ba9a2c61f0))
+* resolve macOS CI failures for ffmpeg and imagemagick ([10949b0](https://github.com/loonghao/vx/commit/10949b0590b8716c16c3ae544a0992c2ebdb2e9e))
+* **runtime:** check vx store first in ManifestDrivenRuntime.is_installed() and installed_versions() ([fe803e3](https://github.com/loonghao/vx/commit/fe803e370376fef347c1acd10608e15819152bf7))
+* stabilize test suite and version constraint parsing ([a3ae77a](https://github.com/loonghao/vx/commit/a3ae77af823e28a49f265afd063000f0647be2a2))
+* **starlark:** lower provider loading log level from info to debug ([96aed89](https://github.com/loonghao/vx/commit/96aed893d275aac78d693f1a110efc8d6d5d971e))
+* **starlark:** register all 14 stdlib modules in loader ([583b16b](https://github.com/loonghao/vx/commit/583b16b892104bc9059cc521eeb8796baa6dc873))
+* temp_dir unbound variable in install.sh and uv strip_prefix ([bf9cef4](https://github.com/loonghao/vx/commit/bf9cef4410700f1134b5edd4e34c70c9eb55097a))
+* **tests:** rewrite all provider runtime_tests to use create_provider() API ([a0edcfc](https://github.com/loonghao/vx/commit/a0edcfcf181f65372b47c7403839f480a85469db))
+* **ui:** show Installing feedback during auto-install to avoid perceived hang ([45fbd39](https://github.com/loonghao/vx/commit/45fbd394f390c6e23f9b39209cca22a914eec4fe))
+* unblock remaining CI regressions ([c2c7b91](https://github.com/loonghao/vx/commit/c2c7b91b245017939755249b683288e9d0c41b51))
+* use bin/bash.exe for git-bash instead of git-bash.exe --attach ([7e72af2](https://github.com/loonghao/vx/commit/7e72af28c8cda9d860729a1adc5e365271aca6ee))
+* use child version for bundled proxy runtime installation ([02af11c](https://github.com/loonghao/vx/commit/02af11cc35f29d1b1021f07577311d7ff2ff5218))
+* use struct attribute access ctx.platform.os instead of dict access ctx[platform][os] in stdlib star files ([ea14d6c](https://github.com/loonghao/vx/commit/ea14d6c3640c35d07f8ddb6f1d20b834726881a4))
+* **versions:** case-insensitive Ecosystem deserialization for vx.lock compatibility ([bc33606](https://github.com/loonghao/vx/commit/bc33606fa8db60af5fac771b830f27e9a8642f97))
+* **windows:** resolve OS error 193 when executing bundled runtimes (npm/npx) ([f7329c9](https://github.com/loonghao/vx/commit/f7329c9d4f4f8bea2b403a392359146b40e5fcc7))
+
+
+### Code Refactoring
+
+* **cli:** update commands and test utilities for runtime refactoring ([d2640d8](https://github.com/loonghao/vx/commit/d2640d8f22436f37417efcce1373314a2ca3ae31))
+* **env,version-fetcher:** eliminate platform/version utils duplication ([1a1e4d4](https://github.com/loonghao/vx/commit/1a1e4d4b73b9cdccaabfaef62cdb8ef0aebebbc9))
+* extract vx-star-metadata crate and eliminate Box::leak usage ([153d77a](https://github.com/loonghao/vx/commit/153d77acb7bd95d865548473a1a17f57c2775220))
+* optimize provider.star files using stdlib templates ([71126bc](https://github.com/loonghao/vx/commit/71126bc5322565185b2557c18eac0800251cc894))
+* **providers:** replace all hand-written permissions dicts with stdlib helpers ([a3d66b1](https://github.com/loonghao/vx/commit/a3d66b1e441a45a6c955120b500096ca8f4a14b1))
+* replace bare .unwrap() with descriptive .expect() in production code ([eb151eb](https://github.com/loonghao/vx/commit/eb151eb3ee8acce69abd1b0fe085fc01545811ca))
+* **resolver:** integrate ResolutionCache into execution pipeline ([4b9c0ca](https://github.com/loonghao/vx/commit/4b9c0ca532e70e61b380a025d7c66aa79143f2bf))
+* **runtime-core:** remove dead Runtime trait and provider machinery ([56dbf1b](https://github.com/loonghao/vx/commit/56dbf1b6168591261a68c3e46bcb14f10fae2d3f))
+* **runtime:** split runtime.rs into module and add ISP sub-traits ([3ebd68f](https://github.com/loonghao/vx/commit/3ebd68fb20469a4789c40cbcd9ae36212a568903))
+* simplify all providers to PROVIDER_STAR only, remove redundant create_provider and star_metadata ([b232a8f](https://github.com/loonghao/vx/commit/b232a8fe7a76fbf62b9b39fa7e7e143a8ebe80c0))
+* split tests to tests/ dir, extract bridge/builder modules, remove metadata indirection, fix clippy warnings ([84f6454](https://github.com/loonghao/vx/commit/84f645478bf1ca4c1abe9ef9667b82e2c56b4025))
+
+
+### Documentation
+
+* add Starlark Providers advanced guide (bilingual) ([c649320](https://github.com/loonghao/vx/commit/c6493208d74687e4e29c6c0be097a666a67a1009))
+* improve agent knowledge - update provider count to 78, enhance AGENTS.md, sync skills ([#687](https://github.com/loonghao/vx/issues/687)) ([7185a30](https://github.com/loonghao/vx/commit/7185a30d42d0f6fc5ea1c9685387363e1b6aba88))
+* improve agent knowledge - update provider.star docs, fix tool counts, add creating-provider guide ([dcff435](https://github.com/loonghao/vx/commit/dcff43556fd7258478394af8c5dd3d623e2d9f1b))
+* update rules to reflect provider.star migration ([3813f82](https://github.com/loonghao/vx/commit/3813f82a7dc7fd33257cafbc6eb1ea6635634ef1))
+
 ## [0.8.4](https://github.com/loonghao/vx/compare/v0.8.3...v0.8.4) (2026-02-20)
 
 
