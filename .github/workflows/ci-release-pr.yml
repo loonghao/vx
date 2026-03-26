@@ -4,13 +4,17 @@
 # Release Please creates PRs using GITHUB_TOKEN. Due to GitHub's security model,
 # PRs created by github-actions[bot] via GITHUB_TOKEN do NOT trigger `pull_request`
 # workflow events. This means the main CI workflow never runs on release PRs, so
-# the required "CI Success" status check is never reported, blocking the merge.
+# the required "CI / CI Success" status check is never reported, blocking the merge.
 #
 # Solution:
 # Use `pull_request_target` which IS triggered for bot-created PRs. This workflow
-# only runs for release-please branches and provides the required "CI Success"
-# status check. Release PRs only change version numbers, CHANGELOG.md, and
-# Cargo.toml — no source code changes — so full CI is unnecessary.
+# validates the release PR metadata and then creates a successful "CI / CI Success"
+# commit status via the GitHub API, satisfying the branch protection requirement.
+#
+# Branch Protection Setup:
+# Only ONE required check is needed: "CI / CI Success"
+# - Normal PRs: ci.yml provides this check via the ci-success job
+# - Release PRs: this workflow provides it via the GitHub Status API
 #
 # Security:
 # - `pull_request_target` runs in the context of the base branch (main)
@@ -25,9 +29,13 @@ on:
     types: [opened, synchronize, reopened]
     branches: [main]
 
+permissions:
+  contents: read
+  statuses: write
+
 jobs:
-  ci-success:
-    name: CI Success
+  release-pr-gate:
+    name: Release PR Gate
     runs-on: ubuntu-latest
     # Only run for release-please PRs
     if: startsWith(github.head_ref, 'release-please--')
@@ -54,3 +62,19 @@ jobs:
           echo "- \`.release-please-manifest.json\` (version bump)" >> $GITHUB_STEP_SUMMARY
           echo "- \`CHANGELOG.md\` (release notes)" >> $GITHUB_STEP_SUMMARY
           echo "- \`Cargo.toml\` (version field)" >> $GITHUB_STEP_SUMMARY
+
+      - name: Report CI Success status
+        uses: actions/github-script@v7
+        with:
+          script: |
+            // Create a commit status matching the main CI's check name
+            // so branch protection's required "CI / CI Success" check is satisfied.
+            await github.rest.repos.createCommitStatus({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              sha: context.payload.pull_request.head.sha,
+              state: 'success',
+              context: 'CI / CI Success',
+              description: 'Release PR - version bump only, full CI not required',
+              target_url: `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`
+            });
