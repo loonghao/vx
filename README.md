@@ -582,7 +582,7 @@ podman run --rm loonghao/vx --version
 Use vx in your CI/CD workflows:
 
 ```yaml
-- uses: loonghao/vx@vx-v0.5.15
+- uses: loonghao/vx@main
   with:
     github-token: ${{ secrets.GITHUB_TOKEN }}
 
@@ -591,7 +591,7 @@ Use vx in your CI/CD workflows:
 - run: vx npm test
 ```
 
-> **Note**: Use a specific version tag (e.g., `vx-v0.5.15`) instead of `v1`. Check [releases](https://github.com/loonghao/vx/releases) for the latest version.
+> **Note**: Use `@main` for latest, or pin to a specific release tag (e.g., `@vx-v0.8.7`). Check [releases](https://github.com/loonghao/vx/releases) for the latest version.
 
 See [GitHub Action Guide](docs/guides/github-action.md) for full documentation.
 
@@ -603,16 +603,16 @@ vx includes a comprehensive test suite for all providers:
 
 ```bash
 # Test all providers in a clean temporary environment
-just test-providers
+vx just test-providers
 
 # Test with verbose output
-just test-providers-verbose
+vx just test-providers-verbose
 
 # Test specific providers only
-just test-providers-filter "node"
+vx just test-providers-filter "node"
 
 # Keep cache for inspection
-just test-providers-keep
+vx just test-providers-keep
 ```
 
 The test suite:

@@ -2,10 +2,11 @@
 
 > **For AI agents**: This file is a **map**, not a manual. Start here, then drill into the linked docs as needed.
 > If you are working on a project that uses vx, **always prefix commands with `vx`** (e.g., `vx npm install`, `vx cargo build`).
+> Also see: [`llms.txt`](llms.txt) for a concise LLM-friendly project index, [`llms-full.txt`](llms-full.txt) for detailed LLM documentation.
 
 ## What is vx?
 
-vx is a **zero-config universal development tool manager**. Users prefix any command with `vx` (e.g., `vx node --version`, `vx cargo build`) and vx automatically installs, manages, and forwards to the correct tool version. vx currently ships **78 providers** covering language runtimes, build tools, DevOps CLIs, cloud platforms, and more — all defined via Starlark DSL (`provider.star`).
+vx is a **zero-config universal development tool manager** (v0.8.8, MIT-licensed, written in Rust). Users prefix any command with `vx` (e.g., `vx node --version`, `vx cargo build`) and vx automatically installs, manages, and forwards to the correct tool version. vx currently ships **78 providers** covering language runtimes, build tools, DevOps CLIs, cloud platforms, and more — all defined via Starlark DSL (`provider.star`).
 
 **Key insight for agents**: vx is a transparent proxy. The user writes the exact same commands they already know — just prepended with `vx`. There is **no new syntax to learn** for tool execution.
 
@@ -16,6 +17,21 @@ vx cargo build --release   # Auto-installs Rust if needed
 vx uv pip install flask    # Auto-installs uv if needed
 vx npx create-react-app x  # Auto-installs Node.js + runs npx
 ```
+
+### How vx Works (Execution Flow)
+
+When you run `vx node --version`, this happens internally:
+
+```
+1. CLI parses "node" as the runtime name
+2. Resolver looks up "node" in ProviderRegistry (via provider.star)
+3. Resolver checks if node is installed (in ~/.vx/store/node/<version>/)
+4. If missing → Installer downloads from URL returned by provider.star's download_url()
+5. Environment is prepared via provider.star's environment() function
+6. Command is forwarded to the actual node binary with all args
+```
+
+This entire flow is **automatic** — the user never needs to know about it.
 
 ## Quick Orientation
 
@@ -50,6 +66,20 @@ vx npx create-react-app x  # Auto-installs Node.js + runs npx
 8. **New providers use Starlark DSL only** — No Rust code required for new tool definitions
 9. **Layer dependencies go downward only** — Never import from a higher architectural layer
 10. **Provider count is 78** — Update any docs that reference old counts (73, 70+, 50+, etc.)
+
+### Common AI Agent Scenarios
+
+| Scenario | What to do |
+|----------|------------|
+| User says "install Node.js" | Run `vx node --version` (auto-installs) or `vx install node@22` |
+| User says "run npm test" | Run `vx npm test` |
+| User says "set up project" | Check for `vx.toml`, then run `vx setup` |
+| User says "add Python to project" | Run `vx add python@3.12` then `vx sync` |
+| User says "use vite" | Run `vx vite` (package alias, auto-routes to `vx npm:vite`) |
+| MCP server needs npx | Use `"command": "vx", "args": ["npx", ...]` in MCP config |
+| Need to check tool version | Run `vx which <tool>` or `vx <tool> --version` |
+| CI/CD setup | Use `loonghao/vx@main` GitHub Action with `setup: 'true'` |
+| Developing vx itself | Run `vx just quick` for format → lint → test → build cycle |
 
 ## Project Structure (Layered Architecture)
 
@@ -153,6 +183,43 @@ _p = github_binary_provider("kubernetes", "kubectl",
 # System package manager only
 _p = system_provider("7zip", executable = "7z")
 ```
+
+### Minimal Complete Provider Example
+
+This is the **simplest possible provider** — copy-paste and modify for new tools:
+
+```starlark
+# crates/vx-providers/mytool/provider.star
+load("@vx//stdlib:provider.star", "runtime_def", "github_permissions")
+load("@vx//stdlib:provider_templates.star", "github_rust_provider")
+
+name        = "mytool"
+description = "My awesome tool"
+ecosystem   = "custom"
+
+runtimes    = [runtime_def("mytool", aliases = ["mt"])]
+permissions = github_permissions()
+
+_p = github_rust_provider("owner", "repo",
+    asset = "mytool-{vversion}-{triple}.{ext}")
+
+fetch_versions   = _p["fetch_versions"]
+download_url     = _p["download_url"]
+install_layout   = _p["install_layout"]
+store_root       = _p["store_root"]
+get_execute_path = _p["get_execute_path"]
+environment      = _p["environment"]
+```
+
+### Real-World Provider Examples (for reference)
+
+| Provider | Pattern | File |
+|----------|---------|------|
+| ripgrep | Template (github_rust_provider) | `crates/vx-providers/ripgrep/provider.star` |
+| just | Template (github_rust_provider) | `crates/vx-providers/just/provider.star` |
+| uv | Template (github_rust_provider) | `crates/vx-providers/uv/provider.star` |
+| go | Hand-written (custom download_url) | `crates/vx-providers/go/provider.star` |
+| node | Hand-written (official API) | `crates/vx-providers/node/provider.star` |
 
 ### Template Placeholders
 
@@ -385,9 +452,13 @@ vx provides a GitHub Action for CI/CD. See [`docs/guides/github-action.md`](docs
     tools: 'node@22 uv'
     setup: 'true'
     cache: 'true'
+    github-token: ${{ secrets.GITHUB_TOKEN }}
 - run: vx node --version
 - run: vx npm test
 ```
+
+> **Tip**: Use `@main` for latest, or pin to a release tag (e.g., `@vx-v0.8.7`).
+> Check [releases](https://github.com/loonghao/vx/releases) for available versions.
 
 ## Documentation Map
 
@@ -402,5 +473,43 @@ docs/
 ├── guides/           # Practical guides (GitHub Actions, use cases)
 ├── rfcs/             # 50 design decision documents
 ├── appendix/         # FAQ, troubleshooting
-└── zh/               # Chinese translations (72 files)
+└── zh/               # Chinese translations (72+ files)
+```
+
+## Quick Diagnostics for AI Agents
+
+If something doesn't work, try these steps in order:
+
+```bash
+# 1. Check vx health
+vx doctor
+
+# 2. Check what's installed
+vx list --installed
+
+# 3. Verify specific tool
+vx which node
+vx node --version
+
+# 4. Debug with verbose output
+vx --debug node --version
+
+# 5. Clean cache and retry
+vx cache clean
+vx install node --force
+
+# 6. Check project config
+vx check --json
+```
+
+### AI-Optimized Output
+
+vx supports structured output for efficient agent consumption:
+
+```bash
+vx list --json                    # JSON output
+vx list --format toon             # Token-optimized output (saves 40-60% tokens)
+vx analyze --json                 # Project analysis as JSON
+vx ai context --json              # Full AI-friendly context
+export VX_OUTPUT=json             # Default all commands to JSON
 ```

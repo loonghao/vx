@@ -24,6 +24,12 @@ vx analyze                  # Analyze project (detects languages, dependencies)
 vx analyze --json           # JSON output for AI parsing
 ```
 
+**Detected ecosystems**: Node.js, Python, Rust, Go, Java, .NET, C/C++, Zig
+**Detected frameworks**: React, Vue, Angular, Next.js, Nuxt, Svelte, Django, Flask, FastAPI, Tauri, Electron, React Native, NW.js, and more
+**Detected package managers**: npm, yarn, pnpm, bun, pip, uv, cargo, go modules
+
+The project analyzer reads indicator files like `package.json`, `pyproject.toml`, `Cargo.toml`, `go.mod`, etc. to suggest the right tools.
+
 ## vx.toml Configuration
 
 ### Basic Structure

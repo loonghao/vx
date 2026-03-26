@@ -352,3 +352,38 @@ cat diagnostics.txt
 
 - GitHub Issues: https://github.com/loonghao/vx/issues
 - Documentation: https://github.com/loonghao/vx#readme
+
+## Quick Triage for AI Agents
+
+When a user reports a vx issue, follow this decision tree:
+
+```
+1. "command not found: vx"
+   → vx is not installed. Run the install script.
+
+2. "Failed to download" / "network error"
+   → Try: vx cache clean && vx install <tool> --verbose
+   → If in China: vx config set cdn_acceleration true
+
+3. "version not found"
+   → Run: vx versions <tool> to list available versions
+   → The user may have a typo in the version string
+
+4. "permission denied"
+   → Check: ls -la ~/.vx (Unix) or icacls %USERPROFILE%\.vx (Windows)
+   → Fix: chmod -R u+rw ~/.vx
+
+5. Tool works but wrong version
+   → Run: vx which <tool> to see which version is active
+   → Check: vx.toml may specify a different version
+   → Run: vx switch <tool>@<version>
+
+6. vx.toml not being picked up
+   → Ensure file is in the project root (same dir as .git)
+   → Run: vx check to validate syntax
+
+7. CI failing with vx
+   → Ensure the GitHub Action is used: loonghao/vx@main
+   → Add github-token for rate limit avoidance
+   → Use cache: 'true' for faster CI runs
+```
