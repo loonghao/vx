@@ -60,6 +60,10 @@ jobs:
       publishing: "true"
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      # Override .cargo/config.toml rustc-wrapper = "sccache" since sccache
+      # is not installed in this job. dist runs `cargo metadata` internally
+      # which invokes rustc via the wrapper, causing "No such file" errors.
+      RUSTC_WRAPPER: ""
     steps:
       - uses: actions/checkout@v5
         with:
@@ -138,6 +142,7 @@ jobs:
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       BUILD_MANIFEST_NAME: target/distrib/${{ join(matrix.targets, '-') }}-dist-manifest.json
+      RUSTC_WRAPPER: ""
     permissions:
       "attestations": "write"
       "contents": "read"
@@ -209,6 +214,7 @@ jobs:
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       BUILD_MANIFEST_NAME: target/distrib/global-dist-manifest.json
+      RUSTC_WRAPPER: ""
     steps:
       - uses: actions/checkout@v5
         with:
@@ -257,6 +263,7 @@ jobs:
     if: ${{ always() && needs.plan.result == 'success' && needs.plan.outputs.publishing == 'true' && (needs.build-global-artifacts.result == 'skipped' || needs.build-global-artifacts.result == 'success') && (needs.build-local-artifacts.result == 'skipped' || needs.build-local-artifacts.result == 'success') }}
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      RUSTC_WRAPPER: ""
     runs-on: "ubuntu-24.04"
     outputs:
       val: ${{ steps.host.outputs.manifest }}
