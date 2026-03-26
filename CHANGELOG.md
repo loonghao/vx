@@ -40,6 +40,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * **ci:** improve sccache path handling on Windows ([7412df4](https://github.com/loonghao/vx/commit/7412df4895b16b9866e83a11c60e92ed1a410623))
 * **ci:** increase Windows timeout to prevent CI failures ([313b008](https://github.com/loonghao/vx/commit/313b008dd616b9b18c108a7e210c2c3013679327))
 * **ci:** install sccache in quick-test job ([4e32e1a](https://github.com/loonghao/vx/commit/4e32e1acfcd03cdbc499f413182975903f0d5a33))
+* **ci:** resolve required check name conflict blocking PR merges ([8f92a54](https://github.com/loonghao/vx/commit/8f92a54e82ee4772364efb40e82a464d667d1def))
 * **ci:** skip wix and xmake in CI tests ([bccc34a](https://github.com/loonghao/vx/commit/bccc34a1c0c2f150570392699b5906bf7a97866b))
 * **ci:** use system cargo directly instead of vx cargo ([0b45f66](https://github.com/loonghao/vx/commit/0b45f6665845c2f3356c867dbe004790d15e7dbf))
 * ensure rust targets are installed in CI ([9bffec3](https://github.com/loonghao/vx/commit/9bffec3aa24b600c7aa44eab403e53dda45713d9))
