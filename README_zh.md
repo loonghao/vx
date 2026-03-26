@@ -582,7 +582,7 @@ podman run --rm loonghao/vx --version
 在 CI/CD 工作流中使用 vx：
 
 ```yaml
-- uses: loonghao/vx@vx-v0.5.15
+- uses: loonghao/vx@main
   with:
     github-token: ${{ secrets.GITHUB_TOKEN }}
 
@@ -591,7 +591,7 @@ podman run --rm loonghao/vx --version
 - run: vx npm test
 ```
 
-> **注意**: 请使用具体的版本标签（如 `vx-v0.5.15`）而不是 `v1`。查看 [releases](https://github.com/loonghao/vx/releases) 获取最新版本。
+> **注意**: 请使用 `@main` 获取最新版本，或使用具体的版本标签（如 `@vx-v0.8.7`）。查看 [releases](https://github.com/loonghao/vx/releases) 获取最新版本。
 
 详细文档请参阅 [GitHub Action 指南](docs/guides/github-action.md)。
 
@@ -603,16 +603,16 @@ vx 提供了覆盖所有 provider 的完整测试套件：
 
 ```bash
 # 在干净的临时环境中测试所有 provider
-just test-providers
+vx just test-providers
 
 # 输出详细日志
-just test-providers-verbose
+vx just test-providers-verbose
 
 # 仅测试指定 provider
-just test-providers-filter "node"
+vx just test-providers-filter "node"
 
 # 保留缓存以便排查
-just test-providers-keep
+vx just test-providers-keep
 ```
 
 测试套件特性：
