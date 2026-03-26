@@ -256,56 +256,91 @@ pub async fn ensure_provider_metadata_initialized() {
     ensure_constraints_registry_initialized();
 }
 
-pub fn find_package_alias(runtime_name: &str) -> Option<PackageAlias> {
+/// Cached package alias lookup table.
+/// Built once on first access, avoids re-parsing all 78 provider.star files on every tool execution.
+static PACKAGE_ALIAS_CACHE: OnceLock<HashMap<String, PackageAlias>> = OnceLock::new();
+
+fn build_package_alias_cache() -> HashMap<String, PackageAlias> {
+    let mut cache = HashMap::new();
+
     for (name, star_content) in ALL_PROVIDER_STARS {
-        if let Some(alias) = find_package_alias_in_star(name, star_content, runtime_name) {
-            return Some(alias);
+        let meta = StarMetadata::parse(star_content);
+        if let Some((ecosystem, package)) = &meta.package_alias {
+            let alias = PackageAlias {
+                ecosystem: ecosystem.clone(),
+                package: package.clone(),
+                executable: None,
+            };
+
+            // Map provider name
+            if let Some(ref provider_name) = meta.name {
+                cache.insert(provider_name.clone(), alias.clone());
+            } else {
+                cache.insert(name.to_string(), alias.clone());
+            }
+
+            // Map all runtime names and aliases
+            for runtime in &meta.runtimes {
+                if let Some(ref runtime_name) = runtime.name {
+                    cache.insert(runtime_name.clone(), alias.clone());
+                }
+                for a in &runtime.aliases {
+                    cache.insert(a.clone(), alias.clone());
+                }
+            }
         }
     }
 
+    // Also include user overrides
     for (name, star_content) in load_star_overrides() {
-        if let Some(alias) = find_package_alias_in_star(&name, &star_content, runtime_name) {
-            return Some(alias);
+        let meta = StarMetadata::parse(&star_content);
+        if let Some((ecosystem, package)) = &meta.package_alias {
+            let alias = PackageAlias {
+                ecosystem: ecosystem.clone(),
+                package: package.clone(),
+                executable: None,
+            };
+            cache.insert(name, alias.clone());
+            for runtime in &meta.runtimes {
+                if let Some(ref runtime_name) = runtime.name {
+                    cache.insert(runtime_name.clone(), alias.clone());
+                }
+                for a in &runtime.aliases {
+                    cache.insert(a.clone(), alias.clone());
+                }
+            }
         }
     }
 
-    None
+    cache
 }
+
+pub fn find_package_alias(runtime_name: &str) -> Option<PackageAlias> {
+    let cache = PACKAGE_ALIAS_CACHE.get_or_init(build_package_alias_cache);
+    cache.get(runtime_name).cloned()
+}
+
+/// Cached runtime names list.
+static RUNTIME_NAMES_CACHE: OnceLock<Vec<String>> = OnceLock::new();
 
 pub fn available_runtime_names() -> Vec<String> {
-    let mut names = Vec::new();
+    RUNTIME_NAMES_CACHE
+        .get_or_init(|| {
+            let mut names = Vec::new();
 
-    for (name, star_content) in ALL_PROVIDER_STARS {
-        names.extend(extract_runtime_lookup_names(name, star_content));
-    }
+            for (name, star_content) in ALL_PROVIDER_STARS {
+                names.extend(extract_runtime_lookup_names(name, star_content));
+            }
 
-    for (name, star_content) in load_star_overrides() {
-        names.extend(extract_runtime_lookup_names(&name, &star_content));
-    }
+            for (name, star_content) in load_star_overrides() {
+                names.extend(extract_runtime_lookup_names(&name, &star_content));
+            }
 
-    names.sort();
-    names.dedup();
-    names
-}
-
-fn find_package_alias_in_star(
-    provider_name: &str,
-    star_content: &str,
-    runtime_name: &str,
-) -> Option<PackageAlias> {
-    let meta = StarMetadata::parse(star_content);
-    let matches_runtime = meta.find_runtime(runtime_name).is_some_and(|_| true)
-        || meta.name_or(provider_name) == runtime_name;
-
-    if !matches_runtime {
-        return None;
-    }
-
-    meta.package_alias.map(|(ecosystem, package)| PackageAlias {
-        ecosystem,
-        package,
-        executable: None,
-    })
+            names.sort();
+            names.dedup();
+            names
+        })
+        .clone()
 }
 
 fn collect_constraints_from_star(
@@ -313,6 +348,13 @@ fn collect_constraints_from_star(
     content: &str,
     out: &mut HashMap<String, Vec<ConstraintRule>>,
 ) {
+    // Fast pre-filter: skip providers that don't mention "constraints" at all.
+    // This avoids creating a Starlark engine + full AST evaluation for the ~90%
+    // of providers that have no constraints, saving significant startup time.
+    if !content.contains("constraints") {
+        return;
+    }
+
     let engine = StarlarkEngine::new();
     let script_path = Path::new(provider_name);
 

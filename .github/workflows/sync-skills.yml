@@ -1,0 +1,57 @@
+name: Sync Skills to ClawHub
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "skills/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  sync-skills:
+    runs-on: ubuntu-latest
+    if: github.repository == 'loonghao/vx'
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Package skills
+        run: |
+          cd skills
+          zip -r ../vx-skills.zip .
+          cd ..
+          echo "Packaged skills: $(ls -lh vx-skills.zip)"
+          echo "Contents:"
+          unzip -l vx-skills.zip | head -30
+
+      - name: Upload skill artifact
+        uses: actions/upload-artifact@v6
+        with:
+          name: vx-skills
+          path: vx-skills.zip
+          retention-days: 30
+
+      - name: Sync to ClawHub
+        env:
+          CLAWHUB_TOKEN: ${{ secrets.CLAWHUB_TOKEN }}
+        run: |
+          if [ -z "$CLAWHUB_TOKEN" ]; then
+            echo "CLAWHUB_TOKEN not set, skipping sync"
+            exit 0
+          fi
+
+          echo "Syncing vx skills to ClawHub..."
+
+          # Upload skill package to ClawHub API
+          curl -f -X POST \
+            -H "Authorization: Bearer $CLAWHUB_TOKEN" \
+            -H "Content-Type: multipart/form-data" \
+            -F "skill=@vx-skills.zip" \
+            -F "name=vx" \
+            -F "repository=loonghao/vx" \
+            "https://api.clawhub.ai/v1/skills/publish" \
+            && echo "Successfully synced vx skills to ClawHub" \
+            || echo "ClawHub sync failed (non-fatal)"

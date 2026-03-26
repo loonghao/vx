@@ -4,7 +4,8 @@ just = "latest"
 node = "latest"
 prek = "latest"
 python = "3.11"
-rust = "1.93.1"
+# rust version is managed by system rustup, not vx
+# (vx fetch_versions queries rustup releases 1.16~1.29, not rustc versions)
 uv = "latest"
 
 [tools.pwsh]
