@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.6](https://github.com/loonghao/vx/compare/v0.8.5...v0.8.6) (2026-03-26)
+
+
+### Bug Fixes
+
+* **deps:** update rust crate anstream to v1 ([b837fcd](https://github.com/loonghao/vx/commit/b837fcdbca1344095e65f1523c65bec4c01d04bd))
+
 ## [0.8.5](https://github.com/loonghao/vx/compare/v0.8.4...v0.8.5) (2026-03-26)
 
 
