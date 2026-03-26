@@ -420,3 +420,73 @@ vx add uv
 # 4. Remove pyenv
 rm -rf ~/.pyenv
 ```
+
+## Provider Development Best Practices
+
+### Choose the Right Template
+
+For most tools, use a template instead of writing custom functions:
+
+```starlark
+# ✅ Good — Use template (10 lines)
+_p = github_rust_provider("owner", "tool",
+    asset = "tool-{vversion}-{triple}.{ext}")
+
+# ❌ Avoid — Custom download_url when template works
+def download_url(ctx, version):
+    # 30+ lines of custom code...
+```
+
+### Provider Naming
+
+```starlark
+# ✅ Correct terminology
+name = "ripgrep"              # Provider name
+runtimes = [runtime_def("rg")]  # Runtime name (what user types)
+
+# Common pattern: provider name = project name, runtime name = binary name
+# ripgrep provider → rg runtime
+# rust provider → cargo, rustc, rustup runtimes
+```
+
+### Platform Constraints
+
+Return `None` from `download_url` for unsupported platforms:
+
+```starlark
+def download_url(ctx, version):
+    platform = platform_map(ctx, _PLATFORMS)
+    if not platform:
+        return None  # Not supported on this platform
+    return "https://example.com/v{}/tool-{}.tar.gz".format(version, platform)
+```
+
+### Bundled Runtimes
+
+Use `bundled_runtime_def` for tools shipped inside another:
+
+```starlark
+runtimes = [
+    runtime_def("node"),                     # Primary runtime
+    bundled_runtime_def("npm", "node"),       # npm comes with node
+    bundled_runtime_def("npx", "node"),       # npx comes with node
+]
+```
+
+## vx Development Best Practices
+
+### Quick Development Cycle
+
+```bash
+vx just quick                    # format → lint → test → build
+vx cargo check -p vx-cli         # Fast type-checking for one crate
+vx cargo test -p vx-starlark     # Test one crate
+```
+
+### Code Organization Rules
+
+1. **Layer dependencies go downward only** — Never import from higher layers
+2. **Tests in `tests/` directories** — Never inline `#[cfg(test)]`
+3. **Use `rstest`** for parameterized tests
+4. **Use `tracing`** for logging, never `println!` or `eprintln!`
+5. **Use correct terminology** — Runtime, Provider, provider.star

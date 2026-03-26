@@ -155,26 +155,53 @@ The pre-commit hook will catch this automatically if you forget.
 ```
 vx/
 ├── crates/
-│   ├── vx-cli/         # CLI application
-│   ├── vx-core/        # Core types and traits
-│   ├── vx-paths/       # Path management
-│   ├── vx-resolver/    # Version resolution
-│   ├── vx-runtime/     # Runtime management
-│   └── vx-providers/   # Tool providers
-├── book/               # Documentation (mdBook)
-├── tests/              # Integration tests
-└── examples/           # Example configurations
+│   ├── vx-cli/              # CLI application (entry point)
+│   ├── vx-core/             # Core types and traits
+│   ├── vx-paths/            # Path management
+│   ├── vx-resolver/         # Version resolution and execution
+│   ├── vx-runtime/          # Runtime management and registry
+│   ├── vx-starlark/         # Starlark DSL engine
+│   │   └── stdlib/          # 14 Starlark standard library modules
+│   ├── vx-installer/        # Download and install
+│   ├── vx-config/           # Configuration management
+│   ├── vx-console/          # Unified output and progress
+│   ├── vx-project-analyzer/ # Project detection
+│   └── vx-providers/        # 78 tool providers (provider.star)
+├── skills/                  # AI agent skill files (5 SKILL.md)
+├── docs/                    # Documentation (English + Chinese)
+├── tests/                   # Integration tests
+└── justfile                 # Development task runner
 ```
 
 ## Adding a New Provider
 
-1. Create crate in `crates/vx-providers/`
-2. Implement `Provider` trait
-3. Add tests
-4. Register in `vx-cli/src/registry.rs`
-5. Update documentation
+1. Create `crates/vx-providers/<name>/provider.star` using a template (covers 90% of cases)
+2. Define metadata: `name`, `description`, `ecosystem`, `runtimes`, `permissions`
+3. Add tests: `vx <runtime> --version`
+4. Update documentation if needed
 
-See [Plugin Development](plugin-development) for details.
+```starlark
+# Example: crates/vx-providers/mytool/provider.star
+load("@vx//stdlib:provider.star", "runtime_def", "github_permissions")
+load("@vx//stdlib:provider_templates.star", "github_rust_provider")
+
+name        = "mytool"
+description = "My awesome tool"
+ecosystem   = "custom"
+runtimes    = [runtime_def("mytool")]
+permissions = github_permissions()
+
+_p = github_rust_provider("owner", "repo",
+    asset = "mytool-{vversion}-{triple}.{ext}")
+fetch_versions   = _p["fetch_versions"]
+download_url     = _p["download_url"]
+install_layout   = _p["install_layout"]
+store_root       = _p["store_root"]
+get_execute_path = _p["get_execute_path"]
+environment      = _p["environment"]
+```
+
+See [Creating a Provider](../guide/creating-provider.md) and [provider.star Reference](../guide/provider-star-reference.md) for the complete guide.
 
 ## Commit Messages
 
