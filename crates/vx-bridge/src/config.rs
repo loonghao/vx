@@ -100,9 +100,9 @@ impl BridgeConfig {
         let executable = match finder.find() {
             Some(path) => path,
             None => {
-                eprintln!("vx {} bridge: target executable not found.", self.name);
+                tracing::error!("vx {} bridge: target executable not found.", self.name);
                 if let Some(hint) = &self.not_found_hint {
-                    eprintln!("{}", hint);
+                    tracing::error!("{}", hint);
                 }
                 return ExitCode::from(1);
             }
