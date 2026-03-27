@@ -142,6 +142,12 @@ hakari-generate:
     cargo hakari generate
     cargo hakari manage-deps
 
+# Auto-fix workspace-hack: regenerate and stage changes (run after modifying deps)
+hakari-fix:
+    cargo hakari generate
+    cargo hakari manage-deps
+    @git diff --quiet crates/workspace-hack/Cargo.toml && echo "✓ workspace-hack is already up-to-date" || (git add crates/workspace-hack/Cargo.toml && echo "✓ workspace-hack updated and staged")
+
 # Check code formatting
 format-check:
     vx run fmt-check

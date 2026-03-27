@@ -70,47 +70,27 @@ vx prek run --hook-id cargo-hakari
   types_or: [yaml, json]
 ```
 
-### 6. Workspace-Hack 验证（`cargo-hakari`）⭐ 新增
+### 6. Workspace-Hack 自动修复（`cargo-hakari-fix`）⭐ 新增
 
-验证 `workspace-hack` crate 与当前依赖图保持同步。
+依赖变更时自动重新生成 `workspace-hack` crate 并暂存修改。
 
 ```yaml
-- id: cargo-hakari
-  name: cargo hakari check
-  entry: vx cargo hakari generate --diff
+- id: cargo-hakari-fix
+  name: cargo hakari generate (auto-fix)
+  entry: bash -c 'vx cargo hakari generate && vx cargo hakari manage-deps && git add crates/workspace-hack/Cargo.toml && vx cargo hakari generate --diff'
   language: system
   files: Cargo\.(toml|lock)$
   pass_filenames: false
 ```
 
-**为什么重要：** vx 使用 [cargo-hakari](https://docs.rs/cargo-hakari) 通过统一 workspace 中的 feature flags 来优化构建时间。当你在任何 `Cargo.toml` 中添加或更新依赖时，`workspace-hack` crate 必须重新生成。如果它与实际依赖不同步，CI 将会失败，并显示类似以下的差异：
-
-```diff
---- original
-+++ modified
-@@ -20,7 +20,7 @@
- regex = { version = "1" }
--regex-automata = { version = "0.4", default-features = false, features = ["dfa-build", ...] }
-+regex-automata = { version = "0.4", default-features = false, features = ["dfa", "hybrid", ...] }
-```
+**为什么重要：** vx 使用 [cargo-hakari](https://docs.rs/cargo-hakari) 通过统一 workspace 中的 feature flags 来优化构建时间。当你在任何 `Cargo.toml` 中添加或更新依赖时，`workspace-hack` crate 必须重新生成。以前这是一个容易遗忘的手动步骤；现在 hook 会自动处理。
 
 **工作原理：**
 - 在 `Cargo.toml` 或 `Cargo.lock` 发生变更时触发
-- 运行 `cargo hakari generate --diff`，如果 workspace-hack 过期则以非零退出码退出
-- **不修改文件** — 仅做检查
-
-**失败时的修复方法：**
-
-```bash
-# 重新生成 workspace-hack
-vx cargo hakari generate
-
-# 同时更新依赖声明
-vx cargo hakari manage-deps
-
-# 或使用 justfile 中的 recipe
-just hakari-generate
-```
+- 运行 `cargo hakari generate` 和 `cargo hakari manage-deps` 重新生成 workspace-hack
+- 通过 `git add` 暂存更新后的 `crates/workspace-hack/Cargo.toml`
+- 使用 `cargo hakari generate --diff` 验证没有剩余差异
+- 重新生成的文件会自动包含在你的提交中 — 无需手动干预
 
 ### 7. Justfile 重复 Recipe 检测（`justfile-no-duplicate-recipes`）⭐ 新增
 
@@ -199,15 +179,20 @@ git commit --no-verify -m "emergency fix"
 
 ## 故障排除
 
-### 添加依赖后 `cargo-hakari` 失败
+### 添加依赖后 `cargo-hakari-fix` 失败
+
+Hook 应该能自动修复大多数情况。如果仍然失败：
 
 ```bash
-# 重新生成 workspace-hack
+# 手动重新生成 workspace-hack
 vx cargo hakari generate
 vx cargo hakari manage-deps
 
 # 验证现在已经干净
 vx cargo hakari generate --diff
+
+# 或使用 justfile 快捷命令
+vx just hakari-fix
 ```
 
 ### `justfile-no-duplicate-recipes` 失败

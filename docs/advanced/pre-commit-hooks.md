@@ -70,47 +70,27 @@ Formats YAML and JSON files with Prettier.
   types_or: [yaml, json]
 ```
 
-### 6. Workspace-Hack Verification (`cargo-hakari`) ⭐ New
+### 6. Workspace-Hack Auto-Fix (`cargo-hakari-fix`) ⭐ New
 
-Verifies that the `workspace-hack` crate is up-to-date with the current dependency graph.
+Automatically regenerates the `workspace-hack` crate and stages the result when dependencies change.
 
 ```yaml
-- id: cargo-hakari
-  name: cargo hakari check
-  entry: vx cargo hakari generate --diff
+- id: cargo-hakari-fix
+  name: cargo hakari generate (auto-fix)
+  entry: bash -c 'vx cargo hakari generate && vx cargo hakari manage-deps && git add crates/workspace-hack/Cargo.toml && vx cargo hakari generate --diff'
   language: system
   files: Cargo\.(toml|lock)$
   pass_filenames: false
 ```
 
-**Why this matters:** vx uses [cargo-hakari](https://docs.rs/cargo-hakari) to optimize build times by unifying feature flags across the workspace. When you add or update a dependency in any `Cargo.toml`, the `workspace-hack` crate must be regenerated. If it drifts out of sync, CI will fail with a diff like:
-
-```diff
---- original
-+++ modified
-@@ -20,7 +20,7 @@
- regex = { version = "1" }
--regex-automata = { version = "0.4", default-features = false, features = ["dfa-build", ...] }
-+regex-automata = { version = "0.4", default-features = false, features = ["dfa", "hybrid", ...] }
-```
+**Why this matters:** vx uses [cargo-hakari](https://docs.rs/cargo-hakari) to optimize build times by unifying feature flags across the workspace. When you add or update a dependency in any `Cargo.toml`, the `workspace-hack` crate must be regenerated. Previously this was a manual step that was easy to forget; now the hook handles it automatically.
 
 **How it works:**
 - Triggers on any change to `Cargo.toml` or `Cargo.lock`
-- Runs `cargo hakari generate --diff` which exits with a non-zero code if the workspace-hack is stale
-- Does **not** modify files — it only checks
-
-**When it fails:** Run the following to fix it:
-
-```bash
-# Regenerate workspace-hack
-vx cargo hakari generate
-
-# Also update dependency declarations
-vx cargo hakari manage-deps
-
-# Or use the justfile recipe
-just hakari-generate
-```
+- Runs `cargo hakari generate` and `cargo hakari manage-deps` to regenerate workspace-hack
+- Stages the updated `crates/workspace-hack/Cargo.toml` via `git add`
+- Verifies with `cargo hakari generate --diff` to confirm no remaining drift
+- The regenerated file is included in your commit automatically — no manual intervention needed
 
 ### 7. Justfile Duplicate Recipe Detection (`justfile-no-duplicate-recipes`) ⭐ New
 
@@ -199,15 +179,20 @@ Bypassing hooks should be a last resort. The CI pipeline runs the same checks, s
 
 ## Troubleshooting
 
-### `cargo-hakari` fails after adding a dependency
+### `cargo-hakari-fix` fails after adding a dependency
+
+The hook should auto-fix most cases. If it still fails:
 
 ```bash
-# Regenerate workspace-hack
+# Manually regenerate workspace-hack
 vx cargo hakari generate
 vx cargo hakari manage-deps
 
 # Verify it's now clean
 vx cargo hakari generate --diff
+
+# Or use the justfile shortcut
+vx just hakari-fix
 ```
 
 ### `justfile-no-duplicate-recipes` fails
