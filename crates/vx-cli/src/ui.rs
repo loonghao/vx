@@ -262,7 +262,7 @@ impl ProgressSpinner {
         let bar = pm.multi().add(ProgressBar::new_spinner());
         bar.set_style(
             ProgressStyle::with_template("{spinner:.cyan} {msg}")
-                .unwrap()
+                .expect("static progress template")
                 .tick_strings(&["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"]),
         );
         bar.set_message(message.to_string());
@@ -276,7 +276,7 @@ impl ProgressSpinner {
         let bar = pm.multi().add(ProgressBar::new_spinner());
         bar.set_style(
             ProgressStyle::with_template("{spinner:.green} {msg}")
-                .unwrap()
+                .expect("static progress template")
                 .tick_strings(&["◜", "◠", "◝", "◞", "◡", "◟"]),
         );
         bar.set_message(message.to_string());
@@ -290,7 +290,7 @@ impl ProgressSpinner {
         let bar = pm.multi().add(ProgressBar::new_spinner());
         bar.set_style(
             ProgressStyle::with_template("{spinner:.blue} {msg}")
-                .unwrap()
+                .expect("static progress template")
                 .tick_strings(&["⣾", "⣽", "⣻", "⢿", "⡿", "⣟", "⣯", "⣷"]),
         );
         bar.set_message(message.to_string());
@@ -342,7 +342,7 @@ impl DownloadProgress {
             ProgressStyle::with_template(
                 "{spinner:.green} {msg} {wide_bar:.cyan/blue} {bytes}/{total_bytes} ({bytes_per_sec}, {eta})"
             )
-            .unwrap()
+            .expect("static progress template")
             .progress_chars("━━╺"),
         );
         bar.set_message(message.to_string());
@@ -356,7 +356,7 @@ impl DownloadProgress {
         let bar = pm.multi().add(ProgressBar::new_spinner());
         bar.set_style(
             ProgressStyle::with_template("{spinner:.green} {msg} {bytes} ({bytes_per_sec})")
-                .unwrap()
+                .expect("static progress template")
                 .tick_strings(&["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"]),
         );
         bar.set_message(message.to_string());
@@ -418,7 +418,7 @@ impl MultiProgress {
         let bar = pm.multi().add(ProgressBar::new(total));
         bar.set_style(
             ProgressStyle::with_template("{spinner:.cyan} [{pos}/{len}] {msg}")
-                .unwrap()
+                .expect("static progress template")
                 .tick_strings(&["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"]),
         );
 
@@ -472,7 +472,7 @@ impl InstallProgress {
         let main_bar = pm.multi().add(ProgressBar::new(total_tools as u64));
         main_bar.set_style(
             ProgressStyle::with_template("{msg} [{bar:40.green/dim}] {pos}/{len} tools")
-                .unwrap()
+                .expect("static progress template")
                 .progress_chars("━━╺"),
         );
         main_bar.set_message(title.to_string());
@@ -496,7 +496,7 @@ impl InstallProgress {
         let bar = pm.multi().add(ProgressBar::new_spinner());
         bar.set_style(
             ProgressStyle::with_template("  {spinner:.blue} Installing {msg}")
-                .unwrap()
+                .expect("static progress template")
                 .tick_strings(&["⣾", "⣽", "⣻", "⢿", "⡿", "⣟", "⣯", "⣷"]),
         );
         bar.set_message(format!("{}@{}", tool_name, version));

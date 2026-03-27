@@ -162,7 +162,10 @@ pub async fn handle_status() -> Result<()> {
     // Config hooks status
     if let Some(config_path) = config_path {
         let config = vx_config::parse_config(&config_path)?;
-        let config_name = config_path.file_name().unwrap().to_string_lossy();
+        let config_name = config_path
+            .file_name()
+            .unwrap_or_default()
+            .to_string_lossy();
 
         println!("Configured Hooks ({}):", config_name);
         if let Some(hooks) = &config.hooks {
