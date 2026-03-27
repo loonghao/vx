@@ -6,7 +6,7 @@
 
 ## What is vx?
 
-vx is a **zero-config universal development tool manager** (v0.8.8, MIT-licensed, written in Rust). Users prefix any command with `vx` (e.g., `vx node --version`, `vx cargo build`) and vx automatically installs, manages, and forwards to the correct tool version. vx currently ships **78 providers** covering language runtimes, build tools, DevOps CLIs, cloud platforms, and more — all defined via Starlark DSL (`provider.star`).
+vx is a **zero-config universal development tool manager** (v0.8.9, MIT-licensed, written in Rust). Users prefix any command with `vx` (e.g., `vx node --version`, `vx cargo build`) and vx automatically installs, manages, and forwards to the correct tool version. vx currently ships **78 providers** covering language runtimes, build tools, DevOps CLIs, cloud platforms, and more — all defined via Starlark DSL (`provider.star`).
 
 **Key insight for agents**: vx is a transparent proxy. The user writes the exact same commands they already know — just prepended with `vx`. There is **no new syntax to learn** for tool execution.
 
@@ -52,6 +52,41 @@ This entire flow is **automatic** — the user never needs to know about it.
 | Understand vx.toml configuration     | [`docs/config/vx-toml.md`](docs/config/vx-toml.md) |
 | Troubleshoot issues                  | [`docs/appendix/troubleshooting.md`](docs/appendix/troubleshooting.md) |
 
+## Mental Model for AI Agents
+
+Think of vx as a **universal shim layer** between the user and their development tools:
+
+```
+User Command: vx npm install
+                 │
+                 ▼
+          ┌─────────────┐
+          │   vx CLI     │  ← Parses "npm" as the runtime name
+          └──────┬───────┘
+                 │
+          ┌──────▼───────┐
+          │   Resolver    │  ← Looks up "npm" → bundled with "node" Provider
+          └──────┬───────┘
+                 │
+          ┌──────▼───────┐
+          │  Is node      │  ← Checks ~/.vx/store/node/<version>/
+          │  installed?   │
+          └──┬────────┬──┘
+          No │        │ Yes
+             ▼        ▼
+       ┌──────────┐  ┌──────────┐
+       │ Install   │  │ Prepare  │  ← Sets PATH, env vars from provider.star
+       │ node      │  │ env      │
+       └─────┬────┘  └────┬─────┘
+             └──────┬─────┘
+                    ▼
+          ┌─────────────┐
+          │ Forward cmd  │  ← Executes: npm install (with correct PATH)
+          └─────────────┘
+```
+
+**Key principle**: vx never modifies commands — it only ensures the right tool version is available, then transparently forwards the command.
+
 ## Critical Rules for AI Agents
 
 **These rules MUST be followed when working on or with vx:**
@@ -80,6 +115,20 @@ This entire flow is **automatic** — the user never needs to know about it.
 | Need to check tool version | Run `vx which <tool>` or `vx <tool> --version` |
 | CI/CD setup | Use `loonghao/vx@main` GitHub Action with `setup: 'true'` |
 | Developing vx itself | Run `vx just quick` for format → lint → test → build cycle |
+| User encounters errors | Run `vx doctor` first, then `vx --debug <command>` |
+| Need to update vx itself | Run `vx self-update` |
+
+### What NOT to Do
+
+| ❌ Don't | ✅ Do instead |
+|----------|---------------|
+| `npm install` | `vx npm install` |
+| `pip install flask` | `vx uv pip install flask` |
+| `go build` | `vx go build` |
+| Tell user to "install Node.js first" | Just run `vx node --version` (auto-installs) |
+| Suggest `nvm use 22` | Suggest `vx switch node@22` or set in `vx.toml` |
+| Write `#[cfg(test)] mod tests {}` | Create tests in `crates/<name>/tests/` directory |
+| Use `println!` for logging | Use `tracing::info!`, `tracing::debug!`, etc. |
 
 ## Project Structure (Layered Architecture)
 
@@ -457,7 +506,7 @@ vx provides a GitHub Action for CI/CD. See [`docs/guides/github-action.md`](docs
 - run: vx npm test
 ```
 
-> **Tip**: Use `@main` for latest, or pin to a release tag (e.g., `@vx-v0.8.7`).
+> **Tip**: Use `@main` for latest, or pin to a release tag (e.g., `@vx-v0.8.9`).
 > Check [releases](https://github.com/loonghao/vx/releases) for available versions.
 
 ## Documentation Map
@@ -502,6 +551,19 @@ vx install node --force
 vx check --json
 ```
 
+### Exit Codes
+
+| Code | Meaning |
+|------|---------|
+| 0 | Success |
+| 1 | General error |
+| 2 | Tool not found |
+| 3 | Installation failed |
+| 4 | Version not found |
+| 5 | Network error |
+| 6 | Permission error |
+| 7 | Configuration error |
+
 ### AI-Optimized Output
 
 vx supports structured output for efficient agent consumption:
@@ -513,3 +575,22 @@ vx analyze --json                 # Project analysis as JSON
 vx ai context --json              # Full AI-friendly context
 export VX_OUTPUT=json             # Default all commands to JSON
 ```
+
+## Skills Distribution
+
+vx ships AI agent skills in the [`skills/`](skills/) directory. These skills are the **single source of truth** shared across 13+ AI agents:
+
+```bash
+# Install skills to all AI agents
+vx ai setup
+
+# Skills directory structure
+skills/
+├── vx-usage/SKILL.md           # Core usage guide
+├── vx-commands/SKILL.md        # CLI command reference
+├── vx-project/SKILL.md         # Project management
+├── vx-best-practices/SKILL.md  # Best practices & provider development
+└── vx-troubleshooting/SKILL.md # Troubleshooting & recovery
+```
+
+These skills trigger automatically when the project contains `vx.toml` or `.vx/`, or when the user mentions `vx`, tool version management, or cross-platform setup.
