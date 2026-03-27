@@ -130,27 +130,27 @@ lint:
 
 # Format code
 format:
-    cargo fmt
+    vx cargo fmt
 
 # Verify workspace-hack is up-to-date (CI check)
 hakari-verify:
-    cargo hakari generate --diff
-    cargo hakari manage-deps --dry-run
+    vx cargo hakari generate --diff
+    vx cargo hakari manage-deps --dry-run
 
 # Regenerate workspace-hack after dependency changes
 hakari-generate:
-    cargo hakari generate
-    cargo hakari manage-deps
+    vx cargo hakari generate
+    vx cargo hakari manage-deps
 
 # Auto-fix workspace-hack: regenerate and stage changes (run after modifying deps)
 hakari-fix:
-    cargo hakari generate
-    cargo hakari manage-deps
+    vx cargo hakari generate
+    vx cargo hakari manage-deps
     @git diff --quiet crates/workspace-hack/Cargo.toml && echo "✓ workspace-hack is already up-to-date" || (git add crates/workspace-hack/Cargo.toml && echo "✓ workspace-hack updated and staged")
 
 # Check code formatting
 format-check:
-    vx run fmt-check
+    vx cargo fmt --all -- --check
 
 # CI documentation build (no deps download)
 ci-docs:
