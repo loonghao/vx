@@ -13,6 +13,12 @@ rust-version.workspace = true
 name = "MSBuild"
 path = "src/main.rs"
 
+# Exclude from cargo-dist releases — this binary is embedded into the main vx
+# binary at compile time via include_bytes! in vx-cli/build.rs (Windows only).
+# It should NOT be distributed as a standalone release artifact.
+[package.metadata.dist]
+dist = false
+
 [dependencies]
 workspace-hack = { version = "0.1", path = "../workspace-hack" }
 # No external dependencies - self-contained bridge binary
