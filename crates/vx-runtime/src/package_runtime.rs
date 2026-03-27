@@ -638,7 +638,7 @@ async fn install_with_uv(
 
     // Create venv with uv, using vx-managed Python if available
     let mut cmd = TokioCommand::new(uv_exe);
-    cmd.args(["venv", "--quiet", venv_dir.to_str().unwrap()]);
+    cmd.args(["venv", "--quiet", &venv_dir.to_string_lossy()]);
 
     if let Some(ref python_path) = vx_python {
         debug!("Using vx-managed Python: {}", python_path.display());
@@ -678,12 +678,13 @@ async fn install_with_uv(
     // Install package with uv pip
     let install_spec = format!("{}=={}", package_name, version);
     let mut cmd = TokioCommand::new(uv_exe);
+    let venv_python_str = venv_python.to_string_lossy();
     cmd.args([
         "pip",
         "install",
         "--quiet",
         "--python",
-        venv_python.to_str().unwrap(),
+        &*venv_python_str,
         &install_spec,
     ])
     .stdin(std::process::Stdio::null())
@@ -755,7 +756,7 @@ async fn install_with_system_python(
 
     // Create venv
     let mut cmd = TokioCommand::new(&python_exe);
-    cmd.args(["-m", "venv", venv_dir.to_str().unwrap()])
+    cmd.args(["-m", "venv", &*venv_dir.to_string_lossy()])
         .stdin(std::process::Stdio::null())
         .stdout(std::process::Stdio::piped())
         .stderr(std::process::Stdio::piped())

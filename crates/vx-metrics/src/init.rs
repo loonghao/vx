@@ -66,7 +66,7 @@ impl MetricsGuard {
     /// Force flush and write the metrics report now.
     pub fn flush(&self) {
         if let Err(e) = self.write_report() {
-            eprintln!("[vx-metrics] Failed to write metrics report: {}", e);
+            tracing::warn!("[vx-metrics] Failed to write metrics report: {}", e);
         }
     }
 

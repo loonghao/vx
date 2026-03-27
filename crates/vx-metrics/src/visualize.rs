@@ -29,7 +29,7 @@ pub fn load_metrics(dir: &Path, limit: usize) -> anyhow::Result<Vec<CommandMetri
         match serde_json::from_str::<CommandMetrics>(&content) {
             Ok(m) => results.push(m),
             Err(e) => {
-                eprintln!(
+                tracing::warn!(
                     "[vx-metrics] Skipping {}: {}",
                     path.file_name().unwrap_or_default().to_string_lossy(),
                     e

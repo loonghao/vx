@@ -367,7 +367,7 @@ impl DownloadProgress {
             ProgressStyle::with_template(
                 "  {spinner:.green} {msg} {wide_bar:.cyan/blue} {bytes}/{total_bytes} ({bytes_per_sec}, {eta})"
             )
-            .unwrap()
+            .expect("static progress template")
             .progress_chars("━━╺"),
         );
         bar.set_message(message.to_string());

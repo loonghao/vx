@@ -411,7 +411,10 @@ pub async fn add_tool(tool: &str, version: Option<&str>) -> Result<()> {
         "Added {}@{} to {}",
         tool,
         version,
-        config_path.file_name().unwrap().to_string_lossy()
+        config_path
+            .file_name()
+            .unwrap_or_default()
+            .to_string_lossy()
     ));
     UI::hint("Run 'vx setup' to install the tool");
 
@@ -436,7 +439,10 @@ pub async fn remove_tool(tool: &str) -> Result<()> {
     UI::success(&format!(
         "Removed '{}' from {}",
         tool,
-        config_path.file_name().unwrap().to_string_lossy()
+        config_path
+            .file_name()
+            .unwrap_or_default()
+            .to_string_lossy()
     ));
 
     Ok(())

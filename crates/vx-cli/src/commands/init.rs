@@ -108,7 +108,7 @@ pub async fn handle(
     {
         UI::warn(&format!(
             "Configuration file {} already exists",
-            existing.file_name().unwrap().to_string_lossy()
+            existing.file_name().unwrap_or_default().to_string_lossy()
         ));
         UI::info("Use --force to overwrite or edit the existing file");
         return Ok(());
@@ -133,7 +133,10 @@ pub async fn handle(
 
     // Determine which file to write to
     let target_path = existing_config.as_ref().unwrap_or(&config_path);
-    let target_filename = target_path.file_name().unwrap().to_string_lossy();
+    let target_filename = target_path
+        .file_name()
+        .unwrap_or_default()
+        .to_string_lossy();
 
     if dry_run {
         UI::info(&format!("Preview of {} configuration:", target_filename));
