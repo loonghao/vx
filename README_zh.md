@@ -9,7 +9,7 @@
 [English](README.md) | [📖 文档](https://docs.rs/vx) | [🚀 快速开始](#-快速开始) | [💡 示例](#-实际示例)
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Rust](https://img.shields.io/badge/rust-1.80+-blue.svg)](https://www.rust-lang.org)
+[![Rust](https://img.shields.io/badge/rust-1.93+-blue.svg)](https://www.rust-lang.org)
 [![Test](https://github.com/loonghao/vx/workflows/Test/badge.svg)](https://github.com/loonghao/vx/actions)
 [![Release](https://github.com/loonghao/vx/workflows/Release/badge.svg)](https://github.com/loonghao/vx/actions)
 [![codecov](https://codecov.io/gh/loonghao/vx/branch/main/graph/badge.svg)](https://codecov.io/gh/loonghao/vx)
@@ -591,7 +591,7 @@ podman run --rm loonghao/vx --version
 - run: vx npm test
 ```
 
-> **注意**: 请使用 `@main` 获取最新版本，或使用具体的版本标签（如 `@vx-v0.8.7`）。查看 [releases](https://github.com/loonghao/vx/releases) 获取最新版本。
+> **注意**: 请使用 `@main` 获取最新版本，或使用具体的版本标签（如 `@vx-v0.8.9`）。查看 [releases](https://github.com/loonghao/vx/releases) 获取最新版本。
 
 详细文档请参阅 [GitHub Action 指南](docs/guides/github-action.md)。
 

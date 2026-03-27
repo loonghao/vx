@@ -96,3 +96,8 @@ vx eliminates the complexity of managing multiple language runtimes (Node.js, Py
 - [Runtime Lifecycle](https://github.com/loonghao/vx/blob/main/docs/guides/runtime-lifecycle.md): Install, execute, uninstall lifecycle
 - [Use Cases](https://github.com/loonghao/vx/blob/main/docs/guides/use-cases.md): Real-world usage scenarios
 - [Chinese Documentation](https://github.com/loonghao/vx/blob/main/README_zh.md): 中文文档
+
+## AI Agent Skills
+
+- [Skills Overview](https://github.com/loonghao/vx/blob/main/skills/README.md): AI agent skills distribution and activation
+- [AGENTS.md](https://github.com/loonghao/vx/blob/main/AGENTS.md): Primary AI agent entry point with rules, architecture, and quick reference

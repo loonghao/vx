@@ -202,3 +202,6 @@ vx cache clean              # Clean cache
 - `2` - Tool not found
 - `3` - Installation failed
 - `4` - Version not found
+- `5` - Network error
+- `6` - Permission error
+- `7` - Configuration error

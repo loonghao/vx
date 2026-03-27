@@ -22,11 +22,11 @@ These skills are the **single source of truth** shared across:
 ```
 skills/
 ├── README.md                         # This file
-├── vx-usage/SKILL.md                 # Core usage guide (11 KB)
-├── vx-commands/SKILL.md              # CLI command reference (5 KB)
-├── vx-project/SKILL.md               # Project management (5 KB)
-├── vx-best-practices/SKILL.md        # Best practices (7 KB)
-└── vx-troubleshooting/SKILL.md       # Troubleshooting (6 KB)
+├── vx-usage/SKILL.md                 # Core usage guide (~14 KB)
+├── vx-commands/SKILL.md              # CLI command reference (~6 KB)
+├── vx-project/SKILL.md               # Project management (~6 KB)
+├── vx-best-practices/SKILL.md        # Best practices (~9 KB)
+└── vx-troubleshooting/SKILL.md       # Troubleshooting (~7 KB)
 ```
 
 ## Install

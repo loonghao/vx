@@ -213,6 +213,21 @@ lint-fix = "eslint {{args}}"
 | `vx metrics` | Show execution telemetry |
 | `vx metrics --json` | JSON output for AI/scripting |
 | `vx metrics --html report.html` | Generate HTML report |
+| `vx doctor` | Diagnose dev environment issues |
+| `vx --debug <cmd>` | Run with debug logging |
+
+### Exit Codes
+
+| Code | Meaning |
+|------|---------|
+| 0 | Success |
+| 1 | General error |
+| 2 | Tool not found |
+| 3 | Installation failed |
+| 4 | Version not found |
+| 5 | Network error |
+| 6 | Permission error |
+| 7 | Configuration error |
 
 ## Supported Tools
 
