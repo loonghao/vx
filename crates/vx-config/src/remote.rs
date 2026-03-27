@@ -431,7 +431,7 @@ impl RemoteGenerator {
                 let content = Self::generate_devcontainer(config, devcontainer);
                 files.insert(
                     ".devcontainer/devcontainer.json".to_string(),
-                    serde_json::to_string_pretty(&content).unwrap(),
+                    serde_json::to_string_pretty(&content).unwrap_or_default(),
                 );
             }
 
@@ -442,7 +442,7 @@ impl RemoteGenerator {
                 let content = Self::generate_codespaces(config, codespaces);
                 files.insert(
                     ".devcontainer/devcontainer.json".to_string(),
-                    serde_json::to_string_pretty(&content).unwrap(),
+                    serde_json::to_string_pretty(&content).unwrap_or_default(),
                 );
             }
 

@@ -7,14 +7,26 @@ use crate::ecosystem::Ecosystem;
 use crate::error::AnalyzerResult;
 use regex::Regex;
 use std::path::Path;
+use std::sync::LazyLock;
+
+/// Regex for `find_package(PackageName ...)`
+static FIND_PACKAGE_RE: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"find_package\s*\(\s*(\w+)").unwrap());
+
+/// Regex for `FetchContent_Declare(name ...)`
+static FETCH_CONTENT_RE: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"FetchContent_Declare\s*\(\s*(\w+)").unwrap());
+
+/// Regex for `target_link_libraries(target ... lib1 lib2)`
+static LINK_LIBS_RE: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"target_link_libraries\s*\([^)]+\)").unwrap());
 
 /// Parse dependencies from CMakeLists.txt
 pub fn parse_cmake_dependencies(content: &str, path: &Path) -> AnalyzerResult<Vec<Dependency>> {
     let mut deps = Vec::new();
 
     // Match find_package(PackageName ...)
-    let find_package_re = Regex::new(r"find_package\s*\(\s*(\w+)").unwrap();
-    for cap in find_package_re.captures_iter(content) {
+    for cap in FIND_PACKAGE_RE.captures_iter(content) {
         if let Some(name) = cap.get(1) {
             let name = name.as_str();
             // Skip common CMake modules that aren't real dependencies
@@ -34,8 +46,7 @@ pub fn parse_cmake_dependencies(content: &str, path: &Path) -> AnalyzerResult<Ve
     }
 
     // Match FetchContent_Declare(name ...)
-    let fetch_content_re = Regex::new(r"FetchContent_Declare\s*\(\s*(\w+)").unwrap();
-    for cap in fetch_content_re.captures_iter(content) {
+    for cap in FETCH_CONTENT_RE.captures_iter(content) {
         if let Some(name) = cap.get(1) {
             let dep = Dependency::new(
                 name.as_str().to_string(),
@@ -51,8 +62,7 @@ pub fn parse_cmake_dependencies(content: &str, path: &Path) -> AnalyzerResult<Ve
 
     // Match target_link_libraries(target ... lib1 lib2)
     // This is less reliable but can catch some dependencies
-    let link_libs_re = Regex::new(r"target_link_libraries\s*\([^)]+\)").unwrap();
-    for mat in link_libs_re.find_iter(content) {
+    for mat in LINK_LIBS_RE.find_iter(content) {
         let text = mat.as_str();
         // Extract library names (skip first token which is target name)
         let tokens: Vec<&str> = text

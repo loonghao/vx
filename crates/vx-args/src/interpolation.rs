@@ -4,6 +4,14 @@ use crate::error::{ArgError, ArgResult};
 use regex::Regex;
 use std::collections::{HashMap, HashSet};
 use std::process::Command;
+use std::sync::LazyLock;
+
+/// Regex for `{{var}}` interpolation syntax
+static INTERPOLATION_PATTERN: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"\{\{([^}]+)\}\}").unwrap());
+
+/// Regex for `` `cmd` `` command interpolation syntax
+static CMD_PATTERN: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"`([^`]+)`").unwrap());
 
 /// Variable source for interpolation
 pub trait VarSource {
@@ -65,9 +73,9 @@ impl VarSource for CombinedSource<'_> {
 /// Variable interpolator
 pub struct Interpolator {
     /// Pattern for {{var}} syntax
-    pattern: Regex,
+    pattern: &'static Regex,
     /// Pattern for command interpolation `cmd`
-    cmd_pattern: Regex,
+    cmd_pattern: &'static Regex,
     /// Built-in variables
     builtins: HashMap<String, String>,
     /// Whether to allow missing variables
@@ -121,8 +129,8 @@ impl Interpolator {
         builtins.insert("timestamp".to_string(), now.as_secs().to_string());
 
         Self {
-            pattern: Regex::new(r"\{\{([^}]+)\}\}").unwrap(),
-            cmd_pattern: Regex::new(r"`([^`]+)`").unwrap(),
+            pattern: &INTERPOLATION_PATTERN,
+            cmd_pattern: &CMD_PATTERN,
             builtins,
             allow_missing: false,
         }

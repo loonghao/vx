@@ -2171,7 +2171,7 @@ async fn handle_auth_status(service: &str) -> Result<()> {
                         // Calculate reset time
                         let now = std::time::SystemTime::now()
                             .duration_since(std::time::UNIX_EPOCH)
-                            .unwrap()
+                            .unwrap_or_default()
                             .as_secs();
                         if rl.reset > now {
                             let mins = (rl.reset - now) / 60;
