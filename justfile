@@ -126,7 +126,7 @@ test-ci-quick:
 
 # Run linting checks
 lint:
-    vx run clippy
+    vx cargo clippy --workspace --all-targets -- -D warnings
 
 # Format code
 format:
@@ -154,7 +154,7 @@ format-check:
 
 # CI documentation build (no deps download)
 ci-docs:
-    vx run ci-docs
+    vx cargo doc --all-features --no-deps --document-private-items
 
 # Check for inline tests
 check-inline-tests:
