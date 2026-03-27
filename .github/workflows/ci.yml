@@ -17,7 +17,7 @@ on:
         default: false
 
 permissions:
-  contents: read
+  contents: write
   actions: read
   security-events: write
 
@@ -430,6 +430,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.head_ref || github.ref }}
 
       - name: Download vx binary
         uses: actions/download-artifact@v7
@@ -459,10 +461,31 @@ jobs:
           shared-key: quality
           install-tools: "cargo-hakari"
 
-      - name: Verify workspace-hack (cargo-hakari)
+      - name: Update workspace-hack (cargo-hakari)
+        id: hakari
         run: |
-          cargo hakari generate --diff
-          cargo hakari manage-deps --dry-run
+          cargo hakari generate
+          cargo hakari manage-deps
+          if git diff --quiet; then
+            echo "changed=false" >> $GITHUB_OUTPUT
+          else
+            echo "changed=true" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Commit workspace-hack changes
+        if: steps.hakari.outputs.changed == 'true' && github.event_name == 'pull_request'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add crates/workspace-hack/Cargo.toml
+          git commit -m "chore: regenerate workspace-hack (cargo-hakari)"
+          git push origin HEAD:${{ github.head_ref }}
+
+      - name: Fail if workspace-hack is outdated (non-PR)
+        if: steps.hakari.outputs.changed == 'true' && github.event_name != 'pull_request'
+        run: |
+          echo "::error::workspace-hack is out of date. Run 'cargo hakari generate && cargo hakari manage-deps' locally."
+          exit 1
 
       - name: Check formatting (via vx)
         run: vx just format-check

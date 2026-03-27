@@ -62,12 +62,14 @@ repos:
         language: system
         types_or: [yaml, json]
 
-  # Verify workspace-hack is up-to-date (prevents hakari drift)
+  # Auto-fix workspace-hack (prevents hakari drift)
+  # Regenerates workspace-hack and manage-deps, then verifies no diff remains.
+  # If Cargo.toml/lock changed, this hook auto-fixes and stages the result.
   - repo: local
     hooks:
-      - id: cargo-hakari
-        name: cargo hakari check
-        entry: vx cargo hakari generate --diff
+      - id: cargo-hakari-fix
+        name: cargo hakari generate (auto-fix)
+        entry: bash -c 'vx cargo hakari generate && vx cargo hakari manage-deps && git add crates/workspace-hack/Cargo.toml && vx cargo hakari generate --diff'
         language: system
         files: Cargo\.(toml|lock)$
         pass_filenames: false
