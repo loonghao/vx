@@ -462,7 +462,7 @@ jobs:
       - name: Quick provider test
         run: |
           # Test essential providers for fast PR feedback
-          ./target/release/vx test --ci --ci-runtimes node,go,uv,just --temp-root --verbose
+          ./target/release/vx test --ci --ci-runtimes node,go,uv,just,python --temp-root --verbose
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 

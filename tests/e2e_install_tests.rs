@@ -185,6 +185,45 @@ fn test_versions_list_uv() {
 }
 
 // ============================================================================
+// Python version listing (regression: python-build-standalone API)
+// ============================================================================
+
+#[test]
+fn test_versions_list_python() {
+    let env = E2ETestEnv::new();
+    let output = env.run(&["versions", "python"]);
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let stderr = String::from_utf8_lossy(&output.stderr);
+
+    if output.status.success() {
+        // Should contain Python version numbers like 3.12, 3.13, etc.
+        assert!(
+            stdout.contains("3.") || stdout.contains("Version"),
+            "Expected Python version numbers in output: {}",
+            stdout
+        );
+    } else {
+        // Network errors are acceptable in CI
+        let combined = format!("{}{}", stdout, stderr);
+        assert!(
+            combined.contains("network")
+                || combined.contains("Network")
+                || combined.contains("timeout")
+                || combined.contains("connection")
+                || combined.contains("Connection")
+                || combined.contains("rate limit")
+                || combined.contains("Failed to fetch")
+                || combined.contains("error sending request")
+                || combined.contains("GITHUB_TOKEN")
+                || combined.contains("GH_TOKEN"),
+            "Unexpected error listing Python versions: {}",
+            combined
+        );
+    }
+}
+
+// ============================================================================
 // Install command help tests
 // ============================================================================
 
