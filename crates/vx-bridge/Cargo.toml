@@ -10,6 +10,7 @@ authors.workspace = true
 rust-version.workspace = true
 
 [dependencies]
+tracing = { workspace = true }
 vx-paths = { workspace = true }
 workspace-hack = { version = "0.1", path = "../workspace-hack" }
 

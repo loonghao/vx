@@ -18,7 +18,7 @@ pub fn run_bridge(executable: &Path, prefix_args: &[&str], caller_args: &[String
     match cmd.status() {
         Ok(status) => ExitCode::from(status.code().unwrap_or(1) as u8),
         Err(e) => {
-            eprintln!(
+            tracing::error!(
                 "vx bridge: failed to execute {}: {}",
                 executable.display(),
                 e

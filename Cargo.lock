@@ -4468,6 +4468,7 @@ name = "vx-bridge"
 version = "0.8.9"
 dependencies = [
  "tempfile",
+ "tracing",
  "vx-paths",
  "workspace-hack",
 ]
