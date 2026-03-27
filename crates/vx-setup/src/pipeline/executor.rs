@@ -372,7 +372,9 @@ impl SetupPipeline {
             // Sort versions and get the latest
             let mut sorted_versions = versions;
             sorted_versions.sort();
-            let latest_version = sorted_versions.last().unwrap();
+            let Some(latest_version) = sorted_versions.last() else {
+                continue;
+            };
             let version_dir = tool_dir.join(latest_version);
 
             // Check for bin subdirectory

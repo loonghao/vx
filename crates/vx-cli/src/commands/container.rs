@@ -336,7 +336,10 @@ pub async fn handle_status() -> anyhow::Result<()> {
     // Check configuration
     if let Some(ref config_path) = config_path {
         let config = parse_config(config_path)?;
-        let config_name = config_path.file_name().unwrap().to_string_lossy();
+        let config_name = config_path
+            .file_name()
+            .unwrap_or_default()
+            .to_string_lossy();
 
         if let Some(container) = &config.container {
             println!("Configuration ({}):", config_name);
