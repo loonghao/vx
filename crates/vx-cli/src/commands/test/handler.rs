@@ -806,7 +806,10 @@ fn print_ci_result_line(result: &CITestResult, opts: &Args) {
 
 fn output_ci_summary(summary: &CITestSummary, opts: &Args) {
     if opts.json {
-        println!("{}", serde_json::to_string_pretty(summary).unwrap());
+        println!(
+            "{}",
+            serde_json::to_string_pretty(summary).unwrap_or_default()
+        );
         return;
     }
 
@@ -1329,7 +1332,10 @@ impl TestSummary {
 
 fn output_single_result(result: &TestResult, opts: &Args) {
     if opts.json {
-        println!("{}", serde_json::to_string_pretty(result).unwrap());
+        println!(
+            "{}",
+            serde_json::to_string_pretty(result).unwrap_or_default()
+        );
     } else if !opts.quiet {
         println!();
         if result.platform_supported {
@@ -1392,7 +1398,10 @@ fn output_single_result(result: &TestResult, opts: &Args) {
 
 fn output_summary(summary: &TestSummary, opts: &Args) {
     if opts.json {
-        println!("{}", serde_json::to_string_pretty(summary).unwrap());
+        println!(
+            "{}",
+            serde_json::to_string_pretty(summary).unwrap_or_default()
+        );
     } else if !opts.quiet {
         println!();
         println!("=== Test Summary ===");

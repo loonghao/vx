@@ -24,6 +24,7 @@ which = { workspace = true }
 rust-embed = { workspace = true }
 workspace-hack = { version = "0.1", path = "../workspace-hack" }
 vx-runtime-core = { workspace = true }
+colored = { workspace = true }
 
 [dev-dependencies]
 tempfile = { workspace = true }
