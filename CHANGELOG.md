@@ -5,7 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.8.9](https://github.com/loonghao/vx/compare/v0.8.8...v0.8.9) (2026-03-26)
+## [0.8.9](https://github.com/loonghao/vx/compare/v0.8.8...v0.8.9) (2026-03-27)
+
+
+### Features
+
+* **hooks:** upgrade cargo-hakari pre-commit hook to auto-fix mode ([59d1c58](https://github.com/loonghao/vx/commit/59d1c580ee04103dc4bcbbc8910f98f85f2802aa))
+* **tests:** add comprehensive Python provider e2e tests ([861473d](https://github.com/loonghao/vx/commit/861473d25b889ad55aab0e38018c9abfd389fd23))
+
+
+### Bug Fixes
+
+* **tests:** relax assertion in test_vx_toml_python_setup_dry_run ([baa00df](https://github.com/loonghao/vx/commit/baa00df8f04a5140039911958f42513a7a369ca1))
 
 
 ### Documentation
