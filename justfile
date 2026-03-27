@@ -117,7 +117,7 @@ test-ci-quick:
     @echo "Building VX first..."
     @vx cargo build
     @echo ""
-    ./target/debug/vx test --ci --ci-runtimes node,go,uv,just,cargo --temp-root --verbose
+    ./target/debug/vx test --ci --ci-runtimes node,go,uv,just,cargo,python --temp-root --verbose
 
 
 # ============================================
