@@ -7,6 +7,21 @@ use crate::ecosystem::Ecosystem;
 use crate::error::AnalyzerResult;
 use regex::Regex;
 use std::path::Path;
+use std::sync::LazyLock;
+
+/// Regex for `<PackageReference Include="Name" Version="Version" />`
+static PACKAGE_REF_INLINE_RE: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r#"<PackageReference\s+Include="([^"]+)"\s+Version="([^"]+)""#).unwrap()
+});
+
+/// Regex for `<PackageReference Include="Name" />` (version managed centrally)
+static PACKAGE_REF_INCLUDE_ONLY_RE: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r#"<PackageReference\s+Include="([^"]+)"\s*/>"#).unwrap());
+
+/// Regex for `<PackageVersion Include="Name" Version="Version" />`
+static PACKAGE_VERSION_RE: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r#"<PackageVersion\s+Include="([^"]+)"\s+Version="([^"]+)""#).unwrap()
+});
 
 /// Parse dependencies from .csproj file content
 pub fn parse_csproj_dependencies(content: &str, path: &Path) -> AnalyzerResult<Vec<Dependency>> {
@@ -17,10 +32,7 @@ pub fn parse_csproj_dependencies(content: &str, path: &Path) -> AnalyzerResult<V
     // <PackageReference Include="Name">
     //   <Version>1.0.0</Version>
     // </PackageReference>
-    let inline_re =
-        Regex::new(r#"<PackageReference\s+Include="([^"]+)"\s+Version="([^"]+)""#).unwrap();
-
-    for cap in inline_re.captures_iter(content) {
+    for cap in PACKAGE_REF_INLINE_RE.captures_iter(content) {
         let name = cap[1].to_string();
         let version = cap[2].to_string();
 
@@ -37,9 +49,7 @@ pub fn parse_csproj_dependencies(content: &str, path: &Path) -> AnalyzerResult<V
     }
 
     // Also match Include-only references (version might be managed centrally)
-    let include_only_re = Regex::new(r#"<PackageReference\s+Include="([^"]+)"\s*/>"#).unwrap();
-
-    for cap in include_only_re.captures_iter(content) {
+    for cap in PACKAGE_REF_INCLUDE_ONLY_RE.captures_iter(content) {
         let name = cap[1].to_string();
         // Skip if already captured with version
         if !deps.iter().any(|d| d.name == name) {
@@ -64,9 +74,7 @@ pub fn parse_directory_packages_props(
 ) -> AnalyzerResult<Vec<Dependency>> {
     let mut deps = Vec::new();
 
-    let re = Regex::new(r#"<PackageVersion\s+Include="([^"]+)"\s+Version="([^"]+)""#).unwrap();
-
-    for cap in re.captures_iter(content) {
+    for cap in PACKAGE_VERSION_RE.captures_iter(content) {
         let name = cap[1].to_string();
         let version = cap[2].to_string();
 

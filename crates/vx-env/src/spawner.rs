@@ -665,15 +665,17 @@ fn generate_github_actions_export(
 
 /// Print welcome message for shell session
 pub fn print_welcome(session: &SessionContext) {
+    use colored::Colorize;
     println!();
-    println!("\x1b[32mVX Shell Environment\x1b[0m");
-    println!("\x1b[36mProject: {}\x1b[0m", session.name);
-    println!("\x1b[36mTools: {}\x1b[0m", session.tools_display());
-    println!("\x1b[90mType 'exit' to leave the environment\x1b[0m");
+    println!("{}", "VX Shell Environment".green());
+    println!("{} {}", "Project:".cyan(), session.name.cyan());
+    println!("{} {}", "Tools:".cyan(), session.tools_display().cyan());
+    println!("{}", "Type 'exit' to leave the environment".bright_black());
     println!();
 }
 
 /// Print exit message for shell session
 pub fn print_exit() {
-    println!("\x1b[90mLeft vx environment\x1b[0m");
+    use colored::Colorize;
+    println!("{}", "Left vx environment".bright_black());
 }

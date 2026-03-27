@@ -7,6 +7,15 @@
 
 use crate::{CodeOwnersConfig, ConventionsConfig, ReviewConfig, TeamConfig};
 use std::collections::HashMap;
+use std::sync::LazyLock;
+
+/// Regex for conventional commit format validation
+static CONVENTIONAL_COMMIT_RE: LazyLock<regex::Regex> = LazyLock::new(|| {
+    regex::Regex::new(
+        r"^(feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert)(\(.+\))?: .+",
+    )
+    .unwrap()
+});
 
 /// Team configuration manager
 pub struct TeamManager;
@@ -70,11 +79,7 @@ impl TeamManager {
 
     /// Validate conventional commit format
     fn validate_conventional_commit(message: &str) -> Result<(), String> {
-        let pattern =
-            r"^(feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert)(\(.+\))?: .+";
-        let re = regex::Regex::new(pattern).unwrap();
-
-        if !re.is_match(message.lines().next().unwrap_or("")) {
+        if !CONVENTIONAL_COMMIT_RE.is_match(message.lines().next().unwrap_or("")) {
             return Err(
                 "Commit message must follow conventional commits format: <type>(<scope>): <description>"
                     .to_string(),
