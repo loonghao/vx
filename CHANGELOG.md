@@ -5,6 +5,27 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.10](https://github.com/loonghao/vx/compare/v0.8.9...v0.8.10) (2026-03-28)
+
+
+### Bug Fixes
+
+* **ci:** exclude vx-msbuild-bridge from cargo-dist & improve skills sync ([2ca24a3](https://github.com/loonghao/vx/commit/2ca24a3962f66295da4022feee6ca13b8aa98698))
+* **ci:** replace remaining vx run cargo scripts with direct vx cargo calls ([948d26a](https://github.com/loonghao/vx/commit/948d26a40081e726abd86aa12b56b4f922bc2deb))
+* **ci:** use vx cargo prefix in justfile recipes for CI compatibility ([5984668](https://github.com/loonghao/vx/commit/5984668e65c61beea025e9471374fac30e442050))
+* make E2E version list tests resilient to transient network errors ([99d8eba](https://github.com/loonghao/vx/commit/99d8eba57182fb1cd6273599c260cc9b50f103df))
+
+
+### Code Refactoring
+
+* improve code safety by eliminating unsafe unwrap calls ([d8778c7](https://github.com/loonghao/vx/commit/d8778c72834f4e9deb619400b69318b0209209f2))
+* use LazyLock for regex compilation and improve error handling ([c72a14c](https://github.com/loonghao/vx/commit/c72a14c8196cca2865dbe69af3f9e363ad7e818b))
+
+
+### Documentation
+
+* improve AI agent documentation and fix version inconsistencies ([#710](https://github.com/loonghao/vx/issues/710)) ([1f22ea4](https://github.com/loonghao/vx/commit/1f22ea4e2b25e5184ea7cc60219baab5d7ddbc0b))
+
 ## [0.8.9](https://github.com/loonghao/vx/compare/v0.8.8...v0.8.9) (2026-03-26)
 
 
