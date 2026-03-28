@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Code Refactoring
 
+* improve code safety and remove dead code ([95e405f](https://github.com/loonghao/vx/commit/95e405fd12fe15bf59647f5f6ea6b4db40dd97d2))
 * improve code safety by eliminating unsafe unwrap calls ([d8778c7](https://github.com/loonghao/vx/commit/d8778c72834f4e9deb619400b69318b0209209f2))
 * use LazyLock for regex compilation and improve error handling ([c72a14c](https://github.com/loonghao/vx/commit/c72a14c8196cca2865dbe69af3f9e363ad7e818b))
 
