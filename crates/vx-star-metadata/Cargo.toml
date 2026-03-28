@@ -12,3 +12,9 @@ repository.workspace = true
 [[bin]]
 name = "vx-star-discover-providers"
 path = "src/bin/discover_providers.rs"
+
+# Exclude from cargo-dist releases — this binary is a build-time helper for
+# provider discovery, NOT a user-facing tool. It should NOT be distributed
+# as a standalone release artifact.
+[package.metadata.dist]
+dist = false
