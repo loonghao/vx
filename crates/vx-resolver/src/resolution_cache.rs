@@ -12,7 +12,6 @@ use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::path::{Path, PathBuf};
 use std::time::{Duration, SystemTime};
-use tracing::debug;
 use vx_paths::{LOCK_FILE_NAMES, VxPaths, find_config_file_upward, find_project_root};
 use vx_runtime::CacheMode;
 
@@ -341,24 +340,4 @@ fn find_lock_file(project_root: &Path) -> Option<PathBuf> {
         }
     }
     None
-}
-
-/// Helper for logging cache hit/miss with structured fields.
-///
-/// Uses structured logging for better observability.
-#[allow(dead_code)]
-pub(crate) fn log_cache_result(hit: bool, runtime: &str) {
-    if hit {
-        debug!(
-            runtime = %runtime,
-            cache_hit = true,
-            "Resolution cache hit"
-        );
-    } else {
-        debug!(
-            runtime = %runtime,
-            cache_hit = false,
-            "Resolution cache miss"
-        );
-    }
 }
