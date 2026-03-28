@@ -399,7 +399,40 @@ impl StarlarkProvider {
             "Resolving python-build-standalone versions via GitHub API (paginated)"
         );
 
-        // Extract the base URL (strip any existing per_page/page params)
+        // Try fetching from GitHub API first, fall back to well-known versions on failure.
+        match self.fetch_python_versions_from_github(url).await {
+            Ok(versions) if !versions.is_empty() => {
+                // Merge: real versions take priority, add any missing well-known versions
+                let merged = Self::merge_with_wellknown_python_versions(versions);
+                debug!(
+                    provider = %self.meta.name,
+                    count = merged.len(),
+                    "Resolved {} Python versions (GitHub API + well-known fallback)",
+                    merged.len()
+                );
+                Ok(merged)
+            }
+            Ok(_empty) => {
+                warn!(
+                    provider = %self.meta.name,
+                    "GitHub API returned no Python versions, using well-known fallback"
+                );
+                Ok(Self::wellknown_python_versions())
+            }
+            Err(e) => {
+                warn!(
+                    provider = %self.meta.name,
+                    error = %e,
+                    "GitHub API failed for python-build-standalone, using well-known fallback"
+                );
+                Ok(Self::wellknown_python_versions())
+            }
+        }
+    }
+
+    /// Fetch Python versions from GitHub API with pagination.
+    /// Returns an error if all pages fail (network/rate limit issues).
+    async fn fetch_python_versions_from_github(&self, url: &str) -> Result<Vec<VersionInfo>> {
         let base_url = if let Some(pos) = url.find('?') {
             &url[..pos]
         } else {
@@ -407,11 +440,8 @@ impl StarlarkProvider {
         };
 
         let client = StarlarkHttpClient::new();
-
-        // Collect all releases across pages.
-        // Use per_page=15 (safe size to avoid 504) × up to 20 pages = 300 releases.
-        // This covers ~5+ years of releases, ensuring Python 3.7/3.8 are included.
         let mut all_releases: Vec<serde_json::Value> = Vec::new();
+
         for page in 1..=20u32 {
             let page_url = format!("{}?per_page=15&page={}", base_url, page);
             debug!(
@@ -427,7 +457,6 @@ impl StarlarkProvider {
                 ))
             })?;
 
-            // Check for API error response
             if let Some(message) = raw.get("message").and_then(|m| m.as_str()) {
                 return Err(Error::EvalError(format!("GitHub API error: {}", message)));
             }
@@ -437,15 +466,11 @@ impl StarlarkProvider {
             })?;
 
             if page_releases.is_empty() {
-                // No more pages
                 break;
             }
 
             all_releases.extend(page_releases.iter().cloned());
 
-            // Early exit: once we have enough distinct Python minor versions, stop fetching.
-            // We need 3.7, 3.8, 3.9, 3.10, 3.11, 3.12, 3.13, 3.14 = at least 8 minor versions.
-            // Use a generous threshold to also catch future versions.
             let distinct_versions = Self::count_distinct_python_versions(&all_releases);
             if distinct_versions >= 12 {
                 debug!(
@@ -458,16 +483,95 @@ impl StarlarkProvider {
         }
 
         let combined = serde_json::Value::Array(all_releases);
-        let versions = Self::transform_python_build_standalone(&combined)?;
+        Self::transform_python_build_standalone(&combined)
+    }
 
-        debug!(
-            provider = %self.meta.name,
-            count = versions.len(),
-            "Resolved {} Python versions from python-build-standalone",
-            versions.len()
-        );
+    /// Well-known Python versions from python-build-standalone.
+    ///
+    /// These are hardcoded as a reliable fallback when the GitHub API is unavailable
+    /// (rate limiting, network issues, timeouts). The `date` field contains the
+    /// python-build-standalone release tag (build tag), required by `download_url`
+    /// to construct the asset URL via `ctx.version_date`.
+    ///
+    /// These should be updated periodically when new Python patch versions are released.
+    /// The build tag (`date`) must correspond to an actual python-build-standalone release
+    /// that contains the specified cpython version.
+    fn wellknown_python_versions() -> Vec<VersionInfo> {
+        // Last updated: 2026-03-28 (build tag: 20260325)
+        let versions = [
+            // Python 3.13.x (current)
+            ("3.13.4", "20260325", false),
+            ("3.13.3", "20250317", false),
+            ("3.13.2", "20250212", false),
+            ("3.13.1", "20250115", false),
+            ("3.13.0", "20241016", false),
+            // Python 3.12.x (LTS - even minor)
+            ("3.12.11", "20260325", true),
+            ("3.12.10", "20250317", true),
+            ("3.12.9", "20250212", true),
+            ("3.12.8", "20250115", true),
+            ("3.12.7", "20241016", true),
+            // Python 3.11.x
+            ("3.11.13", "20260325", false),
+            ("3.11.12", "20250317", false),
+            ("3.11.11", "20250115", false),
+            ("3.11.10", "20241016", false),
+            // Python 3.10.x (LTS - even minor)
+            ("3.10.20", "20260325", true),
+            ("3.10.17", "20250317", true),
+            ("3.10.16", "20250115", true),
+            ("3.10.15", "20241016", true),
+            // Python 3.9.x
+            ("3.9.22", "20250317", false),
+            ("3.9.21", "20250115", false),
+            ("3.9.20", "20241016", false),
+            // Python 3.8.x (LTS - even minor, EOL but still available)
+            ("3.8.20", "20241016", true),
+        ];
 
-        Ok(versions)
+        let mut result: Vec<VersionInfo> = versions
+            .iter()
+            .map(|(version, build_tag, lts)| VersionInfo {
+                version: version.to_string(),
+                lts: *lts,
+                stable: true,
+                date: Some(build_tag.to_string()),
+            })
+            .collect();
+
+        result.sort_by(|a, b| {
+            let parse =
+                |v: &str| -> Vec<u64> { v.split('.').filter_map(|p| p.parse().ok()).collect() };
+            parse(&b.version).cmp(&parse(&a.version))
+        });
+
+        result
+    }
+
+    /// Merge real-time versions with well-known fallback versions.
+    ///
+    /// Real-time versions take priority. Well-known versions fill in any gaps
+    /// (e.g., older Python versions like 3.8/3.9 that may not appear in recent
+    /// GitHub releases pages).
+    fn merge_with_wellknown_python_versions(
+        mut real_versions: Vec<VersionInfo>,
+    ) -> Vec<VersionInfo> {
+        let existing: std::collections::HashSet<String> =
+            real_versions.iter().map(|v| v.version.clone()).collect();
+
+        for fallback in Self::wellknown_python_versions() {
+            if !existing.contains(&fallback.version) {
+                real_versions.push(fallback);
+            }
+        }
+
+        real_versions.sort_by(|a, b| {
+            let parse =
+                |v: &str| -> Vec<u64> { v.split('.').filter_map(|p| p.parse().ok()).collect() };
+            parse(&b.version).cmp(&parse(&a.version))
+        });
+
+        real_versions
     }
 
     /// Count distinct Python versions found in a list of releases.
