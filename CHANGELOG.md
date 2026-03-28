@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.13](https://github.com/loonghao/vx/compare/v0.8.12...v0.8.13) (2026-03-28)
+
+
+### Features
+
+* add well-known Python version fallback for python-build-standalone ([35f85fd](https://github.com/loonghao/vx/commit/35f85fddc8c9fcf3957c5c4847c6e6a80a26b608))
+
+
+### Bug Fixes
+
+* preserve Rust MSRV in vx.toml and enable passthrough for Rust ecosystem ([1ded9c9](https://github.com/loonghao/vx/commit/1ded9c98c0e740e17f50df4b239abbec2a11c040))
+
 ## [0.8.12](https://github.com/loonghao/vx/compare/v0.8.11...v0.8.12) (2026-03-28)
 
 
