@@ -294,12 +294,23 @@ fn test_python_install_provides_clear_error_or_succeeds() {
             combined
         );
     } else {
-        // Installation failed — should have a clear, actionable error message
-        // NOT just "No installation strategy available" without context
+        // Installation failed — should have a clear, actionable error message.
+        // "No installation strategy" is a REGRESSION — it means download_url
+        // returned None, likely because version_date lookup failed. After our fix,
+        // download_url_for_runtime auto-triggers fetch_versions to populate the
+        // version cache, so this error should no longer occur.
+        assert!(
+            !combined.contains("No installation strategy"),
+            "REGRESSION: Python install failed with 'No installation strategy'. \
+             This indicates the download_url returned None, likely because \
+             version_date lookup failed. The auto-fetch fix should prevent this. \
+             Error: {}",
+            combined
+        );
+
         let has_useful_error = combined.contains("python")
             || combined.contains("Python")
             || E2ETestEnv::is_network_error(&combined)
-            || combined.contains("No installation strategy")
             || combined.contains("download")
             || combined.contains("Failed to install");
 
@@ -308,17 +319,6 @@ fn test_python_install_provides_clear_error_or_succeeds() {
             "Expected clear error message about Python installation failure, got: {}",
             combined
         );
-
-        // The error message should mention the platform or provide actionable advice
-        // (this is the key improvement we want to verify)
-        if combined.contains("No installation strategy") {
-            eprintln!(
-                "WARNING: Python install failed with 'No installation strategy'. \
-                 This indicates the download_url returned None, likely because \
-                 version_date lookup failed. Error: {}",
-                combined
-            );
-        }
     }
 }
 
@@ -336,10 +336,16 @@ fn test_python_install_specific_version() {
 
     // Either succeeds or fails with a clear error
     if !output.status.success() {
-        // Acceptable failures
+        // "No installation strategy" is a REGRESSION after our fix
+        assert!(
+            !combined.contains("No installation strategy"),
+            "REGRESSION: python@3.12 install failed with 'No installation strategy': {}",
+            combined
+        );
+
+        // Acceptable failures (network issues only)
         assert!(
             E2ETestEnv::is_network_error(&combined)
-                || combined.contains("No installation strategy")
                 || combined.contains("Failed to install")
                 || combined.contains("not found")
                 || combined.contains("No version found"),
@@ -386,7 +392,6 @@ fn test_python_version_command() {
             || combined.contains("install")
             || combined.contains("Install")
             || combined.contains("not found")
-            || combined.contains("No installation strategy")
             || combined.contains("Failed");
 
         assert!(
@@ -513,10 +518,16 @@ fn test_python_install_major_version_spec() {
             combined
         );
     } else {
+        // "No installation strategy" is a REGRESSION after our fix
+        assert!(
+            !combined.contains("No installation strategy"),
+            "REGRESSION: python@3 install failed with 'No installation strategy': {}",
+            combined
+        );
+
         // Network errors or version resolution failures are acceptable
         assert!(
             E2ETestEnv::is_network_error(&combined)
-                || combined.contains("No installation strategy")
                 || combined.contains("No version found")
                 || combined.contains("Failed"),
             "Unexpected error for python@3: {}",
@@ -546,9 +557,15 @@ fn test_python_install_latest() {
             combined
         );
     } else {
+        // "No installation strategy" is a REGRESSION after our fix
+        assert!(
+            !combined.contains("No installation strategy"),
+            "REGRESSION: python@latest install failed with 'No installation strategy': {}",
+            combined
+        );
+
         assert!(
             E2ETestEnv::is_network_error(&combined)
-                || combined.contains("No installation strategy")
                 || combined.contains("No version found")
                 || combined.contains("Failed"),
             "Unexpected error for python@latest: {}",

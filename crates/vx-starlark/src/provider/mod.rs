@@ -311,6 +311,11 @@ impl StarlarkProvider {
     ///
     /// Passes `ctx.runtime_name` so that providers can dispatch to the correct
     /// download URL for each runtime (e.g. different GitHub repos for yazi vs starship).
+    ///
+    /// For providers that depend on `ctx.version_date` (e.g. python-build-standalone),
+    /// this method will automatically trigger a `fetch_versions` call to populate the
+    /// version cache if `lookup_version_date` returns `None` (cache miss). This ensures
+    /// that the build tag is available even on first install or after cache expiry.
     pub async fn download_url_for_runtime(
         &self,
         version: &str,
@@ -320,7 +325,36 @@ impl StarlarkProvider {
         // This is needed by providers like python-build-standalone where the
         // download URL requires a date-based release tag (e.g. "20240107").
         // The build tag is stored in VersionInfo.date by transform_python_build_standalone.
-        let version_date = self.lookup_version_date(version).await;
+        let mut version_date = self.lookup_version_date(version).await;
+
+        // If version_date is not in cache, trigger a fetch_versions call to populate it.
+        // This handles first-install scenarios, cache expiry, and provider.star updates
+        // where the version cache is empty but download_url needs the build tag.
+        if version_date.is_none() {
+            debug!(
+                provider = %self.meta.name,
+                version = %version,
+                "version_date not in cache, triggering fetch_versions to populate"
+            );
+            let mut fetch_ctx = ProviderContext::new(&self.meta.name, self.vx_home.clone())
+                .with_description(&self.meta.description)
+                .with_sandbox(self.sandbox.clone());
+            if let Some(name) = runtime_name {
+                fetch_ctx = fetch_ctx.with_runtime_name(name);
+            }
+            // Ignore errors — fetch_versions may fail (network), but we still
+            // want to try download_url with whatever cache state exists.
+            if let Err(e) = self.execute_fetch_versions(&fetch_ctx).await {
+                debug!(
+                    provider = %self.meta.name,
+                    error = %e,
+                    "fetch_versions failed during version_date recovery, continuing without"
+                );
+            } else {
+                // Retry the lookup now that the cache should be populated
+                version_date = self.lookup_version_date(version).await;
+            }
+        }
 
         let mut ctx = ProviderContext::new(&self.meta.name, self.vx_home.clone())
             .with_description(&self.meta.description)
