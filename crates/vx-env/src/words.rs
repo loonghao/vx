@@ -54,15 +54,6 @@ pub fn join_args(args: &[&str]) -> String {
     shell_words::join(args)
 }
 
-/// Quote arguments and join them into a command string
-///
-/// Useful when you have owned strings instead of references.
-#[allow(dead_code)]
-pub fn join_args_owned(args: &[String]) -> String {
-    let refs: Vec<&str> = args.iter().map(|s| s.as_str()).collect();
-    shell_words::join(&refs)
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;

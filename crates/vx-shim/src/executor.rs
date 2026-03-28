@@ -467,23 +467,6 @@ impl ShimExecutor {
         None
     }
 
-    /// Build runtime environment for package execution
-    ///
-    /// If the package has runtime dependencies (e.g., node + bun for some npm packages),
-    /// this method builds an environment with all runtime bin directories
-    /// prepended to PATH.
-    ///
-    /// For backward compatibility, if `runtime_dependencies` is empty but
-    /// `runtime_dependency` is set, we use that. If neither is set but the
-    /// ecosystem is known (e.g., "npm"), we infer the runtime automatically.
-    #[allow(dead_code)]
-    fn build_runtime_environment(
-        &self,
-        package: &GlobalPackage,
-    ) -> ShimResult<HashMap<String, String>> {
-        self.build_runtime_environment_with_deps(package, &[])
-    }
-
     /// Build runtime environment for package execution with additional --with dependencies
     ///
     /// This is similar to `build_runtime_environment` but also includes additional

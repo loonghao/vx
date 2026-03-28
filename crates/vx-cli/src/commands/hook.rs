@@ -135,29 +135,26 @@ pub async fn handle_status() -> Result<()> {
     let current_dir = env::current_dir()?;
     let config_path = find_config_file(&current_dir);
 
-    println!("Hook Status");
-    println!("===========\n");
+    UI::header("Hook Status");
 
     // Git hooks status
     if let Some(repo_root) = GitHookInstaller::find_repo_root(&current_dir) {
         let installer = GitHookInstaller::new(&repo_root);
         let git_installed = installer.is_installed();
 
-        println!("Git Hooks:");
-        println!(
-            "  pre-commit: {}",
+        UI::section("Git Hooks");
+        UI::item(&format!(
+            "pre-commit: {}",
             if git_installed {
                 "✓ installed"
             } else {
                 "✗ not installed"
             }
-        );
-        println!("  Location: {}", installer.hooks_dir().display());
+        ));
+        UI::detail(&format!("Location: {}", installer.hooks_dir().display()));
     } else {
-        println!("Git Hooks: Not in a git repository");
+        UI::info("Git Hooks: Not in a git repository");
     }
-
-    println!();
 
     // Config hooks status
     if let Some(config_path) = config_path {
@@ -167,29 +164,29 @@ pub async fn handle_status() -> Result<()> {
             .unwrap_or_default()
             .to_string_lossy();
 
-        println!("Configured Hooks ({}):", config_name);
+        UI::section(&format!("Configured Hooks ({})", config_name));
         if let Some(hooks) = &config.hooks {
             if hooks.pre_setup.is_some() {
-                println!("  pre_setup: ✓ configured");
+                UI::item("pre_setup: ✓ configured");
             }
             if hooks.post_setup.is_some() {
-                println!("  post_setup: ✓ configured");
+                UI::item("post_setup: ✓ configured");
             }
             if hooks.pre_commit.is_some() {
-                println!("  pre_commit: ✓ configured");
+                UI::item("pre_commit: ✓ configured");
             }
             if hooks.enter.is_some() {
-                println!("  enter: ✓ configured");
+                UI::item("enter: ✓ configured");
             }
             if !hooks.custom.is_empty() {
                 let custom_keys: Vec<&str> = hooks.custom.keys().map(|s| s.as_str()).collect();
-                println!("  custom hooks: {}", custom_keys.join(", "));
+                UI::item(&format!("custom hooks: {}", custom_keys.join(", ")));
             }
         } else {
-            println!("  No hooks configured");
+            UI::item("No hooks configured");
         }
     } else {
-        println!("Config: No vx.toml found");
+        UI::info("Config: No vx.toml found");
     }
 
     Ok(())

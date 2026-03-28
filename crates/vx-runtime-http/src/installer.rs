@@ -773,14 +773,6 @@ impl DownloadError {
         }
     }
 
-    #[allow(dead_code)]
-    fn non_retryable(message: impl Into<String>) -> Self {
-        Self {
-            message: message.into(),
-            is_retryable: false,
-        }
-    }
-
     /// Classify HTTP status code as retryable or not
     fn from_status(status: reqwest::StatusCode, url: &str) -> Self {
         let is_retryable = matches!(

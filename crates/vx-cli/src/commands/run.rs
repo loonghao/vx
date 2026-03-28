@@ -106,7 +106,12 @@ pub async fn handle(
     let mut env_vars = build_script_environment(&config)?;
 
     // Load .env files
-    let current_dir = config_path.parent().unwrap();
+    let current_dir = config_path.parent().ok_or_else(|| {
+        anyhow::anyhow!(
+            "config path has no parent directory: {}",
+            config_path.display()
+        )
+    })?;
     load_dotenv_files(current_dir, &mut env_vars);
 
     // Add config env vars

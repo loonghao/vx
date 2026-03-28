@@ -56,12 +56,6 @@ impl HomebrewManager {
             cmd.output()
         }
     }
-
-    /// Run a shell command
-    #[allow(dead_code)]
-    fn run_shell(&self, script: &str) -> std::io::Result<std::process::Output> {
-        Command::new("bash").args(["-c", script]).output()
-    }
 }
 
 impl Default for HomebrewManager {
