@@ -7,11 +7,22 @@
 # on.push.tags events (GitHub security limitation). We work around this
 # by explicitly dispatching the Release workflow after release creation.
 #
-# IMPORTANT: We skip this workflow when the push is itself a release commit
-# (e.g., "chore: release v0.8.10"). Without this guard, merging a release PR
-# would re-trigger release-please, which would immediately open a *new*
-# (duplicate) release PR for the same or next version, and also cause every
-# other push-to-main workflow to fire unnecessarily.
+# DESIGN: Two-job approach to solve duplicate PR problem
+#
+# Problem: When a release PR is merged (commit = "chore: release vX.Y.Z"),
+# the push to main triggers this workflow. release-please action needs to
+# run to create the tag + GitHub Release + trigger Release workflow.
+# However, if the job-level `if` guard skips the entire job, release-please
+# never gets to create the tag, breaking the release pipeline (v0.8.11 bug).
+#
+# But if we let release-please run unconditionally, it may also create a
+# new PR on the same run (duplicate PR, issue #713).
+#
+# Solution: Use two separate jobs:
+# 1. "release" job (runs on release commits): Only handles tag/release
+#    creation. Uses skip-github-pull-request to prevent creating new PRs.
+# 2. "update-pr" job (skips on release commits): Handles creating/updating
+#    release PRs for normal feature/fix commits.
 
 name: Release Please
 
@@ -26,12 +37,16 @@ permissions:
   actions: write
 
 jobs:
-  release-please:
+  # Job 1: Handle release creation (tag + GitHub Release)
+  # MUST run on release commits to detect merged release PRs and create tags.
+  # skip-github-pull-request prevents creating new/duplicate PRs.
+  release:
     runs-on: ubuntu-latest
-    # Skip when the merged commit is itself a release commit to prevent
-    # duplicate release PRs (e.g., #709 merged -> immediately opens #713).
     if: >-
-      !startsWith(github.event.head_commit.message, 'chore: release')
+      startsWith(github.event.head_commit.message, 'chore: release')
+    outputs:
+      releases_created: ${{ steps.release.outputs.releases_created }}
+      tag_name: ${{ steps.release.outputs.tag_name }}
     steps:
       - uses: googleapis/release-please-action@v4
         id: release
@@ -39,6 +54,7 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
+          skip-github-pull-request: true
 
       - name: Trigger Release workflow
         if: ${{ steps.release.outputs.releases_created == 'true' }}
@@ -50,3 +66,17 @@ jobs:
           gh workflow run release.yml \
             --repo "${{ github.repository }}" \
             --field "tag=${{ steps.release.outputs.tag_name }}"
+
+  # Job 2: Create/update release PRs for normal commits
+  # Skipped on release commits to prevent duplicate PRs (issue #713).
+  update-pr:
+    runs-on: ubuntu-latest
+    if: >-
+      !startsWith(github.event.head_commit.message, 'chore: release')
+    steps:
+      - uses: googleapis/release-please-action@v4
+        id: release
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
