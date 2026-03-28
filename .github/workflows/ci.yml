@@ -582,6 +582,7 @@ jobs:
           cargo nextest run --no-fail-fast ${{ needs.detect-changes.outputs.test_packages }}
         env:
           CARGO_TARGET_DIR: target
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   # ============================================================================
   # Stage 3a.5: Provider static checks (lint + provider unit tests)
@@ -615,6 +616,7 @@ jobs:
           cargo nextest run --no-fail-fast -p 'vx-provider-*'
         env:
           CARGO_TARGET_DIR: target
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Summarize provider static scope
         shell: bash
@@ -701,6 +703,7 @@ jobs:
         run: cargo nextest run --workspace --no-fail-fast
         env:
           CARGO_TARGET_DIR: target
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   # ============================================================================
   # Stage 5: Cross-compilation (PR only, skip on main since release builds cover it)
@@ -841,6 +844,8 @@ jobs:
 
       - name: Generate coverage
         run: vx just coverage-ci
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v5
