@@ -121,44 +121,48 @@ impl ExtensionExecutor {
     /// Print help for an extension or subcommand
     fn print_help(&self, extension: &Extension, subcommand: Option<&str>) -> ExtensionResult<()> {
         let config = &extension.config;
+        let mut out = String::new();
 
         if let Some(subcmd) = subcommand {
             // Help for specific subcommand
             if let Some(cmd_config) = config.commands.get(subcmd) {
                 let parser = self.build_parser_for_command(subcmd, cmd_config);
                 let formatter = HelpFormatter::new();
-                println!("{}", formatter.format(&parser));
+                out.push_str(&formatter.format(&parser));
             } else {
-                println!("Unknown command: {}", subcmd);
-                self.print_extension_help(extension)?;
+                out.push_str(&format!("Unknown command: {}\n", subcmd));
+                self.write_extension_help(extension, &mut out)?;
             }
         } else {
-            self.print_extension_help(extension)?;
+            self.write_extension_help(extension, &mut out)?;
         }
 
+        print!("{}", out);
         Ok(())
     }
 
-    /// Print general help for an extension
-    fn print_extension_help(&self, extension: &Extension) -> ExtensionResult<()> {
+    /// Write general help for an extension to a string buffer
+    fn write_extension_help(&self, extension: &Extension, out: &mut String) -> ExtensionResult<()> {
+        use std::fmt::Write;
+
         let config = &extension.config;
 
-        println!("{} v{}", extension.name, config.extension.version);
+        let _ = writeln!(out, "{} v{}", extension.name, config.extension.version);
         if !config.extension.description.is_empty() {
-            println!("{}", config.extension.description);
+            let _ = writeln!(out, "{}", config.extension.description);
         }
-        println!();
+        let _ = writeln!(out);
 
         if !config.commands.is_empty() {
-            println!("Commands:");
+            let _ = writeln!(out, "Commands:");
             for (name, cmd) in &config.commands {
-                println!("  {:16} {}", name, cmd.description);
+                let _ = writeln!(out, "  {:16} {}", name, cmd.description);
             }
-            println!();
+            let _ = writeln!(out);
         }
 
         if config.entrypoint.main.is_some() && !config.entrypoint.arguments.is_empty() {
-            println!("Arguments:");
+            let _ = writeln!(out, "Arguments:");
             for arg in &config.entrypoint.arguments {
                 let flag = if arg.positional {
                     format!("<{}>", arg.name)
@@ -168,12 +172,13 @@ impl ExtensionExecutor {
                     format!("    --{}", arg.name.replace('_', "-"))
                 };
                 let help = arg.help.as_deref().unwrap_or("");
-                println!("  {:20} {}", flag, help);
+                let _ = writeln!(out, "  {:20} {}", flag, help);
             }
-            println!();
+            let _ = writeln!(out);
         }
 
-        println!(
+        let _ = writeln!(
+            out,
             "Run '{} --help' for more information on a command.",
             extension.name
         );

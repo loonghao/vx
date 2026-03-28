@@ -23,8 +23,6 @@ mod environment;
 mod executor;
 mod fallback;
 mod installation;
-#[allow(dead_code)]
-mod path_builder;
 pub mod pipeline;
 mod project_config;
 mod version_utils;

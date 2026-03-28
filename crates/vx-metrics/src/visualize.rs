@@ -189,7 +189,7 @@ pub fn render_comparison(runs: &[CommandMetrics]) -> String {
 
         // p50 / p95
         let mut sorted = totals.clone();
-        sorted.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        sorted.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
         let p50 = percentile(&sorted, 50.0);
         let p95 = percentile(&sorted, 95.0);
 
@@ -238,11 +238,11 @@ pub fn render_insights(runs: &[CommandMetrics]) -> String {
     let latest = &runs[0];
 
     // Identify bottleneck stage
-    if let Some((stage, metrics)) = latest
-        .stages
-        .iter()
-        .max_by(|a, b| a.1.duration_ms.partial_cmp(&b.1.duration_ms).unwrap())
-    {
+    if let Some((stage, metrics)) = latest.stages.iter().max_by(|a, b| {
+        a.1.duration_ms
+            .partial_cmp(&b.1.duration_ms)
+            .unwrap_or(std::cmp::Ordering::Equal)
+    }) {
         let pct = metrics.duration_ms / latest.total_duration_ms * 100.0;
         if pct > 50.0 {
             out.push_str(&format!(
@@ -445,7 +445,7 @@ pub fn generate_ai_summary(runs: &[CommandMetrics]) -> serde_json::Value {
     };
 
     let mut sorted = totals.clone();
-    sorted.sort_by(|a, b| a.partial_cmp(b).unwrap());
+    sorted.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
 
     let mut stage_avgs = HashMap::new();
     for &stage in STAGE_ORDER {

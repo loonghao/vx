@@ -735,12 +735,6 @@ fn extract_kwarg_u32(args_body: &str, key: &str) -> Option<u32> {
     None
 }
 
-/// Legacy wrapper kept for compatibility.
-#[allow(dead_code)]
-fn parse_runtime_dicts(list_body: &str) -> Vec<StarRuntimeMeta> {
-    parse_runtime_entries(list_body, "")
-}
-
 /// Iterate over lines with their byte offsets in the source.
 fn source_line_offsets(source: &str) -> Vec<(usize, &str)> {
     let mut result = Vec::new();
