@@ -9,6 +9,19 @@ use std::path::PathBuf;
 use std::process::Command;
 use tempfile::TempDir;
 
+/// Check if a vx lock failure is caused by GitHub API rate limiting or network issues.
+/// Returns true if the failure is transient (rate limit, timeout, network error),
+/// meaning the test should be skipped rather than marked as failed.
+fn is_transient_network_failure(stderr: &str) -> bool {
+    stderr.contains("rate limit")
+        || stderr.contains("403 Forbidden")
+        || stderr.contains("504 Gateway Timeout")
+        || stderr.contains("error decoding response body")
+        || stderr.contains("timed out")
+        || stderr.contains("connection refused")
+        || stderr.contains("HTTP 429")
+}
+
 /// Get the path to the vx binary for testing
 fn vx_binary() -> PathBuf {
     let mut path = env::current_exe().unwrap();
@@ -297,10 +310,15 @@ dev-dependencies = ["pytest", "httpx"]
     );
 
     let output = env.run(&["lock"]);
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    if !output.status.success() && is_transient_network_failure(&stderr) {
+        eprintln!("SKIPPED: transient network failure (rate limit / timeout): {stderr}");
+        return;
+    }
     assert!(
         output.status.success(),
         "vx lock should succeed for FastAPI project. stderr: {}",
-        String::from_utf8_lossy(&output.stderr)
+        stderr
     );
 }
 
@@ -389,10 +407,15 @@ build-backend = "maturin"
     );
 
     let output = env.run(&["lock"]);
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    if !output.status.success() && is_transient_network_failure(&stderr) {
+        eprintln!("SKIPPED: transient network failure (rate limit / timeout): {stderr}");
+        return;
+    }
     assert!(
         output.status.success(),
         "vx lock should succeed for PyO3/maturin project. stderr: {}",
-        String::from_utf8_lossy(&output.stderr)
+        stderr
     );
 }
 
@@ -442,10 +465,15 @@ fn test_init_lock_monorepo_fullstack() {
     assert!(config.contains("pnpm"), "Should detect pnpm");
 
     let output = env.run(&["lock"]);
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    if !output.status.success() && is_transient_network_failure(&stderr) {
+        eprintln!("SKIPPED: transient network failure (rate limit / timeout): {stderr}");
+        return;
+    }
     assert!(
         output.status.success(),
         "vx lock should succeed for monorepo. stderr: {}",
-        String::from_utf8_lossy(&output.stderr)
+        stderr
     );
 }
 
