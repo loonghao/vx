@@ -384,6 +384,28 @@ url == None
     ));
 }
 
+/// Regression test: empty string version_date should also return None.
+///
+/// When the Rust layer has `version_date: None`, it injects an empty string ""
+/// into the Starlark ctx (see engine.rs: `unwrap_or("")`). The provider.star
+/// uses `if not build_tag:` which is True for empty string in Starlark.
+/// This test verifies that empty string is treated the same as None.
+#[test]
+fn test_download_url_empty_string_version_date_returns_none() {
+    let mut a = Assert::new();
+    a.dialect(&Dialect::Standard);
+    a.is_true(&format!(
+        r#"
+{}
+# Empty string version_date (how Rust passes None to Starlark)
+ctx = struct(platform = struct(os = "linux", arch = "x64", target = ""), version_date = "")
+url = download_url(ctx, "3.12.11")
+url == None
+"#,
+        provider_star_prefix()
+    ));
+}
+
 #[test]
 fn test_download_url_uses_install_only_stripped() {
     // python-build-standalone uses install_only_stripped archives
