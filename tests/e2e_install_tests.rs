@@ -22,6 +22,43 @@ fn vx_binary() -> PathBuf {
     path
 }
 
+/// Check if an error message represents an acceptable network/API error in CI.
+///
+/// These errors are transient and not caused by bugs in vx itself:
+/// - Network connectivity issues (timeout, connection refused, DNS failures)
+/// - GitHub API rate limiting or server errors (502, 503, 504)
+/// - Missing authentication tokens for rate-limited APIs
+fn is_acceptable_network_error(output: &str) -> bool {
+    let lower = output.to_lowercase();
+    // Network-level errors
+    lower.contains("network")
+        || lower.contains("timeout")
+        || lower.contains("time-out")
+        || lower.contains("timed out")
+        || lower.contains("connection")
+        || lower.contains("dns")
+        || lower.contains("error sending request")
+        // HTTP server errors
+        || lower.contains("502")
+        || lower.contains("503")
+        || lower.contains("504")
+        || lower.contains("bad gateway")
+        || lower.contains("service unavailable")
+        || lower.contains("gateway")
+        // Rate limiting
+        || lower.contains("rate limit")
+        || lower.contains("403")
+        || lower.contains("too many requests")
+        || lower.contains("429")
+        // Auth token hints (GitHub API without token)
+        || lower.contains("github_token")
+        || lower.contains("gh_token")
+        // Generic fetch failures
+        || lower.contains("failed to fetch")
+        || lower.contains("fetch failed")
+        || lower.contains("api fetch failed")
+}
+
 /// E2E test environment with isolated VX_HOME
 struct E2ETestEnv {
     home: TempDir,
@@ -81,14 +118,11 @@ fn test_versions_list_zig() {
         );
     } else {
         // Network errors are acceptable in CI
+        let combined = format!("{}{}", stdout, stderr);
         assert!(
-            stderr.contains("network")
-                || stderr.contains("timeout")
-                || stderr.contains("connection")
-                || stderr.contains("rate limit")
-                || stderr.contains("Failed to fetch"),
-            "Unexpected error: {}",
-            stderr
+            is_acceptable_network_error(&combined),
+            "Unexpected error listing zig versions: {}",
+            combined
         );
     }
 }
@@ -110,14 +144,11 @@ fn test_versions_list_node() {
         );
     } else {
         // Network errors are acceptable
+        let combined = format!("{}{}", stdout, stderr);
         assert!(
-            stderr.contains("network")
-                || stderr.contains("timeout")
-                || stderr.contains("connection")
-                || stderr.contains("rate limit")
-                || stderr.contains("Failed to fetch"),
-            "Unexpected error: {}",
-            stderr
+            is_acceptable_network_error(&combined),
+            "Unexpected error listing node versions: {}",
+            combined
         );
     }
 }
@@ -139,14 +170,11 @@ fn test_versions_list_go() {
         );
     } else {
         // Network errors are acceptable
+        let combined = format!("{}{}", stdout, stderr);
         assert!(
-            stderr.contains("network")
-                || stderr.contains("timeout")
-                || stderr.contains("connection")
-                || stderr.contains("rate limit")
-                || stderr.contains("Failed to fetch"),
-            "Unexpected error: {}",
-            stderr
+            is_acceptable_network_error(&combined),
+            "Unexpected error listing go versions: {}",
+            combined
         );
     }
 }
@@ -205,18 +233,11 @@ fn test_versions_list_python() {
         );
     } else {
         // Network errors are acceptable in CI
+        // Python versions come from GitHub API (python-build-standalone)
+        // which is particularly prone to rate limiting and gateway timeouts
         let combined = format!("{}{}", stdout, stderr);
         assert!(
-            combined.contains("network")
-                || combined.contains("Network")
-                || combined.contains("timeout")
-                || combined.contains("connection")
-                || combined.contains("Connection")
-                || combined.contains("rate limit")
-                || combined.contains("Failed to fetch")
-                || combined.contains("error sending request")
-                || combined.contains("GITHUB_TOKEN")
-                || combined.contains("GH_TOKEN"),
+            is_acceptable_network_error(&combined),
             "Unexpected error listing Python versions: {}",
             combined
         );
