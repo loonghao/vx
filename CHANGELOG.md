@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.11](https://github.com/loonghao/vx/compare/v0.8.10...v0.8.11) (2026-03-28)
+
+
+### Bug Fixes
+
+* Add 'if: !startsWith(github.event.head_commit.message, chore: release)' guards to skip these workflows when the push is a release commit. ([d32009f](https://github.com/loonghao/vx/commit/d32009f24555fadde638248c3a17ff0ebb5db644))
+* **ci:** include Cargo.lock in workspace-hack commit step ([0e75aab](https://github.com/loonghao/vx/commit/0e75aab10237ad9521727751b567aca9792392a5))
+* **ci:** prevent duplicate release-please PRs on release merge ([d32009f](https://github.com/loonghao/vx/commit/d32009f24555fadde638248c3a17ff0ebb5db644)), closes [#713](https://github.com/loonghao/vx/issues/713)
+* **dist:** exclude vx-star-metadata from cargo-dist release artifacts ([2c30069](https://github.com/loonghao/vx/commit/2c3006951d57bea85b8391628704437872ea9e1a))
+
+
+### Code Refactoring
+
+* improve code quality - replace unwrap() and eprintln! with proper error handling ([a2c4c0b](https://github.com/loonghao/vx/commit/a2c4c0b05ec9abebf0cead84e61b70f058f80b62))
+
 ## [0.8.10](https://github.com/loonghao/vx/compare/v0.8.9...v0.8.10) (2026-03-28)
 
 
