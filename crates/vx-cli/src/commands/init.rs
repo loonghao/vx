@@ -546,7 +546,10 @@ pub fn detect_project(dir: &Path) -> Result<ProjectDetection> {
             }
         }
 
-        // Use detected version or default to "stable"
+        // Use detected version or default to "stable".
+        // vx.toml records the user-facing version (rustc version or channel name).
+        // The version resolution layer (vx lock) handles the mapping to rustup
+        // installation via passthrough mode for the Rust ecosystem.
         let version = rust_version.unwrap_or_else(|| "stable".to_string());
         detection.tools.insert("rust".to_string(), version);
     }
