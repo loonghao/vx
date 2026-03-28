@@ -34,6 +34,11 @@ jobs:
   # ============================================================================
   check-changes:
     name: Check Changes
+    # Skip for release commits (e.g., "chore: release v0.8.10") which only
+    # bump version numbers in Cargo.toml and update CHANGELOG.md.
+    if: >-
+      github.event_name != 'push' ||
+      !startsWith(github.event.head_commit.message, 'chore: release')
     runs-on: ubuntu-latest
     outputs:
       should_run: ${{ steps.filter.outputs.should_run }}

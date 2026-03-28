@@ -6,6 +6,12 @@
 # Note: Tags created by GITHUB_TOKEN do NOT trigger other workflows'
 # on.push.tags events (GitHub security limitation). We work around this
 # by explicitly dispatching the Release workflow after release creation.
+#
+# IMPORTANT: We skip this workflow when the push is itself a release commit
+# (e.g., "chore: release v0.8.10"). Without this guard, merging a release PR
+# would re-trigger release-please, which would immediately open a *new*
+# (duplicate) release PR for the same or next version, and also cause every
+# other push-to-main workflow to fire unnecessarily.
 
 name: Release Please
 
@@ -22,6 +28,10 @@ permissions:
 jobs:
   release-please:
     runs-on: ubuntu-latest
+    # Skip when the merged commit is itself a release commit to prevent
+    # duplicate release PRs (e.g., #709 merged -> immediately opens #713).
+    if: >-
+      !startsWith(github.event.head_commit.message, 'chore: release')
     steps:
       - uses: googleapis/release-please-action@v4
         id: release
