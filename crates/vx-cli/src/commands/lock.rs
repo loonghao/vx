@@ -377,15 +377,22 @@ async fn resolve_tool_version(
         _ => Ecosystem::Generic,
     };
 
-    // Check if this tool supports passthrough versions (e.g., Rust with rustup)
+    // Check if this tool supports passthrough versions.
     // Passthrough means the version manager (like rustup) handles version validation,
     // so we accept any user-specified version without needing it in available versions.
-    let is_passthrough = versions.iter().any(|v| {
-        v.metadata
-            .get("passthrough")
-            .map(|s| s == "true")
-            .unwrap_or(false)
-    });
+    //
+    // Passthrough is enabled for:
+    // 1. Rust ecosystem — vx.toml records rustc versions (e.g., "1.90") or channel
+    //    names ("stable", "nightly"), but the provider fetches rustup versions (1.16~1.29).
+    //    The user's version is passed through to rustup's --default-toolchain flag.
+    // 2. Any provider that explicitly marks versions with passthrough metadata.
+    let is_passthrough = ecosystem == Ecosystem::Rust
+        || versions.iter().any(|v| {
+            v.metadata
+                .get("passthrough")
+                .map(|s| s == "true")
+                .unwrap_or(false)
+        });
 
     // Parse version request
     let request = VersionRequest::parse(version_str);
@@ -405,14 +412,15 @@ async fn resolve_tool_version(
                 resolved_from: version_str.to_string(),
             }
         } else {
-            // Use user-specified version directly (e.g., "1.83.0")
-            // This allows exact version numbers like from rust-version in Cargo.toml
+            // Use user-specified version directly (e.g., "1.90", "1.83.0")
+            // This allows rustc version numbers from rust-version in Cargo.toml
+            // or rust-toolchain.toml to be recorded as-is in the lock file.
             if verbose {
                 println!("    ℹ Using passthrough version: {}", version_str);
             }
             ResolvedVersion {
                 version: Version::parse(version_str).unwrap_or_else(|| Version::new(0, 0, 0)),
-                original_version: None,
+                original_version: Some(version_str.to_string()),
                 source: ecosystem.to_string(),
                 metadata: std::collections::HashMap::new(),
                 resolved_from: version_str.to_string(),
@@ -425,10 +433,22 @@ async fn resolve_tool_version(
             .map_err(|e| anyhow::anyhow!("{}", e))?
     };
 
-    // Get download URL for the current platform
+    // Get download URL for the current platform.
+    // For passthrough tools (e.g., Rust), the resolved version may be a user-facing
+    // version (like "1.90") that doesn't correspond to any installer release.
+    // In that case, use the latest available installer version for the download URL.
     let current_platform = vx_runtime::Platform::current();
+    let download_version = if is_passthrough && resolved.original_version.is_some() {
+        // Use the latest available version from the provider (e.g., latest rustup)
+        versions
+            .first()
+            .map(|v| v.version.clone())
+            .unwrap_or_else(|| resolved.version.to_string())
+    } else {
+        resolved.version.to_string()
+    };
     let download_url = if let Ok(Some(url)) = runtime
-        .download_url(&resolved.version.to_string(), &current_platform)
+        .download_url(&download_version, &current_platform)
         .await
     {
         Some(url)

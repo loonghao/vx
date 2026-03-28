@@ -793,7 +793,12 @@ fn test_detect_go_project() {
 // Project Detection Tests - Rust (toolchain detection)
 // ============================================================================
 
-/// Test: detect Rust project with rust-toolchain.toml
+/// Test: detect Rust project with rust-toolchain.toml (numeric version preserved)
+///
+/// vx.toml records user-facing versions as-is. Numeric rustc versions from
+/// rust-toolchain.toml are preserved (e.g., "1.83.0") because the version
+/// resolution layer (vx lock) uses passthrough mode for the Rust ecosystem,
+/// allowing rustup to handle the actual toolchain installation.
 #[rstest]
 #[test]
 fn test_detect_rust_toolchain_toml() {
@@ -820,7 +825,33 @@ fn test_detect_rust_toolchain_toml() {
     assert_eq!(
         detection.tools.get("rust").map(|s| s.as_str()),
         Some("1.83.0"),
-        "Should pick up version from rust-toolchain.toml"
+        "Numeric rustc version from rust-toolchain.toml should be preserved as-is"
+    );
+}
+
+/// Test: detect Rust project with rust-toolchain.toml using "stable" channel
+#[rstest]
+#[test]
+fn test_detect_rust_toolchain_toml_stable_channel() {
+    let temp_dir = TempDir::new().unwrap();
+
+    fs::write(
+        temp_dir.path().join("Cargo.toml"),
+        "[package]\nname = \"my-project\"\nversion = \"0.1.0\"\n",
+    )
+    .unwrap();
+    fs::write(
+        temp_dir.path().join("rust-toolchain.toml"),
+        "[toolchain]\nchannel = \"stable\"\n",
+    )
+    .unwrap();
+
+    let detection = detect_project(temp_dir.path()).unwrap();
+
+    assert_eq!(
+        detection.tools.get("rust").map(|s| s.as_str()),
+        Some("stable"),
+        "Channel name 'stable' should be preserved as-is"
     );
 }
 
@@ -846,7 +877,11 @@ fn test_detect_rust_toolchain_legacy() {
     );
 }
 
-/// Test: detect Rust project with rust-version in Cargo.toml
+/// Test: detect Rust project with rust-version in Cargo.toml (MSRV preserved)
+///
+/// rust-version in Cargo.toml is MSRV (Minimum Supported Rust Version).
+/// vx.toml records it as-is; the lock/resolve layer handles passthrough
+/// to rustup for the actual toolchain installation.
 #[rstest]
 #[test]
 fn test_detect_rust_version_in_cargo_toml() {
@@ -863,7 +898,7 @@ fn test_detect_rust_version_in_cargo_toml() {
     assert_eq!(
         detection.tools.get("rust").map(|s| s.as_str()),
         Some("1.70.0"),
-        "Should pick up rust-version from Cargo.toml"
+        "MSRV rust-version from Cargo.toml should be preserved as-is"
     );
     assert_eq!(
         detection.project_name.as_deref(),
@@ -1586,6 +1621,421 @@ fn test_detect_openclaw_with_directory() {
     assert!(
         detection.tools.contains_key("openclaw"),
         "Should detect OpenClaw from .openclaw directory. Tools: {:?}",
+        detection.tools
+    );
+}
+
+// ============================================================================
+// Complex Real-World Project Simulation Tests
+// ============================================================================
+
+/// Test: simulates dcc-mcp-core (Rust project with MSRV 1.90 in Cargo.toml)
+/// This was the original failing case — rust-version = "1.90" should be
+/// preserved in vx.toml, not normalized to "stable".
+#[rstest]
+#[test]
+fn test_detect_dcc_mcp_core_style_project() {
+    let temp_dir = TempDir::new().unwrap();
+
+    fs::write(
+        temp_dir.path().join("Cargo.toml"),
+        r#"[package]
+name = "dcc-mcp-core"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.90"
+
+[dependencies]
+serde = "1.0"
+tokio = { version = "1.0", features = ["full"] }
+"#,
+    )
+    .unwrap();
+
+    let detection = detect_project(temp_dir.path()).unwrap();
+
+    assert_eq!(
+        detection.tools.get("rust").map(|s| s.as_str()),
+        Some("1.90"),
+        "dcc-mcp-core style: MSRV 1.90 should be preserved, not converted to 'stable'"
+    );
+    assert_eq!(
+        detection.project_name.as_deref(),
+        Some("dcc-mcp-core"),
+        "Should extract project name"
+    );
+}
+
+/// Test: Rust project with workspace Cargo.toml (common in large projects)
+#[rstest]
+#[test]
+fn test_detect_rust_workspace_project() {
+    let temp_dir = TempDir::new().unwrap();
+
+    // Workspace root Cargo.toml without [package] section
+    fs::write(
+        temp_dir.path().join("Cargo.toml"),
+        r#"[workspace]
+members = ["crates/core", "crates/cli"]
+resolver = "2"
+
+[workspace.package]
+version = "0.5.0"
+edition = "2021"
+rust-version = "1.80.0"
+"#,
+    )
+    .unwrap();
+
+    let detection = detect_project(temp_dir.path()).unwrap();
+
+    assert!(
+        detection.tools.contains_key("rust"),
+        "Should detect rust from workspace Cargo.toml. Tools: {:?}",
+        detection.tools
+    );
+    // Workspace Cargo.toml doesn't have [package].rust-version directly,
+    // but should still detect Rust project
+}
+
+/// Test: Rust project with rust-toolchain.toml using nightly with date
+#[rstest]
+#[test]
+fn test_detect_rust_nightly_with_date() {
+    let temp_dir = TempDir::new().unwrap();
+
+    fs::write(
+        temp_dir.path().join("Cargo.toml"),
+        "[package]\nname = \"nightly-date\"\nversion = \"0.1.0\"\n",
+    )
+    .unwrap();
+    fs::write(
+        temp_dir.path().join("rust-toolchain.toml"),
+        "[toolchain]\nchannel = \"nightly-2025-01-15\"\ncomponents = [\"rustfmt\", \"clippy\"]\n",
+    )
+    .unwrap();
+
+    let detection = detect_project(temp_dir.path()).unwrap();
+
+    assert_eq!(
+        detection.tools.get("rust").map(|s| s.as_str()),
+        Some("nightly-2025-01-15"),
+        "Nightly with date should be preserved"
+    );
+}
+
+/// Test: Node.js project with complex engines constraints (e.g., React Native)
+#[rstest]
+#[test]
+fn test_detect_react_native_style_project() {
+    let temp_dir = TempDir::new().unwrap();
+
+    fs::write(
+        temp_dir.path().join("package.json"),
+        r#"{
+  "name": "MyReactNativeApp",
+  "version": "0.73.0",
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "react": "18.2.0",
+    "react-native": "0.73.0"
+  },
+  "devDependencies": {
+    "typescript": "5.0.0",
+    "@types/react": "18.2.0"
+  }
+}"#,
+    )
+    .unwrap();
+    fs::write(temp_dir.path().join("yarn.lock"), "# yarn lockfile v1\n").unwrap();
+
+    let detection = detect_project(temp_dir.path()).unwrap();
+
+    assert_eq!(
+        detection.tools.get("node").map(|s| s.as_str()),
+        Some("18"),
+        "Should parse >=18 to major version 18"
+    );
+    assert_eq!(
+        detection.package_manager,
+        Some(PackageManager::Yarn),
+        "Should detect yarn from yarn.lock"
+    );
+    assert_eq!(detection.project_name.as_deref(), Some("MyReactNativeApp"),);
+}
+
+/// Test: Python project with Poetry (tool.poetry in pyproject.toml)
+#[rstest]
+#[test]
+fn test_detect_poetry_project_with_python_version() {
+    let temp_dir = TempDir::new().unwrap();
+
+    fs::write(
+        temp_dir.path().join("pyproject.toml"),
+        r#"[tool.poetry]
+name = "my-poetry-app"
+version = "1.0.0"
+
+[tool.poetry.dependencies]
+python = "^3.10"
+fastapi = ">=0.100"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+"#,
+    )
+    .unwrap();
+
+    let detection = detect_project(temp_dir.path()).unwrap();
+
+    assert_eq!(
+        detection.package_manager,
+        Some(PackageManager::Poetry),
+        "Should detect poetry"
+    );
+}
+
+/// Test: Go project with specific Go version constraint
+#[rstest]
+#[test]
+fn test_detect_go_project_with_version() {
+    let temp_dir = TempDir::new().unwrap();
+
+    fs::write(
+        temp_dir.path().join("go.mod"),
+        "module github.com/kubernetes/kubernetes\n\ngo 1.22.0\n\nrequire (\n\tgithub.com/gin-gonic/gin v1.9.1\n)\n",
+    )
+    .unwrap();
+
+    let detection = detect_project(temp_dir.path()).unwrap();
+
+    assert!(
+        detection.tools.contains_key("go"),
+        "Should detect go. Tools: {:?}",
+        detection.tools
+    );
+    assert_eq!(
+        detection.project_name.as_deref(),
+        Some("github.com/kubernetes/kubernetes"),
+    );
+}
+
+/// Test: Full-stack monorepo with Node.js + Python + Rust + Justfile
+#[rstest]
+#[test]
+fn test_detect_fullstack_monorepo() {
+    use vx_cli::commands::init::ProjectType;
+
+    let temp_dir = TempDir::new().unwrap();
+
+    // Frontend (Node.js)
+    fs::write(
+        temp_dir.path().join("package.json"),
+        r#"{
+  "name": "fullstack-monorepo",
+  "engines": { "node": ">=22" },
+  "packageManager": "pnpm@9.0.0"
+}"#,
+    )
+    .unwrap();
+    fs::write(
+        temp_dir.path().join("pnpm-lock.yaml"),
+        "lockfileVersion: 9\n",
+    )
+    .unwrap();
+
+    // Backend (Go)
+    fs::write(
+        temp_dir.path().join("go.mod"),
+        "module github.com/user/monorepo\n\ngo 1.22\n",
+    )
+    .unwrap();
+
+    // ML/Scripts (Python)
+    fs::write(
+        temp_dir.path().join("pyproject.toml"),
+        "[project]\nname = \"ml-scripts\"\nrequires-python = \">=3.12\"\n",
+    )
+    .unwrap();
+
+    // Rust native extension
+    fs::write(
+        temp_dir.path().join("Cargo.toml"),
+        "[package]\nname = \"native-ext\"\nversion = \"0.1.0\"\nrust-version = \"1.80\"\n",
+    )
+    .unwrap();
+
+    // Task runner
+    fs::write(temp_dir.path().join("justfile"), "default:\n  echo hi\n").unwrap();
+
+    let detection = detect_project(temp_dir.path()).unwrap();
+
+    // Should detect all 4 ecosystems + Mixed + Justfile
+    assert!(
+        detection.project_types.contains(&ProjectType::NodeJs),
+        "Should detect NodeJs. Types: {:?}",
+        detection.project_types
+    );
+    assert!(
+        detection.project_types.contains(&ProjectType::Go),
+        "Should detect Go. Types: {:?}",
+        detection.project_types
+    );
+    assert!(
+        detection.project_types.contains(&ProjectType::Python),
+        "Should detect Python. Types: {:?}",
+        detection.project_types
+    );
+    assert!(
+        detection.project_types.contains(&ProjectType::Rust),
+        "Should detect Rust. Types: {:?}",
+        detection.project_types
+    );
+    assert!(
+        detection.project_types.contains(&ProjectType::Justfile),
+        "Should detect Justfile. Types: {:?}",
+        detection.project_types
+    );
+    assert!(
+        detection.project_types.contains(&ProjectType::Mixed),
+        "Should be marked as Mixed. Types: {:?}",
+        detection.project_types
+    );
+
+    // Check tools
+    assert!(detection.tools.contains_key("node"), "node");
+    assert!(detection.tools.contains_key("go"), "go");
+    assert!(
+        detection.tools.contains_key("python") || detection.tools.contains_key("uv"),
+        "python/uv"
+    );
+    assert!(detection.tools.contains_key("rust"), "rust");
+    assert!(detection.tools.contains_key("just"), "just");
+    assert!(detection.tools.contains_key("pnpm"), "pnpm");
+
+    // Rust version should be MSRV from Cargo.toml
+    assert_eq!(
+        detection.tools.get("rust").map(|s| s.as_str()),
+        Some("1.80"),
+        "Rust MSRV 1.80 should be preserved"
+    );
+}
+
+/// Test: Node.js project with exact node version in engines
+#[rstest]
+#[test]
+fn test_detect_node_exact_version_engines() {
+    let temp_dir = TempDir::new().unwrap();
+
+    fs::write(
+        temp_dir.path().join("package.json"),
+        r#"{ "name": "exact-ver", "engines": { "node": "20.11.0" } }"#,
+    )
+    .unwrap();
+
+    let detection = detect_project(temp_dir.path()).unwrap();
+
+    // Should extract some version from exact specification
+    assert!(
+        detection.tools.contains_key("node"),
+        "Should detect node. Tools: {:?}",
+        detection.tools
+    );
+}
+
+/// Test: Rust project prioritizes rust-toolchain.toml over Cargo.toml rust-version
+#[rstest]
+#[test]
+fn test_detect_rust_toolchain_priority_over_cargo() {
+    let temp_dir = TempDir::new().unwrap();
+
+    fs::write(
+        temp_dir.path().join("Cargo.toml"),
+        "[package]\nname = \"priority-test\"\nversion = \"0.1.0\"\nrust-version = \"1.70.0\"\n",
+    )
+    .unwrap();
+    fs::write(
+        temp_dir.path().join("rust-toolchain.toml"),
+        "[toolchain]\nchannel = \"1.83.0\"\n",
+    )
+    .unwrap();
+
+    let detection = detect_project(temp_dir.path()).unwrap();
+
+    assert_eq!(
+        detection.tools.get("rust").map(|s| s.as_str()),
+        Some("1.83.0"),
+        "rust-toolchain.toml (1.83.0) should take priority over Cargo.toml rust-version (1.70.0)"
+    );
+}
+
+/// Test: Python project with requirements.txt and no pyproject.toml
+#[rstest]
+#[test]
+fn test_detect_legacy_python_requirements_only() {
+    let temp_dir = TempDir::new().unwrap();
+
+    fs::write(
+        temp_dir.path().join("requirements.txt"),
+        "django>=4.0\ncelery>=5.0\nredis>=4.0\n",
+    )
+    .unwrap();
+    fs::write(
+        temp_dir.path().join("setup.py"),
+        "from setuptools import setup\nsetup(name='legacy-app')\n",
+    )
+    .unwrap();
+
+    let detection = detect_project(temp_dir.path()).unwrap();
+
+    assert!(
+        detection.tools.contains_key("python"),
+        "Should detect python from requirements.txt + setup.py. Tools: {:?}",
+        detection.tools
+    );
+}
+
+/// Test: vx project (the vx repo itself) - Rust with workspace
+#[rstest]
+#[test]
+fn test_detect_vx_style_project() {
+    let temp_dir = TempDir::new().unwrap();
+
+    // vx uses workspace with rust-version in [workspace.package]
+    fs::write(
+        temp_dir.path().join("Cargo.toml"),
+        r#"[workspace]
+members = ["crates/vx-cli", "crates/vx-core"]
+resolver = "2"
+
+[workspace.package]
+version = "0.8.12"
+edition = "2024"
+rust-version = "1.93.0"
+
+[package]
+name = "vx"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+"#,
+    )
+    .unwrap();
+    fs::write(temp_dir.path().join("justfile"), "test:\n  cargo test\n").unwrap();
+
+    let detection = detect_project(temp_dir.path()).unwrap();
+
+    assert!(
+        detection.tools.contains_key("rust"),
+        "Should detect rust. Tools: {:?}",
+        detection.tools
+    );
+    assert!(
+        detection.tools.contains_key("just"),
+        "Should detect just from justfile. Tools: {:?}",
         detection.tools
     );
 }
