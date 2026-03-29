@@ -179,7 +179,7 @@ fn test_wellknown_versions_all_have_date() {
 #[test]
 fn test_minor_series_fallback_finds_best_match() {
     // Simulate a version cache with some 3.12.x versions
-    let cached_versions = vec![
+    let cached_versions = [
         ("3.12.11", Some("20260325")),
         ("3.12.10", Some("20250317")),
         ("3.12.9", Some("20250212")),
@@ -209,7 +209,7 @@ fn test_minor_series_fallback_finds_best_match() {
 
 #[test]
 fn test_minor_series_fallback_no_match() {
-    let cached_versions = vec![("3.12.11", Some("20260325")), ("3.11.13", Some("20260325"))];
+    let cached_versions = [("3.12.11", Some("20260325")), ("3.11.13", Some("20260325"))];
 
     // Request 3.14.3 which has no minor series match
     let requested = "3.14.3";
@@ -231,7 +231,7 @@ fn test_minor_series_fallback_no_match() {
 /// not just any matching version.
 #[test]
 fn test_minor_series_fallback_picks_latest_build_tag() {
-    let cached_versions = vec![
+    let cached_versions = [
         ("3.12.7", Some("20241016")),
         ("3.12.8", Some("20250115")),
         ("3.12.9", Some("20250212")),
