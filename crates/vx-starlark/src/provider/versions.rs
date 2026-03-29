@@ -497,27 +497,37 @@ impl StarlarkProvider {
     /// The build tag (`date`) must correspond to an actual python-build-standalone release
     /// that contains the specified cpython version.
     fn wellknown_python_versions() -> Vec<VersionInfo> {
-        // Last updated: 2026-03-28 (build tag: 20260325)
+        // Last updated: 2026-03-29 (build tag: 20260325)
         let versions = [
+            // Python 3.14.x (new)
+            ("3.14.3", "20260203", false),
+            ("3.14.2", "20260114", false),
             // Python 3.13.x (current)
+            ("3.13.12", "20260203", false),
+            ("3.13.11", "20260114", false),
             ("3.13.4", "20260325", false),
             ("3.13.3", "20250317", false),
             ("3.13.2", "20250212", false),
             ("3.13.1", "20250115", false),
             ("3.13.0", "20241016", false),
             // Python 3.12.x (LTS - even minor)
+            ("3.12.13", "20260303", true),
+            ("3.12.12", "20260127", true),
             ("3.12.11", "20260325", true),
             ("3.12.10", "20250317", true),
             ("3.12.9", "20250212", true),
             ("3.12.8", "20250115", true),
             ("3.12.7", "20241016", true),
             // Python 3.11.x
+            ("3.11.15", "20260303", false),
+            ("3.11.14", "20260127", false),
             ("3.11.13", "20260325", false),
             ("3.11.12", "20250317", false),
             ("3.11.11", "20250115", false),
             ("3.11.10", "20241016", false),
             // Python 3.10.x (LTS - even minor)
             ("3.10.20", "20260325", true),
+            ("3.10.19", "20260127", true),
             ("3.10.17", "20250317", true),
             ("3.10.16", "20250115", true),
             ("3.10.15", "20241016", true),

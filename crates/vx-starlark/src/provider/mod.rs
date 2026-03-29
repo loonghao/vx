@@ -325,7 +325,7 @@ impl StarlarkProvider {
         // This is needed by providers like python-build-standalone where the
         // download URL requires a date-based release tag (e.g. "20240107").
         // The build tag is stored in VersionInfo.date by transform_python_build_standalone.
-        let mut version_date = self.lookup_version_date(version).await;
+        let mut version_date = self.lookup_version_date(version, runtime_name).await;
 
         // If version_date is not in cache, trigger a fetch_versions call to populate it.
         // This handles first-install scenarios, cache expiry, and provider.star updates
@@ -352,7 +352,7 @@ impl StarlarkProvider {
                 );
             } else {
                 // Retry the lookup now that the cache should be populated
-                version_date = self.lookup_version_date(version).await;
+                version_date = self.lookup_version_date(version, runtime_name).await;
             }
         }
 
@@ -526,14 +526,102 @@ impl StarlarkProvider {
     /// This is used by `download_url` to pass the build tag to providers like
     /// python-build-standalone, where the download URL requires a date-based
     /// release tag (e.g. "20240107") that is stored in `VersionInfo.date`.
-    async fn lookup_version_date(&self, version: &str) -> Option<String> {
+    ///
+    /// **Cache key**: Uses `provider_name/runtime_name` format to match the key
+    /// used by `execute_fetch_versions`. Without this, multi-runtime providers
+    /// would write to `python/python` but read from `python`, causing a miss.
+    ///
+    /// **Fallback strategy**: If no exact version match is found, this method
+    /// looks for the most recent build tag from the same minor version series
+    /// (e.g. for "3.12.13", it will try any "3.12.x" entry). This handles the
+    /// common case where a new patch release exists on the python-build-standalone
+    /// server but hasn't been added to the wellknown fallback list yet — the
+    /// build tag from the same minor series is almost always valid because
+    /// python-build-standalone releases typically include all active patch versions.
+    async fn lookup_version_date(
+        &self,
+        version: &str,
+        runtime_name: Option<&str>,
+    ) -> Option<String> {
         let cache = version_cache::global_version_cache();
         let hash_hex = self.script_hash_hex();
-        let cached = cache.get(&self.meta.name, &hash_hex).await?;
-        cached
-            .into_iter()
+        let provider_name = &self.meta.name;
+
+        // Build cache key matching execute_fetch_versions format
+        let cache_key = match runtime_name {
+            Some(rt) if !rt.is_empty() => format!("{}/{}", provider_name, rt),
+            _ => provider_name.clone(),
+        };
+
+        // Try both cache_key variants: with runtime_name and without.
+        // This handles cases where fetch_versions was called with or without runtime_name.
+        let cached = cache.get(&cache_key, &hash_hex).await.or_else(|| {
+            // Synchronous fallback: if the runtime-prefixed key didn't match,
+            // try the plain provider name (covers single-runtime providers and
+            // cases where fetch_versions was called without runtime_name).
+            if cache_key != *provider_name {
+                // We can't do async inside or_else, so we use try_blocking_get
+                // Unfortunately the cache is async. As a workaround, we return None
+                // and let the caller handle the full fallback flow.
+                None
+            } else {
+                None
+            }
+        });
+
+        let cached = match cached {
+            Some(c) => c,
+            None => {
+                // Also try the plain provider name if we used a runtime-prefixed key
+                if cache_key != *provider_name {
+                    cache.get(provider_name, &hash_hex).await?
+                } else {
+                    return None;
+                }
+            }
+        };
+
+        // 1. Try exact version match first
+        if let Some(date) = cached
+            .iter()
             .find(|v| v.version == version)
-            .and_then(|v| v.date)
+            .and_then(|v| v.date.clone())
+        {
+            return Some(date);
+        }
+
+        // 2. Fallback: find the most recent build tag from the same minor series.
+        //    For version "3.12.13", extract prefix "3.12." and find the entry with
+        //    the highest build tag (date) among all "3.12.x" versions.
+        let minor_prefix = extract_minor_prefix(version)?;
+        debug!(
+            provider = %self.meta.name,
+            version = %version,
+            minor_prefix = %minor_prefix,
+            "Exact version_date match not found, trying minor series fallback"
+        );
+
+        let best = cached
+            .iter()
+            .filter(|v| v.version.starts_with(&minor_prefix) && v.date.is_some())
+            .max_by(|a, b| {
+                let da = a.date.as_deref().unwrap_or("");
+                let db = b.date.as_deref().unwrap_or("");
+                da.cmp(db)
+            });
+
+        if let Some(entry) = best {
+            debug!(
+                provider = %self.meta.name,
+                version = %version,
+                fallback_version = %entry.version,
+                fallback_date = ?entry.date,
+                "Using build tag from same minor series as fallback"
+            );
+            return entry.date.clone();
+        }
+
+        None
     }
 
     fn resolve_vx_home() -> PathBuf {
@@ -741,4 +829,15 @@ impl StarlarkProvider {
 
         Ok((meta, runtimes))
     }
+}
+
+/// Extract the minor version prefix from a version string.
+///
+/// For "3.12.13" returns "3.12.", for "3.11.0" returns "3.11.".
+/// Returns `None` if the version doesn't have at least two dot-separated components.
+fn extract_minor_prefix(version: &str) -> Option<String> {
+    let mut parts = version.splitn(3, '.');
+    let major = parts.next()?;
+    let minor = parts.next()?;
+    Some(format!("{}.{}.", major, minor))
 }
