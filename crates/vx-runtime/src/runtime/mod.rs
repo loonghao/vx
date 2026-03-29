@@ -1147,32 +1147,59 @@ pub trait Runtime: Send + Sync {
         let resolver = VersionResolver::new();
         let ecosystem = self.ecosystem();
 
-        resolver
-            .resolve(version, &versions, &ecosystem)
-            .ok_or_else(|| {
-                // Build a helpful error message with available version range
-                let stable_versions: Vec<_> = versions
-                    .iter()
-                    .filter(|v| !v.prerelease)
-                    .map(|v| &v.version)
-                    .collect();
+        if let Some(resolved) = resolver.resolve(version, &versions, &ecosystem) {
+            return Ok(resolved);
+        }
 
-                let hint = if stable_versions.is_empty() {
-                    "No stable versions available.".to_string()
-                } else {
-                    // Get min and max versions
-                    let min = stable_versions.last().map(|v| v.as_str()).unwrap_or("?");
-                    let max = stable_versions.first().map(|v| v.as_str()).unwrap_or("?");
-                    format!("Available versions: {} to {}", min, max)
-                };
+        // Rust ecosystem passthrough: The Rust provider fetches *rustup* versions
+        // (1.16–1.29), but users/tools often specify *rustc* versions (e.g. 1.93.1
+        // from rust-toolchain.toml). When the requested version doesn't match any
+        // rustup version, fall back to the latest rustup version and let rustup
+        // handle the toolchain via --default-toolchain.
+        if ecosystem == Ecosystem::Rust {
+            let latest = versions
+                .iter()
+                .filter(|v| !v.prerelease)
+                .map(|v| &v.version)
+                .max_by(|a, b| {
+                    let parse = |v: &str| -> Vec<u64> {
+                        v.split('.').filter_map(|p| p.parse().ok()).collect()
+                    };
+                    parse(a).cmp(&parse(b))
+                });
 
-                anyhow::anyhow!(
-                    "No version found for {} matching '{}'. {}",
-                    self.name(),
+            if let Some(latest_version) = latest {
+                tracing::info!(
+                    "Rust passthrough: '{}' is not a rustup version, using latest rustup {} \
+                     (rustup will manage the toolchain)",
                     version,
-                    hint
-                )
-            })
+                    latest_version
+                );
+                return Ok(latest_version.clone());
+            }
+        }
+
+        // Build a helpful error message with available version range
+        let stable_versions: Vec<_> = versions
+            .iter()
+            .filter(|v| !v.prerelease)
+            .map(|v| &v.version)
+            .collect();
+
+        let hint = if stable_versions.is_empty() {
+            "No stable versions available.".to_string()
+        } else {
+            let min = stable_versions.last().map(|v| v.as_str()).unwrap_or("?");
+            let max = stable_versions.first().map(|v| v.as_str()).unwrap_or("?");
+            format!("Available versions: {} to {}", min, max)
+        };
+
+        Err(anyhow::anyhow!(
+            "No version found for {} matching '{}'. {}",
+            self.name(),
+            version,
+            hint
+        ))
     }
 
     // ========== Shell Support (RFC 0038) ==========
