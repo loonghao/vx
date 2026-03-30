@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.15](https://github.com/loonghao/vx/compare/v0.8.14...v0.8.15) (2026-03-30)
+
+
+### Bug Fixes
+
+* clippy useless_vec warnings in tests ([0028d2b](https://github.com/loonghao/vx/commit/0028d2b9cfcfe79f7e4a0de8625c481f6c84a70e))
+* Python install fails due to version_date cache key mismatch ([9ab1ea4](https://github.com/loonghao/vx/commit/9ab1ea4b25e83d87daf5823b3e871a5fa4a95ff2))
+* Rust ecosystem passthrough for rustc versions in resolve_version ([a18548a](https://github.com/loonghao/vx/commit/a18548abbf479a075218f77c5cb7b4866fef1742))
+
 ## [0.8.14](https://github.com/loonghao/vx/compare/v0.8.13...v0.8.14) (2026-03-28)
 
 
