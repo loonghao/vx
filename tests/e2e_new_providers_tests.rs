@@ -1,7 +1,8 @@
 //! E2E tests for new high-priority developer tool providers
 //!
 //! These tests verify that the new providers (lazygit, delta, hyperfine,
-//! zoxide, atuin, chezmoi, eza) are correctly registered and their
+//! zoxide, atuin, chezmoi, eza, tealdeer, dust, xh, bottom, trivy,
+//! zellij, dive) are correctly registered and their
 //! provider.star files are valid.
 
 use std::env;
@@ -62,6 +63,7 @@ macro_rules! provider_files_test {
     };
 }
 
+// Batch 1 (existing)
 provider_files_test!(test_lazygit_provider_files_exist, "lazygit");
 provider_files_test!(test_delta_provider_files_exist, "delta");
 provider_files_test!(test_hyperfine_provider_files_exist, "hyperfine");
@@ -69,6 +71,15 @@ provider_files_test!(test_zoxide_provider_files_exist, "zoxide");
 provider_files_test!(test_atuin_provider_files_exist, "atuin");
 provider_files_test!(test_chezmoi_provider_files_exist, "chezmoi");
 provider_files_test!(test_eza_provider_files_exist, "eza");
+
+// Batch 2 (new)
+provider_files_test!(test_tealdeer_provider_files_exist, "tealdeer");
+provider_files_test!(test_dust_provider_files_exist, "dust");
+provider_files_test!(test_xh_provider_files_exist, "xh");
+provider_files_test!(test_bottom_provider_files_exist, "bottom");
+provider_files_test!(test_trivy_provider_files_exist, "trivy");
+provider_files_test!(test_zellij_provider_files_exist, "zellij");
+provider_files_test!(test_dive_provider_files_exist, "dive");
 
 // ============================================================================
 // Local Provider Tests - verify provider.star files are valid via `vx test --local`
@@ -108,6 +119,7 @@ macro_rules! local_provider_test {
     };
 }
 
+// Batch 1 (existing)
 local_provider_test!(test_local_provider_lazygit, "lazygit");
 local_provider_test!(test_local_provider_delta, "delta");
 local_provider_test!(test_local_provider_hyperfine, "hyperfine");
@@ -115,3 +127,12 @@ local_provider_test!(test_local_provider_zoxide, "zoxide");
 local_provider_test!(test_local_provider_atuin, "atuin");
 local_provider_test!(test_local_provider_chezmoi, "chezmoi");
 local_provider_test!(test_local_provider_eza, "eza");
+
+// Batch 2 (new)
+local_provider_test!(test_local_provider_tealdeer, "tealdeer");
+local_provider_test!(test_local_provider_dust, "dust");
+local_provider_test!(test_local_provider_xh, "xh");
+local_provider_test!(test_local_provider_bottom, "bottom");
+local_provider_test!(test_local_provider_trivy, "trivy");
+local_provider_test!(test_local_provider_zellij, "zellij");
+local_provider_test!(test_local_provider_dive, "dive");
