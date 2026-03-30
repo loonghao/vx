@@ -4903,6 +4903,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "vx-provider-actionlint"
+version = "0.8.15"
+dependencies = [
+ "rstest",
+ "starlark",
+ "vx-runtime",
+ "vx-starlark",
+ "workspace-hack",
+]
+
+[[package]]
 name = "vx-provider-actrun"
 version = "0.8.15"
 dependencies = [
@@ -4959,6 +4970,17 @@ dependencies = [
 
 [[package]]
 name = "vx-provider-bat"
+version = "0.8.15"
+dependencies = [
+ "rstest",
+ "starlark",
+ "vx-runtime",
+ "vx-starlark",
+ "workspace-hack",
+]
+
+[[package]]
+name = "vx-provider-biome"
 version = "0.8.15"
 dependencies = [
  "rstest",
@@ -5134,6 +5156,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "vx-provider-duf"
+version = "0.8.15"
+dependencies = [
+ "rstest",
+ "starlark",
+ "vx-runtime",
+ "vx-starlark",
+ "workspace-hack",
+]
+
+[[package]]
 name = "vx-provider-dust"
 version = "0.8.15"
 dependencies = [
@@ -5222,7 +5255,29 @@ dependencies = [
 ]
 
 [[package]]
+name = "vx-provider-gitleaks"
+version = "0.8.15"
+dependencies = [
+ "rstest",
+ "starlark",
+ "vx-runtime",
+ "vx-starlark",
+ "workspace-hack",
+]
+
+[[package]]
 name = "vx-provider-go"
+version = "0.8.15"
+dependencies = [
+ "rstest",
+ "starlark",
+ "vx-runtime",
+ "vx-starlark",
+ "workspace-hack",
+]
+
+[[package]]
+name = "vx-provider-gping"
 version = "0.8.15"
 dependencies = [
  "rstest",
@@ -5332,7 +5387,29 @@ dependencies = [
 ]
 
 [[package]]
+name = "vx-provider-k9s"
+version = "0.8.15"
+dependencies = [
+ "rstest",
+ "starlark",
+ "vx-runtime",
+ "vx-starlark",
+ "workspace-hack",
+]
+
+[[package]]
 name = "vx-provider-kubectl"
+version = "0.8.15"
+dependencies = [
+ "rstest",
+ "starlark",
+ "vx-runtime",
+ "vx-starlark",
+ "workspace-hack",
+]
+
+[[package]]
+name = "vx-provider-lazydocker"
 version = "0.8.15"
 dependencies = [
  "rstest",
@@ -5366,6 +5443,17 @@ dependencies = [
 
 [[package]]
 name = "vx-provider-meson"
+version = "0.8.15"
+dependencies = [
+ "rstest",
+ "starlark",
+ "vx-runtime",
+ "vx-starlark",
+ "workspace-hack",
+]
+
+[[package]]
+name = "vx-provider-mise"
 version = "0.8.15"
 dependencies = [
  "rstest",
@@ -5607,6 +5695,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "vx-provider-sd"
+version = "0.8.15"
+dependencies = [
+ "rstest",
+ "starlark",
+ "vx-runtime",
+ "vx-starlark",
+ "workspace-hack",
+]
+
+[[package]]
 name = "vx-provider-spack"
 version = "0.8.15"
 dependencies = [
@@ -5673,6 +5772,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "vx-provider-trippy"
+version = "0.8.15"
+dependencies = [
+ "rstest",
+ "starlark",
+ "vx-runtime",
+ "vx-starlark",
+ "workspace-hack",
+]
+
+[[package]]
 name = "vx-provider-trivy"
 version = "0.8.15"
 dependencies = [
@@ -5729,6 +5839,17 @@ dependencies = [
 
 [[package]]
 name = "vx-provider-vscode"
+version = "0.8.15"
+dependencies = [
+ "rstest",
+ "starlark",
+ "vx-runtime",
+ "vx-starlark",
+ "workspace-hack",
+]
+
+[[package]]
+name = "vx-provider-watchexec"
 version = "0.8.15"
 dependencies = [
  "rstest",
