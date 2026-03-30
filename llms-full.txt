@@ -112,7 +112,7 @@ vx run test-pkgs -p vx-runtime --lib
 
 ### MCP Integration
 
-Replace `npx`/`uvx` with `vx` in your MCP server configuration:
+Replace `npx`/`uvx` with `vx` in any MCP server configuration:
 
 ```json
 {
@@ -128,6 +128,16 @@ Replace `npx`/`uvx` with `vx` in your MCP server configuration:
   }
 }
 ```
+
+**Key benefit**: Users don't need to install Node.js or Python separately — vx handles it automatically.
+
+**MCP migration patterns**:
+| Original config | vx-powered config |
+|----------------|-------------------|
+| `"command": "npx"` | `"command": "vx", "args": ["npx", ...]` |
+| `"command": "uvx"` | `"command": "vx", "args": ["uvx", ...]` |
+| `"command": "node"` | `"command": "vx", "args": ["node", ...]` |
+| `"command": "python"` | `"command": "vx", "args": ["python", ...]` |
 
 ### GitHub Actions
 
@@ -318,6 +328,22 @@ vx uses a 5-layer Provider/Runtime architecture with Starlark DSL:
 
 1. **Analysis Phase (Starlark)**: `provider.star` scripts run as pure computation, returning descriptor dicts (download URLs, install layouts, env vars). No I/O happens here.
 2. **Execution Phase (Rust)**: The Rust runtime interprets descriptors and performs actual downloads, file operations, and process execution.
+
+### Decision Framework for AI Agents
+
+When encountering a task involving vx, use this decision flow:
+
+- **Developing vx itself**: Use `vx just <task>`, put tests in `crates/<name>/tests/`, new providers go in `crates/vx-providers/<name>/provider.star`
+- **Using vx in a project**: Always prefix commands with `vx`, check `vx.toml` for project requirements, use `vx run <script>` for project scripts
+- **Unsure**: Check for `vx.toml` or `.vx/` directory in project root. If present, treat as vx-managed.
+
+### Version Resolution Priority
+
+1. Command-line override: `vx node@22 app.js` (highest)
+2. Project `vx.toml`: `[tools] node = "22"`
+3. Parent directory `vx.toml` (traverses up)
+4. User global config: `~/.config/vx/config.toml`
+5. Provider default: latest stable version (lowest)
 
 ### Provider Example (provider.star)
 
