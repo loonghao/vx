@@ -97,6 +97,24 @@ members = [
   # Container / security tools
   "crates/vx-providers/trivy",
   "crates/vx-providers/dive",
+  "crates/vx-providers/lazydocker",
+  "crates/vx-providers/k9s",
+  # Dev environment / version manager
+  "crates/vx-providers/mise",
+  # Web development / linting
+  "crates/vx-providers/biome",
+  # Security scanning
+  "crates/vx-providers/gitleaks",
+  # Network diagnostics
+  "crates/vx-providers/gping",
+  "crates/vx-providers/trippy",
+  # File watching / text processing
+  "crates/vx-providers/watchexec",
+  "crates/vx-providers/sd",
+  # Disk usage / system
+  "crates/vx-providers/duf",
+  # CI/CD linting
+  "crates/vx-providers/actionlint",
   # Build tools
   "crates/vx-providers/cmake",
   "crates/vx-providers/ninja",
@@ -292,6 +310,17 @@ vx-provider-lazygit = { path = "crates/vx-providers/lazygit" }
 vx-provider-chezmoi = { path = "crates/vx-providers/chezmoi" }
 vx-provider-trivy = { path = "crates/vx-providers/trivy" }
 vx-provider-dive = { path = "crates/vx-providers/dive" }
+vx-provider-lazydocker = { path = "crates/vx-providers/lazydocker" }
+vx-provider-k9s = { path = "crates/vx-providers/k9s" }
+vx-provider-mise = { path = "crates/vx-providers/mise" }
+vx-provider-biome = { path = "crates/vx-providers/biome" }
+vx-provider-gitleaks = { path = "crates/vx-providers/gitleaks" }
+vx-provider-gping = { path = "crates/vx-providers/gping" }
+vx-provider-trippy = { path = "crates/vx-providers/trippy" }
+vx-provider-watchexec = { path = "crates/vx-providers/watchexec" }
+vx-provider-sd = { path = "crates/vx-providers/sd" }
+vx-provider-duf = { path = "crates/vx-providers/duf" }
+vx-provider-actionlint = { path = "crates/vx-providers/actionlint" }
 # Build tools
 vx-provider-cmake = { path = "crates/vx-providers/cmake" }
 vx-provider-ninja = { path = "crates/vx-providers/ninja" }

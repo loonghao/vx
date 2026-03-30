@@ -2,8 +2,9 @@
 //!
 //! These tests verify that the new providers (lazygit, delta, hyperfine,
 //! zoxide, atuin, chezmoi, eza, tealdeer, dust, xh, bottom, trivy,
-//! zellij, dive) are correctly registered and their
-//! provider.star files are valid.
+//! zellij, dive, helix, yazi, mise, gitleaks, biome, lazydocker, k9s,
+//! gping, watchexec, duf, trippy, sd, actionlint) are correctly registered
+//! and their provider.star files are valid.
 
 use std::env;
 use std::path::PathBuf;
@@ -83,6 +84,19 @@ provider_files_test!(test_dive_provider_files_exist, "dive");
 provider_files_test!(test_helix_provider_files_exist, "helix");
 provider_files_test!(test_yazi_provider_files_exist, "yazi");
 
+// Batch 3 (round 2 + remaining round 1)
+provider_files_test!(test_mise_provider_files_exist, "mise");
+provider_files_test!(test_gitleaks_provider_files_exist, "gitleaks");
+provider_files_test!(test_biome_provider_files_exist, "biome");
+provider_files_test!(test_lazydocker_provider_files_exist, "lazydocker");
+provider_files_test!(test_k9s_provider_files_exist, "k9s");
+provider_files_test!(test_gping_provider_files_exist, "gping");
+provider_files_test!(test_watchexec_provider_files_exist, "watchexec");
+provider_files_test!(test_duf_provider_files_exist, "duf");
+provider_files_test!(test_trippy_provider_files_exist, "trippy");
+provider_files_test!(test_sd_provider_files_exist, "sd");
+provider_files_test!(test_actionlint_provider_files_exist, "actionlint");
+
 // ============================================================================
 // Local Provider Tests - verify provider.star files are valid via `vx test --local`
 // ============================================================================
@@ -140,3 +154,16 @@ local_provider_test!(test_local_provider_zellij, "zellij");
 local_provider_test!(test_local_provider_dive, "dive");
 local_provider_test!(test_local_provider_helix, "helix");
 local_provider_test!(test_local_provider_yazi, "yazi");
+
+// Batch 3 (round 2 + remaining round 1)
+local_provider_test!(test_local_provider_mise, "mise");
+local_provider_test!(test_local_provider_gitleaks, "gitleaks");
+local_provider_test!(test_local_provider_biome, "biome");
+local_provider_test!(test_local_provider_lazydocker, "lazydocker");
+local_provider_test!(test_local_provider_k9s, "k9s");
+local_provider_test!(test_local_provider_gping, "gping");
+local_provider_test!(test_local_provider_watchexec, "watchexec");
+local_provider_test!(test_local_provider_duf, "duf");
+local_provider_test!(test_local_provider_trippy, "trippy");
+local_provider_test!(test_local_provider_sd, "sd");
+local_provider_test!(test_local_provider_actionlint, "actionlint");
