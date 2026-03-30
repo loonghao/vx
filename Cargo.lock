@@ -5244,6 +5244,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "vx-provider-helix"
+version = "0.8.15"
+dependencies = [
+ "rstest",
+ "starlark",
+ "vx-runtime",
+ "vx-starlark",
+ "workspace-hack",
+]
+
+[[package]]
 name = "vx-provider-helm"
 version = "0.8.15"
 dependencies = [
@@ -5784,6 +5795,17 @@ dependencies = [
 
 [[package]]
 name = "vx-provider-yarn"
+version = "0.8.15"
+dependencies = [
+ "rstest",
+ "starlark",
+ "vx-runtime",
+ "vx-starlark",
+ "workspace-hack",
+]
+
+[[package]]
+name = "vx-provider-yazi"
 version = "0.8.15"
 dependencies = [
  "rstest",

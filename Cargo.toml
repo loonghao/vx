@@ -88,6 +88,9 @@ members = [
   "crates/vx-providers/xh",
   "crates/vx-providers/bottom",
   "crates/vx-providers/zellij",
+  # Terminal file manager / editor
+  "crates/vx-providers/yazi",
+  "crates/vx-providers/helix",
   # Git TUI / dotfile management
   "crates/vx-providers/lazygit",
   "crates/vx-providers/chezmoi",
@@ -283,6 +286,8 @@ vx-provider-dust = { path = "crates/vx-providers/dust" }
 vx-provider-xh = { path = "crates/vx-providers/xh" }
 vx-provider-bottom = { path = "crates/vx-providers/bottom" }
 vx-provider-zellij = { path = "crates/vx-providers/zellij" }
+vx-provider-yazi = { path = "crates/vx-providers/yazi" }
+vx-provider-helix = { path = "crates/vx-providers/helix" }
 vx-provider-lazygit = { path = "crates/vx-providers/lazygit" }
 vx-provider-chezmoi = { path = "crates/vx-providers/chezmoi" }
 vx-provider-trivy = { path = "crates/vx-providers/trivy" }
