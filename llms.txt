@@ -77,6 +77,23 @@ vx eliminates the complexity of managing multiple language runtimes (Node.js, Py
 - [CDN Fallback](https://github.com/loonghao/vx/blob/main/docs/guide/cdn-fallback.md): Download acceleration for restricted networks
 - [Command Syntax Rules](https://github.com/loonghao/vx/blob/main/docs/guide/command-syntax-rules.md): Unified command syntax contract
 
+## MCP Integration
+
+vx is MCP-ready — replace `npx`/`uvx` with `vx` in any MCP server configuration:
+
+```json
+{
+  "mcpServers": {
+    "example-server": {
+      "command": "vx",
+      "args": ["npx", "-y", "@example/mcp-server@latest"]
+    }
+  }
+}
+```
+
+This eliminates the need for users to pre-install Node.js, Python, or any runtime.
+
 ## Advanced
 
 - [Architecture](https://github.com/loonghao/vx/blob/main/docs/architecture/OVERVIEW.md): Internal design — 5-layer architecture, crate dependency graph

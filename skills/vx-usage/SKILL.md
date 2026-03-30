@@ -1,6 +1,6 @@
 ---
 name: vx-usage
-description: "Teaches AI agents how to use vx, the universal dev tool manager. Use when the project has vx.toml or .vx/, or when the user mentions vx, tool version management, or cross-platform setup. vx auto-manages Node.js, Python, Go, Rust, and 78 tools via Starlark DSL providers."
+description: "Teaches AI agents how to use vx, the universal dev tool manager. Use when the project has vx.toml or .vx/, or when the user mentions vx, tool version management, or cross-platform setup. vx auto-manages Node.js, Python, Go, Rust, and 78 tools via Starlark DSL providers. Also covers MCP integration patterns."
 ---
 
 # VX - Universal Development Tool Manager
@@ -305,6 +305,44 @@ Key modules:
 9. **Use correct terminology**: Runtime (not Tool), Provider (not Plugin), provider.star (not provider config)
 10. **Provider development**: New tools are added via `provider.star` Starlark DSL in `crates/vx-providers/<name>/`
 11. **Tests go in `tests/` dirs** — never inline `#[cfg(test)]` in source files
+
+## Version Resolution Priority
+
+vx resolves tool versions in this order (highest to lowest):
+
+1. **Command-line override**: `vx node@22 app.js`
+2. **Project vx.toml**: `[tools] node = "22"`
+3. **Parent directory vx.toml** (traverses up to root)
+4. **User global config**: `~/.config/vx/config.toml`
+5. **Provider default**: latest stable version
+
+## MCP Integration
+
+vx is **MCP-ready** — replace `npx`/`uvx` with `vx` in MCP server configurations:
+
+```json
+{
+  "mcpServers": {
+    "example-server": {
+      "command": "vx",
+      "args": ["npx", "-y", "@example/mcp-server@latest"]
+    },
+    "python-server": {
+      "command": "vx",
+      "args": ["uvx", "some-python-mcp-server@latest"]
+    }
+  }
+}
+```
+
+**Benefits**: Users don't need Node.js/Python pre-installed — vx auto-installs on first use.
+
+**Migration pattern**:
+| Original | vx-powered |
+|----------|------------|
+| `"command": "npx"` | `"command": "vx", "args": ["npx", ...]` |
+| `"command": "uvx"` | `"command": "vx", "args": ["uvx", ...]` |
+| `"command": "node"` | `"command": "vx", "args": ["node", ...]` |
 
 ## GitHub Actions Integration
 

@@ -6,7 +6,7 @@
 
 ## What is vx?
 
-vx is a **zero-config universal development tool manager** (v0.8.9, MIT-licensed, written in Rust). Users prefix any command with `vx` (e.g., `vx node --version`, `vx cargo build`) and vx automatically installs, manages, and forwards to the correct tool version. vx currently ships **78 providers** covering language runtimes, build tools, DevOps CLIs, cloud platforms, and more — all defined via Starlark DSL (`provider.star`).
+vx is a **zero-config universal development tool manager** (v0.8.15, MIT-licensed, written in Rust). Users prefix any command with `vx` (e.g., `vx node --version`, `vx cargo build`) and vx automatically installs, manages, and forwards to the correct tool version. vx currently ships **78 providers** covering language runtimes, build tools, DevOps CLIs, cloud platforms, and more — all defined via Starlark DSL (`provider.star`).
 
 **Key insight for agents**: vx is a transparent proxy. The user writes the exact same commands they already know — just prepended with `vx`. There is **no new syntax to learn** for tool execution.
 
@@ -282,6 +282,33 @@ environment      = _p["environment"]
 | `{ext}` | ✓ | ✓ | Archive extension (zip/tar.gz) |
 | `{exe}` | ✓ | ✓ | Executable suffix (.exe/"") |
 
+### Starlark Context Object (`ctx`)
+
+All provider.star functions receive a `ctx` object with these fields:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `ctx.platform.os` | string | `"windows"`, `"macos"`, `"linux"` |
+| `ctx.platform.arch` | string | `"x64"`, `"arm64"` |
+| `ctx.install_dir` | string | Where the tool will be/is installed |
+| `ctx.store_dir` | string | Global store root (`~/.vx/store`) |
+| `ctx.cache_dir` | string | Cache directory |
+| `ctx.home_dir` | string | User home directory |
+
+**Example usage in provider.star**:
+```starlark
+def download_url(ctx, version):
+    if ctx.platform.os == "windows":
+        return "https://example.com/tool-{}-win.zip".format(version)
+    return "https://example.com/tool-{}-unix.tar.gz".format(version)
+
+def environment(ctx, _version):
+    return [
+        env_prepend("PATH", ctx.install_dir + "/bin"),
+        env_set("TOOL_HOME", ctx.install_dir),
+    ]
+```
+
 ## All 78 Providers
 
 Organized by category:
@@ -305,6 +332,52 @@ Organized by category:
 | **Package Managers** | brew, choco, winget |
 | **AI** | ollama, openclaw |
 | **Misc** | gh, prek, actrun, wix, vscode, xcodebuild, systemctl, release-please, rez, 7zip |
+
+## Decision Framework for AI Agents
+
+When an AI agent encounters a task involving vx, follow this decision tree:
+
+```
+Is the user working ON vx (developing vx itself)?
+├── YES → Use `vx just <task>` for builds, tests, linting
+│         Tests go in crates/<name>/tests/ (never inline)
+│         Use rstest, tracing, and correct terminology
+│         New providers: create provider.star in crates/vx-providers/<name>/
+│
+└── NO → Is the user working WITH vx (using vx in their project)?
+    ├── YES → Always prefix commands: `vx npm install`, `vx cargo build`
+    │         Check vx.toml for project tool requirements
+    │         Use `vx run <script>` for project scripts
+    │         Never suggest manual tool installation
+    │
+    └── UNCLEAR → Check for vx.toml or .vx/ in project root
+                  If found → treat as vx-managed project
+                  If not → ask user or suggest `vx init`
+```
+
+### Provider Development Decision Tree
+
+```
+Need to add a new tool to vx?
+├── Tool releases on GitHub?
+│   ├── Rust target triple naming? → github_rust_provider (most common)
+│   ├── Go goreleaser style?       → github_go_provider
+│   └── Single binary (no archive)?→ github_binary_provider
+├── System package manager only?   → system_provider
+└── Custom download source?        → Hand-write download_url function
+```
+
+### Version Resolution Priority
+
+When determining which tool version to use, vx follows this priority:
+
+```
+1. Command-line override: vx node@22 app.js  (highest)
+2. Project vx.toml: [tools] node = "22"
+3. Parent directory vx.toml (traverses up)
+4. User global config: ~/.config/vx/config.toml
+5. Provider default: latest stable version    (lowest)
+```
 
 ## Common Tasks Quick Reference
 
@@ -506,7 +579,7 @@ vx provides a GitHub Action for CI/CD. See [`docs/guides/github-action.md`](docs
 - run: vx npm test
 ```
 
-> **Tip**: Use `@main` for latest, or pin to a release tag (e.g., `@vx-v0.8.9`).
+> **Tip**: Use `@main` for latest, or pin to a release tag (e.g., `@vx-v0.8.15`).
 > Check [releases](https://github.com/loonghao/vx/releases) for available versions.
 
 ## Documentation Map
@@ -524,6 +597,37 @@ docs/
 ├── appendix/         # FAQ, troubleshooting
 └── zh/               # Chinese translations (72+ files)
 ```
+
+### Crate Responsibilities Quick Reference
+
+When you need to modify specific functionality, here's where to look:
+
+| What you need | Crate | Key files |
+|---------------|-------|-----------|
+| Add CLI subcommand | `vx-cli` | `src/cli.rs`, `src/commands/` |
+| Modify execution logic | `vx-resolver` | `src/executor.rs`, `src/resolver.rs` |
+| Add/modify Starlark stdlib | `vx-starlark` | `stdlib/*.star`, `src/stdlib.rs` |
+| Change provider loading | `vx-starlark` | `src/engine.rs`, `src/handle.rs` |
+| Modify runtime registry | `vx-runtime` | `src/registry/` |
+| Change install behavior | `vx-installer` | `src/lib.rs` |
+| Modify version fetching | `vx-version-fetcher` | `src/lib.rs` |
+| Change path conventions | `vx-paths` | `src/lib.rs` |
+| Modify config loading | `vx-config` | `src/lib.rs` |
+| Add project detection | `vx-project-analyzer` | `src/frameworks/` |
+| Change console output | `vx-console` | `src/lib.rs` |
+| Core trait definitions | `vx-core` | `src/lib.rs` |
+| Add a new provider | `vx-providers/<name>` | `provider.star` |
+
+### Key Configuration Files
+
+| File | Purpose | When to modify |
+|------|---------|----------------|
+| `Cargo.toml` (root) | Workspace deps, build profiles | Adding dependencies, new crates |
+| `justfile` | All dev commands | Adding new dev workflows |
+| `clippy.toml` | Lint configuration | Adjusting lint rules |
+| `codecov.yml` | Coverage thresholds | Changing coverage requirements |
+| `vx.toml` | Project tool versions | Updating project tool requirements |
+| `action.yml` | GitHub Action definition | Modifying CI/CD action inputs/outputs |
 
 ## Quick Diagnostics for AI Agents
 
@@ -575,6 +679,38 @@ vx analyze --json                 # Project analysis as JSON
 vx ai context --json              # Full AI-friendly context
 export VX_OUTPUT=json             # Default all commands to JSON
 ```
+
+## MCP Integration Guide
+
+vx is **MCP-ready** — replace `npx`/`uvx` with `vx` in any MCP server configuration. This eliminates the need for users to pre-install Node.js, Python, or any other runtime.
+
+### MCP Server Configuration Pattern
+
+```json
+{
+  "mcpServers": {
+    "example-server": {
+      "command": "vx",
+      "args": ["npx", "-y", "@example/mcp-server@latest"]
+    },
+    "python-server": {
+      "command": "vx",
+      "args": ["uvx", "some-python-mcp-server@latest"]
+    }
+  }
+}
+```
+
+**Key benefit**: Users don't need to install Node.js or Python separately — vx handles it automatically when the MCP server starts.
+
+### When to recommend vx for MCP
+
+| User's current config | Suggest |
+|----------------------|---------|
+| `"command": "npx"` | `"command": "vx", "args": ["npx", ...]` |
+| `"command": "uvx"` | `"command": "vx", "args": ["uvx", ...]` |
+| `"command": "node"` | `"command": "vx", "args": ["node", ...]` |
+| `"command": "python"` | `"command": "vx", "args": ["python", ...]` |
 
 ## Skills Distribution
 
