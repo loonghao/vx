@@ -78,6 +78,14 @@ members = [
   "crates/vx-providers/jq",
   "crates/vx-providers/yq",
   "crates/vx-providers/ripgrep",
+  "crates/vx-providers/hyperfine",
+  "crates/vx-providers/zoxide",
+  "crates/vx-providers/eza",
+  "crates/vx-providers/atuin",
+  "crates/vx-providers/delta",
+  # Git TUI / dotfile management
+  "crates/vx-providers/lazygit",
+  "crates/vx-providers/chezmoi",
   # Build tools
   "crates/vx-providers/cmake",
   "crates/vx-providers/ninja",
@@ -257,6 +265,13 @@ vx-provider-fzf = { path = "crates/vx-providers/fzf" }
 vx-provider-jq = { path = "crates/vx-providers/jq" }
 vx-provider-yq = { path = "crates/vx-providers/yq" }
 vx-provider-ripgrep = { path = "crates/vx-providers/ripgrep" }
+vx-provider-hyperfine = { path = "crates/vx-providers/hyperfine" }
+vx-provider-zoxide = { path = "crates/vx-providers/zoxide" }
+vx-provider-eza = { path = "crates/vx-providers/eza" }
+vx-provider-atuin = { path = "crates/vx-providers/atuin" }
+vx-provider-delta = { path = "crates/vx-providers/delta" }
+vx-provider-lazygit = { path = "crates/vx-providers/lazygit" }
+vx-provider-chezmoi = { path = "crates/vx-providers/chezmoi" }
 # Build tools
 vx-provider-cmake = { path = "crates/vx-providers/cmake" }
 vx-provider-ninja = { path = "crates/vx-providers/ninja" }

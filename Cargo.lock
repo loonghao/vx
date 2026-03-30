@@ -4914,6 +4914,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "vx-provider-atuin"
+version = "0.8.15"
+dependencies = [
+ "rstest",
+ "starlark",
+ "vx-runtime",
+ "vx-starlark",
+ "workspace-hack",
+]
+
+[[package]]
 name = "vx-provider-awscli"
 version = "0.8.15"
 dependencies = [
@@ -5002,6 +5013,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "vx-provider-chezmoi"
+version = "0.8.15"
+dependencies = [
+ "rstest",
+ "starlark",
+ "vx-runtime",
+ "vx-starlark",
+ "workspace-hack",
+]
+
+[[package]]
 name = "vx-provider-choco"
 version = "0.8.15"
 dependencies = [
@@ -5057,6 +5079,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "vx-provider-delta"
+version = "0.8.15"
+dependencies = [
+ "rstest",
+ "starlark",
+ "vx-runtime",
+ "vx-starlark",
+ "workspace-hack",
+]
+
+[[package]]
 name = "vx-provider-deno"
 version = "0.8.15"
 dependencies = [
@@ -5069,6 +5102,17 @@ dependencies = [
 
 [[package]]
 name = "vx-provider-dotnet"
+version = "0.8.15"
+dependencies = [
+ "rstest",
+ "starlark",
+ "vx-runtime",
+ "vx-starlark",
+ "workspace-hack",
+]
+
+[[package]]
+name = "vx-provider-eza"
 version = "0.8.15"
 dependencies = [
  "rstest",
@@ -5178,6 +5222,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "vx-provider-hyperfine"
+version = "0.8.15"
+dependencies = [
+ "rstest",
+ "starlark",
+ "vx-runtime",
+ "vx-starlark",
+ "workspace-hack",
+]
+
+[[package]]
 name = "vx-provider-imagemagick"
 version = "0.8.15"
 dependencies = [
@@ -5234,6 +5289,17 @@ dependencies = [
 
 [[package]]
 name = "vx-provider-kubectl"
+version = "0.8.15"
+dependencies = [
+ "rstest",
+ "starlark",
+ "vx-runtime",
+ "vx-starlark",
+ "workspace-hack",
+]
+
+[[package]]
+name = "vx-provider-lazygit"
 version = "0.8.15"
 dependencies = [
  "rstest",
@@ -5674,6 +5740,17 @@ dependencies = [
 
 [[package]]
 name = "vx-provider-zig"
+version = "0.8.15"
+dependencies = [
+ "rstest",
+ "starlark",
+ "vx-runtime",
+ "vx-starlark",
+ "workspace-hack",
+]
+
+[[package]]
+name = "vx-provider-zoxide"
 version = "0.8.15"
 dependencies = [
  "rstest",
