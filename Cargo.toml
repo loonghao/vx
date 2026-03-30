@@ -83,9 +83,17 @@ members = [
   "crates/vx-providers/eza",
   "crates/vx-providers/atuin",
   "crates/vx-providers/delta",
+  "crates/vx-providers/tealdeer",
+  "crates/vx-providers/dust",
+  "crates/vx-providers/xh",
+  "crates/vx-providers/bottom",
+  "crates/vx-providers/zellij",
   # Git TUI / dotfile management
   "crates/vx-providers/lazygit",
   "crates/vx-providers/chezmoi",
+  # Container / security tools
+  "crates/vx-providers/trivy",
+  "crates/vx-providers/dive",
   # Build tools
   "crates/vx-providers/cmake",
   "crates/vx-providers/ninja",
@@ -270,8 +278,15 @@ vx-provider-zoxide = { path = "crates/vx-providers/zoxide" }
 vx-provider-eza = { path = "crates/vx-providers/eza" }
 vx-provider-atuin = { path = "crates/vx-providers/atuin" }
 vx-provider-delta = { path = "crates/vx-providers/delta" }
+vx-provider-tealdeer = { path = "crates/vx-providers/tealdeer" }
+vx-provider-dust = { path = "crates/vx-providers/dust" }
+vx-provider-xh = { path = "crates/vx-providers/xh" }
+vx-provider-bottom = { path = "crates/vx-providers/bottom" }
+vx-provider-zellij = { path = "crates/vx-providers/zellij" }
 vx-provider-lazygit = { path = "crates/vx-providers/lazygit" }
 vx-provider-chezmoi = { path = "crates/vx-providers/chezmoi" }
+vx-provider-trivy = { path = "crates/vx-providers/trivy" }
+vx-provider-dive = { path = "crates/vx-providers/dive" }
 # Build tools
 vx-provider-cmake = { path = "crates/vx-providers/cmake" }
 vx-provider-ninja = { path = "crates/vx-providers/ninja" }

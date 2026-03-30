@@ -4969,6 +4969,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "vx-provider-bottom"
+version = "0.8.15"
+dependencies = [
+ "rstest",
+ "starlark",
+ "vx-runtime",
+ "vx-starlark",
+ "workspace-hack",
+]
+
+[[package]]
 name = "vx-provider-brew"
 version = "0.8.15"
 dependencies = [
@@ -5101,7 +5112,29 @@ dependencies = [
 ]
 
 [[package]]
+name = "vx-provider-dive"
+version = "0.8.15"
+dependencies = [
+ "rstest",
+ "starlark",
+ "vx-runtime",
+ "vx-starlark",
+ "workspace-hack",
+]
+
+[[package]]
 name = "vx-provider-dotnet"
+version = "0.8.15"
+dependencies = [
+ "rstest",
+ "starlark",
+ "vx-runtime",
+ "vx-starlark",
+ "workspace-hack",
+]
+
+[[package]]
+name = "vx-provider-dust"
 version = "0.8.15"
 dependencies = [
  "rstest",
@@ -5607,7 +5640,29 @@ dependencies = [
 ]
 
 [[package]]
+name = "vx-provider-tealdeer"
+version = "0.8.15"
+dependencies = [
+ "rstest",
+ "starlark",
+ "vx-runtime",
+ "vx-starlark",
+ "workspace-hack",
+]
+
+[[package]]
 name = "vx-provider-terraform"
+version = "0.8.15"
+dependencies = [
+ "rstest",
+ "starlark",
+ "vx-runtime",
+ "vx-starlark",
+ "workspace-hack",
+]
+
+[[package]]
+name = "vx-provider-trivy"
 version = "0.8.15"
 dependencies = [
  "rstest",
@@ -5706,6 +5761,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "vx-provider-xh"
+version = "0.8.15"
+dependencies = [
+ "rstest",
+ "starlark",
+ "vx-runtime",
+ "vx-starlark",
+ "workspace-hack",
+]
+
+[[package]]
 name = "vx-provider-xmake"
 version = "0.8.15"
 dependencies = [
@@ -5729,6 +5795,17 @@ dependencies = [
 
 [[package]]
 name = "vx-provider-yq"
+version = "0.8.15"
+dependencies = [
+ "rstest",
+ "starlark",
+ "vx-runtime",
+ "vx-starlark",
+ "workspace-hack",
+]
+
+[[package]]
+name = "vx-provider-zellij"
 version = "0.8.15"
 dependencies = [
  "rstest",
