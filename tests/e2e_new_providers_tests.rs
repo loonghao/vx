@@ -80,6 +80,8 @@ provider_files_test!(test_bottom_provider_files_exist, "bottom");
 provider_files_test!(test_trivy_provider_files_exist, "trivy");
 provider_files_test!(test_zellij_provider_files_exist, "zellij");
 provider_files_test!(test_dive_provider_files_exist, "dive");
+provider_files_test!(test_helix_provider_files_exist, "helix");
+provider_files_test!(test_yazi_provider_files_exist, "yazi");
 
 // ============================================================================
 // Local Provider Tests - verify provider.star files are valid via `vx test --local`
@@ -136,3 +138,5 @@ local_provider_test!(test_local_provider_bottom, "bottom");
 local_provider_test!(test_local_provider_trivy, "trivy");
 local_provider_test!(test_local_provider_zellij, "zellij");
 local_provider_test!(test_local_provider_dive, "dive");
+local_provider_test!(test_local_provider_helix, "helix");
+local_provider_test!(test_local_provider_yazi, "yazi");
