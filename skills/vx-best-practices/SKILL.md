@@ -425,6 +425,13 @@ rm -rf ~/.pyenv
 
 ### Choose the Right Template
 
+**Decision tree for new providers**:
+- Tool releases on GitHub with Rust target triple? → `github_rust_provider` (most common)
+- Tool releases on GitHub with Go goreleaser? → `github_go_provider`
+- Single binary download (no archive)? → `github_binary_provider`
+- System package manager only? → `system_provider`
+- Custom download source? → Hand-write `download_url` function
+
 For most tools, use a template instead of writing custom functions:
 
 ```starlark
@@ -436,6 +443,18 @@ _p = github_rust_provider("owner", "tool",
 def download_url(ctx, version):
     # 30+ lines of custom code...
 ```
+
+### Understanding the ctx Object
+
+All provider.star functions receive a `ctx` object:
+
+| Field | Example value | Description |
+|-------|--------------|-------------|
+| `ctx.platform.os` | `"windows"`, `"macos"`, `"linux"` | Current OS |
+| `ctx.platform.arch` | `"x64"`, `"arm64"` | CPU architecture |
+| `ctx.install_dir` | `~/.vx/store/node/22.0.0` | Install path |
+| `ctx.store_dir` | `~/.vx/store` | Global store root |
+| `ctx.cache_dir` | `~/.vx/cache` | Cache directory |
 
 ### Provider Naming
 

@@ -591,7 +591,7 @@ Use vx in your CI/CD workflows:
 - run: vx npm test
 ```
 
-> **Note**: Use `@main` for latest, or pin to a specific release tag (e.g., `@vx-v0.8.9`). Check [releases](https://github.com/loonghao/vx/releases) for the latest version.
+> **Note**: Use `@main` for latest, or pin to a specific release tag (e.g., `@vx-v0.8.15`). Check [releases](https://github.com/loonghao/vx/releases) for the latest version.
 
 See [GitHub Action Guide](docs/guides/github-action.md) for full documentation.
 
