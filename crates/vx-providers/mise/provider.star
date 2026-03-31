@@ -70,13 +70,13 @@ def download_url(ctx, version):
 
 def install_layout(ctx, _version):
     exe = "mise.exe" if ctx.platform.os == "windows" else "mise"
-    # On Windows, avoid strip_prefix to prevent potential access denied errors
-    # during directory rename operations (Windows Defender may lock files during scan).
-    # Instead, reference executable via its full path within the extracted archive structure.
+    # On Windows, use strip_prefix="mise/bin" to place mise.exe directly at install_dir root.
+    # This avoids the "not a valid shim" error that occurs when running from a bin/ subdirectory.
     if ctx.platform.os == "windows":
         return {
             "type": "archive",
-            "executable_paths": ["mise/bin/" + exe, "bin/" + exe],
+            "strip_prefix": "mise/bin",
+            "executable_paths": [exe],
         }
     return {
         "type": "archive",
@@ -89,15 +89,15 @@ def store_root(ctx):
 
 def get_execute_path(ctx, _version):
     exe = "mise.exe" if ctx.platform.os == "windows" else "mise"
-    # On Windows (no strip_prefix), binary is in mise/bin/
+    # On Windows (strip_prefix="mise/bin"), mise.exe is at install_dir root
     if ctx.platform.os == "windows":
-        return ctx.install_dir + "/mise/bin/" + exe
+        return ctx.install_dir + "/" + exe
     return ctx.install_dir + "/bin/" + exe
 
 def environment(ctx, _version):
-    # On Windows (no strip_prefix), binary is in mise/bin/
+    # On Windows (strip_prefix="mise/bin"), binary is at install_dir root
     if ctx.platform.os == "windows":
-        return [env_prepend("PATH", ctx.install_dir + "/mise/bin")]
+        return [env_prepend("PATH", ctx.install_dir)]
     return [env_prepend("PATH", ctx.install_dir + "/bin")]
 
 def post_install(_ctx, _version):
