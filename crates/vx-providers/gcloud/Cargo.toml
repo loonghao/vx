@@ -11,6 +11,7 @@ keywords.workspace = true
 categories.workspace = true
 rust-version.workspace = true
 publish = false
+# Updated: 2026-04-01 (use __type in install_layout)
 
 [lib]
 name = "vx_provider_gcloud"
