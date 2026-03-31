@@ -14,8 +14,9 @@
 
 load("@vx//stdlib:provider.star",
      "runtime_def", "github_permissions",
-     "env_prepend", "path_fns",
+     "path_fns",
      "fetch_versions_from_github")
+load("@vx//stdlib:env.star", "env_prepend")
 
 # ---------------------------------------------------------------------------
 # Provider metadata
