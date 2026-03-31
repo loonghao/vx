@@ -2,11 +2,15 @@
 #
 # watchexec: Execute commands when watched files change
 # Releases: https://github.com/watchexec/watchexec/releases
-# Asset format: watchexec-{version}-{triple}.tar.xz  (Rust triple, tar.xz format)
+# Asset format (Windows):       watchexec-{version}-{triple}.zip
+# Asset format (Linux/macOS):   watchexec-{version}-{triple}.tar.xz
 # Tag format:   v{version}
 
 load("@vx//stdlib:provider.star",
      "github_rust_provider", "runtime_def", "github_permissions")
+load("@vx//stdlib:github.star",   "make_fetch_versions", "github_asset_url")
+load("@vx//stdlib:platform.star", "rust_triple", "exe_suffix", "expand_asset")
+load("@vx//stdlib:env.star",      "env_prepend")
 
 name        = "watchexec"
 description = "watchexec - Execute commands when watched files change"
@@ -19,6 +23,8 @@ runtimes = [runtime_def("watchexec", version_pattern="watchexec \\d+")]
 
 permissions = github_permissions()
 
+# Use the template for everything except download_url, which needs custom
+# extension handling: Windows uses .zip, Linux/macOS use .tar.xz.
 _p = github_rust_provider(
     "watchexec", "watchexec",
     asset        = "watchexec-{version}-{triple}.tar.xz",
@@ -27,10 +33,18 @@ _p = github_rust_provider(
 )
 
 fetch_versions   = _p["fetch_versions"]
-download_url     = _p["download_url"]
 install_layout   = _p["install_layout"]
 store_root       = _p["store_root"]
 get_execute_path = _p["get_execute_path"]
 post_install     = _p["post_install"]
 environment      = _p["environment"]
 deps             = _p["deps"]
+
+def download_url(ctx, version):
+    triple = rust_triple(ctx, "musl")
+    if not triple:
+        return None
+    # Windows releases use .zip; Linux and macOS releases use .tar.xz
+    ext = "zip" if ctx.platform.os == "windows" else "tar.xz"
+    fname = "watchexec-{}-{}.{}".format(version, triple, ext)
+    return github_asset_url("watchexec", "watchexec", "v" + version, fname)
