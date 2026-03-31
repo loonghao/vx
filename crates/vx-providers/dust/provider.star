@@ -24,7 +24,7 @@ ecosystem   = "devtools"
 # Runtime definitions
 # ---------------------------------------------------------------------------
 
-runtimes = [runtime_def("dust", version_pattern="dust \\d+")]
+runtimes = [runtime_def("dust", version_pattern="[Dd]ust \\d+")]
 
 # ---------------------------------------------------------------------------
 # Permissions
