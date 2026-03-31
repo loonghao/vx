@@ -10,7 +10,7 @@
 load("@vx//stdlib:provider.star",
      "runtime_def", "github_permissions",
      "path_fns",
-     "fetch_versions_from_github")
+     "fetch_versions_with_tag_prefix")
 load("@vx//stdlib:env.star", "env_prepend")
 load("@vx//stdlib:layout.star", "archive_layout")
 
@@ -57,7 +57,7 @@ def _lazygit_platform(ctx):
 # Provider functions
 # ---------------------------------------------------------------------------
 
-fetch_versions = fetch_versions_from_github("jesseduffield", "lazygit")
+fetch_versions = fetch_versions_with_tag_prefix("jesseduffield", "lazygit", tag_prefix = "v")
 
 def download_url(ctx, version):
     platform = _lazygit_platform(ctx)

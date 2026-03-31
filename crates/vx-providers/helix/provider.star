@@ -15,7 +15,7 @@
 load("@vx//stdlib:provider.star",
      "runtime_def", "github_permissions",
      "path_fns",
-     "fetch_versions_from_github")
+     "fetch_versions_with_tag_prefix")
 load("@vx//stdlib:env.star", "env_prepend")
 
 # ---------------------------------------------------------------------------
@@ -57,7 +57,7 @@ _PLATFORMS = {
 # Provider functions
 # ---------------------------------------------------------------------------
 
-fetch_versions = fetch_versions_from_github("helix-editor", "helix")
+fetch_versions = fetch_versions_with_tag_prefix("helix-editor", "helix", tag_prefix = "")
 
 def download_url(ctx, version):
     key = "{}/{}".format(ctx.platform.os, ctx.platform.arch)

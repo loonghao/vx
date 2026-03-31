@@ -8,7 +8,7 @@
 load("@vx//stdlib:provider.star",
      "runtime_def", "github_permissions",
      "path_fns",
-     "fetch_versions_from_github")
+     "fetch_versions_with_tag_prefix")
 load("@vx//stdlib:env.star", "env_prepend")
 load("@vx//stdlib:layout.star", "archive_layout")
 
@@ -19,7 +19,13 @@ repository  = "https://github.com/derailed/k9s"
 license     = "Apache-2.0"
 ecosystem   = "devtools"
 
-runtimes = [runtime_def("k9s", version_pattern="Version:")]
+runtimes = [runtime_def("k9s",
+    version_pattern = "Version:",
+    test_commands = [
+        {"command": "{executable} version", "name": "version_check",
+         "expected_output": "Version:"},
+    ],
+)]
 
 permissions = github_permissions()
 
@@ -32,7 +38,7 @@ _PLATFORMS = {
     "linux/arm64":   ("Linux", "arm64"),
 }
 
-fetch_versions = fetch_versions_from_github("derailed", "k9s")
+fetch_versions = fetch_versions_with_tag_prefix("derailed", "k9s", tag_prefix = "v")
 
 def download_url(ctx, version):
     key = "{}/{}".format(ctx.platform.os, ctx.platform.arch)
