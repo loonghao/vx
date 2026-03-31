@@ -3,6 +3,7 @@ name: CI
 # Optimized CI workflow with crate-level change detection
 # - Detects changes at crate granularity
 # - Only builds and tests affected crates
+# Last updated: 2026-04-01 (trigger full CI for new-providers fixes)
 # - Respects dependency relationships between crates
 
 on:
