@@ -9,7 +9,6 @@
 
 load("@vx//stdlib:provider.star",
      "runtime_def", "github_permissions",
-     "path_fns",
      "fetch_versions_with_tag_prefix")
 load("@vx//stdlib:env.star", "env_prepend")
 
@@ -71,17 +70,20 @@ def download_url(ctx, version):
 def install_layout(ctx, _version):
     exe = "mise.exe" if ctx.platform.os == "windows" else "mise"
     return {
-        "__type": "archive",
-        "strip_prefix": "mise/bin",
-        "executable_paths": [exe],
+        "type": "archive",
+        "strip_prefix": "mise",
+        "executable_paths": ["bin/" + exe, exe, "mise/bin/" + exe],
     }
 
-paths = path_fns("mise")
-store_root = paths["store_root"]
-get_execute_path = paths["get_execute_path"]
+def store_root(ctx):
+    return ctx.vx_home + "/store/mise"
+
+def get_execute_path(ctx, _version):
+    exe = "mise.exe" if ctx.platform.os == "windows" else "mise"
+    return ctx.install_dir + "/bin/" + exe
 
 def environment(ctx, _version):
-    return [env_prepend("PATH", ctx.install_dir)]
+    return [env_prepend("PATH", ctx.install_dir + "/bin")]
 
 def post_install(_ctx, _version):
     return None
