@@ -160,7 +160,7 @@ fn test_install_layout_is_archive_with_strip_prefix() {
 {}
 ctx = struct(platform = struct(os = "linux", arch = "x64", target = ""))
 layout = install_layout(ctx, "470.0.0")
-layout["type"] == "archive" and layout["strip_prefix"] == "google-cloud-sdk"
+layout["__type"] == "archive" and layout["strip_prefix"] == "google-cloud-sdk"
 "#,
         provider_star_prefix()
     ));
