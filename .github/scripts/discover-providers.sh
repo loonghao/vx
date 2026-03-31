@@ -8,8 +8,10 @@
 #   --chunk-size N       Number of runtimes per test job (default: 8)
 #   --skip RUNTIMES      Comma-separated list of runtimes to skip
 #   --runtimes RUNTIMES  Only test these specific runtimes (comma-separated)
+#   --providers NAMES    Only test runtimes discovered from these providers (comma-separated)
 #   --output FILE        Write outputs to file (for GitHub Actions)
 #   --summary FILE       Write summary to file (for GitHub step summary)
+
 #
 # Environment variables:
 #   VX_PROVIDERS_DIR     Path to providers directory (default: crates/vx-providers)
@@ -28,6 +30,7 @@ set -euo pipefail
 CHUNK_SIZE=8
 SKIP_LIST=""
 RUNTIME_FILTER=""
+PROVIDER_FILTER=""
 OUTPUT_FILE=""
 SUMMARY_FILE=""
 PROVIDERS_DIR="${VX_PROVIDERS_DIR:-crates/vx-providers}"
@@ -70,6 +73,10 @@ while [[ $# -gt 0 ]]; do
             RUNTIME_FILTER="$2"
             shift 2
             ;;
+        --providers)
+            PROVIDER_FILTER="$2"
+            shift 2
+            ;;
         --output)
             OUTPUT_FILE="$2"
             shift 2
@@ -110,7 +117,12 @@ if [ -n "$RUNTIME_FILTER" ]; then
     DISCOVERY_CMD+=(--runtimes "$RUNTIME_FILTER")
 fi
 
+if [ -n "$PROVIDER_FILTER" ]; then
+    DISCOVERY_CMD+=(--providers "$PROVIDER_FILTER")
+fi
+
 DISCOVERY_OUTPUT=$("${DISCOVERY_CMD[@]}")
+
 
 TOTAL_RUNTIMES="0"
 TESTABLE_RUNTIMES="0"
@@ -192,10 +204,13 @@ if [ -n "$SUMMARY_FILE" ]; then
         echo ""
         echo "### Configuration"
         echo "- Chunk size: $CHUNK_SIZE"
+        echo "- Runtime filter: ${RUNTIME_FILTER:-<all>}"
+        echo "- Provider filter: ${PROVIDER_FILTER:-<all>}"
         echo "- Total runtimes discovered: $TOTAL_RUNTIMES"
         echo "- Testable runtimes after CI filters: $TESTABLE_RUNTIMES"
         echo ""
         echo "### Skipped Runtimes (CI-incompatible)"
+
         echo "\`$SKIP_ALWAYS\`"
     } >> "$SUMMARY_FILE"
 fi
