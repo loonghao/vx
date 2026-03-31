@@ -215,6 +215,23 @@ len(path_ops) > 0 and "/opt/gcloud/bin" in path_ops[0].get("value", "")
     ));
 }
 
+// ── platform guard ────────────────────────────────────────────────────────────
+
+#[test]
+fn test_download_url_unknown_os_returns_none() {
+    let mut a = Assert::new();
+    a.dialect(&Dialect::Standard);
+    a.is_true(&format!(
+        r#"
+{}
+ctx = struct(platform = struct(os = "freebsd", arch = "x64", target = ""))
+url = download_url(ctx, "470.0.0")
+url == None
+"#,
+        provider_star_prefix()
+    ));
+}
+
 // ── lint check ────────────────────────────────────────────────────────────────
 
 #[test]
