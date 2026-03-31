@@ -10,7 +10,7 @@
 
 load("@vx//stdlib:provider.star",
      "runtime_def", "github_permissions",
-     "path_fns",
+     "binary_layout", "path_fns",
      "fetch_versions_with_tag_prefix")
 load("@vx//stdlib:env.star", "env_prepend")
 
