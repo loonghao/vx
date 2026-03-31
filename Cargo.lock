@@ -6773,6 +6773,7 @@ dependencies = [
  "tokio",
  "tokio-util",
  "toml_datetime",
+ "toml_edit",
  "toml_parser",
  "toml_writer",
  "tower-http",
