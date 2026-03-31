@@ -5,6 +5,8 @@ description: "Best practices for using vx effectively. Use when following recomm
 
 # VX Best Practices
 
+> **Golden rule**: Always prefix tool commands with `vx` in vx-managed projects. Use `vx.toml` for project-level tool versions, commit `vx.lock` for reproducibility, and prefer templates over custom code when creating providers.
+
 ## General Principles
 
 ### 1. Always Use `vx` Prefix
