@@ -6,8 +6,8 @@
 # Uses stdlib templates to minimize boilerplate.
 
 load("@vx//stdlib:provider.star",
-     "runtime_def", "fetch_versions_from_api",
-     "system_permissions",
+     "runtime_def", "fetch_versions_with_tag_prefix",
+     "github_permissions",
      "archive_layout", "path_fns", "path_env_fns")
 
 # ---------------------------------------------------------------------------
@@ -37,18 +37,16 @@ runtimes = [
 # Permissions
 # ---------------------------------------------------------------------------
 
-permissions = system_permissions(
+permissions = github_permissions(
     extra_hosts = ["releases.hashicorp.com", "checkpoint-api.hashicorp.com"],
 )
 
 # ---------------------------------------------------------------------------
-# fetch_versions — HashiCorp releases API
+# fetch_versions — from GitHub releases (hashicorp/terraform)
+# Using GitHub releases to avoid HashiCorp API 406 Not Acceptable errors
 # ---------------------------------------------------------------------------
 
-fetch_versions = fetch_versions_from_api(
-    "https://releases.hashicorp.com/terraform/index.json",
-    "hashicorp_releases",
-)
+fetch_versions = fetch_versions_with_tag_prefix("hashicorp", "terraform", tag_prefix = "v")
 
 # ---------------------------------------------------------------------------
 # Platform helpers
