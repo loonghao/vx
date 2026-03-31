@@ -4,7 +4,7 @@
 version = 1
 
 [metadata]
-generated_at = "2026-03-26T14:38:39Z"
+generated_at = "2026-03-31T09:33:27Z"
 vx_version = "0.6.19"
 platform = "x86_64-pc-windows-msvc"
 
@@ -66,6 +66,12 @@ ecosystem = "generic"
 version = "7.1.2-9"
 source = "vx install"
 resolved_from = "latest"
+ecosystem = "generic"
+
+[tools.mise]
+version = "2026.3.17"
+source = "vx install"
+resolved_from = "2026.3.17"
 ecosystem = "generic"
 
 [tools.node]

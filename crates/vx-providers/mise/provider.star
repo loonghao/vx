@@ -10,9 +10,8 @@
 load("@vx//stdlib:provider.star",
      "runtime_def", "github_permissions",
      "path_fns",
-     "fetch_versions_from_github")
+     "fetch_versions_with_tag_prefix")
 load("@vx//stdlib:env.star", "env_prepend")
-load("@vx//stdlib:layout.star", "archive_layout")
 
 # ---------------------------------------------------------------------------
 # Provider metadata
@@ -58,7 +57,7 @@ def _mise_platform(ctx):
 # Provider functions
 # ---------------------------------------------------------------------------
 
-fetch_versions = fetch_versions_from_github("jdx", "mise")
+fetch_versions = fetch_versions_with_tag_prefix("jdx", "mise", tag_prefix = "v")
 
 def download_url(ctx, version):
     platform = _mise_platform(ctx)
@@ -69,12 +68,16 @@ def download_url(ctx, version):
     return "https://github.com/jdx/mise/releases/download/v{}/mise-v{}-{}-{}.{}".format(
         version, version, os_str, arch_str, ext)
 
-install_layout = archive_layout("mise",
-    strip_prefix = "mise",
-)
+def install_layout(ctx, _version):
+    exe = "mise.exe" if ctx.platform.os == "windows" else "mise"
+    return {
+        "__type": "archive",
+        "strip_prefix": "mise/bin",
+        "executable_paths": [exe],
+    }
 
 paths = path_fns("mise")
-store_root       = paths["store_root"]
+store_root = paths["store_root"]
 get_execute_path = paths["get_execute_path"]
 
 def environment(ctx, _version):
