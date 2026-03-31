@@ -10,7 +10,7 @@
 
 load("@vx//stdlib:provider.star",
      "runtime_def", "github_permissions",
-     "binary_layout", "path_fns",
+     "path_fns",
      "fetch_versions_with_tag_prefix")
 load("@vx//stdlib:env.star", "env_prepend")
 
@@ -29,7 +29,7 @@ ecosystem   = "devtools"
 # ---------------------------------------------------------------------------
 
 runtimes = [runtime_def("tealdeer", aliases=["tldr"],
-                         version_pattern="tealdeer v\\d+")]
+                         version_pattern="tealdeer \\d+")]
 
 # ---------------------------------------------------------------------------
 # Permissions
@@ -64,7 +64,22 @@ def download_url(ctx, version):
     return "https://github.com/tealdeer-rs/tealdeer/releases/download/v{}/tealdeer-{}{}".format(
         version, platform, exe)
 
-install_layout = binary_layout("tealdeer")
+def install_layout(ctx, _version):
+    """Custom binary install_layout that renames the platform-specific binary
+    to the canonical 'tealdeer' (or 'tealdeer.exe') name."""
+    key = "{}/{}".format(ctx.platform.os, ctx.platform.arch)
+    platform = _PLATFORMS.get(key)
+    if not platform:
+        return None
+    exe = ".exe" if ctx.platform.os == "windows" else ""
+    source = "tealdeer-" + platform + exe
+    target = "tealdeer" + exe
+    return {
+        "source_name":      source,
+        "target_name":      target,
+        "target_dir":       "bin",
+        "executable_paths": ["bin/" + target],
+    }
 
 paths = path_fns("tealdeer")
 store_root = paths["store_root"]
