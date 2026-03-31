@@ -12,7 +12,7 @@
 load("@vx//stdlib:provider.star",
      "runtime_def", "github_permissions",
      "path_fns",
-     "fetch_versions_from_github",
+     "fetch_versions_with_tag_prefix",
      "platform_map")
 load("@vx//stdlib:env.star", "env_prepend")
 
@@ -56,7 +56,7 @@ _PLATFORMS = {
 # Provider functions
 # ---------------------------------------------------------------------------
 
-fetch_versions = fetch_versions_from_github("sxyazi", "yazi")
+fetch_versions = fetch_versions_with_tag_prefix("sxyazi", "yazi", tag_prefix = "v")
 
 def download_url(ctx, version):
     triple = platform_map(ctx, _PLATFORMS)

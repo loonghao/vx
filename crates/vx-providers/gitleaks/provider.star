@@ -10,7 +10,7 @@
 load("@vx//stdlib:provider.star",
      "runtime_def", "github_permissions",
      "path_fns",
-     "fetch_versions_from_github")
+     "fetch_versions_with_tag_prefix")
 load("@vx//stdlib:env.star", "env_prepend")
 load("@vx//stdlib:layout.star", "archive_layout")
 
@@ -28,7 +28,7 @@ ecosystem   = "devtools"
 # Runtime definitions
 # ---------------------------------------------------------------------------
 
-runtimes = [runtime_def("gitleaks", version_pattern="v\\d+")]
+runtimes = [runtime_def("gitleaks", version_pattern="gitleaks version \\d+")]
 
 # ---------------------------------------------------------------------------
 # Permissions
@@ -53,7 +53,7 @@ _PLATFORMS = {
 # Provider functions
 # ---------------------------------------------------------------------------
 
-fetch_versions = fetch_versions_from_github("gitleaks", "gitleaks")
+fetch_versions = fetch_versions_with_tag_prefix("gitleaks", "gitleaks", tag_prefix = "v")
 
 def download_url(ctx, version):
     key = "{}/{}".format(ctx.platform.os, ctx.platform.arch)

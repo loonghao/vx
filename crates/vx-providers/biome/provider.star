@@ -13,7 +13,6 @@ load("@vx//stdlib:provider.star",
      "path_fns",
      "fetch_versions_with_tag_prefix")
 load("@vx//stdlib:env.star", "env_prepend")
-load("@vx//stdlib:layout.star", "binary_layout")
 
 # ---------------------------------------------------------------------------
 # Provider metadata
@@ -66,14 +65,29 @@ def download_url(ctx, version):
     return "https://github.com/biomejs/biome/releases/download/cli/v{}/biome-{}-{}{}".format(
         version, os_str, arch_str, exe)
 
-install_layout = binary_layout("biome")
+def install_layout(ctx, _version):
+    key = "{}/{}".format(ctx.platform.os, ctx.platform.arch)
+    platform = _PLATFORMS.get(key)
+    if not platform:
+        return None
+    os_str, arch_str = platform
+    ext = ".exe" if ctx.platform.os == "windows" else ""
+    source_name = "biome-{}-{}{}".format(os_str, arch_str, ext)
+    target_name = "biome" + ext
+    return {
+        "type": "binary",
+        "source_name": source_name,
+        "target_name": target_name,
+        "target_dir": "bin",
+        "executable_paths": ["bin/" + target_name],
+    }
 
-paths = path_fns("biome")
+paths = path_fns("biome", executable = "bin/biome")
 store_root       = paths["store_root"]
 get_execute_path = paths["get_execute_path"]
 
 def environment(ctx, _version):
-    return [env_prepend("PATH", ctx.install_dir)]
+    return [env_prepend("PATH", ctx.install_dir + "/bin")]
 
 def post_install(_ctx, _version):
     return None

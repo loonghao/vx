@@ -11,9 +11,8 @@
 load("@vx//stdlib:provider.star",
      "runtime_def", "github_permissions",
      "path_fns",
-     "fetch_versions_from_github")
+     "fetch_versions_with_tag_prefix")
 load("@vx//stdlib:env.star", "env_prepend")
-load("@vx//stdlib:layout.star", "binary_layout")
 
 # ---------------------------------------------------------------------------
 # Provider metadata
@@ -29,7 +28,7 @@ ecosystem   = "devtools"
 # Runtime definitions
 # ---------------------------------------------------------------------------
 
-runtimes = [runtime_def("tldr", aliases=["tealdeer"],
+runtimes = [runtime_def("tealdeer", aliases=["tldr"],
                          version_pattern="tealdeer v\\d+")]
 
 # ---------------------------------------------------------------------------
@@ -54,7 +53,7 @@ _PLATFORMS = {
 # Provider functions
 # ---------------------------------------------------------------------------
 
-fetch_versions = fetch_versions_from_github("tealdeer-rs", "tealdeer")
+fetch_versions = fetch_versions_with_tag_prefix("tealdeer-rs", "tealdeer", tag_prefix = "v")
 
 def download_url(ctx, version):
     key = "{}/{}".format(ctx.platform.os, ctx.platform.arch)
@@ -65,14 +64,17 @@ def download_url(ctx, version):
     return "https://github.com/tealdeer-rs/tealdeer/releases/download/v{}/tealdeer-{}{}".format(
         version, platform, exe)
 
-install_layout = binary_layout("tldr")
+install_layout = binary_layout("tealdeer")
 
 paths = path_fns("tealdeer")
-store_root       = paths["store_root"]
-get_execute_path = paths["get_execute_path"]
+store_root = paths["store_root"]
+
+def get_execute_path(ctx, _version):
+    exe = "/bin/tealdeer.exe" if ctx.platform.os == "windows" else "/bin/tealdeer"
+    return ctx.install_dir + exe
 
 def environment(ctx, _version):
-    return [env_prepend("PATH", ctx.install_dir)]
+    return [env_prepend("PATH", ctx.install_dir + "/bin")]
 
 def post_install(_ctx, _version):
     return None

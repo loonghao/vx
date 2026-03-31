@@ -12,7 +12,7 @@
 load("@vx//stdlib:provider.star",
      "runtime_def", "github_permissions",
      "path_fns",
-     "fetch_versions_from_github")
+     "fetch_versions_with_tag_prefix")
 load("@vx//stdlib:env.star", "env_prepend")
 load("@vx//stdlib:layout.star", "archive_layout")
 
@@ -53,7 +53,7 @@ _PLATFORMS = {
 # Provider functions
 # ---------------------------------------------------------------------------
 
-fetch_versions = fetch_versions_from_github("eza-community", "eza")
+fetch_versions = fetch_versions_with_tag_prefix("eza-community", "eza", tag_prefix = "v")
 
 def download_url(ctx, version):
     key = "{}/{}".format(ctx.platform.os, ctx.platform.arch)
