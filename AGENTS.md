@@ -18,6 +18,10 @@ vx uv pip install flask    # Auto-installs uv if needed
 vx npx create-react-app x  # Auto-installs Node.js + runs npx
 ```
 
+### One-Sentence Summary
+
+**vx = prefix any dev tool command with `vx` → it auto-installs the tool and runs it.**
+
 ### How vx Works (Execution Flow)
 
 When you run `vx node --version`, this happens internally:
@@ -102,6 +106,26 @@ User Command: vx npm install
 9. **Layer dependencies go downward only** — Never import from a higher architectural layer
 10. **Provider count is 78** — Update any docs that reference old counts (73, 70+, 50+, etc.)
 
+### Setup Commands
+
+```bash
+# Install vx itself
+# Linux/macOS:
+curl -fsSL https://raw.githubusercontent.com/loonghao/vx/main/install.sh | bash
+# Windows (PowerShell):
+powershell -c "irm https://raw.githubusercontent.com/loonghao/vx/main/install.ps1 | iex"
+
+# Clone and set up vx development environment
+git clone https://github.com/loonghao/vx.git
+cd vx
+vx just quick                  # format → lint → test → build
+
+# Set up any vx-managed project
+cd <project-with-vx-toml>
+vx setup                       # Install all tools from vx.toml
+vx dev                         # Enter dev environment
+```
+
 ### Common AI Agent Scenarios
 
 | Scenario | What to do |
@@ -117,6 +141,7 @@ User Command: vx npm install
 | Developing vx itself | Run `vx just quick` for format → lint → test → build cycle |
 | User encounters errors | Run `vx doctor` first, then `vx --debug <command>` |
 | Need to update vx itself | Run `vx self-update` |
+| Analyze project structure | Run `vx analyze --json` for AI-parseable project analysis |
 
 ### What NOT to Do
 
@@ -554,14 +579,41 @@ Use these canonical forms consistently in docs and examples:
 - Never run `sudo vx install` — vx manages user-level installations under `~/.vx/`
 - `GITHUB_TOKEN` should be provided for GitHub API rate limit avoidance
 
+## PR and Commit Guidelines
+
+- **Commit messages**: Use [Conventional Commits](https://www.conventionalcommits.org/) format: `feat:`, `fix:`, `docs:`, `chore:`, `refactor:`, `test:`
+- **Branch naming**: `<type>/<short-description>` (e.g., `feat/add-zig-provider`, `fix/node-install-windows`)
+- **Before creating a PR**: Run `vx just quick` (format → lint → test → build) to ensure CI will pass
+- **Pre-commit hooks**: Run `vx prek install` once after cloning, then hooks run automatically
+- **PR scope**: Keep PRs focused — one feature or fix per PR. Split large changes into smaller PRs
+- **New providers**: Each new provider should be a separate PR with its `provider.star` file
+- **Test coverage**: Include tests for any new functionality. Tests go in `crates/<name>/tests/`
+- **Documentation**: Update relevant docs when changing user-facing behavior
+
+## Code Style
+
+- **Language**: Rust (edition 2024, MSRV 1.93+)
+- **Formatting**: `rustfmt` via `vx cargo fmt` — always run before committing
+- **Linting**: `clippy` with warnings as errors — `vx cargo clippy -- -D warnings`
+- **Imports**: Group by stdlib → external crates → internal crates, separated by blank lines
+- **Error handling**: Use `anyhow::Result` for application code, `thiserror` for library error types
+- **Async**: Tokio-based async/await for all I/O operations
+- **Logging**: Always use `tracing` macros (`tracing::info!`, `tracing::debug!`), never `println!` or `eprintln!`
+- **Naming**: `PascalCase` for types, `snake_case` for functions/modules, `SCREAMING_SNAKE_CASE` for constants
+- **Documentation**: All `pub` items must have doc comments; every `lib.rs` needs a module-level description
+- **File size**: Keep source files under 500 lines; split large files into modules
+
 ## Testing Conventions
 
 - Tests go in `crates/<name>/tests/` directories — **never** inline `#[cfg(test)]` modules
 - Use `rstest` for parameterized tests
+- Test file naming: `<feature>_tests.rs` (e.g., `resolver_tests.rs`, `executor_tests.rs`)
 - Run all tests: `vx just test`
 - Run single crate: `vx just test-pkgs "-p vx-starlark"`
 - E2E tests use `trycmd` for CLI snapshot testing
 - Provider static checks: `vx just test-providers-static`
+- Mock network calls in unit tests — never use real HTTP in unit tests
+- Each test should be independent — no shared mutable state between tests
 
 ## GitHub Actions Integration
 
@@ -653,6 +705,51 @@ vx install node --force
 
 # 6. Check project config
 vx check --json
+```
+
+### Troubleshooting Decision Tree
+
+```
+User reports an issue with vx:
+│
+├─ "command not found: vx"
+│  → vx is not installed
+│  → Linux/macOS: curl -fsSL https://raw.githubusercontent.com/loonghao/vx/main/install.sh | bash
+│  → Windows: powershell -c "irm https://raw.githubusercontent.com/loonghao/vx/main/install.ps1 | iex"
+│
+├─ "Failed to download" / network error (exit code 5)
+│  → vx cache clean && vx install <tool> --verbose
+│  → If in China: vx config set cdn_acceleration true
+│  → Ensure GITHUB_TOKEN is set for API rate limits
+│
+├─ "version not found" (exit code 4)
+│  → vx versions <tool> to list available versions
+│  → Check for typos in version string
+│  → Try: vx install <tool>@latest
+│
+├─ "permission denied" (exit code 6)
+│  → Check permissions: ls -la ~/.vx (Unix) or icacls %USERPROFILE%\.vx (Windows)
+│  → Fix: chmod -R u+rw ~/.vx
+│  → Never use sudo with vx
+│
+├─ Wrong tool version running
+│  → vx which <tool> to see active version
+│  → Check vx.toml for version constraints
+│  → vx switch <tool>@<version>
+│
+├─ vx.toml not being picked up (exit code 7)
+│  → Ensure file is in project root (same dir as .git)
+│  → vx check to validate syntax
+│
+├─ CI failing with vx
+│  → Use GitHub Action: loonghao/vx@main
+│  → Add github-token for rate limit avoidance
+│  → Use cache: 'true' for faster CI
+│
+└─ General error (exit code 1)
+   → vx doctor for full diagnostics
+   → vx --debug <command> for detailed logs
+   → vx cache clean to clear corrupted state
 ```
 
 ### Exit Codes

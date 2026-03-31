@@ -2,6 +2,8 @@
 
 This directory contains AI agent skills for **[vx](https://github.com/loonghao/vx)** — the universal development tool manager (v0.8.15).
 
+> **Core concept**: vx = prefix any dev tool command with `vx` → it auto-installs the tool and runs it.
+
 These skills are the **single source of truth** shared across:
 - `vx ai setup` — embeds skills into the vx binary at compile time, distributes to 13+ AI agents
 - **ClawHub** — published automatically via CI when changes merge to main
@@ -9,24 +11,24 @@ These skills are the **single source of truth** shared across:
 
 ## Available Skills
 
-| Skill | Description | Best for |
-|-------|-------------|----------|
-| **vx-usage** | Core usage guide — commands, vx.toml, providers, GitHub Actions, MCP integration | First-time users, general questions |
-| **vx-commands** | CLI command reference — all flags, output formats (`--json`, `--format toon`) | Looking up specific command syntax |
-| **vx-project** | Project management — init, sync, setup, vx.toml configuration, monorepo | Setting up or configuring projects |
-| **vx-best-practices** | Best practices — version strategy, cross-platform, security, provider development | Team workflows, provider creation |
-| **vx-troubleshooting** | Troubleshooting — installation failures, PATH issues, diagnostics, recovery | Fixing errors, diagnosing issues |
+| Skill | Description | Size | Best for |
+|-------|-------------|------|----------|
+| **vx-usage** | Core usage guide — commands, vx.toml, providers, GitHub Actions, MCP integration | ~15 KB | First-time users, general questions |
+| **vx-commands** | CLI command reference — all flags, output formats (`--json`, `--format toon`) | ~6 KB | Looking up specific command syntax |
+| **vx-project** | Project management — init, sync, setup, vx.toml configuration, monorepo | ~6 KB | Setting up or configuring projects |
+| **vx-best-practices** | Best practices — version strategy, cross-platform, security, provider development | ~10 KB | Team workflows, provider creation |
+| **vx-troubleshooting** | Troubleshooting — installation failures, PATH issues, diagnostics, recovery | ~8 KB | Fixing errors, diagnosing issues |
 
 ## Structure
 
 ```
 skills/
 ├── README.md                         # This file
-├── vx-usage/SKILL.md                 # Core usage guide (~14 KB)
+├── vx-usage/SKILL.md                 # Core usage guide (~15 KB)
 ├── vx-commands/SKILL.md              # CLI command reference (~6 KB)
 ├── vx-project/SKILL.md               # Project management (~6 KB)
-├── vx-best-practices/SKILL.md        # Best practices (~9 KB)
-└── vx-troubleshooting/SKILL.md       # Troubleshooting (~7 KB)
+├── vx-best-practices/SKILL.md        # Best practices (~10 KB)
+└── vx-troubleshooting/SKILL.md       # Troubleshooting (~8 KB)
 ```
 
 ## Install
@@ -48,7 +50,27 @@ The skills trigger when:
 - The user mentions `vx`, tool version management, or cross-platform setup
 - The user needs to manage development tool versions
 
-### Which Skill to Use
+### Skill Routing Guide
+
+Use this decision tree to pick the right skill:
+
+```
+User's question:
+├─ "How do I use vx?" / general usage
+│  → vx-usage
+├─ "What's the command for...?" / specific flag or syntax
+│  → vx-commands
+├─ "Set up my project" / vx.toml / monorepo
+│  → vx-project
+├─ "Best way to..." / team workflow / provider development
+│  → vx-best-practices
+├─ "Error: ..." / "not working" / "failed"
+│  → vx-troubleshooting
+├─ "MCP integration" / "GitHub Actions"
+│  → vx-usage (has dedicated sections)
+└─ "Add a new tool to vx"
+   → vx-best-practices (provider development section)
+```
 
 | User's Question | Recommended Skill |
 |-----------------|-------------------|
@@ -65,3 +87,5 @@ The skills trigger when:
 
 - **vx GitHub**: https://github.com/loonghao/vx
 - **ClawHub**: https://clawhub.ai/loonghao/vx
+- **AGENTS.md**: https://github.com/loonghao/vx/blob/main/AGENTS.md
+- **llms.txt**: https://github.com/loonghao/vx/blob/main/llms.txt

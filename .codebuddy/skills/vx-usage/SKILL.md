@@ -1,9 +1,11 @@
 ---
 name: vx-usage
-description: "Teaches AI agents how to use vx, the universal dev tool manager. Use when the project has vx.toml or .vx/, or when the user mentions vx, tool version management, or cross-platform setup. vx auto-manages Node.js, Python, Go, Rust, and 78 tools via Starlark DSL providers."
+description: "Teaches AI agents how to use vx, the universal dev tool manager. Use when the project has vx.toml or .vx/, or when the user mentions vx, tool version management, or cross-platform setup. vx auto-manages Node.js, Python, Go, Rust, and 78 tools via Starlark DSL providers. Also covers MCP integration patterns and GitHub Actions."
 ---
 
 # VX - Universal Development Tool Manager
+
+> **One-sentence summary**: vx = prefix any dev tool command with `vx` → it auto-installs the tool and runs it.
 
 vx is a universal development tool manager that automatically installs and manages
 development tools (Node.js, Python/uv, Go, Rust, etc.) with zero configuration.
@@ -219,6 +221,10 @@ vx msvc@14.40 cl main.cpp
 
 All 78 providers are defined using **provider.star** (Starlark DSL) — a declarative, zero-compilation approach. Each provider lives in `crates/vx-providers/<name>/provider.star`.
 
+vx uses a **two-phase execution model** (inspired by Buck2):
+1. **Analysis Phase (Starlark)**: `provider.star` runs as pure computation, returning descriptor dicts. No I/O.
+2. **Execution Phase (Rust)**: The Rust runtime interprets descriptors for actual downloads, installs, and process execution.
+
 ### How to add a new tool
 
 ```starlark
@@ -246,12 +252,47 @@ environment      = _p["environment"]
 
 ### Available templates
 
-| Template | Use case |
-|----------|----------|
-| `github_rust_provider` | Rust tools on GitHub (most common) |
-| `github_go_provider` | Go tools on GitHub (goreleaser style) |
-| `github_binary_provider` | Single binary download (no archive) |
-| `system_provider` | System package manager only |
+| Template | Use case | Example |
+|----------|----------|---------|
+| `github_rust_provider` | Rust tools on GitHub (most common) | ripgrep, fd, bat, just, uv |
+| `github_go_provider` | Go tools on GitHub (goreleaser style) | gh, task |
+| `github_binary_provider` | Single binary download (no archive) | kubectl |
+| `system_provider` | System package manager only | 7zip |
+
+### Template Placeholders
+
+| Placeholder | Rust template | Go template | Description |
+|-------------|---------------|-------------|-------------|
+| `{version}` | ✓ | ✓ | Version number (e.g., "1.0.0") |
+| `{vversion}` | ✓ | — | With v-prefix (e.g., "v1.0.0") |
+| `{triple}` | ✓ | — | Rust target triple (e.g., "x86_64-unknown-linux-musl") |
+| `{os}` | — | ✓ | Go GOOS (linux, darwin, windows) |
+| `{arch}` | — | ✓ | Go GOARCH (amd64, arm64) |
+| `{ext}` | ✓ | ✓ | Archive extension (zip/tar.gz) |
+| `{exe}` | ✓ | ✓ | Executable suffix (.exe/"") |
+
+### Starlark Standard Library (14 modules)
+
+Located in `crates/vx-starlark/stdlib/`. The main entry point is `provider.star` which re-exports everything:
+
+```starlark
+# Import everything from the unified facade
+load("@vx//stdlib:provider.star",
+     "runtime_def", "bundled_runtime_def", "dep_def",
+     "github_permissions", "platform_map",
+     "env_set", "env_prepend",
+     "archive_layout", "binary_layout")
+```
+
+Key modules:
+- `provider.star` — Unified facade (re-exports all)
+- `runtime.star` — `runtime_def`, `bundled_runtime_def`, `dep_def`
+- `platform.star` — `platform_map`, `platform_select`, `rust_triple`, `go_os_arch`
+- `env.star` — `env_set`, `env_prepend`, `env_append`, `env_unset`
+- `layout.star` — `archive_layout`, `binary_layout`, `bin_subdir_layout`, hooks
+- `provider_templates.star` — High-level templates (4 templates)
+- `permissions.star` — `github_permissions`, `system_permissions`
+- `system_install.star` — `winget_install`, `brew_install`, `apt_install`
 
 ## Important Rules for AI Agents
 
@@ -266,6 +307,44 @@ environment      = _p["environment"]
 9. **Use correct terminology**: Runtime (not Tool), Provider (not Plugin), provider.star (not provider config)
 10. **Provider development**: New tools are added via `provider.star` Starlark DSL in `crates/vx-providers/<name>/`
 11. **Tests go in `tests/` dirs** — never inline `#[cfg(test)]` in source files
+
+## Version Resolution Priority
+
+vx resolves tool versions in this order (highest to lowest):
+
+1. **Command-line override**: `vx node@22 app.js`
+2. **Project vx.toml**: `[tools] node = "22"`
+3. **Parent directory vx.toml** (traverses up to root)
+4. **User global config**: `~/.config/vx/config.toml`
+5. **Provider default**: latest stable version
+
+## MCP Integration
+
+vx is **MCP-ready** — replace `npx`/`uvx` with `vx` in MCP server configurations:
+
+```json
+{
+  "mcpServers": {
+    "example-server": {
+      "command": "vx",
+      "args": ["npx", "-y", "@example/mcp-server@latest"]
+    },
+    "python-server": {
+      "command": "vx",
+      "args": ["uvx", "some-python-mcp-server@latest"]
+    }
+  }
+}
+```
+
+**Benefits**: Users don't need Node.js/Python pre-installed — vx auto-installs on first use.
+
+**Migration pattern**:
+| Original | vx-powered |
+|----------|------------|
+| `"command": "npx"` | `"command": "vx", "args": ["npx", ...]` |
+| `"command": "uvx"` | `"command": "vx", "args": ["uvx", ...]` |
+| `"command": "node"` | `"command": "vx", "args": ["node", ...]` |
 
 ## GitHub Actions Integration
 

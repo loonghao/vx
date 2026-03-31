@@ -1,6 +1,6 @@
 # vx
 
-> vx is a universal development tool manager that lets you run any tool with zero setup — just prefix your commands with `vx` and it auto-installs the required runtime on first use.
+> vx is a universal development tool manager — prefix any command with `vx` and it auto-installs the tool on first use. No manual setup, no version conflicts. 78 tools, one command prefix.
 
 vx eliminates the complexity of managing multiple language runtimes (Node.js, Python, Go, Rust, etc.) while maintaining zero learning curve. Built with Rust for performance, it supports direct execution, project environments via `vx.toml`, MCP integration, and AI-native development workflows. Providers are defined using Starlark DSL (`provider.star`) — a declarative, zero-compilation approach that covers 78 tools.
 
@@ -11,6 +11,28 @@ vx eliminates the complexity of managing multiple language runtimes (Node.js, Py
 - **License**: MIT
 - **Repository**: https://github.com/loonghao/vx
 - **Releases**: https://github.com/loonghao/vx/releases
+- **AI Agent Entry Point**: [AGENTS.md](https://github.com/loonghao/vx/blob/main/AGENTS.md)
+
+## Quick Start (for AI Agents)
+
+```bash
+# Run any tool — vx auto-installs it on first use:
+vx node --version          # Node.js
+vx npm install             # npm (bundled with Node.js)
+vx cargo build             # Rust
+vx go run main.go          # Go
+vx uv pip install flask    # Python/uv
+
+# Project setup (if vx.toml exists):
+vx setup                   # Install all project tools
+vx dev                     # Enter dev environment
+vx run test                # Run project scripts
+
+# AI-optimized output:
+vx list --json             # JSON for parsing
+vx list --format toon      # Token-optimized (saves 40-60% tokens)
+vx analyze --json          # Project analysis as JSON
+```
 
 ## Key Features
 
@@ -118,3 +140,8 @@ This eliminates the need for users to pre-install Node.js, Python, or any runtim
 
 - [Skills Overview](https://github.com/loonghao/vx/blob/main/skills/README.md): AI agent skills distribution and activation
 - [AGENTS.md](https://github.com/loonghao/vx/blob/main/AGENTS.md): Primary AI agent entry point with rules, architecture, and quick reference
+- [vx-usage Skill](https://github.com/loonghao/vx/blob/main/skills/vx-usage/SKILL.md): Core usage guide — commands, vx.toml, providers, MCP, GitHub Actions
+- [vx-commands Skill](https://github.com/loonghao/vx/blob/main/skills/vx-commands/SKILL.md): CLI command reference with --json and --format toon output
+- [vx-project Skill](https://github.com/loonghao/vx/blob/main/skills/vx-project/SKILL.md): Project management — init, sync, setup, monorepo
+- [vx-best-practices Skill](https://github.com/loonghao/vx/blob/main/skills/vx-best-practices/SKILL.md): Best practices and provider development
+- [vx-troubleshooting Skill](https://github.com/loonghao/vx/blob/main/skills/vx-troubleshooting/SKILL.md): Troubleshooting and recovery procedures

@@ -1,6 +1,6 @@
 # vx
 
-> vx is a universal development tool manager that lets you run any tool with zero setup — just prefix your commands with `vx` and it auto-installs the required runtime on first use.
+> vx is a universal development tool manager — prefix any command with `vx` and it auto-installs the tool on first use. No manual setup, no version conflicts. 78 tools, one command prefix.
 
 vx eliminates the complexity of managing multiple language runtimes (Node.js, Python, Go, Rust, etc.) while maintaining zero learning curve. Built with Rust for performance, it supports direct execution, project environments via `vx.toml`, MCP integration, and AI-native development workflows. Providers are defined using Starlark DSL (`provider.star`) — a declarative, zero-compilation extension system.
 
@@ -12,6 +12,11 @@ vx eliminates the complexity of managing multiple language runtimes (Node.js, Py
 - **Repository**: https://github.com/loonghao/vx
 - **Releases**: https://github.com/loonghao/vx/releases
 - **GitHub Action**: `loonghao/vx@main`
+- **AI Agent Entry Point**: [AGENTS.md](https://github.com/loonghao/vx/blob/main/AGENTS.md)
+
+## One-Sentence Summary
+
+**vx = prefix any dev tool command with `vx` → it auto-installs the tool and runs it.**
 
 ## Key Features
 
@@ -336,6 +341,18 @@ When encountering a task involving vx, use this decision flow:
 - **Developing vx itself**: Use `vx just <task>`, put tests in `crates/<name>/tests/`, new providers go in `crates/vx-providers/<name>/provider.star`
 - **Using vx in a project**: Always prefix commands with `vx`, check `vx.toml` for project requirements, use `vx run <script>` for project scripts
 - **Unsure**: Check for `vx.toml` or `.vx/` directory in project root. If present, treat as vx-managed.
+
+### Common Mistakes to Avoid
+
+| ❌ Don't | ✅ Do instead |
+|----------|---------------|
+| `npm install` | `vx npm install` |
+| `pip install flask` | `vx uv pip install flask` |
+| `go build` | `vx go build` |
+| Tell user to "install Node.js first" | Just run `vx node --version` (auto-installs) |
+| Suggest `nvm use 22` | Suggest `vx switch node@22` or set in `vx.toml` |
+| Write `#[cfg(test)] mod tests {}` | Create tests in `crates/<name>/tests/` directory |
+| Use `println!` for logging | Use `tracing::info!`, `tracing::debug!`, etc. |
 
 ### Version Resolution Priority
 

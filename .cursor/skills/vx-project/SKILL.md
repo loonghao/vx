@@ -5,6 +5,8 @@ description: "Project management guide for vx. Use when setting up a new project
 
 # VX Project Management Guide
 
+> **Quick start**: Run `vx init` to create `vx.toml`, `vx setup` to install all tools, `vx dev` to enter the dev environment. For existing projects, just run `vx setup` after cloning.
+
 ## Project Setup
 
 ### Initialize a Project
@@ -23,6 +25,12 @@ vx automatically detects project types and suggests tools:
 vx analyze                  # Analyze project (detects languages, dependencies)
 vx analyze --json           # JSON output for AI parsing
 ```
+
+**Detected ecosystems**: Node.js, Python, Rust, Go, Java, .NET, C/C++, Zig
+**Detected frameworks**: React, Vue, Angular, Next.js, Nuxt, Svelte, Django, Flask, FastAPI, Tauri, Electron, React Native, NW.js, and more
+**Detected package managers**: npm, yarn, pnpm, bun, pip, uv, cargo, go modules
+
+The project analyzer reads indicator files like `package.json`, `pyproject.toml`, `Cargo.toml`, `go.mod`, etc. to suggest the right tools.
 
 ## vx.toml Configuration
 

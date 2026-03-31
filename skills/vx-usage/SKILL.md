@@ -1,9 +1,11 @@
 ---
 name: vx-usage
-description: "Teaches AI agents how to use vx, the universal dev tool manager. Use when the project has vx.toml or .vx/, or when the user mentions vx, tool version management, or cross-platform setup. vx auto-manages Node.js, Python, Go, Rust, and 78 tools via Starlark DSL providers. Also covers MCP integration patterns."
+description: "Teaches AI agents how to use vx, the universal dev tool manager. Use when the project has vx.toml or .vx/, or when the user mentions vx, tool version management, or cross-platform setup. vx auto-manages Node.js, Python, Go, Rust, and 78 tools via Starlark DSL providers. Also covers MCP integration patterns and GitHub Actions."
 ---
 
 # VX - Universal Development Tool Manager
+
+> **One-sentence summary**: vx = prefix any dev tool command with `vx` → it auto-installs the tool and runs it.
 
 vx is a universal development tool manager that automatically installs and manages
 development tools (Node.js, Python/uv, Go, Rust, etc.) with zero configuration.

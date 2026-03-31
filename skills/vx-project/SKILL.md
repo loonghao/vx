@@ -5,6 +5,8 @@ description: "Project management guide for vx. Use when setting up a new project
 
 # VX Project Management Guide
 
+> **Quick start**: Run `vx init` to create `vx.toml`, `vx setup` to install all tools, `vx dev` to enter the dev environment. For existing projects, just run `vx setup` after cloning.
+
 ## Project Setup
 
 ### Initialize a Project
