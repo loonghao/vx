@@ -607,13 +607,10 @@ jobs:
         uses: ./.github/actions/setup-rust-sccache
         with:
           shared-key: provider-static
-          install-tools: "cargo-nextest"
 
       - name: Run provider static checks
         shell: bash
-        run: |
-          cargo test -p vx-starlark --test lint_all_providers_test -- --nocapture
-          cargo nextest run --no-fail-fast -p 'vx-provider-*'
+        run: cargo test -p vx-starlark --test lint_all_providers_test -- --nocapture
         env:
           CARGO_TARGET_DIR: target
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -626,7 +623,7 @@ jobs:
           echo "Triggered because providers/starlark/CI files changed." >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "- provider.star batch lint" >> $GITHUB_STEP_SUMMARY
-          echo "- all vx-provider-* unit/static tests" >> $GITHUB_STEP_SUMMARY
+          echo "- provider crate tests are covered by targeted/full test jobs" >> $GITHUB_STEP_SUMMARY
 
   # ============================================================================
   # Stage 3b: Full workspace tests (when core changes or CI changes)

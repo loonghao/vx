@@ -55,8 +55,11 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       should_run: ${{ steps.filter.outputs.should_run }}
+      provider_subset: ${{ steps.scope.outputs.provider_subset }}
+      changed_providers: ${{ steps.scope.outputs.changed_providers }}
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
+
       - uses: dorny/paths-filter@v3
         id: filter
         with:
@@ -71,6 +74,55 @@ jobs:
               - '.github/workflows/test-providers.yml'
               - '.github/scripts/discover-providers.sh'
               - '.github/scripts/summarize-test-results.sh'
+
+      - name: Determine provider scope
+        id: scope
+        shell: bash
+        run: |
+          echo "provider_subset=false" >> "$GITHUB_OUTPUT"
+          echo "changed_providers=" >> "$GITHUB_OUTPUT"
+
+          if [[ "${{ github.event_name }}" != "pull_request" ]]; then
+            exit 0
+          fi
+
+          git fetch --no-tags --depth=1 origin "${{ github.base_ref }}"
+
+          mapfile -t relevant_files < <(git diff --name-only "origin/${{ github.base_ref }}"...HEAD -- \
+            'crates/vx-providers/**' \
+            'crates/vx-runtime/**' \
+            'crates/vx-installer/**' \
+            'crates/vx-starlark/**' \
+            'crates/vx-star-metadata/**' \
+            'crates/vx-manifest/**' \
+            '.github/workflows/test-providers.yml' \
+            '.github/scripts/discover-providers.sh' \
+            '.github/scripts/summarize-test-results.sh')
+
+          if [[ ${#relevant_files[@]} -eq 0 ]]; then
+            exit 0
+          fi
+
+          mapfile -t changed_providers < <(printf '%s\n' "${relevant_files[@]}" | awk -F/ '/^crates\/vx-providers\/[^/]+\// {print $3}' | sort -u)
+
+          non_provider_changes=0
+          for file in "${relevant_files[@]}"; do
+            if [[ "$file" != crates/vx-providers/* ]]; then
+              non_provider_changes=1
+              break
+            fi
+          done
+
+          echo "### Provider Scope" >> "$GITHUB_STEP_SUMMARY"
+          if [[ ${#changed_providers[@]} -gt 0 && $non_provider_changes -eq 0 ]]; then
+            changed_csv=$(printf '%s\n' "${changed_providers[@]}" | paste -sd, -)
+            echo "provider_subset=true" >> "$GITHUB_OUTPUT"
+            echo "changed_providers=$changed_csv" >> "$GITHUB_OUTPUT"
+            echo "- Mode: changed providers only" >> "$GITHUB_STEP_SUMMARY"
+            echo "- Providers: $changed_csv" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "- Mode: full provider matrix" >> "$GITHUB_STEP_SUMMARY"
+          fi
 
   # Build VX and discover all testable providers
   build-and-discover:
@@ -93,7 +145,7 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
@@ -147,6 +199,8 @@ jobs:
 
           if [ -n "${{ inputs.runtimes }}" ]; then
             ARGS="$ARGS --runtimes '${{ inputs.runtimes }}'"
+          elif [ "${{ needs.check-changes.outputs.provider_subset }}" = "true" ] && [ -n "${{ needs.check-changes.outputs.changed_providers }}" ]; then
+            ARGS="$ARGS --providers '${{ needs.check-changes.outputs.changed_providers }}'"
           fi
 
           # Run discovery script
@@ -164,7 +218,7 @@ jobs:
           fi
 
       - name: Upload VX binary (Linux)
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v6
         with:
           name: vx-linux
           path: target/release/vx
@@ -181,7 +235,7 @@ jobs:
       SCCACHE_DIR: ${{ github.workspace }}/.cache/sccache
 
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
       - uses: dtolnay/rust-toolchain@stable
 
       - name: Install sccache
@@ -210,7 +264,7 @@ jobs:
             target/
           key: macos-cargo-build-${{ hashFiles('**/Cargo.lock') }}
       - run: cargo build --release
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@v6
         with:
           name: vx-macos
           path: target/release/vx
@@ -226,7 +280,7 @@ jobs:
       SCCACHE_DIR: ${{ github.workspace }}/.cache/sccache
 
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
       - uses: dtolnay/rust-toolchain@stable
 
       - name: Install sccache
@@ -275,7 +329,7 @@ jobs:
             target/
           key: windows-cargo-build-${{ hashFiles('**/Cargo.lock') }}
       - run: cargo build --release
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@v6
         with:
           name: vx-windows
           path: target/release/vx.exe
@@ -288,16 +342,19 @@ jobs:
     needs: build-and-discover
     if: needs.build-and-discover.outputs.has-linux == 'true'
     timeout-minutes: 45
+    env:
+      VX_TEST_ROOT: ${{ github.workspace }}/.cache/vx-provider-linux
+      VX_HOME: ${{ github.workspace }}/.cache/vx-provider-linux
     strategy:
       fail-fast: false
       matrix:
         chunk: ${{ fromJSON(needs.build-and-discover.outputs.matrix-linux) }}
 
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
 
       - name: Download VX binary
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v6
         with:
           name: vx-linux
           path: ./bin
@@ -305,22 +362,37 @@ jobs:
       - name: Make binary executable
         run: chmod +x ./bin/vx
 
+      - name: Cache VX runtime store
+        uses: actions/cache@v5
+        with:
+          path: ${{ env.VX_TEST_ROOT }}
+          key: ${{ runner.os }}-vx-provider-e2e-${{ hashFiles('Cargo.lock', '.github/workflows/test-providers.yml', '.github/scripts/discover-providers.sh', 'crates/vx-providers/**/provider.star', 'crates/vx-runtime/**', 'crates/vx-installer/**', 'crates/vx-starlark/**', 'crates/vx-star-metadata/**', 'crates/vx-manifest/**') }}-${{ matrix.chunk }}
+          restore-keys: |
+            ${{ runner.os }}-vx-provider-e2e-
+
       - name: Test providers
         run: |
           echo "Testing providers: ${{ matrix.chunk }}"
-          # Pre-install uv so pip packages (pre-commit, rez, meson) can use it
-          # This ensures we have a proper Python environment with Python 3.12+
+          # Pre-install uv so pip packages (pre-commit, rez, meson) can use it.
           ./bin/vx install uv --force
-          ./bin/vx test --ci --ci-runtimes "${{ matrix.chunk }}" --keep-going --verbose --json > test-report.json || true
+
+          set +e
+          ./bin/vx test --ci --ci-runtimes "${{ matrix.chunk }}" --vx-root "$VX_TEST_ROOT" --keep-going --verbose --json > test-report.json
+          status=$?
           cat test-report.json
-          ./bin/vx test --ci --ci-runtimes "${{ matrix.chunk }}" --keep-going --detailed
+
+          if [[ $status -ne 0 ]]; then
+            ./bin/vx test --ci --ci-runtimes "${{ matrix.chunk }}" --vx-root "$VX_TEST_ROOT" --keep-going --detailed || true
+          fi
+
+          exit $status
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           RUST_LOG: warn,vx_installer=info
 
       - name: Upload test report
         if: always()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v6
         with:
           name: report-linux-${{ strategy.job-index }}
           path: test-report.json
@@ -333,16 +405,19 @@ jobs:
     needs: [build-and-discover, build-macos]
     if: needs.build-and-discover.outputs.has-macos == 'true'
     timeout-minutes: 45
+    env:
+      VX_TEST_ROOT: ${{ github.workspace }}/.cache/vx-provider-macos
+      VX_HOME: ${{ github.workspace }}/.cache/vx-provider-macos
     strategy:
       fail-fast: false
       matrix:
         chunk: ${{ fromJSON(needs.build-and-discover.outputs.matrix-macos) }}
 
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
 
       - name: Download VX binary
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v6
         with:
           name: vx-macos
           path: ./bin
@@ -350,57 +425,90 @@ jobs:
       - name: Make binary executable
         run: chmod +x ./bin/vx
 
+      - name: Cache VX runtime store
+        uses: actions/cache@v5
+        with:
+          path: ${{ env.VX_TEST_ROOT }}
+          key: ${{ runner.os }}-vx-provider-e2e-${{ hashFiles('Cargo.lock', '.github/workflows/test-providers.yml', '.github/scripts/discover-providers.sh', 'crates/vx-providers/**/provider.star', 'crates/vx-runtime/**', 'crates/vx-installer/**', 'crates/vx-starlark/**', 'crates/vx-star-metadata/**', 'crates/vx-manifest/**') }}-${{ matrix.chunk }}
+          restore-keys: |
+            ${{ runner.os }}-vx-provider-e2e-
+
       - name: Test providers
         run: |
           echo "Testing providers: ${{ matrix.chunk }}"
-          # Pre-install uv so pip packages (pre-commit, rez, meson) can use it
-          # This ensures we have a proper Python environment with Python 3.12+
+          # Pre-install uv so pip packages (pre-commit, rez, meson) can use it.
           ./bin/vx install uv --force
-          ./bin/vx test --ci --ci-runtimes "${{ matrix.chunk }}" --keep-going --verbose --json > test-report.json || true
+
+          set +e
+          ./bin/vx test --ci --ci-runtimes "${{ matrix.chunk }}" --vx-root "$VX_TEST_ROOT" --keep-going --verbose --json > test-report.json
+          status=$?
           cat test-report.json
-          ./bin/vx test --ci --ci-runtimes "${{ matrix.chunk }}" --keep-going --detailed
+
+          if [[ $status -ne 0 ]]; then
+            ./bin/vx test --ci --ci-runtimes "${{ matrix.chunk }}" --vx-root "$VX_TEST_ROOT" --keep-going --detailed || true
+          fi
+
+          exit $status
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           RUST_LOG: warn,vx_installer=info
 
       - name: Upload test report
         if: always()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v6
         with:
           name: report-macos-${{ strategy.job-index }}
           path: test-report.json
           retention-days: 7
 
   # Test on Windows
+
   test-windows:
     name: Test Windows (${{ matrix.chunk }})
     runs-on: windows-latest
     needs: [build-and-discover, build-windows]
     if: needs.build-and-discover.outputs.has-windows == 'true'
     timeout-minutes: 45
+    env:
+      VX_TEST_ROOT: ${{ github.workspace }}\.cache\vx-provider-windows
+      VX_HOME: ${{ github.workspace }}\.cache\vx-provider-windows
     strategy:
       fail-fast: false
       matrix:
         chunk: ${{ fromJSON(needs.build-and-discover.outputs.matrix-windows) }}
 
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
 
       - name: Download VX binary
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v6
         with:
           name: vx-windows
           path: ./bin
 
+      - name: Cache VX runtime store
+        uses: actions/cache@v5
+        with:
+          path: ${{ env.VX_TEST_ROOT }}
+          key: ${{ runner.os }}-vx-provider-e2e-${{ hashFiles('Cargo.lock', '.github/workflows/test-providers.yml', '.github/scripts/discover-providers.sh', 'crates/vx-providers/**/provider.star', 'crates/vx-runtime/**', 'crates/vx-installer/**', 'crates/vx-starlark/**', 'crates/vx-star-metadata/**', 'crates/vx-manifest/**') }}-${{ matrix.chunk }}
+          restore-keys: |
+            ${{ runner.os }}-vx-provider-e2e-
+
       - name: Test providers
         run: |
           echo "Testing providers: ${{ matrix.chunk }}"
-          # Pre-install uv in the temp root so pip packages (pre-commit, rez, meson) can use it
-          # This ensures we have a proper Python environment with Python 3.12+
+          # Pre-install uv so pip packages (pre-commit, rez, meson) can use it.
           .\bin\vx.exe install uv --force
-          .\bin\vx.exe test --ci --ci-runtimes "${{ matrix.chunk }}" --keep-going --verbose --json > test-report.json
+
+          .\bin\vx.exe test --ci --ci-runtimes "${{ matrix.chunk }}" --vx-root "$env:VX_TEST_ROOT" --keep-going --verbose --json > test-report.json
+          $status = $LASTEXITCODE
           if (Test-Path test-report.json) { Get-Content test-report.json }
-          .\bin\vx.exe test --ci --ci-runtimes "${{ matrix.chunk }}" --keep-going --detailed
+
+          if ($status -ne 0) {
+            .\bin\vx.exe test --ci --ci-runtimes "${{ matrix.chunk }}" --vx-root "$env:VX_TEST_ROOT" --keep-going --detailed
+          }
+
+          exit $status
         shell: pwsh
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -408,7 +516,7 @@ jobs:
 
       - name: Upload test report
         if: always()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v6
         with:
           name: report-windows-${{ strategy.job-index }}
           path: test-report.json
@@ -418,51 +526,37 @@ jobs:
   quick-test:
     name: Quick Smoke Test
     runs-on: ubuntu-latest
-    needs: check-changes
-    if: github.event_name == 'pull_request' && needs.check-changes.outputs.should_run == 'true'
+    needs: [check-changes, build-and-discover]
+    if: github.event_name == 'pull_request' && needs.check-changes.outputs.should_run == 'true' && needs.check-changes.outputs.provider_subset != 'true'
     timeout-minutes: 15
     env:
-      RUSTC_WRAPPER: sccache
-      SCCACHE_DIR: ${{ github.workspace }}/.cache/sccache
+      VX_TEST_ROOT: ${{ github.workspace }}/.cache/vx-quick
+      VX_HOME: ${{ github.workspace }}/.cache/vx-quick
 
     steps:
-      - uses: actions/checkout@v5
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: actions/checkout@v6
 
-      - name: Install sccache
-        uses: taiki-e/install-action@v2
+      - name: Download VX binary
+        uses: actions/download-artifact@v6
         with:
-          tool: sccache
+          name: vx-linux
+          path: ./bin
 
-      - name: Cache sccache
+      - name: Make binary executable
+        run: chmod +x ./bin/vx
+
+      - name: Cache VX runtime store
         uses: actions/cache@v5
         with:
-          path: ${{ github.workspace }}/.cache/sccache
-          key: sccache-v2-${{ runner.os }}-${{ hashFiles('Cargo.lock') }}
+          path: ${{ env.VX_TEST_ROOT }}
+          key: ${{ runner.os }}-vx-provider-quick-${{ hashFiles('Cargo.lock', '.github/workflows/test-providers.yml', '.github/scripts/discover-providers.sh', 'crates/vx-providers/**/provider.star', 'crates/vx-runtime/**', 'crates/vx-installer/**', 'crates/vx-starlark/**', 'crates/vx-star-metadata/**', 'crates/vx-manifest/**') }}
           restore-keys: |
-            sccache-v2-${{ runner.os }}-
-            sccache-v2-
-
-      - name: Start sccache server
-        run: sccache --start-server || true
-
-      - uses: actions/cache@v5
-        with:
-          path: |
-            ~/.cargo/bin/
-            ~/.cargo/registry/index/
-            ~/.cargo/registry/cache/
-            ~/.cargo/git/db/
-            target/
-          key: ${{ runner.os }}-cargo-quick-${{ hashFiles('**/Cargo.lock') }}
-
-      - name: Build VX
-        run: cargo build --release
+            ${{ runner.os }}-vx-provider-quick-
 
       - name: Quick provider test
         run: |
-          # Test essential providers for fast PR feedback
-          ./target/release/vx test --ci --ci-runtimes node,go,uv,just,python --temp-root --verbose
+          # Test essential providers for fast PR feedback when shared runtime logic changes
+          ./bin/vx test --ci --ci-runtimes node,go,uv,just,python --vx-root "$VX_TEST_ROOT" --verbose
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -474,10 +568,10 @@ jobs:
     if: always() && (needs.test-linux.result != 'skipped' || needs.test-macos.result != 'skipped' || needs.test-windows.result != 'skipped')
 
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
 
       - name: Download all reports
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v6
         with:
           pattern: report-*
           merge-multiple: false

@@ -9,6 +9,7 @@ fn main() {
     let mut chunk_size = 8usize;
     let mut skip_always = BTreeSet::new();
     let mut runtime_filter = BTreeSet::new();
+    let mut provider_filter = BTreeSet::new();
 
     let mut args = env::args().skip(1);
     while let Some(arg) = args.next() {
@@ -20,6 +21,7 @@ fn main() {
             }
             "--skip" => skip_always = parse_csv(&next_arg(&mut args, &arg)),
             "--runtimes" => runtime_filter = parse_csv(&next_arg(&mut args, &arg)),
+            "--providers" => provider_filter = parse_csv(&next_arg(&mut args, &arg)),
             other => panic!("Unknown option: {other}"),
         }
     }
@@ -29,6 +31,7 @@ fn main() {
         chunk_size,
         skip_always,
         runtime_filter,
+        provider_filter,
     };
 
     let result = discover_providers(&config).expect("provider discovery failed");

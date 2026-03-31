@@ -126,6 +126,42 @@ runtimes = [
     fs::remove_dir_all(root).ok();
 }
 
+#[test]
+fn discovery_provider_filter_limits_selected_providers() {
+    let root = create_temp_dir();
+
+    write_provider(
+        &root,
+        "node",
+        r#"
+name = "node"
+runtimes = [runtime_def("node")]
+"#,
+    );
+
+    write_provider(
+        &root,
+        "go",
+        r#"
+name = "go"
+runtimes = [runtime_def("go")]
+"#,
+    );
+
+    let mut config = DiscoveryConfig::new(&root, 10);
+    config.provider_filter = BTreeSet::from(["node".to_string()]);
+
+    let result = discover_providers(&config).expect("discovery should succeed");
+
+    assert_eq!(result.total_runtimes, 1);
+    assert_eq!(result.testable_runtimes, 1);
+    assert_eq!(result.linux.runtimes, vec!["node"]);
+    assert!(result.macos.runtimes.contains(&"node".to_string()));
+    assert!(!result.linux.runtimes.contains(&"go".to_string()));
+
+    fs::remove_dir_all(root).ok();
+}
+
 fn create_temp_dir() -> PathBuf {
     static COUNTER: AtomicU64 = AtomicU64::new(0);
     let unique = SystemTime::now()

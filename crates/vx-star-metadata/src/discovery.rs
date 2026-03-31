@@ -1,7 +1,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
 use std::io;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 use crate::StarMetadata;
 
@@ -11,6 +11,7 @@ pub struct DiscoveryConfig {
     pub chunk_size: usize,
     pub skip_always: BTreeSet<String>,
     pub runtime_filter: BTreeSet<String>,
+    pub provider_filter: BTreeSet<String>,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
@@ -35,6 +36,7 @@ impl DiscoveryConfig {
             chunk_size: chunk_size.max(1),
             skip_always: BTreeSet::new(),
             runtime_filter: BTreeSet::new(),
+            provider_filter: BTreeSet::new(),
         }
     }
 }
@@ -64,7 +66,7 @@ impl DiscoveryResult {
 }
 
 pub fn discover_providers(config: &DiscoveryConfig) -> io::Result<DiscoveryResult> {
-    let runtime_platforms = collect_runtime_platforms(&config.providers_dir)?;
+    let runtime_platforms = collect_runtime_platforms(config)?;
 
     let linux = select_platform("linux", &runtime_platforms, config);
     let macos = select_platform("macos", &runtime_platforms, config);
@@ -89,12 +91,13 @@ pub fn discover_providers(config: &DiscoveryConfig) -> io::Result<DiscoveryResul
 }
 
 fn collect_runtime_platforms(
-    providers_dir: &Path,
+    config: &DiscoveryConfig,
 ) -> io::Result<BTreeMap<String, Option<BTreeSet<String>>>> {
     let mut runtime_platforms = BTreeMap::new();
 
-    for entry in fs::read_dir(providers_dir)? {
+    for entry in fs::read_dir(&config.providers_dir)? {
         let entry = entry?;
+        let provider_dir_name = entry.file_name().to_string_lossy().to_ascii_lowercase();
         let provider_path = entry.path().join("provider.star");
         if !provider_path.is_file() {
             continue;
@@ -113,7 +116,15 @@ fn collect_runtime_platforms(
         let provider_name = metadata
             .name
             .clone()
-            .unwrap_or_else(|| entry.file_name().to_string_lossy().to_lowercase());
+            .unwrap_or_else(|| provider_dir_name.clone());
+        let provider_filter_key = provider_name.trim().to_ascii_lowercase();
+        if !config.provider_filter.is_empty()
+            && !config.provider_filter.contains(&provider_dir_name)
+            && !config.provider_filter.contains(&provider_filter_key)
+        {
+            continue;
+        }
+
         let provider_platforms = normalize_platforms(metadata.platforms.as_deref());
 
         if metadata.runtimes.is_empty() {
