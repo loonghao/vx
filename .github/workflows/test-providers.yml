@@ -366,7 +366,7 @@ jobs:
         uses: actions/cache@v5
         with:
           path: ${{ env.VX_TEST_ROOT }}
-          key: ${{ runner.os }}-vx-provider-e2e-${{ hashFiles('Cargo.lock', '.github/workflows/test-providers.yml', '.github/scripts/discover-providers.sh', 'crates/vx-providers/**/provider.star', 'crates/vx-runtime/**', 'crates/vx-installer/**', 'crates/vx-starlark/**', 'crates/vx-star-metadata/**', 'crates/vx-manifest/**') }}-${{ matrix.chunk }}
+          key: ${{ runner.os }}-vx-provider-e2e-${{ hashFiles('Cargo.lock', '.github/workflows/test-providers.yml', '.github/scripts/discover-providers.sh', 'crates/vx-providers/**/provider.star', 'crates/vx-runtime/**', 'crates/vx-installer/**', 'crates/vx-starlark/**', 'crates/vx-star-metadata/**', 'crates/vx-manifest/**') }}-${{ strategy.job-index }}
           restore-keys: |
             ${{ runner.os }}-vx-provider-e2e-
 
@@ -429,7 +429,7 @@ jobs:
         uses: actions/cache@v5
         with:
           path: ${{ env.VX_TEST_ROOT }}
-          key: ${{ runner.os }}-vx-provider-e2e-${{ hashFiles('Cargo.lock', '.github/workflows/test-providers.yml', '.github/scripts/discover-providers.sh', 'crates/vx-providers/**/provider.star', 'crates/vx-runtime/**', 'crates/vx-installer/**', 'crates/vx-starlark/**', 'crates/vx-star-metadata/**', 'crates/vx-manifest/**') }}-${{ matrix.chunk }}
+          key: ${{ runner.os }}-vx-provider-e2e-${{ hashFiles('Cargo.lock', '.github/workflows/test-providers.yml', '.github/scripts/discover-providers.sh', 'crates/vx-providers/**/provider.star', 'crates/vx-runtime/**', 'crates/vx-installer/**', 'crates/vx-starlark/**', 'crates/vx-star-metadata/**', 'crates/vx-manifest/**') }}-${{ strategy.job-index }}
           restore-keys: |
             ${{ runner.os }}-vx-provider-e2e-
 
@@ -490,7 +490,7 @@ jobs:
         uses: actions/cache@v5
         with:
           path: ${{ env.VX_TEST_ROOT }}
-          key: ${{ runner.os }}-vx-provider-e2e-${{ hashFiles('Cargo.lock', '.github/workflows/test-providers.yml', '.github/scripts/discover-providers.sh', 'crates/vx-providers/**/provider.star', 'crates/vx-runtime/**', 'crates/vx-installer/**', 'crates/vx-starlark/**', 'crates/vx-star-metadata/**', 'crates/vx-manifest/**') }}-${{ matrix.chunk }}
+          key: ${{ runner.os }}-vx-provider-e2e-${{ hashFiles('Cargo.lock', '.github/workflows/test-providers.yml', '.github/scripts/discover-providers.sh', 'crates/vx-providers/**/provider.star', 'crates/vx-runtime/**', 'crates/vx-installer/**', 'crates/vx-starlark/**', 'crates/vx-star-metadata/**', 'crates/vx-manifest/**') }}-${{ strategy.job-index }}
           restore-keys: |
             ${{ runner.os }}-vx-provider-e2e-
 
