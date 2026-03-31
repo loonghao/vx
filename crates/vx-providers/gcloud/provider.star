@@ -97,7 +97,7 @@ def install_layout(ctx, _version):
     else:
         exe_paths = ["bin/gcloud", "bin/gsutil", "bin/bq"]
     return {
-        "type":             "archive",
+        "__type":           "archive",
         "strip_prefix":     "google-cloud-sdk",
         "executable_paths": exe_paths,
     }
@@ -110,8 +110,10 @@ def store_root(ctx):
     return ctx.vx_home + "/store/gcloud"
 
 def get_execute_path(ctx, _version):
-    exe = "gcloud.exe" if ctx.platform.os == "windows" else "gcloud"
-    return ctx.install_dir + "/" + exe
+    # gcloud executable is in the bin/ subdirectory
+    if ctx.platform.os == "windows":
+        return ctx.install_dir + "/bin/gcloud.cmd"
+    return ctx.install_dir + "/bin/gcloud"
 
 def post_install(_ctx, _version):
     return None
