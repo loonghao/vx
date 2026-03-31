@@ -8,9 +8,8 @@
 
 load("@vx//stdlib:provider.star",
      "github_rust_provider", "runtime_def", "github_permissions")
-load("@vx//stdlib:github.star",   "make_fetch_versions", "github_asset_url")
-load("@vx//stdlib:platform.star", "rust_triple", "exe_suffix", "expand_asset")
-load("@vx//stdlib:env.star",      "env_prepend")
+load("@vx//stdlib:github.star",   "github_asset_url")
+load("@vx//stdlib:platform.star", "rust_triple")
 
 name        = "watchexec"
 description = "watchexec - Execute commands when watched files change"
