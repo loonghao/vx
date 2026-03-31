@@ -131,6 +131,27 @@ vx npm install              # Run npm
 vx cargo build              # Run cargo
 ```
 
+### Advanced Execution Syntax
+```bash
+# Runtime with version
+vx node@22 app.js                     # Use specific Node.js version
+
+# Runtime executable override
+vx msvc@14.42::cl main.cpp            # Run cl from MSVC runtime
+
+# Package execution (ecosystem:package pattern)
+vx npm:vite                            # Run vite via npm
+vx uv:ruff check .                    # Run ruff via uv
+vx npm:typescript@5.0::tsc            # Run tsc from specific typescript version
+
+# Package aliases (shortcuts)
+vx vite                                # Same as: vx npm:vite
+vx meson                              # Same as: vx uv:meson
+
+# Multi-runtime composition
+vx --with bun@1.1 --with deno node app.js   # Multiple runtimes in PATH
+```
+
 ### Tool Management
 ```bash
 vx install <tool>@<version> # Install tool
@@ -181,3 +202,6 @@ vx cache clean              # Clean cache
 - `2` - Tool not found
 - `3` - Installation failed
 - `4` - Version not found
+- `5` - Network error
+- `6` - Permission error
+- `7` - Configuration error

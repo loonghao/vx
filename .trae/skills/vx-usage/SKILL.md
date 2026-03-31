@@ -219,6 +219,10 @@ vx msvc@14.40 cl main.cpp
 
 All 78 providers are defined using **provider.star** (Starlark DSL) — a declarative, zero-compilation approach. Each provider lives in `crates/vx-providers/<name>/provider.star`.
 
+vx uses a **two-phase execution model** (inspired by Buck2):
+1. **Analysis Phase (Starlark)**: `provider.star` runs as pure computation, returning descriptor dicts. No I/O.
+2. **Execution Phase (Rust)**: The Rust runtime interprets descriptors for actual downloads, installs, and process execution.
+
 ### How to add a new tool
 
 ```starlark
@@ -246,12 +250,47 @@ environment      = _p["environment"]
 
 ### Available templates
 
-| Template | Use case |
-|----------|----------|
-| `github_rust_provider` | Rust tools on GitHub (most common) |
-| `github_go_provider` | Go tools on GitHub (goreleaser style) |
-| `github_binary_provider` | Single binary download (no archive) |
-| `system_provider` | System package manager only |
+| Template | Use case | Example |
+|----------|----------|---------|
+| `github_rust_provider` | Rust tools on GitHub (most common) | ripgrep, fd, bat, just, uv |
+| `github_go_provider` | Go tools on GitHub (goreleaser style) | gh, task |
+| `github_binary_provider` | Single binary download (no archive) | kubectl |
+| `system_provider` | System package manager only | 7zip |
+
+### Template Placeholders
+
+| Placeholder | Rust template | Go template | Description |
+|-------------|---------------|-------------|-------------|
+| `{version}` | ✓ | ✓ | Version number (e.g., "1.0.0") |
+| `{vversion}` | ✓ | — | With v-prefix (e.g., "v1.0.0") |
+| `{triple}` | ✓ | — | Rust target triple (e.g., "x86_64-unknown-linux-musl") |
+| `{os}` | — | ✓ | Go GOOS (linux, darwin, windows) |
+| `{arch}` | — | ✓ | Go GOARCH (amd64, arm64) |
+| `{ext}` | ✓ | ✓ | Archive extension (zip/tar.gz) |
+| `{exe}` | ✓ | ✓ | Executable suffix (.exe/"") |
+
+### Starlark Standard Library (14 modules)
+
+Located in `crates/vx-starlark/stdlib/`. The main entry point is `provider.star` which re-exports everything:
+
+```starlark
+# Import everything from the unified facade
+load("@vx//stdlib:provider.star",
+     "runtime_def", "bundled_runtime_def", "dep_def",
+     "github_permissions", "platform_map",
+     "env_set", "env_prepend",
+     "archive_layout", "binary_layout")
+```
+
+Key modules:
+- `provider.star` — Unified facade (re-exports all)
+- `runtime.star` — `runtime_def`, `bundled_runtime_def`, `dep_def`
+- `platform.star` — `platform_map`, `platform_select`, `rust_triple`, `go_os_arch`
+- `env.star` — `env_set`, `env_prepend`, `env_append`, `env_unset`
+- `layout.star` — `archive_layout`, `binary_layout`, `bin_subdir_layout`, hooks
+- `provider_templates.star` — High-level templates (4 templates)
+- `permissions.star` — `github_permissions`, `system_permissions`
+- `system_install.star` — `winget_install`, `brew_install`, `apt_install`
 
 ## Important Rules for AI Agents
 
