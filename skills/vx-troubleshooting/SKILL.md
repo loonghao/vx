@@ -5,6 +5,8 @@ description: "Troubleshooting guide for vx issues. Use when encountering install
 
 # VX Troubleshooting Guide
 
+> **Quick triage**: Start with `vx doctor` for diagnostics. Use `vx --debug <command>` for detailed logs. Use `vx cache clean` to clear corrupted state. Check exit codes (2=tool not found, 3=install failed, 4=version not found, 5=network error).
+
 ## Common Issues
 
 ### Installation Failures

@@ -5,6 +5,8 @@ description: "Complete vx CLI command reference. Use when looking up specific vx
 
 # VX Command Reference
 
+> **Quick rule**: All vx commands support `--json` for structured output and `--format toon` for token-optimized output (saves 40-60% tokens). Set `VX_OUTPUT=json` to default all commands to JSON.
+
 ## Structured Output Commands (AI-Optimized)
 
 All commands support `--json` for structured output and `--format toon` for token-optimized output (saves 40-60% tokens).
