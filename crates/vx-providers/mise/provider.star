@@ -27,7 +27,8 @@ ecosystem   = "devtools"
 # ---------------------------------------------------------------------------
 
 runtimes = [runtime_def("mise", aliases=["mise-en-place"],
-                         version_pattern="\\d+\\.\\d+")]
+                         version_pattern="\\d+\\.\\d+",
+                         version_cmd="{executable} version")]
 
 # ---------------------------------------------------------------------------
 # Permissions
@@ -69,10 +70,18 @@ def download_url(ctx, version):
 
 def install_layout(ctx, _version):
     exe = "mise.exe" if ctx.platform.os == "windows" else "mise"
+    # On Windows, avoid strip_prefix to prevent potential access denied errors
+    # during directory rename operations (Windows Defender may lock files during scan).
+    # Instead, reference executable via its full path within the extracted archive structure.
+    if ctx.platform.os == "windows":
+        return {
+            "type": "archive",
+            "executable_paths": ["mise/bin/" + exe, "bin/" + exe],
+        }
     return {
         "type": "archive",
         "strip_prefix": "mise",
-        "executable_paths": ["bin/" + exe, exe, "mise/bin/" + exe],
+        "executable_paths": ["bin/" + exe, exe],
     }
 
 def store_root(ctx):
@@ -80,9 +89,15 @@ def store_root(ctx):
 
 def get_execute_path(ctx, _version):
     exe = "mise.exe" if ctx.platform.os == "windows" else "mise"
+    # On Windows (no strip_prefix), binary is in mise/bin/
+    if ctx.platform.os == "windows":
+        return ctx.install_dir + "/mise/bin/" + exe
     return ctx.install_dir + "/bin/" + exe
 
 def environment(ctx, _version):
+    # On Windows (no strip_prefix), binary is in mise/bin/
+    if ctx.platform.os == "windows":
+        return [env_prepend("PATH", ctx.install_dir + "/mise/bin")]
     return [env_prepend("PATH", ctx.install_dir + "/bin")]
 
 def post_install(_ctx, _version):
