@@ -8,7 +8,7 @@
 load("@vx//stdlib:provider.star",
      "runtime_def", "github_permissions",
      "path_fns",
-     "fetch_versions_from_github")
+     "fetch_versions_with_tag_prefix")
 load("@vx//stdlib:env.star", "env_prepend")
 load("@vx//stdlib:layout.star", "archive_layout")
 
@@ -32,7 +32,7 @@ _PLATFORMS = {
     "linux/arm64":   ("linux", "arm64"),
 }
 
-fetch_versions = fetch_versions_from_github("rhysd", "actionlint")
+fetch_versions = fetch_versions_with_tag_prefix("rhysd", "actionlint", tag_prefix = "v")
 
 def download_url(ctx, version):
     key = "{}/{}".format(ctx.platform.os, ctx.platform.arch)
