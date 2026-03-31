@@ -1,4 +1,5 @@
 //! Pure Starlark logic tests for gcloud provider.star
+//! Updated to use __type field for install_layout descriptors (2026-04-01)
 
 use starlark::assert::Assert;
 use starlark::syntax::Dialect;
