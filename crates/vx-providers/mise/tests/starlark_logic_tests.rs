@@ -76,7 +76,7 @@ layout["type"] == "archive" and layout["strip_prefix"] == "mise"
 }
 
 #[test]
-fn test_install_layout_linux_includes_bin_and_nested_fallback_paths() {
+fn test_install_layout_linux_includes_bin_path() {
     let mut a = Assert::new();
     a.dialect(&Dialect::Standard);
     a.is_true(&format!(
@@ -84,14 +84,14 @@ fn test_install_layout_linux_includes_bin_and_nested_fallback_paths() {
 {}
 ctx = struct(platform = struct(os = "linux", arch = "x64", target = "x86_64-unknown-linux-musl"))
 layout = install_layout(ctx, "2026.3.18")
-"bin/mise" in layout["executable_paths"] and "mise/bin/mise" in layout["executable_paths"]
+"bin/mise" in layout["executable_paths"]
 "#,
         provider_star_prefix()
     ));
 }
 
 #[test]
-fn test_install_layout_windows_includes_bin_and_nested_fallback_paths() {
+fn test_install_layout_windows_uses_strip_prefix_mise_bin() {
     let mut a = Assert::new();
     a.dialect(&Dialect::Standard);
     a.is_true(&format!(
@@ -99,7 +99,7 @@ fn test_install_layout_windows_includes_bin_and_nested_fallback_paths() {
 {}
 ctx = struct(platform = struct(os = "windows", arch = "x64", target = "x86_64-pc-windows-msvc"))
 layout = install_layout(ctx, "2026.3.18")
-"bin/mise.exe" in layout["executable_paths"] and "mise/bin/mise.exe" in layout["executable_paths"]
+layout["strip_prefix"] == "mise/bin" and "mise.exe" in layout["executable_paths"]
 "#,
         provider_star_prefix()
     ));
