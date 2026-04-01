@@ -3,11 +3,11 @@
 # eza: A modern replacement for ls (community fork of exa)
 # Releases: https://github.com/eza-community/eza/releases
 # Asset format: eza_{triple}.{ext}  (NO version in asset name)
-# Windows:      eza.exe_{triple}.{ext}
+# Windows:      eza.exe_{triple}.zip
 # Tag format:   v{version}
 #
-# Uses github_rust_provider — asset has no version, uses underscore separator.
-# Windows uses eza.exe_ prefix instead of eza_.
+# Note: eza does NOT publish macOS binaries.
+#       Only Linux (x64, arm64) and Windows (x64) are available.
 
 load("@vx//stdlib:provider.star",
      "runtime_def", "github_permissions",
@@ -40,13 +40,13 @@ permissions = github_permissions()
 
 # ---------------------------------------------------------------------------
 # Platform mapping
+# Note: eza does NOT publish macOS binaries — macOS is not supported.
 # ---------------------------------------------------------------------------
 
 _PLATFORMS = {
-    "windows/x64":   "x86_64-pc-windows-gnu",
-    "macos/arm64":   "aarch64-apple-darwin",
-    "linux/x64":     "x86_64-unknown-linux-gnu",
-    "linux/arm64":   "aarch64-unknown-linux-gnu",
+    "windows/x64":   ("x86_64-pc-windows-gnu",      "zip"),
+    "linux/x64":     ("x86_64-unknown-linux-gnu",   "tar.gz"),
+    "linux/arm64":   ("aarch64-unknown-linux-gnu",  "tar.gz"),
 }
 
 # ---------------------------------------------------------------------------
@@ -57,17 +57,15 @@ fetch_versions = fetch_versions_with_tag_prefix("eza-community", "eza", tag_pref
 
 def download_url(ctx, version):
     key = "{}/{}".format(ctx.platform.os, ctx.platform.arch)
-    triple = _PLATFORMS.get(key)
-    if not triple:
-        return None
+    p = _PLATFORMS.get(key)
+    if not p:
+        return None  # macOS and other platforms not supported
+    triple, ext = p
     if ctx.platform.os == "windows":
-        ext = "zip"
-        return "https://github.com/eza-community/eza/releases/download/v{}/eza.exe_{}.{}".format(
-            version, triple, ext)
+        fname = "eza.exe_{}.{}".format(triple, ext)
     else:
-        ext = "tar.gz"
-        return "https://github.com/eza-community/eza/releases/download/v{}/eza_{}.{}".format(
-            version, triple, ext)
+        fname = "eza_{}.{}".format(triple, ext)
+    return "https://github.com/eza-community/eza/releases/download/v{}/{}".format(version, fname)
 
 install_layout = archive_layout("eza")
 
