@@ -35,6 +35,15 @@ pub struct GlobalOptions {
     pub with_deps: Vec<String>,
     /// Output format (RFC 0031: unified structured output)
     pub output_format: OutputFormat,
+    /// Disable automatic installation of missing tools.
+    ///
+    /// When true, vx errors instead of auto-installing missing runtimes.
+    /// Controlled by `--no-auto-install` flag or `VX_NO_AUTO_INSTALL=1`.
+    pub no_auto_install: bool,
+    /// Field mask: only return these fields in structured output.
+    ///
+    /// Empty = return all fields. Controlled by `--fields name,version,...`.
+    pub fields: Vec<String>,
 }
 
 impl GlobalOptions {
@@ -85,9 +94,37 @@ impl GlobalOptions {
         self
     }
 
+    /// Builder method: set no_auto_install
+    pub fn with_no_auto_install(mut self, value: bool) -> Self {
+        self.no_auto_install = value;
+        self
+    }
+
+    /// Builder method: set fields mask
+    pub fn with_fields(mut self, value: Vec<String>) -> Self {
+        self.fields = value;
+        self
+    }
+
     /// Check if JSON output is requested
     pub fn is_json(&self) -> bool {
         self.output_format == OutputFormat::Json
+    }
+
+    /// Returns true if automatic installation of missing tools is disabled.
+    ///
+    /// Checks both the `--no-auto-install` flag and `VX_NO_AUTO_INSTALL` env var.
+    pub fn auto_install_disabled(&self) -> bool {
+        self.no_auto_install
+            || matches!(
+                std::env::var("VX_NO_AUTO_INSTALL").as_deref(),
+                Ok("1") | Ok("true") | Ok("yes")
+            )
+    }
+
+    /// Returns the active field mask (empty = all fields).
+    pub fn field_mask(&self) -> &[String] {
+        &self.fields
     }
 }
 
@@ -150,6 +187,8 @@ impl CommandContext {
                 debug,
                 with_deps: Vec::new(),
                 output_format: OutputFormat::default(),
+                no_auto_install: false,
+                fields: Vec::new(),
             },
         )
     }
@@ -207,6 +246,16 @@ impl CommandContext {
     /// Check if JSON output is requested
     pub fn is_json(&self) -> bool {
         self.options.is_json()
+    }
+
+    /// Returns true if automatic installation of missing tools is disabled.
+    pub fn auto_install_disabled(&self) -> bool {
+        self.options.auto_install_disabled()
+    }
+
+    /// Returns the active field mask (empty = all fields).
+    pub fn field_mask(&self) -> &[String] {
+        self.options.field_mask()
     }
 
     /// Get test configuration for a runtime from the global ProviderHandle registry.
