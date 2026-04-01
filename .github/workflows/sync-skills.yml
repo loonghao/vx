@@ -34,23 +34,6 @@ jobs:
           echo "---"
           find skills/ -type f | head -50
 
-      - name: Package skills
-        run: |
-          cd skills
-          zip -r ../vx-skills.zip .
-          cd ..
-          echo "Packaged skills: $(ls -lh vx-skills.zip)"
-          echo "Contents:"
-          unzip -l vx-skills.zip | head -50
-
-      - name: Upload skill artifact
-        uses: actions/upload-artifact@v6
-        with:
-          name: vx-skills
-          path: vx-skills.zip
-          if-no-files-found: error
-          retention-days: 30
-
       - name: Sync to ClawHub
         env:
           CLAWHUB_TOKEN: ${{ secrets.CLAWHUB_TOKEN }}
@@ -65,29 +48,21 @@ jobs:
           echo "Commit: ${{ github.sha }}"
           echo "Ref: ${{ github.ref }}"
 
-          # Upload skill package to ClawHub API
-          HTTP_CODE=$(curl -sS -o /tmp/clawhub_response.txt -w "%{http_code}" -X POST \
-            -H "Authorization: Bearer $CLAWHUB_TOKEN" \
-            -F "skill=@vx-skills.zip" \
-            -F "name=vx" \
-            -F "repository=loonghao/vx" \
-            "https://api.clawhub.ai/v1/skills/publish")
+          # Install clawhub CLI via npx and authenticate via token
+          # Using --no-browser so it does not try to open a browser in CI
+          npx --yes clawhub login --token "$CLAWHUB_TOKEN" --no-browser
 
-          echo "HTTP Status: $HTTP_CODE"
-          echo "Response:"
-          cat /tmp/clawhub_response.txt
-          echo ""
+          # Sync all skills from the skills/ directory
+          # --all: upload without interactive prompts
+          # --bump patch: auto-increment patch version on each publish
+          cd skills
+          npx clawhub sync --all --bump patch --changelog "Automated sync from ${{ github.ref }} (${{ github.sha }})"
 
-          if [ "$HTTP_CODE" -ge 200 ] && [ "$HTTP_CODE" -lt 300 ]; then
-            echo "Successfully synced vx skills to ClawHub"
-            {
-              echo "## ClawHub sync"
-              echo "- Status: success"
-              echo "- Commit: \`${{ github.sha }}\`"
-              echo "- Ref: \`${{ github.ref }}\`"
-              echo "- Package: \`vx-skills.zip\`"
-            } >> "$GITHUB_STEP_SUMMARY"
-          else
-            echo "::error::ClawHub sync failed with HTTP $HTTP_CODE"
-            exit 1
-          fi
+          echo "Successfully synced vx skills to ClawHub"
+          {
+            echo "## ClawHub sync"
+            echo "- Status: success"
+            echo "- Commit: \`${{ github.sha }}\`"
+            echo "- Ref: \`${{ github.ref }}\`"
+            echo "- Method: clawhub CLI"
+          } >> "$GITHUB_STEP_SUMMARY"
