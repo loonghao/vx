@@ -5,6 +5,40 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.16](https://github.com/loonghao/vx/compare/v0.8.15...v0.8.16) (2026-04-01)
+
+
+### Features
+
+* add 11 new providers (mise, gitleaks, biome, lazydocker, k9s, gping, watchexec, duf, trippy, sd, actionlint) ([7874ac8](https://github.com/loonghao/vx/commit/7874ac821a2d5798910a3d33807f35050d3d2b29))
+* add 7 high-priority developer tool providers (lazygit, delta, hyperfine, zoxide, atuin, chezmoi, eza) ([b221a45](https://github.com/loonghao/vx/commit/b221a45f46e13c6b45d17adf7de32323f65cb923))
+* add 7 new providers (tealdeer, dust, xh, bottom, trivy, zellij, dive) ([5aa0e2d](https://github.com/loonghao/vx/commit/5aa0e2da9af225ca010ad18e1d852f5292d0fde3))
+* add helix and yazi providers ([acf70c3](https://github.com/loonghao/vx/commit/acf70c3940812116cf5fb85ac65e389cde028262))
+
+
+### Bug Fixes
+
+* **ci:** sanitize provider cache keys ([11e46fe](https://github.com/loonghao/vx/commit/11e46fe6fe5f2bce70bac911beea15cc35dde42f))
+* **eza:** add platform_constraint to skip macOS in CI tests ([65c9571](https://github.com/loonghao/vx/commit/65c9571af9fea6a48ac3599e501c357279cf2e84))
+* **gcloud:** update starlark test to use __type field ([2a35711](https://github.com/loonghao/vx/commit/2a357115eea69195be4285e73e00bdbf9747f684))
+* import env_prepend from env.star instead of provider.star ([f63a814](https://github.com/loonghao/vx/commit/f63a814c395205c95fed8f87149e42df11991dab))
+* **mise:** avoid strip_prefix on Windows to prevent Access Denied errors ([a955566](https://github.com/loonghao/vx/commit/a95556696b2be579f3750e5c383d90e3142c79d0))
+* **mise:** update unit tests to match new install_layout implementation ([4d2946f](https://github.com/loonghao/vx/commit/4d2946fcb121edee0518079390d1a2026aae3745))
+* **mise:** use strip_prefix='mise/bin' on Windows to avoid shim detection error ([5c06c76](https://github.com/loonghao/vx/commit/5c06c765dcb6634d3ed8adc7618e81ff49c34d92))
+* **providers:** fix dust and eza macOS download URL 404 ([5eb5b20](https://github.com/loonghao/vx/commit/5eb5b201ae34359cf7a8a29e0cc4b555f03247b2))
+* **providers:** fix dust version pattern and tealdeer binary rename ([3f3cd31](https://github.com/loonghao/vx/commit/3f3cd31ec6e83b75d6858a4a1a446539e5672ecc))
+* **providers:** fix gcloud get_execute_path and terraform fetch_versions ([5c2505d](https://github.com/loonghao/vx/commit/5c2505da487877fbe0331f7704bd83403d061853))
+* **providers:** resolve CI issues for new provider batch ([2b229ab](https://github.com/loonghao/vx/commit/2b229ab21a012fff3d200997ab892000431eff50))
+* **providers:** resolve tealdeer and mise install layouts ([ed6b6b6](https://github.com/loonghao/vx/commit/ed6b6b630910eec5374c5eff820ab5d88f1f8a56))
+* **watchexec:** remove unused load imports to pass provider static lint ([e4da30a](https://github.com/loonghao/vx/commit/e4da30ab193eba7dc1f809554f10f1b09a2324e6))
+* **watchexec:** use .zip on Windows, .tar.xz on Linux/macOS ([6c8e978](https://github.com/loonghao/vx/commit/6c8e978fd60c424bb91d3da4b8898ab7a65d0d01))
+
+
+### Documentation
+
+* enhance AI agent documentation and sync skills ([#736](https://github.com/loonghao/vx/issues/736)) ([20affa6](https://github.com/loonghao/vx/commit/20affa63f35c70ac51858d96192df2320ff22d5b))
+* enhance AI agent documentation with decision framework, MCP guide, and version fixes ([#732](https://github.com/loonghao/vx/issues/732)) ([90774ee](https://github.com/loonghao/vx/commit/90774eeb518ec046eae7c570bb316f2ad52f9f11))
+
 ## [0.8.15](https://github.com/loonghao/vx/compare/v0.8.14...v0.8.15) (2026-03-30)
 
 
