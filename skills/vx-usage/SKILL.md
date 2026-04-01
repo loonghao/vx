@@ -1,6 +1,6 @@
 ---
 name: vx-usage
-description: "Teaches AI agents how to use vx, the universal dev tool manager. Use when the project has vx.toml or .vx/, or when the user mentions vx, tool version management, or cross-platform setup. vx auto-manages Node.js, Python, Go, Rust, and 78 tools via Starlark DSL providers. Also covers MCP integration patterns and GitHub Actions."
+description: "Teaches AI agents how to use vx, the universal dev tool manager. Use when the project has vx.toml or .vx/, or when the user mentions vx, tool version management, or cross-platform setup. vx auto-manages Node.js, Python, Go, Rust, and 105 tools via Starlark DSL providers. Also covers MCP integration patterns and GitHub Actions."
 ---
 
 # VX - Universal Development Tool Manager
@@ -195,18 +195,20 @@ vx msvc@14.40 cl main.cpp
 | lib | `vx msvc lib` | Library manager |
 | nmake | `vx msvc nmake` | Make utility |
 
-## Supported Tools (78 Providers)
+## Supported Tools (105 Providers)
 
 | Category | Tools |
 |----------|-------|
 | **JavaScript** | node, npm, npx, bun, deno, pnpm, yarn, vite, nx, turbo |
-| **JS Tooling** | oxlint |
+| **JS Tooling** | oxlint, biome |
 | **Python** | uv, uvx, python, pip, ruff, maturin, pre-commit |
 | **Rust** | cargo, rustc, rustup |
 | **Go** | go, gofmt, gws |
-| **System/CLI** | git, bash, curl, pwsh, jq, yq, fd, bat, ripgrep, fzf, starship, jj |
+| **System/CLI** | git, bash, curl, pwsh, jq, yq, fd, bat, ripgrep, fzf, starship, jj, sd, eza, dust, duf, xh, atuin, zoxide, tealdeer, gping, delta, hyperfine, watchexec, bottom |
+| **TUI/Terminal** | helix, yazi, zellij, lazygit, lazydocker, k9s |
 | **Build Tools** | just, task, cmake, ninja, make, meson, xmake, protoc, conan, vcpkg, spack |
-| **DevOps** | kubectl, helm, podman, terraform, hadolint, dagu |
+| **DevOps** | kubectl, helm, podman, terraform, hadolint, dagu, actionlint |
+| **Security** | gitleaks, trivy |
 | **Cloud CLI** | awscli, azcli, gcloud |
 | **.NET** | dotnet, msbuild, nuget |
 | **C/C++** | msvc, llvm, nasm, ccache, buildcache, sccache, rcedit |
@@ -214,12 +216,14 @@ vx msvc@14.40 cl main.cpp
 | **Java** | java |
 | **AI** | ollama, openclaw |
 | **Other Langs** | zig |
+| **Container** | dive |
+| **Config Mgmt** | chezmoi, mise |
 | **Package Managers** | brew, choco, winget |
-| **Misc** | gh, prek, actrun, wix, vscode, xcodebuild, systemctl, release-please, rez, 7zip |
+| **Misc** | gh, prek, actrun, wix, vscode, xcodebuild, systemctl, release-please, rez, 7zip, trippy |
 
 ## Provider System (Starlark DSL)
 
-All 78 providers are defined using **provider.star** (Starlark DSL) — a declarative, zero-compilation approach. Each provider lives in `crates/vx-providers/<name>/provider.star`.
+All 105 providers are defined using **provider.star** (Starlark DSL) — a declarative, zero-compilation approach. Each provider lives in `crates/vx-providers/<name>/provider.star`.
 
 vx uses a **two-phase execution model** (inspired by Buck2):
 1. **Analysis Phase (Starlark)**: `provider.star` runs as pure computation, returning descriptor dicts. No I/O.
