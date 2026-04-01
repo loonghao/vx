@@ -30,7 +30,12 @@ ecosystem   = "devtools"
 # Runtime definitions
 # ---------------------------------------------------------------------------
 
-runtimes = [runtime_def("eza", version_pattern="\\d+\\.\\d+")]
+runtimes = [
+    runtime_def("eza",
+        version_pattern     = "\\d+\\.\\d+",
+        platform_constraint = {"os": ["linux", "windows"]},
+    ),
+]
 
 # ---------------------------------------------------------------------------
 # Permissions
