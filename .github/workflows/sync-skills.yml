@@ -13,9 +13,14 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: sync-skills-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   sync-skills:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     if: github.repository == 'loonghao/vx'
 
     steps:
@@ -43,15 +48,17 @@ jobs:
         with:
           name: vx-skills
           path: vx-skills.zip
+          if-no-files-found: error
           retention-days: 30
 
       - name: Sync to ClawHub
         env:
           CLAWHUB_TOKEN: ${{ secrets.CLAWHUB_TOKEN }}
+
         run: |
           if [ -z "$CLAWHUB_TOKEN" ]; then
-            echo "::warning::CLAWHUB_TOKEN secret is not configured. Please add it to repository secrets to enable ClawHub sync."
-            exit 0
+            echo "::error::CLAWHUB_TOKEN secret is not configured. Add it to repository secrets before merging skills changes to main."
+            exit 1
           fi
 
           echo "Syncing vx skills to ClawHub..."
@@ -59,9 +66,8 @@ jobs:
           echo "Ref: ${{ github.ref }}"
 
           # Upload skill package to ClawHub API
-          HTTP_CODE=$(curl -s -o /tmp/clawhub_response.txt -w "%{http_code}" -X POST \
+          HTTP_CODE=$(curl -sS -o /tmp/clawhub_response.txt -w "%{http_code}" -X POST \
             -H "Authorization: Bearer $CLAWHUB_TOKEN" \
-            -H "Content-Type: multipart/form-data" \
             -F "skill=@vx-skills.zip" \
             -F "name=vx" \
             -F "repository=loonghao/vx" \
@@ -74,6 +80,14 @@ jobs:
 
           if [ "$HTTP_CODE" -ge 200 ] && [ "$HTTP_CODE" -lt 300 ]; then
             echo "Successfully synced vx skills to ClawHub"
+            {
+              echo "## ClawHub sync"
+              echo "- Status: success"
+              echo "- Commit: \`${{ github.sha }}\`"
+              echo "- Ref: \`${{ github.ref }}\`"
+              echo "- Package: \`vx-skills.zip\`"
+            } >> "$GITHUB_STEP_SUMMARY"
           else
-            echo "::warning::ClawHub sync failed with HTTP $HTTP_CODE (non-fatal)"
+            echo "::error::ClawHub sync failed with HTTP $HTTP_CODE"
+            exit 1
           fi
