@@ -129,9 +129,13 @@ async fn test_list_system_tools_all() {
     );
 }
 
-/// Helper to run vx command
+/// Helper to run vx command with forced text output.
+///
+/// In CI, stdout is not a TTY so vx auto-switches to NDJSON.
+/// Tests that check for human-readable text headers must force text mode.
 async fn run_vx_command(args: &[&str]) -> CommandOutput {
-    let output = common::run_vx(args).expect("Failed to execute vx");
+    let output =
+        common::run_vx_with_env(args, &[("VX_OUTPUT", "text")]).expect("Failed to execute vx");
 
     CommandOutput {
         status: output.status,
