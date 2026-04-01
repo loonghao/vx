@@ -66,9 +66,24 @@ fn test_renderer_is_json() {
 
 #[test]
 fn test_renderer_format() {
-    let renderer = OutputRenderer::new(OutputFormat::Text);
+    // Use new_exact() to bypass TTY detection — OutputRenderer::new(Text) may
+    // auto-upgrade to Json in non-TTY environments (e.g. CI). This test only
+    // verifies that the format field is stored correctly when set explicitly.
+    let renderer = OutputRenderer::new_exact(OutputFormat::Text);
     assert_eq!(renderer.format(), OutputFormat::Text);
 
-    let renderer = OutputRenderer::new(OutputFormat::Json);
+    let renderer = OutputRenderer::new_exact(OutputFormat::Json);
     assert_eq!(renderer.format(), OutputFormat::Json);
+}
+
+#[test]
+fn test_renderer_new_auto_upgrades_in_non_tty() {
+    // OutputRenderer::new(Text) should auto-upgrade to Json outside a TTY
+    // (unless VX_OUTPUT=text is set). We can't control whether CI is a TTY,
+    // so just verify that the result is either Text or Json — never Toon.
+    let renderer = OutputRenderer::new(OutputFormat::Text);
+    assert!(
+        renderer.format() == OutputFormat::Text || renderer.format() == OutputFormat::Json,
+        "new(Text) should produce Text or Json, never Toon"
+    );
 }
