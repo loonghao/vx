@@ -1,0 +1,67 @@
+# Cursor Rules for vx
+
+## Project Context
+
+vx is a universal development tool manager written in Rust (v0.8.16, 105 providers).
+Users prefix commands with `vx` (e.g., `vx node --version`) and vx auto-installs tools.
+Providers are defined via Starlark DSL (`provider.star`) — no Rust code needed for new tools.
+
+## Do
+
+- Always prefix tool commands with `vx`: `vx npm install`, `vx cargo build`
+- Use correct terminology: Runtime (not Tool), Provider (not Plugin), provider.star (not provider config)
+- Place tests in `crates/<name>/tests/` directories, never inline `#[cfg(test)]`
+- Use `rstest` for parameterized tests
+- Use `tracing` macros for logging: `tracing::info!`, `tracing::debug!`
+- Use `anyhow::Result` for application code, `thiserror` for library error types
+- Use `vx just quick` before committing (format → lint → test → build)
+- Follow Conventional Commits: `feat:`, `fix:`, `docs:`, `chore:`, `refactor:`, `test:`
+- Keep source files under 500 lines
+- Import order: stdlib → external → internal, separated by blank lines
+
+## Don't
+
+- Don't suggest `npm install` — always `vx npm install`
+- Don't suggest manual tool installation — vx handles it automatically
+- Don't write `#[cfg(test)] mod tests {}` inline in source files
+- Don't use `println!` or `eprintln!` — use `tracing` macros
+- Don't import from a higher architectural layer (dependencies go downward only)
+- Don't use `sudo` with vx — it manages user-level installations under `~/.vx/`
+
+## Architecture Layers (top → bottom)
+
+1. **CLI**: `vx-cli` — entry point, command parsing
+2. **Orchestration**: `vx-resolver`, `vx-setup`, `vx-project-analyzer`
+3. **Service**: `vx-runtime`, `vx-starlark`, `vx-installer`, `vx-config`, `vx-console`
+4. **Foundation**: `vx-core`, `vx-paths`, `vx-cache`, `vx-versions`, `vx-manifest`
+5. **Providers**: `vx-providers/*` — 105 Starlark DSL provider definitions
+
+## New Provider Template
+
+```starlark
+# crates/vx-providers/<name>/provider.star
+load("@vx//stdlib:provider.star", "runtime_def", "github_permissions")
+load("@vx//stdlib:provider_templates.star", "github_rust_provider")
+
+name        = "<name>"
+description = "<description>"
+ecosystem   = "custom"
+runtimes    = [runtime_def("<runtime>")]
+permissions = github_permissions()
+
+_p = github_rust_provider("owner", "repo",
+    asset = "tool-{vversion}-{triple}.{ext}")
+fetch_versions   = _p["fetch_versions"]
+download_url     = _p["download_url"]
+install_layout   = _p["install_layout"]
+store_root       = _p["store_root"]
+get_execute_path = _p["get_execute_path"]
+environment      = _p["environment"]
+```
+
+## Key References
+
+- Full AI agent guide: [AGENTS.md](AGENTS.md)
+- Provider DSL reference: [docs/guide/provider-star-reference.md](docs/guide/provider-star-reference.md)
+- Architecture: [docs/architecture/OVERVIEW.md](docs/architecture/OVERVIEW.md)
+- Coding conventions: [docs/CONVENTIONS.md](docs/CONVENTIONS.md)

@@ -3,10 +3,12 @@
 > **For AI agents**: This file is a **map**, not a manual. Start here, then drill into the linked docs as needed.
 > If you are working on a project that uses vx, **always prefix commands with `vx`** (e.g., `vx npm install`, `vx cargo build`).
 > Also see: [`llms.txt`](llms.txt) for a concise LLM-friendly project index, [`llms-full.txt`](llms-full.txt) for detailed LLM documentation.
+>
+> **Compatibility**: This file follows the [AGENTS.md](https://agents.md/) open standard (managed by Agentic AI Foundation / Linux Foundation). It is recognized by OpenAI Codex, Google Jules, GitHub Copilot, Cursor, Amp, Factory, Aider, Zed, Warp, JetBrains Junie, Devin, and other AI coding agents.
 
 ## What is vx?
 
-vx is a **zero-config universal development tool manager** (v0.8.15, MIT-licensed, written in Rust). Users prefix any command with `vx` (e.g., `vx node --version`, `vx cargo build`) and vx automatically installs, manages, and forwards to the correct tool version. vx currently ships **78 providers** covering language runtimes, build tools, DevOps CLIs, cloud platforms, and more — all defined via Starlark DSL (`provider.star`).
+vx is a **zero-config universal development tool manager** (v0.8.16, MIT-licensed, written in Rust). Users prefix any command with `vx` (e.g., `vx node --version`, `vx cargo build`) and vx automatically installs, manages, and forwards to the correct tool version. vx currently ships **105 providers** covering language runtimes, build tools, DevOps CLIs, cloud platforms, and more — all defined via Starlark DSL (`provider.star`).
 
 **Key insight for agents**: vx is a transparent proxy. The user writes the exact same commands they already know — just prepended with `vx`. There is **no new syntax to learn** for tool execution.
 
@@ -51,7 +53,7 @@ This entire flow is **automatic** — the user never needs to know about it.
 | See all CLI commands                 | [`docs/cli/`](docs/cli/)                         |
 | Follow unified syntax rules          | [`docs/guide/command-syntax-rules.md`](docs/guide/command-syntax-rules.md) |
 | Check project configuration          | [`Cargo.toml`](Cargo.toml) (workspace root)      |
-| See all 78 providers                 | [`crates/vx-providers/`](crates/vx-providers/)   |
+| See all 105 providers                | [`crates/vx-providers/`](crates/vx-providers/)   |
 | Contribute to the project            | [`docs/advanced/contributing.md`](docs/advanced/contributing.md) |
 | Understand vx.toml configuration     | [`docs/config/vx-toml.md`](docs/config/vx-toml.md) |
 | Troubleshoot issues                  | [`docs/appendix/troubleshooting.md`](docs/appendix/troubleshooting.md) |
@@ -104,7 +106,7 @@ User Command: vx npm install
 7. **Check `vx.toml`** first to understand project tool requirements
 8. **New providers use Starlark DSL only** — No Rust code required for new tool definitions
 9. **Layer dependencies go downward only** — Never import from a higher architectural layer
-10. **Provider count is 78** — Update any docs that reference old counts (73, 70+, 50+, etc.)
+10. **Provider count is 105** — Update any docs that reference old counts (78, 73, 70+, 50+, etc.)
 
 ### Setup Commands
 
@@ -183,7 +185,7 @@ vx dev                         # Enter dev environment
 │  vx-manifest       (Provider manifest parsing)          │
 │  vx-args           (Argument parsing)                   │
 ├─────────────────────────────────────────────────────────┤
-│  vx-providers/*    (78 Providers — provider.star DSL)   │
+│  vx-providers/*    (105 Providers — provider.star DSL)  │
 │  vx-bridge         (Generic command bridge)             │
 └─────────────────────────────────────────────────────────┘
 ```
@@ -334,29 +336,33 @@ def environment(ctx, _version):
     ]
 ```
 
-## All 78 Providers
+## All 105 Providers
 
 Organized by category:
 
 | Category | Providers |
 |----------|-----------|
 | **JavaScript** | node, bun, deno, pnpm, yarn, nx, turbo, vite |
-| **JS Tooling** | oxlint |
+| **JS Tooling** | oxlint, biome |
 | **Python** | uv, python, pre-commit, maturin, ruff |
 | **Rust** | rust (cargo, rustc, rustup) |
 | **Go** | go, gws |
-| **System/CLI** | git, bash, curl, pwsh, jq, yq, fd, bat, ripgrep, fzf, starship, jj |
+| **System/CLI** | git, bash, curl, pwsh, jq, yq, fd, bat, ripgrep, fzf, starship, jj, sd, eza, dust, duf, xh, atuin, zoxide, tealdeer, gping, delta, hyperfine, watchexec, bottom |
+| **TUI/Terminal** | helix, yazi, zellij, lazygit, lazydocker, k9s |
 | **Build Tools** | just, task, cmake, ninja, make, meson, xmake, protoc, conan, vcpkg, spack |
-| **DevOps** | kubectl, helm, podman, terraform, hadolint, dagu |
+| **DevOps** | kubectl, helm, podman, terraform, hadolint, dagu, actionlint |
+| **Security** | gitleaks, trivy |
 | **Cloud CLI** | awscli, azcli, gcloud |
 | **.NET** | dotnet, msbuild, nuget |
 | **C/C++** | msvc, llvm, nasm, ccache, buildcache, sccache, rcedit |
 | **Media** | ffmpeg, imagemagick |
 | **Java** | java |
 | **Other Langs** | zig |
+| **Container** | dive |
+| **Config Mgmt** | chezmoi, mise |
 | **Package Managers** | brew, choco, winget |
 | **AI** | ollama, openclaw |
-| **Misc** | gh, prek, actrun, wix, vscode, xcodebuild, systemctl, release-please, rez, 7zip |
+| **Misc** | gh, prek, actrun, wix, vscode, xcodebuild, systemctl, release-please, rez, 7zip, trippy |
 
 ## Decision Framework for AI Agents
 
@@ -615,6 +621,27 @@ Use these canonical forms consistently in docs and examples:
 - Mock network calls in unit tests — never use real HTTP in unit tests
 - Each test should be independent — no shared mutable state between tests
 
+## Allowed vs. Needs-Approval Actions
+
+This section helps AI agents understand their operational boundaries:
+
+### ✅ Allowed Without Asking
+- Read any file in the repository
+- Run `vx just quick`, `vx just test`, `vx just lint`, `vx just format`
+- Run `vx cargo check -p <crate>` or `vx cargo test -p <crate>`
+- Create or modify files under `crates/vx-providers/` (new providers)
+- Create or modify test files under `crates/*/tests/`
+- Run `vx <tool> --version` to check tool availability
+
+### ⚠️ Ask First
+- Deleting any file
+- Modifying `Cargo.toml` workspace dependencies
+- Running `git push` or `git push --force`
+- Modifying CI workflows (`.github/workflows/`)
+- Installing new system-level packages
+- Running full E2E test suite (can be slow)
+- Changing architecture layer boundaries
+
 ## GitHub Actions Integration
 
 vx provides a GitHub Action for CI/CD. See [`docs/guides/github-action.md`](docs/guides/github-action.md) for the full guide.
@@ -637,6 +664,14 @@ vx provides a GitHub Action for CI/CD. See [`docs/guides/github-action.md`](docs
 ## Documentation Map
 
 ```
+# AI Agent Ecosystem (root files)
+AGENTS.md                 # THIS FILE — primary AI agent entry point
+llms.txt                  # LLM-friendly project index (for llmstxt.org protocol)
+llms-full.txt             # Detailed LLM documentation
+.github/copilot-instructions.md  # GitHub Copilot-specific instructions
+.cursorrules              # Cursor IDE agent rules
+
+# Documentation site
 docs/
 ├── architecture/     # System architecture (OVERVIEW.md)
 ├── guide/            # User guides (22 files — getting-started, provider-star-reference, etc.)
@@ -648,6 +683,14 @@ docs/
 ├── rfcs/             # 50 design decision documents
 ├── appendix/         # FAQ, troubleshooting
 └── zh/               # Chinese translations (72+ files)
+
+# AI Agent Skills (distributed via vx ai setup and ClawHub)
+skills/
+├── vx-usage/SKILL.md           # Core usage guide
+├── vx-commands/SKILL.md        # CLI command reference
+├── vx-project/SKILL.md         # Project management
+├── vx-best-practices/SKILL.md  # Best practices & provider development
+└── vx-troubleshooting/SKILL.md # Troubleshooting & recovery
 ```
 
 ### Crate Responsibilities Quick Reference
