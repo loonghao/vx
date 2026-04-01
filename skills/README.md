@@ -43,12 +43,22 @@ clawhub install loonghao/vx
 # Or copy skills/ directory to your AI agent's skills directory
 ```
 
+## CI Publishing to ClawHub
+
+The repository publishes `skills/` to ClawHub through `.github/workflows/sync-skills.yml`.
+
+- Pushes to `main` that modify `skills/**` trigger an automatic publish
+- Maintainers can also trigger the workflow manually with `workflow_dispatch`
+- The repository secret `CLAWHUB_TOKEN` must be configured for the publish to succeed
+- Failed ClawHub publishes are treated as workflow failures so main-branch sync issues are visible immediately
+
 ## When Skills Activate
 
 The skills trigger when:
 - The project contains `vx.toml` or `.vx/` directory
 - The user mentions `vx`, tool version management, or cross-platform setup
 - The user needs to manage development tool versions
+
 
 ### Skill Routing Guide
 
