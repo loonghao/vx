@@ -23,6 +23,12 @@ pub use handler::{CommandContext, CommandHandler, GlobalOptions};
 // Shared utilities
 pub mod common;
 
+/// Input validation for Agent DX (rejects control chars, path traversal, injection)
+pub mod input_validation;
+
+/// Schema introspection for AI agents (vx schema <runtime>)
+pub mod schema;
+
 // =============================================================================
 // Modular Commands (RFC 0020 Phase 2)
 // =============================================================================

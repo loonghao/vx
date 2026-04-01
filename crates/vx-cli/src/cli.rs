@@ -171,6 +171,25 @@ pub struct Cli {
     #[arg(long = "with", short = 'w', action = clap::ArgAction::Append, global = true)]
     pub with_deps: Vec<String>,
 
+    /// Disable automatic installation of missing tools.
+    ///
+    /// When set, vx will error instead of auto-installing missing runtimes.
+    /// Equivalent to setting `VX_NO_AUTO_INSTALL=1`.
+    /// Useful for CI/CD pipelines that want explicit install steps.
+    #[arg(long, global = true)]
+    pub no_auto_install: bool,
+
+    /// Field mask: comma-separated list of fields to include in output.
+    ///
+    /// Reduces context-window consumption for AI agents by returning only the
+    /// required fields. Applies to JSON/NDJSON output of list/versions/which commands.
+    ///
+    /// Examples:
+    ///   --fields name,version
+    ///   --fields name,installed,ecosystem
+    #[arg(long, global = true, value_delimiter = ',')]
+    pub fields: Vec<String>,
+
     /// Tool and arguments to execute
     #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
     pub args: Vec<String>,
@@ -206,6 +225,8 @@ impl From<&Cli> for GlobalOptions {
             debug: cli.debug,
             with_deps: cli.with_deps.clone(),
             output_format,
+            no_auto_install: cli.no_auto_install,
+            fields: cli.fields.clone(),
         }
     }
 }
@@ -792,6 +813,29 @@ pub enum Commands {
     Provider {
         #[command(subcommand)]
         command: ProviderCommand,
+    },
+
+    // =========================================================================
+    // Agent DX (AI-friendly introspection)
+    // =========================================================================
+    /// Runtime schema introspection for AI agents (Agent DX)
+    ///
+    /// Dumps machine-readable metadata about runtimes and commands so that
+    /// AI agents can discover what vx accepts at runtime — no static docs needed.
+    ///
+    /// Examples:
+    ///   vx schema node              # Schema for the node runtime
+    ///   vx schema --all             # All runtimes as NDJSON (one per line)
+    ///   vx schema --commands        # All vx sub-commands as JSON
+    Schema {
+        /// Runtime name to introspect (e.g., node, go, uv)
+        runtime: Option<String>,
+        /// Dump schemas for ALL registered runtimes as NDJSON
+        #[arg(long, short = 'a', conflicts_with_all = &["commands"])]
+        all: bool,
+        /// List all vx CLI sub-commands as JSON
+        #[arg(long, short = 'c', conflicts_with_all = &["all"])]
+        commands: bool,
     },
 }
 
@@ -1405,6 +1449,7 @@ impl CommandHandler for Commands {
             Commands::Auth { .. } => "auth",
             Commands::Ai { .. } => "ai",
             Commands::Provider { .. } => "provider",
+            Commands::Schema { .. } => "schema",
         }
     }
 
@@ -2033,6 +2078,15 @@ impl CommandHandler for Commands {
                 }
                 AiCommand::Session(session) => commands::ai::handle_session(ctx, session).await,
             },
+
+            Commands::Schema {
+                runtime,
+                all,
+                commands: show_commands,
+            } => {
+                commands::schema::handle(ctx.registry(), runtime.as_deref(), *all, *show_commands)
+                    .await
+            }
         }
     }
 }

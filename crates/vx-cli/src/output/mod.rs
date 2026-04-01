@@ -2,6 +2,14 @@
 //!
 //! This module defines structured output types for all CLI commands.
 //! Each output type implements `CommandOutput` for unified `--json` support.
+//!
+//! ## Agent DX: TTY Detection (Justin Poehnelt / Google Cloud best practices)
+//!
+//! When stdout is NOT a TTY (e.g. piped to a script or AI agent), the renderer
+//! automatically switches to NDJSON (newline-delimited JSON) rather than text.
+//! This makes vx machine-readable by default without any flags.
+//!
+//! Override with `VX_OUTPUT=text` to force text output even in pipelines.
 
 use crate::cli::OutputFormat;
 use anyhow::Result;
@@ -11,6 +19,27 @@ use std::collections::HashMap;
 /// Serialize a value to TOON format using the official toon-format library.
 fn to_toon<T: Serialize>(value: &T) -> Result<String> {
     toon_format::encode_default(value).map_err(|e| anyhow::anyhow!("TOON encoding error: {}", e))
+}
+
+/// Detect whether stdout is a TTY.
+///
+/// Returns `false` when stdout is piped/redirected (e.g. to an AI agent or script).
+/// In that case the renderer will use machine-readable output automatically.
+///
+/// Uses `std::io::IsTerminal` (stabilized in Rust 1.70) — no extra dependencies needed.
+/// Override with `VX_OUTPUT=text` to force text output even in pipelines.
+pub fn stdout_is_tty() -> bool {
+    use std::io::IsTerminal;
+
+    // Allow explicit override via VX_OUTPUT=text
+    if matches!(
+        std::env::var("VX_OUTPUT").as_deref(),
+        Ok("text") | Ok("Text") | Ok("TEXT")
+    ) {
+        return true;
+    }
+
+    std::io::stdout().is_terminal()
 }
 
 // ============================================================================
@@ -51,29 +80,51 @@ pub trait CommandOutput: Serialize {
 
 /// Renders command output in the requested format.
 ///
-/// Selects between text, JSON, and (future) TOON output based on
-/// the global `--format` / `--json` flags.
+/// Selects between text, JSON, and TOON output based on:
+/// 1. Explicit `--output-format` / `--json` flags
+/// 2. Auto-detection: if stdout is NOT a TTY, defaults to NDJSON
+///    (unless `VX_OUTPUT=text` env var is set)
+///
+/// This implements the "Agent DX" principle from Google Cloud best practices:
+/// machines get machine-readable output without needing extra flags.
 pub struct OutputRenderer {
     format: OutputFormat,
 }
 
 impl OutputRenderer {
     /// Create a new renderer with the given format.
+    ///
+    /// If `format` is `Text` but stdout is not a TTY, automatically upgrades
+    /// to `Json` for machine-readable output (NDJSON-compatible).
     pub fn new(format: OutputFormat) -> Self {
+        let effective_format = if format == OutputFormat::Text && !stdout_is_tty() {
+            OutputFormat::Json
+        } else {
+            format
+        };
+        Self {
+            format: effective_format,
+        }
+    }
+
+    /// Create a renderer that always uses the given format (no TTY override).
+    ///
+    /// Use this in tests or when the caller has already applied TTY detection.
+    pub fn new_exact(format: OutputFormat) -> Self {
         Self { format }
     }
 
     /// Create a renderer for JSON output.
     pub fn json() -> Self {
-        Self::new(OutputFormat::Json)
+        Self::new_exact(OutputFormat::Json)
     }
 
     /// Create a renderer for text output.
     pub fn text() -> Self {
-        Self::new(OutputFormat::Text)
+        Self::new_exact(OutputFormat::Text)
     }
 
-    /// Get the current output format.
+    /// Get the current (effective) output format.
     pub fn format(&self) -> OutputFormat {
         self.format
     }
@@ -91,8 +142,8 @@ impl OutputRenderer {
     /// Render the output in the selected format.
     ///
     /// - Text: calls `output.render_text()` writing to stdout
-    /// - JSON: serializes to pretty JSON and prints to stdout
-    /// - TOON: serializes to token-optimized format for LLM prompts
+    /// - Json: compact single-line JSON (NDJSON-compatible for streaming)
+    /// - Toon: serializes to token-optimized format for LLM prompts
     pub fn render<T: CommandOutput>(&self, output: &T) -> Result<()> {
         match self.format {
             OutputFormat::Text => {
@@ -101,7 +152,13 @@ impl OutputRenderer {
                 Ok(())
             }
             OutputFormat::Json => {
-                let json = serde_json::to_string_pretty(output)?;
+                // Use compact single-line JSON (NDJSON-friendly).
+                // Pretty-print only when explicitly in a TTY context.
+                let json = if stdout_is_tty() {
+                    serde_json::to_string_pretty(output)?
+                } else {
+                    serde_json::to_string(output)?
+                };
                 println!("{json}");
                 Ok(())
             }
