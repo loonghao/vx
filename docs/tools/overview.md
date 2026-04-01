@@ -1,6 +1,6 @@
 # Supported Tools Overview
 
-vx supports **78 tools** out of the box, spanning language runtimes, package managers, DevOps tools, build systems, and more. All tools are managed through the same unified interface.
+vx supports **105 tools** out of the box, spanning language runtimes, package managers, DevOps tools, build systems, and more. All tools are managed through the same unified interface.
 
 ## At a Glance
 

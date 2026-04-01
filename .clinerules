@@ -1,0 +1,27 @@
+# Cline Rules for vx
+
+## Project
+
+vx is a universal development tool manager (Rust, 105 providers, Starlark DSL).
+Users prefix commands with `vx` and tools auto-install on first use.
+
+## Rules
+
+1. Always use `vx` prefix for tool commands: `vx npm install`, `vx cargo build`
+2. Never suggest manual tool installation — vx handles it
+3. Terminology: Runtime (not Tool), Provider (not Plugin), provider.star (not provider config)
+4. Tests go in `crates/<name>/tests/` — never `#[cfg(test)]` inline
+5. Use `rstest` for parameterized tests
+6. Logging: `tracing::info!`, `tracing::debug!` — never `println!`
+7. Error handling: `anyhow::Result` (app), `thiserror` (lib)
+8. Layer deps go downward only: CLI → Orchestration → Service → Foundation → Providers
+9. New providers: Starlark DSL only (`provider.star`), no Rust code needed
+10. Pre-commit: `vx just quick` (format → lint → test → build)
+11. Commits: Conventional Commits format (`feat:`, `fix:`, `docs:`, etc.)
+12. File size: Keep under 500 lines
+
+## References
+
+- [AGENTS.md](AGENTS.md) — Full AI agent guide
+- [docs/guide/provider-star-reference.md](docs/guide/provider-star-reference.md) — Provider DSL
+- [docs/architecture/OVERVIEW.md](docs/architecture/OVERVIEW.md) — Architecture
