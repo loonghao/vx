@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.18](https://github.com/loonghao/vx/compare/v0.8.17...v0.8.18) (2026-04-03)
+
+
+### Features
+
+* **cli:** Agent DX improvements for AI agents ([cc805e0](https://github.com/loonghao/vx/commit/cc805e0e285f1640961e1a9ac0f4802b243c7658))
+
+
+### Bug Fixes
+
+* **tests:** fix output_tests and info_tests failures in non-TTY CI ([c3ab0bd](https://github.com/loonghao/vx/commit/c3ab0bd30dfaa5737eb3846a203ee4bcdb47dfb1))
+
 ## [0.8.17](https://github.com/loonghao/vx/compare/v0.8.16...v0.8.17) (2026-04-02)
 
 
