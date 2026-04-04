@@ -444,3 +444,64 @@ impl ExecutionResult {
         self
     }
 }
+
+// ---------------------------------------------------------------------------
+// RFC 0040: Toolchain Version Indirection
+// ---------------------------------------------------------------------------
+
+/// Result of calling `version_info(ctx, user_version)` in provider.star.
+///
+/// Allows providers to declare a mapping between the user-facing version
+/// (e.g., rustc 1.93.1 from vx.toml) and the actual storage/download strategy.
+///
+/// For most tools this is not needed (1:1 mapping: `version_info()` returns None).
+/// Only toolchain-manager patterns (like Rust via rustup) need to use this.
+#[derive(Debug, Clone, Default)]
+pub struct VersionInfoResult {
+    /// Version string to use as the store directory name.
+    ///
+    /// e.g., "1.93.1" → `~/.vx/store/rust/1.93.1/`
+    ///
+    /// If `None`, the user-specified version is used directly (default behavior).
+    pub store_as: Option<String>,
+
+    /// Version to use when selecting the download URL.
+    ///
+    /// If `None`, the executor uses the latest available version from `fetch_versions()`.
+    /// This allows tools like Rust to always download the latest rustup installer
+    /// regardless of which rustc version the user requested.
+    pub download_version: Option<String>,
+
+    /// Extra key-value parameters passed to `post_extract` as `ctx.install_params`.
+    ///
+    /// e.g., `{"toolchain": "1.93.1"}` → `rustup-init --default-toolchain 1.93.1`
+    pub install_params: HashMap<String, String>,
+}
+
+impl VersionInfoResult {
+    /// Create a new `VersionInfoResult` with `store_as` set.
+    pub fn new(store_as: impl Into<String>) -> Self {
+        Self {
+            store_as: Some(store_as.into()),
+            download_version: None,
+            install_params: HashMap::new(),
+        }
+    }
+
+    /// Set download version override.
+    pub fn with_download_version(mut self, version: impl Into<String>) -> Self {
+        self.download_version = Some(version.into());
+        self
+    }
+
+    /// Add an install parameter.
+    pub fn with_install_param(mut self, key: impl Into<String>, value: impl Into<String>) -> Self {
+        self.install_params.insert(key.into(), value.into());
+        self
+    }
+
+    /// Get the effective store version (falls back to user_version if store_as is None).
+    pub fn effective_store_version<'a>(&'a self, user_version: &'a str) -> &'a str {
+        self.store_as.as_deref().unwrap_or(user_version)
+    }
+}

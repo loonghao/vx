@@ -6,7 +6,7 @@ use crate::error::{Error, Result};
 use tracing::debug;
 
 use super::StarlarkProvider;
-use super::types::{EnvOp, InstallLayout, PostExtractAction, PreRunAction};
+use super::types::{EnvOp, InstallLayout, PostExtractAction, PreRunAction, VersionInfoResult};
 
 impl StarlarkProvider {
     pub(super) async fn execute_install(
@@ -687,6 +687,52 @@ impl StarlarkProvider {
             Err(Error::FunctionNotFound { .. }) => {
                 debug!(provider = %self.meta.name, "pre_run() not found in provider script");
                 Ok(vec![])
+            }
+            Err(e) => Err(e),
+        }
+    }
+
+    // -----------------------------------------------------------------------
+    // RFC 0040: Toolchain Version Indirection
+    // -----------------------------------------------------------------------
+
+    /// Call `version_info(ctx, user_version)` from provider.star (optional).
+    ///
+    /// Allows providers to declare how a user-facing version (e.g., rustc 1.93.1)
+    /// maps to the actual store layout and download strategy.
+    ///
+    /// Returns `None` if:
+    /// - The provider does not define `version_info()` (most tools: 1:1 mapping)
+    /// - The function returns `None` explicitly
+    ///
+    /// Returns `Some(VersionInfoResult)` when the provider needs version indirection.
+    pub(super) async fn execute_version_info(
+        &self,
+        ctx: &ProviderContext,
+        user_version: &str,
+    ) -> Result<Option<VersionInfoResult>> {
+        let engine = StarlarkEngine::new();
+        let result = engine.call_function(
+            &self.script_path,
+            &self.script_content,
+            "version_info",
+            ctx,
+            &[serde_json::Value::String(user_version.to_string())],
+        );
+        match result {
+            Ok(json) => {
+                if json.is_null() {
+                    return Ok(None);
+                }
+                Ok(VersionInfoResult::from_json(&json))
+            }
+            Err(Error::FunctionNotFound { .. }) => {
+                // Most providers don't define version_info — that's fine
+                debug!(
+                    provider = %self.meta.name,
+                    "version_info() not defined in provider.star (using 1:1 version mapping)"
+                );
+                Ok(None)
             }
             Err(e) => Err(e),
         }

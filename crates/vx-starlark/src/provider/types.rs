@@ -491,3 +491,81 @@ pub fn is_starlark_provider(path: &std::path::Path) -> bool {
 pub fn has_starlark_provider(dir: &std::path::Path) -> bool {
     dir.join("provider.star").exists()
 }
+
+// ---------------------------------------------------------------------------
+// RFC 0040: Toolchain Version Indirection
+// ---------------------------------------------------------------------------
+
+/// Result of calling `version_info(ctx, user_version)` in provider.star.
+///
+/// Allows providers to declare a mapping between the user-facing version
+/// (e.g., rustc 1.93.1 from vx.toml) and the actual storage/download strategy.
+///
+/// For most tools this is not needed (1:1 mapping). Only toolchain-manager
+/// patterns (like Rust via rustup) need to implement `version_info()`.
+#[derive(Debug, Clone, Default)]
+pub struct VersionInfoResult {
+    /// Version string to use as the store directory name.
+    ///
+    /// e.g., "1.93.1" → ~/.vx/store/rust/1.93.1/
+    /// If None, the user-specified version is used directly (default behavior).
+    pub store_as: Option<String>,
+
+    /// Version to use when selecting the download URL.
+    ///
+    /// If None, the executor uses the latest available version from fetch_versions().
+    /// This allows tools like Rust to always download the latest rustup installer
+    /// regardless of which rustc version the user requested.
+    pub download_version: Option<String>,
+
+    /// Extra key-value parameters passed to `post_extract` as `ctx.install_params`.
+    ///
+    /// e.g., `{"toolchain": "1.93.1"}` → rustup-init --default-toolchain 1.93.1
+    pub install_params: HashMap<String, String>,
+}
+
+impl VersionInfoResult {
+    /// Parse from a Starlark-returned JSON value.
+    ///
+    /// Expected Starlark return format:
+    /// ```python
+    /// return {
+    ///     "store_as":         "1.93.1",
+    ///     "download_version": None,      # optional
+    ///     "install_params":   {"toolchain": "1.93.1"},  # optional
+    /// }
+    /// ```
+    pub fn from_json(json: &serde_json::Value) -> Option<Self> {
+        if json.is_null() {
+            return None;
+        }
+        let obj = json.as_object()?;
+
+        let store_as = obj
+            .get("store_as")
+            .and_then(|v| v.as_str())
+            .map(|s| s.to_string());
+
+        let download_version = obj
+            .get("download_version")
+            .filter(|v| !v.is_null())
+            .and_then(|v| v.as_str())
+            .map(|s| s.to_string());
+
+        let install_params = obj
+            .get("install_params")
+            .and_then(|v| v.as_object())
+            .map(|m| {
+                m.iter()
+                    .filter_map(|(k, v)| v.as_str().map(|s| (k.clone(), s.to_string())))
+                    .collect()
+            })
+            .unwrap_or_default();
+
+        Some(VersionInfoResult {
+            store_as,
+            download_version,
+            install_params,
+        })
+    }
+}

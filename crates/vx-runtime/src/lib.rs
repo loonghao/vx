@@ -98,6 +98,7 @@ pub use traits::{
 };
 pub use types::{
     ExecutionPrep, ExecutionResult, InstallResult, RuntimeDependency, RuntimeSpec, VersionInfo,
+    VersionInfoResult,
 };
 
 // Re-export testing utilities (only available with "testing" feature or in test builds)
