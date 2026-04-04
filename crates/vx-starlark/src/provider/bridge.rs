@@ -349,3 +349,61 @@ fn versions_to_runtime(versions: Vec<crate::context::VersionInfo>) -> Vec<vx_run
         })
         .collect()
 }
+
+// ---------------------------------------------------------------------------
+// RFC 0040: Toolchain Version Indirection
+// ---------------------------------------------------------------------------
+
+/// Type alias for the `version_info(user_version)` function pointer.
+///
+/// See `make_version_info_fn_owned` for the canonical way to create this.
+pub type VersionInfoFn = Arc<
+    dyn Fn(
+            String,
+        ) -> std::pin::Pin<
+            Box<
+                dyn std::future::Future<
+                        Output = anyhow::Result<Option<vx_runtime::VersionInfoResult>>,
+                    > + Send,
+            >,
+        > + Send
+        + Sync,
+>;
+
+/// Create a `VersionInfoFn` closure backed by an embedded `provider.star`.
+///
+/// The closure calls `version_info(ctx, user_version)` in Starlark and converts
+/// the result to `vx_runtime::VersionInfoResult`.
+pub fn make_version_info_fn_owned(
+    provider_name: Arc<str>,
+    content: Arc<str>,
+    runtime_name: String,
+) -> VersionInfoFn {
+    Arc::new(move |user_version: String| {
+        let provider_name = Arc::clone(&provider_name);
+        let content = Arc::clone(&content);
+        let runtime_name = runtime_name.clone();
+        Box::pin(async move {
+            let provider = StarlarkProvider::from_content(&*provider_name, &*content)
+                .await
+                .map_err(|e| {
+                    anyhow::anyhow!("Failed to load {} provider.star: {e}", provider_name)
+                })?;
+
+            let starlark_result = provider.version_info(&user_version).await.map_err(|e| {
+                anyhow::anyhow!(
+                    "{} version_info({}) failed: {e}",
+                    runtime_name,
+                    user_version
+                )
+            })?;
+
+            // Convert from vx-starlark VersionInfoResult to vx-runtime VersionInfoResult
+            Ok(starlark_result.map(|sr| vx_runtime::VersionInfoResult {
+                store_as: sr.store_as,
+                download_version: sr.download_version,
+                install_params: sr.install_params,
+            }))
+        })
+    })
+}

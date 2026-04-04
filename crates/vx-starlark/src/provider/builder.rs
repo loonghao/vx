@@ -12,6 +12,7 @@ use vx_star_metadata::StarMetadata;
 use super::bridge::{
     make_deps_fn_owned, make_download_url_fn, make_download_url_fn_owned, make_fetch_versions_fn,
     make_fetch_versions_fn_owned, make_install_layout_fn, make_install_layout_fn_owned,
+    make_version_info_fn_owned,
 };
 
 use crate::context::ProviderContext;
@@ -230,6 +231,13 @@ pub fn build_runtimes(
             }
 
             runtime = runtime.with_deps_fn(make_deps_fn_owned(
+                Arc::clone(&provider_name),
+                Arc::clone(&content),
+                name.clone(),
+            ));
+
+            // RFC 0040: Wire up version_info for toolchain-managed tools (e.g., Rust)
+            runtime = runtime.with_version_info(make_version_info_fn_owned(
                 Arc::clone(&provider_name),
                 Arc::clone(&content),
                 name.clone(),
