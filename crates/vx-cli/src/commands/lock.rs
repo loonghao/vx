@@ -6,6 +6,7 @@
 use anyhow::{Context, Result};
 use std::collections::{BTreeMap, HashSet};
 use vx_config::{ToolVersion, VxConfig, parse_config};
+use vx_paths::PathManager;
 use vx_paths::project::{LOCK_FILE_NAME, find_vx_config};
 use vx_resolver::{
     Ecosystem, LockFile, LockedTool, ResolvedVersion, Version, VersionRequest, VersionSolver,
@@ -364,6 +365,12 @@ async fn resolve_tool_version(
     let versions = runtime.fetch_versions(ctx).await?;
 
     if versions.is_empty() {
+        // Even with no remote versions, check if the tool is installed locally
+        if let Some(locked) =
+            try_lock_from_store(tool_name, version_str, &Ecosystem::Generic, verbose)?
+        {
+            return Ok(locked);
+        }
         return Err(anyhow::anyhow!("No versions available for {}", tool_name));
     }
 
@@ -428,9 +435,20 @@ async fn resolve_tool_version(
         }
     } else {
         // Normal resolution through version solver
-        solver
-            .resolve(tool_name, &request, &versions, &ecosystem)
-            .map_err(|e| anyhow::anyhow!("{}", e))?
+        match solver.resolve(tool_name, &request, &versions, &ecosystem) {
+            Ok(resolved) => resolved,
+            Err(e) => {
+                // If normal resolution fails, try to lock from installed store version.
+                // This handles cases where the exact pinned version is installed but
+                // not found in the remote version list (e.g., removed from upstream).
+                if let Some(locked) =
+                    try_lock_from_store(tool_name, version_str, &ecosystem, verbose)?
+                {
+                    return Ok(locked);
+                }
+                return Err(anyhow::anyhow!("{}", e));
+            }
+        }
     };
 
     // Get download URL for the current platform.
@@ -475,6 +493,83 @@ async fn resolve_tool_version(
     }
 
     Ok(locked)
+}
+
+/// Try to create a LockedTool entry from a version already installed in the vx store.
+///
+/// This is a fallback mechanism for when remote version resolution fails but the tool
+/// is confirmed to be installed locally. This handles cases like:
+/// - Python: pinned version is installed but version_date is unavailable for remote resolution
+/// - Any tool where the version is installed but no longer available upstream
+fn try_lock_from_store(
+    tool_name: &str,
+    version_str: &str,
+    ecosystem: &Ecosystem,
+    verbose: bool,
+) -> Result<Option<LockedTool>> {
+    let path_manager = PathManager::new()?;
+
+    // Check if the exact version exists in the store
+    if path_manager.is_version_in_store(tool_name, version_str) {
+        if verbose {
+            println!(
+                "    ℹ {} {} found in local store, locking from installed version",
+                tool_name, version_str
+            );
+        }
+
+        let locked = LockedTool::new(
+            version_str.to_string(),
+            format!("{} (installed)", ecosystem),
+        )
+        .with_resolved_from(version_str)
+        .with_ecosystem(*ecosystem);
+
+        return Ok(Some(locked));
+    }
+
+    // For tools with partial version matching (e.g., "3.11" matches "3.11.13"),
+    // check if any installed version matches
+    let installed_versions = path_manager.list_store_versions(tool_name)?;
+    for installed in &installed_versions {
+        if version_matches_request(installed, version_str) {
+            if verbose {
+                println!(
+                    "    ℹ {} {} matches installed version {}, locking from store",
+                    tool_name, version_str, installed
+                );
+            }
+
+            let locked =
+                LockedTool::new(installed.to_string(), format!("{} (installed)", ecosystem))
+                    .with_resolved_from(version_str)
+                    .with_ecosystem(*ecosystem);
+
+            return Ok(Some(locked));
+        }
+    }
+
+    Ok(None)
+}
+
+/// Check if an installed version matches a version request string.
+///
+/// Handles exact matches, partial matches, and range-like expressions.
+fn version_matches_request(installed: &str, requested: &str) -> bool {
+    // Exact match
+    if installed == requested {
+        return true;
+    }
+
+    // Partial match: "3.11" matches "3.11.13"
+    let inst_parts: Vec<&str> = installed.split('.').collect();
+    let req_parts: Vec<&str> = requested.split('.').collect();
+
+    if req_parts.len() < inst_parts.len() {
+        return req_parts.iter().zip(inst_parts.iter()).all(|(r, i)| r == i);
+    }
+
+    false
 }
 
 /// Add dependency relationships to lock file

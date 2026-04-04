@@ -260,6 +260,10 @@ pub type ToolStatusTuple = (String, String, ToolStatus, Option<PathBuf>, Option<
 /// This function checks if a tool is installed via vx, available in system PATH,
 /// or not available at all. It returns detailed status information.
 ///
+/// For tools like Rust where the store uses a different version scheme (rustup versions)
+/// than what vx.toml records (rustc versions), this function also checks whether
+/// any installed store version contains the tool with the matching detected version.
+///
 /// # Arguments
 /// * `path_manager` - PathManager instance for checking store
 /// * `tool` - Tool name
@@ -301,11 +305,20 @@ pub fn check_tool_status(
         version.to_string()
     };
 
-    // Check store first
+    // Check store first (exact version match)
     let store_dir = path_manager.version_store_dir(tool, &actual_version);
     if store_dir.exists() {
         let bin_path = find_tool_bin_dir(&store_dir, tool);
         return Ok((ToolStatus::Installed, Some(bin_path), Some(actual_version)));
+    }
+
+    // For tools that use a different version scheme in the store (e.g., Rust stores
+    // rustup versions like 1.28.1 but vx.toml records rustc versions like 1.93.1),
+    // check if any installed store version contains the tool with the correct detected version.
+    if let Some((bin_path, detected_ver)) =
+        find_tool_in_store_by_detected_version(path_manager, tool, &actual_version)?
+    {
+        return Ok((ToolStatus::Installed, Some(bin_path), Some(detected_ver)));
     }
 
     // Check npm-tools
@@ -323,6 +336,18 @@ pub fn check_tool_status(
     // Check if available in system PATH as fallback
     if let Some(system_path) = find_system_tool(tool) {
         let detected_version = get_system_tool_version(tool);
+
+        // If the system-detected version matches the requested version,
+        // treat it as effectively installed (not just a fallback).
+        // This handles cases where the tool is managed outside the vx store
+        // (e.g., rustup installed Rust at ~/.cargo/bin/) but the correct
+        // version is available.
+        if let Some(ref detected) = detected_version
+            && versions_match(detected, &actual_version)
+        {
+            return Ok((ToolStatus::Installed, Some(system_path), detected_version));
+        }
+
         return Ok((
             ToolStatus::SystemFallback,
             Some(system_path),
@@ -331,6 +356,133 @@ pub fn check_tool_status(
     }
 
     Ok((ToolStatus::NotInstalled, None, None))
+}
+
+/// Check if two version strings match, handling partial versions.
+///
+/// For example:
+/// - "1.93.1" matches "1.93.1" (exact)
+/// - "1.93.1" matches "1.93" (partial, 2-component match)
+/// - "1.93.0" matches "1.93" (partial, 2-component with .0 patch)
+fn versions_match(detected: &str, requested: &str) -> bool {
+    if detected == requested {
+        return true;
+    }
+
+    // Try parsing both as semver-like versions
+    let det_parts: Vec<&str> = detected.split('.').collect();
+    let req_parts: Vec<&str> = requested.split('.').collect();
+
+    // If requested has fewer parts, it's a partial version
+    // e.g., "1.93" should match "1.93.1"
+    if req_parts.len() <= det_parts.len() {
+        let all_match = req_parts.iter().zip(det_parts.iter()).all(|(r, d)| r == d);
+        if all_match && req_parts.len() >= 2 {
+            return true;
+        }
+    }
+
+    // Check if detected matches requested with .0 patch implied
+    // e.g., requested "1.93.1" matches detected "1.93.1"
+    if det_parts.len() >= 2 && req_parts.len() >= 2 {
+        // Normalize both to 3 components
+        let det_major = det_parts[0];
+        let det_minor = det_parts[1];
+        let det_patch = det_parts.get(2).copied().unwrap_or("0");
+
+        let req_major = req_parts[0];
+        let req_minor = req_parts[1];
+        let req_patch = req_parts.get(2).copied().unwrap_or("0");
+
+        return det_major == req_major && det_minor == req_minor && det_patch == req_patch;
+    }
+
+    false
+}
+
+/// Search for a tool in the vx store by running the tool's version command
+/// from each installed store version. This handles tools like Rust where
+/// the store uses rustup versions but vx.toml records rustc versions.
+///
+/// Only checks tools that have known version commands (rust, go, node, python, etc.)
+fn find_tool_in_store_by_detected_version(
+    path_manager: &PathManager,
+    tool: &str,
+    requested_version: &str,
+) -> Result<Option<(PathBuf, String)>> {
+    // Only attempt this for tools with known alternative store layouts
+    let store_bin_subdirs = get_tool_store_bin_subdirs(tool);
+    if store_bin_subdirs.is_empty() {
+        return Ok(None);
+    }
+
+    let (exe_name, args, parser) = match get_version_command(tool) {
+        Some(cmd) => cmd,
+        None => return Ok(None),
+    };
+
+    // List all installed versions in the store for this tool
+    let installed_versions = path_manager.list_store_versions(tool)?;
+    if installed_versions.is_empty() {
+        return Ok(None);
+    }
+
+    let platform_dir_name = path_manager.platform_dir_name();
+
+    for store_version in &installed_versions {
+        let version_dir = path_manager.version_store_dir(tool, store_version);
+        let platform_dir = version_dir.join(&platform_dir_name);
+
+        // Check each possible bin subdirectory
+        for subdir in &store_bin_subdirs {
+            let bin_dir = platform_dir.join(subdir);
+            if !bin_dir.exists() {
+                continue;
+            }
+
+            let exe_path = if cfg!(windows) {
+                bin_dir.join(format!("{}.exe", exe_name))
+            } else {
+                bin_dir.join(exe_name)
+            };
+
+            if !exe_path.exists() {
+                continue;
+            }
+
+            // Run the version command to detect the actual version
+            if let Ok(output) = Command::new(&exe_path)
+                .args(args)
+                .stdout(Stdio::piped())
+                .stderr(Stdio::piped())
+                .output()
+                && output.status.success()
+            {
+                let stdout = String::from_utf8_lossy(&output.stdout);
+                let stderr = String::from_utf8_lossy(&output.stderr);
+
+                if let Some(detected) = parser(&stdout).or_else(|| parser(&stderr))
+                    && versions_match(&detected, requested_version)
+                {
+                    return Ok(Some((bin_dir, detected)));
+                }
+            }
+        }
+    }
+
+    Ok(None)
+}
+
+/// Get the known bin subdirectory patterns for a tool within the store.
+///
+/// Returns alternative subdirectories where executables might be found.
+/// This is needed for tools that don't follow the standard bin/ layout.
+fn get_tool_store_bin_subdirs(tool: &str) -> Vec<&'static str> {
+    match tool {
+        // Rust: executables in cargo/bin/ (via rustup)
+        "rust" | "rustc" | "cargo" | "rustfmt" | "rustup" => vec!["cargo/bin"],
+        _ => vec![],
+    }
 }
 
 /// Internal implementation: check status for any iterable of (name, version) pairs.
@@ -542,6 +694,12 @@ pub fn find_tool_bin_dir(store_dir: &std::path::Path, tool: &str) -> PathBuf {
     let bin_dir = store_dir.join("bin");
     if bin_dir.exists() {
         return bin_dir;
+    }
+
+    // Check cargo/bin/ subdirectory (Rust tools via rustup)
+    let cargo_bin_dir = store_dir.join("cargo").join("bin");
+    if cargo_bin_dir.exists() {
+        return cargo_bin_dir;
     }
 
     // Check for platform-specific subdirectories

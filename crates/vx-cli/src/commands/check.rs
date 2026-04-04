@@ -138,7 +138,7 @@ pub async fn handle(
     // Check tool status (installed/missing)
     let statuses = check_tools_status(&tools_to_check)?;
 
-    for (name, config_version, status, path, _) in &statuses {
+    for (name, config_version, status, path, detected_version) in &statuses {
         let mut tool_ok = true;
         let mut tool_warnings = Vec::new();
         let mut tool_errors = Vec::new();
@@ -147,15 +147,19 @@ pub async fn handle(
         let (status_type, installed_version) = match status {
             ToolStatus::Installed => {
                 // Extract version from path if possible
-                let ver = path
-                    .as_ref()
-                    .and_then(|p| extract_version_from_path(p))
+                let ver = detected_version
+                    .clone()
+                    .or_else(|| path.as_ref().and_then(|p| extract_version_from_path(p)))
                     .unwrap_or_else(|| config_version.clone());
                 (RequirementStatusType::Installed, Some(ver))
             }
             ToolStatus::SystemFallback => {
                 tool_warnings.push("Using system fallback version".to_string());
-                (RequirementStatusType::SystemFallback, None)
+                // Still report the detected version if available
+                (
+                    RequirementStatusType::SystemFallback,
+                    detected_version.clone(),
+                )
             }
             ToolStatus::NotInstalled => {
                 tool_errors.push(format!("{} is not installed", name));
