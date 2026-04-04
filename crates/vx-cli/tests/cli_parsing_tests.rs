@@ -90,6 +90,7 @@ fn test_cli_list_command() {
             available,
             all,
             system,
+            version_check,
         }) => {
             assert!(tool.is_none());
             assert!(!status);
@@ -97,6 +98,7 @@ fn test_cli_list_command() {
             assert!(!available);
             assert!(!all);
             assert!(!system);
+            assert!(!version_check);
         }
         _ => panic!("Expected List command"),
     }
@@ -123,6 +125,7 @@ fn test_cli_list_with_options() {
             available,
             all,
             system: _,
+            version_check: _,
         }) => {
             assert_eq!(tool, Some("node".to_string()));
             assert!(status);

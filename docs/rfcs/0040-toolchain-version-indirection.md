@@ -556,36 +556,42 @@ vx store gc --prune-orphaned
 
 ## 实现计划
 
-### Phase 1: provider.star DSL 支持（v0.9.0）
+### Phase 1: provider.star DSL 支持（v0.9.0）✅
 
-- [ ] 在 `vx-starlark/stdlib/` 中文档化 `version_info()` 函数签名
-- [ ] 在 `crates/vx-starlark/src/provider/types.rs` 中添加 `VersionInfoResult`
-- [ ] 在 `StarlarkProviderHandle` 中添加 `version_info()` 调用支持
-- [ ] 在 `Runtime` trait 中添加默认 `version_info()` 方法
-- [ ] 在 `ManifestDrivenRuntime` 中通过 provider handle 实现该方法
+- [x] 在 `vx-starlark/stdlib/` 中文档化 `version_info()` 函数签名
+- [x] 在 `crates/vx-starlark/src/provider/types.rs` 中添加 `VersionInfoResult`
+- [x] 在 `StarlarkProviderHandle` 中添加 `version_info()` 调用支持
+- [x] 在 `Runtime` trait 中添加默认 `version_info()` 方法
+- [x] 在 `ManifestDrivenRuntime` 中通过 provider handle 实现该方法
 
-### Phase 2: Rust Provider 更新（v0.9.0）
+### Phase 2: Rust Provider 更新（v0.9.0）✅
 
-- [ ] 更新 `crates/vx-providers/rust/provider.star`：
+- [x] 更新 `crates/vx-providers/rust/provider.star`：
   - 添加 `version_info()` 函数
   - 更新 `post_extract()` 使用 `ctx.install_params`
-- [ ] 添加 Rust provider 的 starlark 单元测试
+- [x] 添加 Rust provider 的 starlark 单元测试
 
-### Phase 3: 命令简化（v0.9.0）
+### Phase 3: 命令简化（v0.9.0）🔧 部分完成
 
 - [ ] 更新 `vx-cli/src/commands/check.rs`（调用 `version_info`）
 - [ ] 更新 `vx-cli/src/commands/common.rs`（移除 O(n) store 扫描）：
   - 删除 `find_tool_in_store_by_detected_version()`
   - 删除 `get_tool_store_bin_subdirs()`
   - 简化 `check_tool_status()`
-- [ ] 更新 `vx-cli/src/commands/lock.rs`（移除 passthrough 特例）：
-  - 删除 `is_passthrough` 逻辑
-  - 简化 `resolve_tool_version()`
+- [x] 更新 `vx-cli/src/commands/lock.rs`（集成 `version_info` 优先调用）：
+  - `resolve_tool_version()` 优先调用 `version_info()`
+  - 旧 `is_passthrough` 逻辑保留以向后兼容（待后续清理）
 - [ ] 更新 `vx-runtime/src/runtime/mod.rs`（移除 Rust passthrough 回退）
 
-### Phase 4: 测试（v0.9.0）
+### Phase 4: 测试（v0.9.0）✅
 
-- [ ] `crates/vx-starlark/tests/` 添加 `version_info` 测试
+- [x] `crates/vx-starlark/tests/version_info_tests.rs` — 26 个测试
+  - `VersionInfoResult::from_json()` 解析（null、有效、部分字段、边界情况）
+  - `StarlarkProvider::version_info()` 集成（未定义、返回 None、返回完整结构）
+- [x] `crates/vx-runtime/tests/version_info_tests.rs` — 23 个测试
+  - 构造器和 builder 模式
+  - `effective_store_version()` 逻辑
+  - Rust/Python 场景、channel 名称、日期版本等边界情况
 - [ ] `crates/vx-cli/tests/` 添加 check/lock 集成测试（使用 mock runtime）
 - [ ] 更新 `crates/vx-cli/tests/cmd/` 快照测试
 
@@ -653,3 +659,4 @@ fn is_toolchain_manager(tool: &str) -> bool {
 | 日期 | 版本 | 变更 |
 |------|------|------|
 | 2026-04-04 | Draft | 初始草案 |
+| 2026-04-04 | Impl | Phase 1-2 实现：DSL 支持 + Rust provider 更新 + lock.rs 集成 + 49 个测试 |

@@ -86,7 +86,7 @@ def _rustup_triple(ctx):
 # for the passthrough/store-scan workaround in check.rs and lock.rs.
 # ---------------------------------------------------------------------------
 
-def version_info(ctx, user_version):
+def version_info(_ctx, user_version):
     """Map user-facing rustc version to store layout and install parameters.
 
     Key insight: ANY rustup version can install ANY rustc version.
