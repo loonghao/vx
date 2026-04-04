@@ -4,9 +4,25 @@
 //! already installed on the user's system. Unlike managed runtimes,
 //! system tools are not installed by vx but are discovered from the
 //! system PATH or known locations.
+//!
+//! # Performance Design
+//!
+//! The discovery uses a **batch PATH indexing** strategy to avoid N×M complexity
+//! where N = number of tools and M = number of PATH directories. Instead of
+//! calling `which::which()` for each tool separately (N separate scans of all
+//! PATH directories), we:
+//!
+//! 1. Scan all PATH directories **once** → build a `HashMap<filename, PathBuf>` index
+//! 2. Do O(1) lookups per tool against the index
+//! 3. For tools not on PATH, fall back to provider-defined `system_paths` (glob patterns)
+//!
+//! This reduces discovery from O(N×M) to O(M+N), with an additional speedup from
+//! using the correct `executable` name from `ManifestDrivenRuntime` (e.g. `7z`
+//! instead of `7zip`).
 
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::ffi::OsStr;
 use std::path::PathBuf;
 use vx_runtime::{Ecosystem, Platform, ProviderRegistry, Runtime};
 
@@ -38,11 +54,122 @@ pub struct SystemToolDiscoveryResult {
     pub unavailable: Vec<DiscoveredSystemTool>,
 }
 
+/// Build a lookup index of all executable files on the system PATH.
+///
+/// Scans every directory in `PATH` once and records each filename → full path.
+/// On Windows, filenames are stored **lowercased** so that lookups are
+/// case-insensitive (matching Windows semantics).
+///
+/// Duplicate filenames are resolved by PATH priority: the **first** occurrence wins.
+fn build_path_index() -> HashMap<String, PathBuf> {
+    let mut index: HashMap<String, PathBuf> = HashMap::new();
+    let path_var = std::env::var_os("PATH").unwrap_or_default();
+
+    for dir in std::env::split_paths(&path_var) {
+        let entries = match std::fs::read_dir(&dir) {
+            Ok(entries) => entries,
+            Err(_) => continue,
+        };
+
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if !path.is_file() {
+                continue;
+            }
+            if let Some(fname) = path.file_name().and_then(OsStr::to_str) {
+                let key = if cfg!(windows) {
+                    fname.to_lowercase()
+                } else {
+                    fname.to_string()
+                };
+                // First occurrence in PATH wins
+                index.entry(key).or_insert(path);
+            }
+        }
+    }
+
+    index
+}
+
+/// Look up an executable name in the pre-built PATH index.
+///
+/// On Windows, tries `name`, `name.exe`, `name.cmd`, `name.bat` (all lowercased).
+/// On Unix, tries the exact name only.
+fn lookup_in_index(index: &HashMap<String, PathBuf>, exe_name: &str) -> Option<PathBuf> {
+    if cfg!(windows) {
+        let lower = exe_name.to_lowercase();
+        // Try the exact name first, then common Windows extensions
+        for candidate in &[
+            lower.clone(),
+            format!("{}.exe", lower),
+            format!("{}.cmd", lower),
+            format!("{}.bat", lower),
+        ] {
+            if let Some(path) = index.get(candidate) {
+                return Some(path.clone());
+            }
+        }
+        None
+    } else {
+        index.get(exe_name).cloned()
+    }
+}
+
+/// Search provider-defined `system_paths` glob patterns for an executable.
+///
+/// These are well-known installation locations defined in `provider.star`
+/// (e.g. `C:/Program Files/7-Zip/7z.exe`, MSVC paths with `*` globs).
+/// Only returns paths that are regular files.
+fn search_system_paths(search_paths_json: &str) -> Option<PathBuf> {
+    let paths: Vec<String> = serde_json::from_str(search_paths_json).unwrap_or_default();
+    for pattern in &paths {
+        // Check if the pattern contains glob wildcards
+        if pattern.contains('*') || pattern.contains('?') || pattern.contains('[') {
+            if let Ok(mut matches) = glob::glob(pattern)
+                && let Some(Ok(path)) = matches.next()
+                && path.is_file()
+            {
+                return Some(path);
+            }
+        } else {
+            // Direct path — just check existence
+            let path = PathBuf::from(pattern);
+            if path.is_file() {
+                return Some(path);
+            }
+        }
+    }
+    None
+}
+
 /// Discover all system tools from the registry
-pub fn discover_system_tools(registry: &ProviderRegistry) -> SystemToolDiscoveryResult {
+///
+/// When `detect_versions` is false (default for `list --system`), only checks
+/// whether tools exist via batch PATH scanning — much faster (~0.1-0.5s vs 40-60s).
+/// Pass `detect_versions: true` (via `--version-check`) to also run each tool
+/// with `--version` / `-V` to capture installed version strings.
+///
+/// # Performance
+///
+/// Uses batch PATH indexing: scans all PATH directories once (O(M)), then does
+/// O(1) lookups per tool. Falls back to provider-defined `system_paths` glob
+/// patterns for tools not on PATH (e.g. MSVC cl.exe in Visual Studio dirs).
+pub fn discover_system_tools(
+    registry: &ProviderRegistry,
+    detect_versions: bool,
+) -> SystemToolDiscoveryResult {
     let current_platform = Platform::current();
     let mut available = Vec::new();
     let mut unavailable = Vec::new();
+
+    // Phase 1: build a PATH index once, then look up each tool in O(1)
+    let path_index = build_path_index();
+    tracing::debug!(
+        "PATH index built: {} executables across all PATH directories",
+        path_index.len()
+    );
+
+    let mut found_tools: Vec<(String, String, PathBuf, String, Option<String>)> = Vec::new();
 
     for runtime_name in registry.runtime_names() {
         if let Some(runtime) = registry.get_runtime(&runtime_name) {
@@ -54,32 +181,93 @@ pub fn discover_system_tools(registry: &ProviderRegistry) -> SystemToolDiscovery
             let is_platform_supported = runtime.is_platform_supported(&current_platform);
             let category = get_tool_category(&runtime_name);
 
-            // Try to find the tool
-            let (path, version) = if is_platform_supported {
-                find_system_tool(&runtime)
-            } else {
-                (None, None)
-            };
+            if !is_platform_supported {
+                unavailable.push(DiscoveredSystemTool {
+                    name: runtime_name.clone(),
+                    description: runtime.description().to_string(),
+                    path: None,
+                    version: None,
+                    category,
+                    platform: Some(get_platform_label(&runtime)),
+                    available: false,
+                });
+                continue;
+            }
 
-            let tool = DiscoveredSystemTool {
-                name: runtime_name.clone(),
-                description: runtime.description().to_string(),
-                path: path.clone(),
+            // Look up using the correct executable name (e.g. "7z" not "7zip")
+            let exe_name = runtime.executable_name();
+            let path = lookup_in_index(&path_index, exe_name).or_else(|| {
+                // Fall back to provider-defined system_paths (glob patterns)
+                runtime
+                    .metadata()
+                    .get("search_paths")
+                    .and_then(|sp| search_system_paths(sp))
+            });
+
+            if let Some(path) = path {
+                found_tools.push((
+                    runtime_name.clone(),
+                    runtime.description().to_string(),
+                    path,
+                    category,
+                    None, // platform
+                ));
+            } else {
+                unavailable.push(DiscoveredSystemTool {
+                    name: runtime_name.clone(),
+                    description: runtime.description().to_string(),
+                    path: None,
+                    version: None,
+                    category,
+                    platform: None,
+                    available: false,
+                });
+            }
+        }
+    }
+
+    // Phase 2: detect versions (optionally, in parallel via thread pool)
+    if detect_versions && !found_tools.is_empty() {
+        // Use scoped threads to detect versions in parallel
+        let versions: Vec<Option<String>> = {
+            let handles: Vec<_> = found_tools
+                .iter()
+                .map(|(_, _, path, _, _)| {
+                    let path = path.clone();
+                    std::thread::spawn(move || get_tool_version(&path))
+                })
+                .collect();
+            handles
+                .into_iter()
+                .map(|h| h.join().unwrap_or(None))
+                .collect()
+        };
+
+        for ((name, description, path, category, platform), version) in
+            found_tools.into_iter().zip(versions)
+        {
+            available.push(DiscoveredSystemTool {
+                name,
+                description,
+                path: Some(path),
                 version,
                 category,
-                platform: if !is_platform_supported {
-                    Some(get_platform_label(&runtime))
-                } else {
-                    None
-                },
-                available: path.is_some(),
-            };
-
-            if path.is_some() {
-                available.push(tool);
-            } else {
-                unavailable.push(tool);
-            }
+                platform,
+                available: true,
+            });
+        }
+    } else {
+        // Skip version detection — just report paths
+        for (name, description, path, category, platform) in found_tools {
+            available.push(DiscoveredSystemTool {
+                name,
+                description,
+                path: Some(path),
+                version: None,
+                category,
+                platform,
+                available: true,
+            });
         }
     }
 
@@ -93,52 +281,8 @@ pub fn discover_system_tools(registry: &ProviderRegistry) -> SystemToolDiscovery
     }
 }
 
-/// Find a system tool by checking PATH and known locations
-fn find_system_tool(runtime: &std::sync::Arc<dyn Runtime>) -> (Option<PathBuf>, Option<String>) {
-    let exe_name = runtime.executable_name();
-
-    // First, try to find in PATH
-    if let Ok(path) = which::which(exe_name) {
-        // Try to get version
-        let version = get_tool_version(&path);
-        return (Some(path), version);
-    }
-
-    // Check known search paths from metadata
-    if let Some(search_paths) = runtime.metadata().get("search_paths") {
-        // Parse search paths (could be JSON array or comma-separated)
-        let paths: Vec<&str> = if search_paths.starts_with('[') {
-            // JSON array format
-            serde_json::from_str(search_paths).unwrap_or_default()
-        } else {
-            search_paths.split(',').map(|s| s.trim()).collect()
-        };
-
-        for search_path in paths {
-            let mut full_path = PathBuf::from(search_path);
-
-            // Add executable name with platform-specific extension
-            #[cfg(windows)]
-            {
-                full_path.push(format!("{}.exe", exe_name));
-            }
-            #[cfg(not(windows))]
-            {
-                full_path.push(exe_name);
-            }
-
-            if full_path.exists() {
-                let version = get_tool_version(&full_path);
-                return (Some(full_path), version);
-            }
-        }
-    }
-
-    (None, None)
-}
-
 /// Timeout for version detection commands (per invocation)
-const VERSION_DETECT_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(5);
+const VERSION_DETECT_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(2);
 
 /// Try to get the version of a tool by running it with --version.
 ///

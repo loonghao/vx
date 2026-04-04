@@ -278,6 +278,9 @@ pub enum Commands {
         /// Show system tools (discovered from PATH and known locations)
         #[arg(long)]
         system: bool,
+        /// When used with --system, also detect tool versions (slower)
+        #[arg(long, requires = "system")]
+        version_check: bool,
     },
 
     /// Show available versions for a tool
@@ -1466,6 +1469,7 @@ impl CommandHandler for Commands {
                 available: _,
                 all,
                 system,
+                version_check,
             } => {
                 let args = commands::list::Args {
                     tool: tool.clone(),
@@ -1474,6 +1478,7 @@ impl CommandHandler for Commands {
                     available: false,
                     all: *all,
                     system: *system,
+                    version_check: *version_check,
                 };
                 commands::list::handle(ctx, &args).await
             }
