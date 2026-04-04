@@ -48,7 +48,10 @@ use crate::context::{ExecutionContext, RuntimeContext};
 use crate::ecosystem::Ecosystem;
 use crate::platform::Platform;
 use crate::region;
-use crate::types::{ExecutionPrep, ExecutionResult, InstallResult, RuntimeDependency, VersionInfo};
+use crate::types::{
+    ExecutionPrep, ExecutionResult, InstallResult, RuntimeDependency, VersionInfo,
+    VersionInfoResult,
+};
 use anyhow::Result;
 use async_trait::async_trait;
 use std::collections::HashMap;
@@ -168,6 +171,28 @@ pub trait Runtime: Send + Sync {
         _ctx: &RuntimeContext,
     ) -> Result<Vec<RuntimeDependency>> {
         Ok(vec![])
+    }
+
+    /// Resolve version indirection for toolchain-managed tools (RFC 0040).
+    ///
+    /// For most tools, returns `None` (1:1 mapping: store_version = user_version).
+    ///
+    /// For tools where the user specifies the managed tool's version but vx
+    /// must download a manager/installer (e.g., Rust: user writes rustc version,
+    /// vx downloads rustup installer), this method returns a `VersionInfoResult`
+    /// describing:
+    /// - `store_as`: the directory name under `~/.vx/store/<tool>/`
+    /// - `download_version`: which installer version to download (None = latest)
+    /// - `install_params`: extra params passed to `post_extract`
+    ///
+    /// This enables O(1) version detection in `vx check` and eliminates the
+    /// need for special-case passthrough logic in `vx lock`.
+    async fn version_info(
+        &self,
+        _user_version: &str,
+        _ctx: &RuntimeContext,
+    ) -> Result<Option<VersionInfoResult>> {
+        Ok(None)
     }
 
     /// Additional metadata

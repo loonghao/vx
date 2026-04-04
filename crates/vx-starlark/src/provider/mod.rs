@@ -29,7 +29,10 @@ use crate::context::{InstallResult, ProviderContext, VersionInfo};
 use crate::engine::{FrozenProviderInfo, StarlarkEngine};
 use crate::error::{Error, Result};
 use crate::sandbox::SandboxConfig;
-pub use bridge::{make_download_url_fn, make_fetch_versions_fn, make_install_layout_fn};
+pub use bridge::{
+    make_download_url_fn, make_fetch_versions_fn, make_install_layout_fn,
+    make_version_info_fn_owned,
+};
 pub use builder::{build_runtimes, create_provider};
 use cache::{ANALYSIS_CACHE, AnalysisCacheEntry, sha256_bytes};
 use std::collections::HashMap;
@@ -39,7 +42,7 @@ use std::time::SystemTime;
 use tracing::{debug, info};
 pub use types::{
     EnvOp, InstallLayout, PostExtractAction, PreRunAction, ProviderMeta, RuntimeMeta,
-    apply_env_ops, has_starlark_provider, is_starlark_provider,
+    VersionInfoResult, apply_env_ops, has_starlark_provider, is_starlark_provider,
 };
 
 /// A loaded Starlark provider
@@ -300,6 +303,22 @@ impl StarlarkProvider {
     #[inline]
     pub async fn prepare_environment(&self, version: &str) -> Result<Vec<EnvOp>> {
         self.environment(version).await
+    }
+
+    // -----------------------------------------------------------------------
+    // RFC 0040: Toolchain Version Indirection
+    // -----------------------------------------------------------------------
+
+    /// Call `version_info(ctx, user_version)` if defined in provider.star.
+    ///
+    /// Returns `None` if the provider uses 1:1 version mapping (the default).
+    /// Returns `Some(VersionInfoResult)` for toolchain-managed tools like Rust.
+    pub async fn version_info(&self, user_version: &str) -> Result<Option<VersionInfoResult>> {
+        let ctx = ProviderContext::new(&self.meta.name, self.vx_home.clone())
+            .with_description(&self.meta.description)
+            .with_sandbox(self.sandbox.clone())
+            .with_version(user_version);
+        self.execute_version_info(&ctx, user_version).await
     }
 
     /// Call the `download_url` function

@@ -143,6 +143,16 @@ pub type DepsFn = Arc<
         + Sync,
 >;
 
+/// Type alias for the `version_info(user_version)` function (RFC 0040).
+pub type VersionInfoFn = Arc<
+    dyn Fn(
+            String,
+        ) -> std::pin::Pin<
+            Box<dyn std::future::Future<Output = Result<Option<crate::VersionInfoResult>>> + Send>,
+        > + Send
+        + Sync,
+>;
+
 /// A runtime driven by manifest configuration (`provider.star`).
 ///
 /// For Starlark-driven providers, the `fetch_versions_fn`, `download_url_fn`, and
@@ -171,6 +181,8 @@ pub struct ManifestDrivenRuntime {
     pub install_layout_fn: Option<InstallLayoutFn>,
     /// Optional Starlark-driven `deps(version)` implementation.
     pub deps_fn: Option<DepsFn>,
+    /// Optional Starlark-driven `version_info(user_version)` implementation (RFC 0040).
+    pub version_info_fn: Option<VersionInfoFn>,
     /// Optional pip package name for Python-based tools.
     pub pip_package: Option<String>,
 
@@ -233,6 +245,7 @@ impl ManifestDrivenRuntime {
             download_url_fn: None,
             install_layout_fn: None,
             deps_fn: None,
+            version_info_fn: None,
             pip_package: None,
 
             shells: Vec::new(),
@@ -258,6 +271,12 @@ impl ManifestDrivenRuntime {
 
     pub fn with_platform_os(mut self, platform_os: Vec<String>) -> Self {
         self.platform_os = platform_os;
+        self
+    }
+
+    /// Set the `version_info` function (RFC 0040).
+    pub fn with_version_info(mut self, f: VersionInfoFn) -> Self {
+        self.version_info_fn = Some(f);
         self
     }
 
@@ -602,6 +621,17 @@ impl Runtime for ManifestDrivenRuntime {
         match &self.deps_fn {
             Some(f) => f(version.to_string()).await,
             None => Ok(vec![]),
+        }
+    }
+
+    async fn version_info(
+        &self,
+        user_version: &str,
+        _ctx: &crate::RuntimeContext,
+    ) -> Result<Option<crate::VersionInfoResult>> {
+        match &self.version_info_fn {
+            Some(f) => f(user_version.to_string()).await,
+            None => Ok(None),
         }
     }
 

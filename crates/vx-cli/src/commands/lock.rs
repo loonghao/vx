@@ -361,7 +361,49 @@ async fn resolve_tool_version(
         .get_runtime(tool_name)
         .ok_or_else(|| anyhow::anyhow!("No runtime found for: {}", tool_name))?;
 
-    // Fetch available versions
+    // RFC 0040: Check version_info() for toolchain-managed tools (e.g., Rust).
+    // When version_info() returns Some, the provider handles version mapping:
+    // - store_as: the version string to record in the lock file
+    // - download_version: None = use latest available from fetch_versions()
+    if let Ok(Some(ref info)) = runtime.version_info(version_str, ctx).await {
+        let locked_version = info.store_as.as_deref().unwrap_or(version_str).to_string();
+
+        if verbose {
+            println!(
+                "    ℹ version_info: store_as={}, download_version={:?}",
+                locked_version, info.download_version
+            );
+        }
+
+        // Get download URL: use info.download_version if specified, else latest
+        let current_platform = vx_runtime::Platform::current();
+        let dl_version = if let Some(ref dv) = info.download_version {
+            dv.clone()
+        } else {
+            // Download latest available installer version
+            let versions = runtime.fetch_versions(ctx).await.unwrap_or_default();
+            versions
+                .first()
+                .map(|v| v.version.clone())
+                .unwrap_or_else(|| locked_version.clone())
+        };
+
+        let download_url = runtime
+            .download_url(&dl_version, &current_platform)
+            .await
+            .ok()
+            .flatten();
+
+        let mut locked = LockedTool::new(locked_version, "provider".to_string())
+            .with_resolved_from(version_str)
+            .with_ecosystem(Ecosystem::Generic);
+        if let Some(url) = download_url {
+            locked = locked.with_download_url(url);
+        }
+        return Ok(locked);
+    }
+
+    // Standard path: fetch versions and resolve via solver
     let versions = runtime.fetch_versions(ctx).await?;
 
     if versions.is_empty() {
@@ -384,32 +426,22 @@ async fn resolve_tool_version(
         _ => Ecosystem::Generic,
     };
 
-    // Check if this tool supports passthrough versions.
-    // Passthrough means the version manager (like rustup) handles version validation,
-    // so we accept any user-specified version without needing it in available versions.
-    //
-    // Passthrough is enabled for:
-    // 1. Rust ecosystem — vx.toml records rustc versions (e.g., "1.90") or channel
-    //    names ("stable", "nightly"), but the provider fetches rustup versions (1.16~1.29).
-    //    The user's version is passed through to rustup's --default-toolchain flag.
-    // 2. Any provider that explicitly marks versions with passthrough metadata.
-    let is_passthrough = ecosystem == Ecosystem::Rust
-        || versions.iter().any(|v| {
-            v.metadata
-                .get("passthrough")
-                .map(|s| s == "true")
-                .unwrap_or(false)
-        });
+    // Check if this tool supports passthrough versions via metadata flag.
+    // Note: Rust ecosystem passthrough is now handled by version_info() above.
+    let is_passthrough = versions.iter().any(|v| {
+        v.metadata
+            .get("passthrough")
+            .map(|s| s == "true")
+            .unwrap_or(false)
+    });
 
     // Parse version request
     let request = VersionRequest::parse(version_str);
 
-    // For passthrough tools, check if the requested version matches a known channel
-    // or use it directly as a version number
+    // For passthrough tools, use version directly
     let resolved = if is_passthrough {
-        // Check if version matches a channel (stable, beta, nightly)
+        // Check if version matches a known channel
         if let Some(channel_version) = versions.iter().find(|v| v.version == version_str) {
-            // Use the channel version directly
             ResolvedVersion {
                 version: Version::parse(&channel_version.version)
                     .unwrap_or_else(|| Version::new(0, 0, 0)),
@@ -419,9 +451,6 @@ async fn resolve_tool_version(
                 resolved_from: version_str.to_string(),
             }
         } else {
-            // Use user-specified version directly (e.g., "1.90", "1.83.0")
-            // This allows rustc version numbers from rust-version in Cargo.toml
-            // or rust-toolchain.toml to be recorded as-is in the lock file.
             if verbose {
                 println!("    ℹ Using passthrough version: {}", version_str);
             }
@@ -438,9 +467,7 @@ async fn resolve_tool_version(
         match solver.resolve(tool_name, &request, &versions, &ecosystem) {
             Ok(resolved) => resolved,
             Err(e) => {
-                // If normal resolution fails, try to lock from installed store version.
-                // This handles cases where the exact pinned version is installed but
-                // not found in the remote version list (e.g., removed from upstream).
+                // Fallback: lock from installed store version
                 if let Some(locked) =
                     try_lock_from_store(tool_name, version_str, &ecosystem, verbose)?
                 {
@@ -451,13 +478,9 @@ async fn resolve_tool_version(
         }
     };
 
-    // Get download URL for the current platform.
-    // For passthrough tools (e.g., Rust), the resolved version may be a user-facing
-    // version (like "1.90") that doesn't correspond to any installer release.
-    // In that case, use the latest available installer version for the download URL.
+    // Get download URL
     let current_platform = vx_runtime::Platform::current();
     let download_version = if is_passthrough && resolved.original_version.is_some() {
-        // Use the latest available version from the provider (e.g., latest rustup)
         versions
             .first()
             .map(|v| v.version.clone())

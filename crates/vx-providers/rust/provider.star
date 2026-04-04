@@ -4,6 +4,10 @@
 # After running rustup-init, rustc/cargo/rustfmt/clippy are available.
 #
 # Uses stdlib templates from @vx//stdlib:provider.star
+#
+# RFC 0040: Implements version_info() to map user-facing rustc versions
+# to store layout and installer parameters. This enables O(1) version
+# detection in `vx check` and clean `vx lock` behavior.
 
 load("@vx//stdlib:provider.star",
      "runtime_def", "bundled_runtime_def", "github_permissions")
@@ -71,6 +75,40 @@ def _rustup_triple(ctx):
     return _RUSTUP_TRIPLES.get("{}/{}".format(ctx.platform.os, ctx.platform.arch))
 
 # ---------------------------------------------------------------------------
+# RFC 0040: version_info — map rustc version to store layout
+#
+# Users write:   rust = "1.93.1"  (rustc version) in vx.toml
+# We download:   latest rustup-init (installer, version irrelevant)
+# We store to:   ~/.vx/store/rust/1.93.1/  (by rustc version!)
+# We install:    --default-toolchain 1.93.1
+#
+# This enables O(1) check (directory existence) and eliminates the need
+# for the passthrough/store-scan workaround in check.rs and lock.rs.
+# ---------------------------------------------------------------------------
+
+def version_info(ctx, user_version):
+    """Map user-facing rustc version to store layout and install parameters.
+
+    Key insight: ANY rustup version can install ANY rustc version.
+    So we always download the latest rustup installer and use it to install
+    the specific rustc toolchain the user requested.
+
+    Args:
+        ctx: Provider context
+        user_version: Version from vx.toml (e.g., "1.93.1", "stable", "1.85")
+
+    Returns:
+        dict with store_as, download_version, install_params
+    """
+    return {
+        "store_as": user_version,      # ~/.vx/store/rust/1.93.1/
+        "download_version": None,       # None = use latest rustup from fetch_versions()
+        "install_params": {
+            "toolchain": user_version,  # passed to post_extract as ctx.install_params
+        },
+    }
+
+# ---------------------------------------------------------------------------
 # download_url — rustup-init binary
 # ---------------------------------------------------------------------------
 
@@ -107,6 +145,9 @@ def install_layout(ctx, version):
 
 # ---------------------------------------------------------------------------
 # post_extract — set permissions + run rustup-init to install toolchain
+#
+# RFC 0040: Uses ctx.install_params["toolchain"] (set by version_info)
+# instead of hardcoded "stable", so the correct rustc version is installed.
 # ---------------------------------------------------------------------------
 
 def post_extract(ctx, _version, install_dir):
@@ -114,10 +155,19 @@ def post_extract(ctx, _version, install_dir):
     init_bin = "rustup-init.exe" if ctx.platform.os == "windows" else "rustup-init"
     if ctx.platform.os != "windows":
         actions.append(set_permissions("bin/" + init_bin, "755"))
+
+    # Use toolchain from install_params (provided by version_info)
+    # Falls back to "stable" for backward compatibility
+    toolchain = "stable"
+    if hasattr(ctx, "install_params") and ctx.install_params != None:
+        t = ctx.install_params.get("toolchain")
+        if t != None and t != "":
+            toolchain = t
+
     actions.append(run_command(
         install_dir + "/bin/" + init_bin,
 
-        args = ["-y", "--no-modify-path", "--default-toolchain", "stable"],
+        args = ["-y", "--no-modify-path", "--default-toolchain", toolchain],
         env  = {
             "RUSTUP_HOME": install_dir + "/rustup",
             "CARGO_HOME":  install_dir + "/cargo",
