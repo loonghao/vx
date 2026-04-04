@@ -29,12 +29,14 @@ pub async fn handle(ctx: &CommandContext, args: &Args) -> Result<()> {
         args.status,
         args.all,
         args.system,
+        args.version_check,
         ctx.output_format(),
     )
     .await
 }
 
 /// Legacy handle function for backwards compatibility
+#[allow(clippy::too_many_arguments)]
 pub async fn handle_list(
     registry: &ProviderRegistry,
     _context: &RuntimeContext,
@@ -42,6 +44,7 @@ pub async fn handle_list(
     show_status: bool,
     show_all: bool,
     show_system: bool,
+    version_check: bool,
     format: OutputFormat,
 ) -> Result<()> {
     // Dummy resolver kept for function signature compatibility
@@ -50,7 +53,7 @@ pub async fn handle_list(
     let resolver = PathResolver::new(path_manager);
 
     if show_system {
-        list_system_tools(registry, show_all, format).await?;
+        list_system_tools(registry, show_all, version_check, format).await?;
         return Ok(());
     }
 
@@ -69,10 +72,11 @@ pub async fn handle_list(
 async fn list_system_tools(
     registry: &ProviderRegistry,
     show_all: bool,
+    version_check: bool,
     format: OutputFormat,
 ) -> Result<()> {
     let current_platform = Platform::current();
-    let discovery = discover_system_tools(registry);
+    let discovery = discover_system_tools(registry, version_check);
 
     let renderer = OutputRenderer::new(format);
 

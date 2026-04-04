@@ -56,6 +56,7 @@ mod list_tests {
             false,
             false,
             false,
+            false,
             vx_cli::OutputFormat::Text,
         )
         .await;
@@ -73,6 +74,7 @@ mod list_tests {
             &ctx,
             None,
             true,
+            false,
             false,
             false,
             vx_cli::OutputFormat::Text,
@@ -102,6 +104,7 @@ mod list_tests {
             false,
             false,
             false,
+            false,
             vx_cli::OutputFormat::Text,
         )
         .await;
@@ -123,6 +126,7 @@ mod list_tests {
             &registry,
             &ctx,
             Some("nonexistent-tool-xyz"),
+            false,
             false,
             false,
             false,

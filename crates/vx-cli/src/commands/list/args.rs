@@ -28,4 +28,8 @@ pub struct Args {
     /// Show system tools (discovered from PATH and known locations)
     #[arg(long)]
     pub system: bool,
+
+    /// When used with --system, also detect tool versions (slower)
+    #[arg(long, requires = "system")]
+    pub version_check: bool,
 }

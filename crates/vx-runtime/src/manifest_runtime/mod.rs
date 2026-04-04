@@ -579,6 +579,16 @@ impl Runtime for ManifestDrivenRuntime {
         self.ecosystem_override.unwrap_or(Ecosystem::System)
     }
 
+    /// Return the actual executable name from the manifest.
+    ///
+    /// For most runtimes `self.executable == self.name`, but some differ
+    /// (e.g. `7zip` → `7z`, `msvc` → `cl`, `ripgrep` → `rg`).
+    /// The default `Runtime::executable_name()` would return `self.name()`,
+    /// giving the wrong binary name for those providers.
+    fn executable_name(&self) -> &str {
+        &self.executable
+    }
+
     fn supported_platforms(&self) -> Vec<crate::platform::Platform> {
         if self.platform_os.is_empty() {
             return crate::platform::Platform::all_common();
@@ -609,6 +619,13 @@ impl Runtime for ManifestDrivenRuntime {
         meta.insert("manifest_driven".to_string(), "true".to_string());
         if let Some(ref bundled) = self.bundled_with {
             meta.insert("bundled_with".to_string(), bundled.clone());
+        }
+        // Expose system_paths for system tool discovery (used by `list --system`)
+        if !self.system_paths.is_empty() {
+            meta.insert(
+                "search_paths".to_string(),
+                serde_json::to_string(&self.system_paths).unwrap_or_default(),
+            );
         }
         meta
     }

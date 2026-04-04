@@ -1,7 +1,30 @@
 [test-groups]
 vx-benchmarks = { max-threads = 1 }
 
+# Slow E2E/integration tests that spawn vx subprocesses.
+# Isolate these with generous timeouts to avoid blocking fast unit tests.
+vx-slow-e2e = { max-threads = 4 }
+
+# ── Benchmark tests ──────────────────────────────────────────────────────────
 [[profile.default.overrides]]
 filter = 'package(vx) & test(bench_)'
 test-group = 'vx-benchmarks'
 threads-required = 'num-test-threads'
+
+# ── Cross-tool E2E tests (spawn multiple vx subprocesses, ~50s each) ────────
+[[profile.default.overrides]]
+filter = 'package(vx-cli) & test(cross_tool::)'
+test-group = 'vx-slow-e2e'
+slow-timeout = { period = "120s", terminate-after = 2 }
+
+# ── Info / system-tools tests (system discovery can be slow on CI) ──────────
+[[profile.default.overrides]]
+filter = 'package(vx-cli) & test(/^test_(info|list_system)/)'
+test-group = 'vx-slow-e2e'
+slow-timeout = { period = "60s", terminate-after = 2 }
+
+# ── Other heavy E2E tests ───────────────────────────────────────────────────
+[[profile.default.overrides]]
+filter = 'package(vx-cli) & test(/e2e/)'
+test-group = 'vx-slow-e2e'
+slow-timeout = { period = "120s", terminate-after = 2 }
