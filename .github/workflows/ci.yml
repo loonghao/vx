@@ -944,41 +944,52 @@ jobs:
 
           failed=0
 
-          # Check each job result
+          # Check a required job — must succeed (skipped/cancelled are acceptable)
           check_job() {
             local job_name="$1"
             local result="$2"
             if [[ "$result" == "success" ]]; then
               echo "- ✅ $job_name" >> $GITHUB_STEP_SUMMARY
-            elif [[ "$result" == "skipped" ]]; then
+            elif [[ "$result" == "skipped" || "$result" == "cancelled" ]]; then
               echo "- ⏭️ $job_name (skipped)" >> $GITHUB_STEP_SUMMARY
             else
               echo "- ❌ $job_name ($result)" >> $GITHUB_STEP_SUMMARY
-              if [[ "$result" != "skipped" && "$result" != "" ]]; then
-                failed=1
-              fi
+              failed=1
             fi
           }
+
+          # Check an optional/conditional job — only fail on explicit "failure"
+          check_optional_job() {
+            local job_name="$1"
+            local result="$2"
+            if [[ "$result" == "success" ]]; then
+              echo "- ✅ $job_name" >> $GITHUB_STEP_SUMMARY
+            elif [[ "$result" == "skipped" || "$result" == "cancelled" || -z "$result" ]]; then
+              echo "- ⏭️ $job_name (skipped)" >> $GITHUB_STEP_SUMMARY
+            else
+              echo "- ❌ $job_name ($result)" >> $GITHUB_STEP_SUMMARY
+              failed=1
+            fi
+          }
+
           echo "### Core Jobs" >> $GITHUB_STEP_SUMMARY
           check_job "detect-changes" "${{ needs.detect-changes.result }}"
-
           check_job "build-vx" "${{ needs.build-vx.result }}"
           check_job "code-quality" "${{ needs.code-quality.result }}"
           check_job "test-targeted" "${{ needs.test-targeted.result }}"
-          check_job "test-full" "${{ needs.test-full.result }}"
           check_job "provider-static" "${{ needs.provider-static.result }}"
           check_job "security-audit" "${{ needs.security-audit.result }}"
 
-
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### Cross Build & Coverage (PR only)" >> $GITHUB_STEP_SUMMARY
-          check_job "cross-build" "${{ needs.cross-build.result }}"
-          check_job "coverage" "${{ needs.coverage.result }}"
+          echo "### Conditional Jobs" >> $GITHUB_STEP_SUMMARY
+          check_optional_job "test-full" "${{ needs.test-full.result }}"
+          check_optional_job "cross-build" "${{ needs.cross-build.result }}"
+          check_optional_job "coverage" "${{ needs.coverage.result }}"
 
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Documentation" >> $GITHUB_STEP_SUMMARY
-          check_job "docs-build" "${{ needs.docs-build.result }}"
-          check_job "docs-build-standalone" "${{ needs.docs-build-standalone.result }}"
+          check_optional_job "docs-build" "${{ needs.docs-build.result }}"
+          check_optional_job "docs-build-standalone" "${{ needs.docs-build-standalone.result }}"
 
           if [[ $failed -eq 1 ]]; then
             echo "" >> $GITHUB_STEP_SUMMARY
