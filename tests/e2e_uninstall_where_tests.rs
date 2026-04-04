@@ -119,8 +119,12 @@ fn test_where_unknown_tool() {
     let stdout = String::from_utf8_lossy(&output.stdout);
     let combined = format!("{}{}", stdout, stderr);
 
+    // Note: When stdout is not a TTY (e.g., test runner, CI), vx auto-upgrades
+    // to JSON output. The JSON includes "source":"not_found" instead of
+    // human-readable text.
     assert!(
         combined.contains("not found")
+            || combined.contains("not_found")
             || combined.contains("Unknown")
             || combined.contains("not installed")
             || combined.contains("not supported"),
@@ -180,9 +184,12 @@ fn test_where_system_installed_tool() {
         );
     } else {
         // Tool not found is also acceptable
+        // Note: When stdout is not a TTY (e.g., test runner, CI), vx auto-upgrades
+        // to JSON output. The JSON includes "source":"not_found".
         let combined = format!("{}{}", stdout, stderr);
         assert!(
             combined.contains("not found")
+                || combined.contains("not_found")
                 || combined.contains("not installed")
                 || combined.contains("Unknown"),
             "Expected error message, got: {}",
@@ -379,12 +386,15 @@ fn test_where_multiple_tools() {
         let stderr = String::from_utf8_lossy(&output.stderr);
         let stdout = String::from_utf8_lossy(&output.stdout);
 
+        // Note: When stdout is not a TTY (e.g., test runner, CI), vx auto-upgrades
+        // to JSON output. The JSON includes "source":"not_found".
         // Verify we get a sensible response
         assert!(
             output.status.success()
                 || stderr.contains("not found")
                 || stderr.contains("not installed")
-                || stdout.contains("not installed"),
+                || stdout.contains("not installed")
+                || stdout.contains("not_found"),
             "Tool '{}' should have proper response",
             tool
         );
@@ -443,8 +453,11 @@ fn test_imagemagick_where_detects_system() {
             combined
         );
     } else {
+        // Note: When stdout is not a TTY (e.g., test runner, CI), vx auto-upgrades
+        // to JSON output. The JSON includes "source":"not_found".
         assert!(
             combined.contains("not found")
+                || combined.contains("not_found")
                 || combined.contains("not installed")
                 || combined.contains("No version"),
             "Expected 'not found' message for ImageMagick: {}",
