@@ -13,6 +13,7 @@ vx eliminates the complexity of managing multiple language runtimes (Node.js, Py
 - **Releases**: https://github.com/loonghao/vx/releases
 - **GitHub Action**: `loonghao/vx@main`
 - **AI Agent Entry Point**: [AGENTS.md](https://github.com/loonghao/vx/blob/main/AGENTS.md)
+- **Claude Code Instructions**: [CLAUDE.md](https://github.com/loonghao/vx/blob/main/CLAUDE.md)
 
 ## One-Sentence Summary
 

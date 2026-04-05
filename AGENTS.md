@@ -2,7 +2,7 @@
 
 > **For AI agents**: This file is a **map**, not a manual. Start here, then drill into the linked docs as needed.
 > If you are working on a project that uses vx, **always prefix commands with `vx`** (e.g., `vx npm install`, `vx cargo build`).
-> Also see: [`llms.txt`](llms.txt) for a concise LLM-friendly project index, [`llms-full.txt`](llms-full.txt) for detailed LLM documentation.
+> Also see: [`CLAUDE.md`](CLAUDE.md) for Claude Code, [`llms.txt`](llms.txt) for a concise LLM-friendly project index, [`llms-full.txt`](llms-full.txt) for detailed LLM documentation.
 >
 > **Compatibility**: This file follows the [AGENTS.md](https://agents.md/) open standard (managed by Agentic AI Foundation / Linux Foundation). It is recognized by OpenAI Codex, Google Jules, GitHub Copilot, Cursor, Amp, Factory, Aider, Zed, Warp, JetBrains Junie, Devin, and other AI coding agents.
 
@@ -658,7 +658,7 @@ vx provides a GitHub Action for CI/CD. See [`docs/guides/github-action.md`](docs
 - run: vx npm test
 ```
 
-> **Tip**: Use `@main` for latest, or pin to a release tag (e.g., `@vx-v0.8.15`).
+> **Tip**: Use `@main` for latest, or pin to a release tag (e.g., `@vx-v0.8.18`).
 > Check [releases](https://github.com/loonghao/vx/releases) for available versions.
 
 ## Documentation Map
