@@ -5,6 +5,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.19](https://github.com/loonghao/vx/compare/v0.8.18...v0.8.19) (2026-04-05)
+
+
+### Features
+
+* **rfc-0040:** implement version_info() for toolchain version indirection ([8771443](https://github.com/loonghao/vx/commit/8771443299c5dbbf6c2160ea48c2f7aa5c9af4c1))
+
+
+### Bug Fixes
+
+* **ci:** handle skipped/cancelled jobs in CI Success gate ([18ebc6c](https://github.com/loonghao/vx/commit/18ebc6c2242ec56e580b71f0b377336b82860af0))
+* **cli:** fix vx check system_fallback and vx lock for installed tools ([06b47b0](https://github.com/loonghao/vx/commit/06b47b0368a0952d213286a6ddd726b6df56eee4))
+* handle JSON output in where command e2e tests ([8ea99c4](https://github.com/loonghao/vx/commit/8ea99c4aa03a98ff8cc066ab47a16e9a6c4c8696))
+
+
+### Documentation
+
+* add CLAUDE.md, .cursor/rules/*.mdc, and improve AI agent documentation ([#747](https://github.com/loonghao/vx/issues/747)) ([6dc6884](https://github.com/loonghao/vx/commit/6dc688452b21d68318743a0ca94f7b38d1fb9928))
+
 ## [0.8.18](https://github.com/loonghao/vx/compare/v0.8.17...v0.8.18) (2026-04-03)
 
 
