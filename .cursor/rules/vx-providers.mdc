@@ -1,0 +1,60 @@
+---
+description: "Rules for creating and modifying vx providers defined via Starlark DSL (provider.star)"
+globs: ["crates/vx-providers/*/provider.star"]
+---
+
+# VX Provider Development Rules
+
+## New Provider Template
+
+```starlark
+# crates/vx-providers/<name>/provider.star
+load("@vx//stdlib:provider.star", "runtime_def", "github_permissions")
+load("@vx//stdlib:provider_templates.star", "github_rust_provider")
+
+name        = "<name>"
+description = "<description>"
+ecosystem   = "custom"  # nodejs, python, rust, go, system, custom
+runtimes    = [runtime_def("<runtime>", aliases = ["<alias>"])]
+permissions = github_permissions()
+
+_p = github_rust_provider("owner", "repo",
+    asset = "tool-{vversion}-{triple}.{ext}")
+fetch_versions   = _p["fetch_versions"]
+download_url     = _p["download_url"]
+install_layout   = _p["install_layout"]
+store_root       = _p["store_root"]
+get_execute_path = _p["get_execute_path"]
+environment      = _p["environment"]
+```
+
+## Available Templates
+
+| Template | Use Case | Placeholders |
+|----------|----------|-------------|
+| `github_rust_provider` | Rust target triple naming | `{version}`, `{vversion}`, `{triple}`, `{ext}`, `{exe}` |
+| `github_go_provider` | Go/goreleaser naming | `{version}`, `{os}`, `{arch}`, `{ext}` |
+| `github_binary_provider` | Single binary download | `{exe}` |
+| `system_provider` | System package manager only | N/A |
+
+## Platform Constraints
+
+Return `None` from `download_url` for unsupported platforms:
+
+```starlark
+def download_url(ctx, version):
+    platform = platform_map(ctx, _PLATFORMS)
+    if not platform:
+        return None  # Unsupported platform
+    return "https://example.com/v{}/tool-{}.tar.gz".format(version, platform)
+```
+
+## Testing
+
+```bash
+vx <runtime> --version   # Verify the provider works
+```
+
+## Reference
+
+See `docs/guide/provider-star-reference.md` for the complete DSL reference.
