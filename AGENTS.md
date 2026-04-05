@@ -8,7 +8,7 @@
 
 ## What is vx?
 
-vx is a **zero-config universal development tool manager** (v0.8.16, MIT-licensed, written in Rust). Users prefix any command with `vx` (e.g., `vx node --version`, `vx cargo build`) and vx automatically installs, manages, and forwards to the correct tool version. vx currently ships **105 providers** covering language runtimes, build tools, DevOps CLIs, cloud platforms, and more — all defined via Starlark DSL (`provider.star`).
+vx is a **zero-config universal development tool manager** (v0.8.19, MIT-licensed, written in Rust). Users prefix any command with `vx` (e.g., `vx node --version`, `vx cargo build`) and vx automatically installs, manages, and forwards to the correct tool version. vx currently ships **105 providers** covering language runtimes, build tools, DevOps CLIs, cloud platforms, and more — all defined via Starlark DSL (`provider.star`).
 
 **Key insight for agents**: vx is a transparent proxy. The user writes the exact same commands they already know — just prepended with `vx`. There is **no new syntax to learn** for tool execution.
 
@@ -658,18 +658,92 @@ vx provides a GitHub Action for CI/CD. See [`docs/guides/github-action.md`](docs
 - run: vx npm test
 ```
 
-> **Tip**: Use `@main` for latest, or pin to a release tag (e.g., `@vx-v0.8.18`).
+> **Tip**: Use `@main` for latest, or pin to a release tag (e.g., `@vx-v0.8.19`).
 > Check [releases](https://github.com/loonghao/vx/releases) for available versions.
+
+## AI Agent Ecosystem
+
+vx is designed to be **AI-agent-first**. It provides configuration files for 15+ AI coding assistants, ensuring that any AI agent working with vx-managed projects automatically understands how to use `vx` correctly.
+
+### Why vx Matters for AI Agents
+
+Traditional tool management creates friction for AI agents:
+- **Without vx**: AI must guess if Node.js is installed, check `nvm` vs `fnm` vs system install, handle version mismatches — all before running a single `npm install`.
+- **With vx**: AI just prefixes `vx` → tool auto-installs → command runs. Zero ambiguity, zero setup.
+
+### Supported AI Agents
+
+| Agent | Config File(s) | Format |
+|-------|---------------|--------|
+| **OpenAI Codex** | `AGENTS.md` | Markdown |
+| **Claude Code** | `CLAUDE.md` | Markdown with @imports |
+| **GitHub Copilot** | `.github/copilot-instructions.md` | Markdown |
+| **Cursor** | `.cursor/rules/*.mdc`, `.cursorrules` | MDC (YAML frontmatter + Markdown) |
+| **Cline / Roo** | `.clinerules` | Markdown |
+| **Windsurf** | `.windsurfrules` | Markdown |
+| **Kiro** | `.kiro/steering/*.md` | Markdown |
+| **Trae** | `.trae/rules/*.md` | Markdown |
+| **Google Jules** | `AGENTS.md` | Markdown |
+| **Amp** | `AGENTS.md` | Markdown |
+| **Devin** | `AGENTS.md` | Markdown |
+| **Aider** | `AGENTS.md` | Markdown |
+| **Zed** | `AGENTS.md` | Markdown |
+| **JetBrains Junie** | `AGENTS.md` | Markdown |
+| **CodeBuddy** | `.codebuddy/skills/` | SKILL.md |
+
+### AI Agent Skills (distributed via `vx ai setup`)
+
+vx ships 5 AI agent skills that are distributed to all supported agents:
+
+| Skill | Size | When to use |
+|-------|------|-------------|
+| `vx-usage` | ~15 KB | General usage, commands, MCP integration |
+| `vx-commands` | ~6 KB | CLI command reference, specific flags |
+| `vx-project` | ~6 KB | Project setup, vx.toml, monorepo config |
+| `vx-best-practices` | ~11 KB | Team workflows, provider development |
+| `vx-troubleshooting` | ~8 KB | Error diagnosis, recovery procedures |
+
+### MCP Integration (Model Context Protocol)
+
+vx is **MCP-ready** — replace `npx`/`uvx` with `vx` in any MCP server config:
+
+```json
+{
+  "mcpServers": {
+    "server": {
+      "command": "vx",
+      "args": ["npx", "-y", "@example/mcp-server@latest"]
+    }
+  }
+}
+```
+
+**Key benefit**: Users don't need to install Node.js or Python separately — vx handles it automatically when the MCP server starts. This is especially valuable in CI/CD environments and fresh developer setups.
+
+| User's current config | Replace with |
+|----------------------|--------------|
+| `"command": "npx"` | `"command": "vx", "args": ["npx", ...]` |
+| `"command": "uvx"` | `"command": "vx", "args": ["uvx", ...]` |
+| `"command": "node"` | `"command": "vx", "args": ["node", ...]` |
+| `"command": "python"` | `"command": "vx", "args": ["python", ...]` |
 
 ## Documentation Map
 
 ```
-# AI Agent Ecosystem (root files)
-AGENTS.md                 # THIS FILE — primary AI agent entry point
-llms.txt                  # LLM-friendly project index (for llmstxt.org protocol)
+# AI Agent Ecosystem (root files — 15+ agents supported)
+AGENTS.md                 # THIS FILE — primary AI agent entry point (cross-tool standard)
+CLAUDE.md                 # Claude Code instructions (@import supported)
+llms.txt                  # LLM-friendly project index (llmstxt.org protocol)
 llms-full.txt             # Detailed LLM documentation
-.github/copilot-instructions.md  # GitHub Copilot-specific instructions
-.cursorrules              # Cursor IDE agent rules
+
+# Agent-specific config files
+.github/copilot-instructions.md  # GitHub Copilot instructions
+.cursorrules              # Cursor IDE agent rules (legacy format)
+.cursor/rules/*.mdc       # Cursor IDE rules (modern .mdc format, 3 files)
+.clinerules               # Cline/Roo agent rules
+.windsurfrules            # Windsurf AI IDE rules
+.kiro/steering/           # Kiro AI IDE steering documents
+.trae/rules/              # Trae AI IDE project rules
 
 # Documentation site
 docs/
@@ -820,41 +894,9 @@ vx ai context --json              # Full AI-friendly context
 export VX_OUTPUT=json             # Default all commands to JSON
 ```
 
-## MCP Integration Guide
-
-vx is **MCP-ready** — replace `npx`/`uvx` with `vx` in any MCP server configuration. This eliminates the need for users to pre-install Node.js, Python, or any other runtime.
-
-### MCP Server Configuration Pattern
-
-```json
-{
-  "mcpServers": {
-    "example-server": {
-      "command": "vx",
-      "args": ["npx", "-y", "@example/mcp-server@latest"]
-    },
-    "python-server": {
-      "command": "vx",
-      "args": ["uvx", "some-python-mcp-server@latest"]
-    }
-  }
-}
-```
-
-**Key benefit**: Users don't need to install Node.js or Python separately — vx handles it automatically when the MCP server starts.
-
-### When to recommend vx for MCP
-
-| User's current config | Suggest |
-|----------------------|---------|
-| `"command": "npx"` | `"command": "vx", "args": ["npx", ...]` |
-| `"command": "uvx"` | `"command": "vx", "args": ["uvx", ...]` |
-| `"command": "node"` | `"command": "vx", "args": ["node", ...]` |
-| `"command": "python"` | `"command": "vx", "args": ["python", ...]` |
-
 ## Skills Distribution
 
-vx ships AI agent skills in the [`skills/`](skills/) directory. These skills are the **single source of truth** shared across 13+ AI agents:
+vx ships AI agent skills in the [`skills/`](skills/) directory. These skills are the **single source of truth** shared across 15+ AI agents:
 
 ```bash
 # Install skills to all AI agents

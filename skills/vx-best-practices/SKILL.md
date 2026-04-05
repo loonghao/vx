@@ -514,7 +514,7 @@ vx cargo test -p vx-starlark     # Test one crate
 
 ## AI Agent Documentation Ecosystem
 
-vx maintains a comprehensive set of AI agent configuration files:
+vx maintains a comprehensive set of AI agent configuration files for 15+ agents:
 
 | File | Purpose | Audience |
 |------|---------|----------|
@@ -523,9 +523,12 @@ vx maintains a comprehensive set of AI agent configuration files:
 | `llms.txt` | Concise LLM-friendly project index (llmstxt.org protocol) | LLMs discovering the project |
 | `llms-full.txt` | Detailed LLM documentation with full examples | LLMs needing deep context |
 | `.github/copilot-instructions.md` | GitHub Copilot-specific instructions | GitHub Copilot |
-| `.cursor/rules/*.mdc` | Modern Cursor IDE rules with YAML frontmatter and activation modes | Cursor AI (new format) |
+| `.cursor/rules/*.mdc` | Modern Cursor IDE rules with YAML frontmatter (4 files) | Cursor AI (new format) |
 | `.cursorrules` | Cursor IDE agent rules (legacy format, still supported) | Cursor AI (legacy) |
 | `.clinerules` | Cline/Roo agent rules | Cline |
-| `skills/` | Distributable skill files for 13+ AI agents | ClawHub, vx ai setup |
+| `.windsurfrules` | Windsurf AI IDE rules | Windsurf |
+| `.kiro/steering/*.md` | Kiro AI IDE steering documents | Kiro |
+| `.trae/rules/*.md` | Trae AI IDE project rules | Trae |
+| `skills/` | Distributable skill files for 15+ AI agents | ClawHub, vx ai setup |
 
 **Best practice**: When making changes that affect AI agent behavior (terminology, architecture, commands), update `AGENTS.md` first — it is the single source of truth. Other files derive from it.

@@ -15,6 +15,12 @@ vx eliminates the complexity of managing multiple language runtimes (Node.js, Py
 - **Claude Code Instructions**: [CLAUDE.md](https://github.com/loonghao/vx/blob/main/CLAUDE.md)
 - **Copilot Instructions**: [.github/copilot-instructions.md](https://github.com/loonghao/vx/blob/main/.github/copilot-instructions.md)
 
+- **Windsurf Rules**: [.windsurfrules](https://github.com/loonghao/vx/blob/main/.windsurfrules)
+- **Kiro Steering**: [.kiro/steering/](https://github.com/loonghao/vx/blob/main/.kiro/steering/)
+- **Trae Rules**: [.trae/rules/](https://github.com/loonghao/vx/blob/main/.trae/rules/)
+- **Cursor Rules**: [.cursor/rules/](https://github.com/loonghao/vx/blob/main/.cursor/rules/) (4 .mdc files)
+- **Cline/Roo Rules**: [.clinerules](https://github.com/loonghao/vx/blob/main/.clinerules)
+
 ## Quick Start (for AI Agents)
 
 ```bash
