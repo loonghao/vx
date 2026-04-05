@@ -519,10 +519,12 @@ vx maintains a comprehensive set of AI agent configuration files:
 | File | Purpose | Audience |
 |------|---------|----------|
 | `AGENTS.md` | Primary AI agent entry point — rules, architecture, quick reference | All AI coding agents (official standard) |
+| `CLAUDE.md` | Claude Code specific instructions with `@`-import support | Claude Code |
 | `llms.txt` | Concise LLM-friendly project index (llmstxt.org protocol) | LLMs discovering the project |
 | `llms-full.txt` | Detailed LLM documentation with full examples | LLMs needing deep context |
 | `.github/copilot-instructions.md` | GitHub Copilot-specific instructions | GitHub Copilot |
-| `.cursorrules` | Cursor IDE agent rules | Cursor AI |
+| `.cursor/rules/*.mdc` | Modern Cursor IDE rules with YAML frontmatter and activation modes | Cursor AI (new format) |
+| `.cursorrules` | Cursor IDE agent rules (legacy format, still supported) | Cursor AI (legacy) |
 | `.clinerules` | Cline/Roo agent rules | Cline |
 | `skills/` | Distributable skill files for 13+ AI agents | ClawHub, vx ai setup |
 
