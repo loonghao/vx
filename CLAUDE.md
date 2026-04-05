@@ -1,11 +1,11 @@
 # CLAUDE.md — vx Project Instructions for Claude Code
 
 > This file is read by Claude Code at the start of every conversation.
-> For the full AI agent guide, see [AGENTS.md](AGENTS.md).
+> For the full AI agent guide, see @AGENTS.md.
 
 ## Project
 
-vx is a **universal development tool manager** (v0.8.18, Rust, MIT). Users prefix any command with `vx` and tools auto-install on first use. 105 providers defined via Starlark DSL (`provider.star`).
+vx is a **universal development tool manager** (v0.8.19, Rust, MIT). Users prefix any command with `vx` and tools auto-install on first use. 105 providers defined via Starlark DSL (`provider.star`).
 
 ```bash
 vx node --version     # Auto-installs Node.js
@@ -14,21 +14,16 @@ vx npm install        # npm is bundled with Node.js
 vx uv pip install x   # Auto-installs uv
 ```
 
-## First-Time Setup
-
-```bash
-vx just quick   # format → lint → test → build (pre-commit cycle)
-```
-
 ## Commands You'll Need
 
 ```bash
+vx just quick         # format → lint → test → build (pre-commit cycle)
 vx just fmt           # Format code (rustfmt)
 vx just lint          # Run clippy
 vx just test          # Run tests
 vx just build         # Build debug binary
-vx just quick         # All of the above in sequence
 vx cargo test -p vx-starlark   # Test a single crate
+vx cargo check -p vx-cli       # Type-check a single crate
 ```
 
 ## Core Rules
@@ -95,6 +90,23 @@ environment      = _p["environment"]
 - **Don't use `sudo` with vx** — it manages user-level installations under `~/.vx/`.
 - **Don't import upward** — Foundation crates cannot import from Service layer.
 - **Provider count is 105** — update any docs that reference old counts (78, 73, 70+, 50+).
+- **Don't use `println!`** — always use `tracing::info!`, `tracing::debug!` etc.
+- **Don't write inline tests** — tests go in `crates/<name>/tests/`, never `#[cfg(test)]`.
+
+## MCP Integration
+
+Replace `npx`/`uvx` with `vx` in MCP server configs for zero-config tool management:
+
+```json
+{
+  "mcpServers": {
+    "server": {
+      "command": "vx",
+      "args": ["npx", "-y", "@example/mcp-server@latest"]
+    }
+  }
+}
+```
 
 ## Deeper References
 
