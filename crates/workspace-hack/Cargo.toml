@@ -39,7 +39,7 @@ once_cell = { version = "1", features = ["critical-section"] }
 parking_lot = { version = "0.12" }
 percent-encoding = { version = "2" }
 portable-atomic = { version = "1" }
-rand = { version = "0.9" }
+rand = { version = "0.10" }
 regex = { version = "1" }
 regex-automata = { version = "0.4", default-features = false, features = ["dfa-build", "dfa-onepass", "hybrid", "meta", "nfa-backtrack", "perf-inline", "perf-literal", "std", "unicode"] }
 regex-syntax = { version = "0.8" }
@@ -87,7 +87,7 @@ percent-encoding = { version = "2" }
 portable-atomic = { version = "1" }
 proc-macro2 = { version = "1" }
 quote = { version = "1" }
-rand = { version = "0.9" }
+rand = { version = "0.10" }
 regex = { version = "1" }
 regex-automata = { version = "0.4", default-features = false, features = ["dfa-build", "dfa-onepass", "hybrid", "meta", "nfa-backtrack", "perf-inline", "perf-literal", "std", "unicode"] }
 regex-syntax = { version = "0.8" }
