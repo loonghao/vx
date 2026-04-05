@@ -21,7 +21,7 @@ console = { workspace = true }
 indicatif = { workspace = true }
 
 # Cross-platform terminal
-terminal_size = "0.4"
+terminal_size = "0.4.4"
 
 # Serialization (JSON mode)
 serde = { workspace = true }
