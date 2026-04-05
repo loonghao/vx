@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.20](https://github.com/loonghao/vx/compare/v0.8.19...v0.8.20) (2026-04-05)
+
+
+### Documentation
+
+* enhance AI agent ecosystem with 15+ agent support ([#749](https://github.com/loonghao/vx/issues/749)) ([61bb0cb](https://github.com/loonghao/vx/commit/61bb0cb06a8097333af0f26227f88b797d83bcb4))
+
 ## [0.8.19](https://github.com/loonghao/vx/compare/v0.8.18...v0.8.19) (2026-04-05)
 
 
