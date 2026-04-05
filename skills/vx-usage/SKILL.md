@@ -324,7 +324,10 @@ vx resolves tool versions in this order (highest to lowest):
 
 ## MCP Integration
 
-vx is **MCP-ready** — replace `npx`/`uvx` with `vx` in MCP server configurations:
+vx is **MCP-ready** — replace `npx`/`uvx` with `vx` in MCP server configurations.
+This eliminates the "install Node.js/Python first" requirement for all MCP servers.
+
+### Configuration Pattern
 
 ```json
 {
@@ -341,14 +344,44 @@ vx is **MCP-ready** — replace `npx`/`uvx` with `vx` in MCP server configuratio
 }
 ```
 
-**Benefits**: Users don't need Node.js/Python pre-installed — vx auto-installs on first use.
+### Real-World MCP Examples
 
-**Migration pattern**:
+```json
+{
+  "mcpServers": {
+    "filesystem": {
+      "command": "vx",
+      "args": ["npx", "-y", "@modelcontextprotocol/server-filesystem", "/path/to/dir"]
+    },
+    "github": {
+      "command": "vx",
+      "args": ["npx", "-y", "@modelcontextprotocol/server-github"],
+      "env": { "GITHUB_TOKEN": "<token>" }
+    },
+    "sqlite": {
+      "command": "vx",
+      "args": ["uvx", "mcp-server-sqlite", "--db-path", "/path/to/db.sqlite"]
+    }
+  }
+}
+```
+
+### Migration Pattern
+
 | Original | vx-powered |
 |----------|------------|
 | `"command": "npx"` | `"command": "vx", "args": ["npx", ...]` |
 | `"command": "uvx"` | `"command": "vx", "args": ["uvx", ...]` |
 | `"command": "node"` | `"command": "vx", "args": ["node", ...]` |
+| `"command": "python"` | `"command": "vx", "args": ["python", ...]` |
+| `"command": "bun"` | `"command": "vx", "args": ["bun", ...]` |
+
+### Benefits for AI Agents
+
+- **Zero-config**: No need to check if Node.js/Python is installed before starting MCP servers
+- **Version consistency**: MCP servers always use the version specified in `vx.toml`
+- **Cross-platform**: Same MCP config works on Windows, macOS, and Linux
+- **CI/CD ready**: MCP servers in CI pipelines just work with vx
 
 ## GitHub Actions Integration
 

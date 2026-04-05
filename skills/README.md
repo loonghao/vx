@@ -1,6 +1,6 @@
 # vx — AI Agent Skills
 
-This directory contains AI agent skills for **[vx](https://github.com/loonghao/vx)** — the universal development tool manager (v0.8.18).
+This directory contains AI agent skills for **[vx](https://github.com/loonghao/vx)** — the universal development tool manager (v0.8.19).
 
 > **Core concept**: vx = prefix any dev tool command with `vx` → it auto-installs the tool and runs it.
 
