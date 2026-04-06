@@ -8,7 +8,7 @@
 
 ## What is vx?
 
-vx is a **zero-config universal development tool manager** (v0.8.19, MIT-licensed, written in Rust). Users prefix any command with `vx` (e.g., `vx node --version`, `vx cargo build`) and vx automatically installs, manages, and forwards to the correct tool version. vx currently ships **105 providers** covering language runtimes, build tools, DevOps CLIs, cloud platforms, and more — all defined via Starlark DSL (`provider.star`).
+vx is a **zero-config universal development tool manager** (v0.8.20, MIT-licensed, written in Rust). Users prefix any command with `vx` (e.g., `vx node --version`, `vx cargo build`) and vx automatically installs, manages, and forwards to the correct tool version. vx currently ships **105 providers** covering language runtimes, build tools, DevOps CLIs, cloud platforms, and more — all defined via Starlark DSL (`provider.star`).
 
 **Key insight for agents**: vx is a transparent proxy. The user writes the exact same commands they already know — just prepended with `vx`. There is **no new syntax to learn** for tool execution.
 
@@ -658,12 +658,24 @@ vx provides a GitHub Action for CI/CD. See [`docs/guides/github-action.md`](docs
 - run: vx npm test
 ```
 
-> **Tip**: Use `@main` for latest, or pin to a release tag (e.g., `@vx-v0.8.19`).
+> **Tip**: Use `@main` for latest, or pin to a release tag (e.g., `@vx-v0.8.20`).
 > Check [releases](https://github.com/loonghao/vx/releases) for available versions.
+
+### GitHub Copilot File-Scoped Instructions
+
+In addition to the repository-wide `.github/copilot-instructions.md`, vx provides **file-scoped instructions** in `.github/instructions/`:
+
+| File | Scope | Purpose |
+|------|-------|---------|
+| `rust-code.instructions.md` | `**/*.rs` | Rust coding standards, vx-specific rules, architecture layers |
+| `starlark-providers.instructions.md` | `crates/vx-providers/*/provider.star` | Provider development templates, platform constraints |
+| `testing.instructions.md` | `crates/*/tests/**/*.rs`, `tests/**/*.rs` | Test conventions, rstest patterns, mock usage |
+
+These use the `applyTo` frontmatter format and are automatically loaded by GitHub Copilot when editing matching files.
 
 ## AI Agent Ecosystem
 
-vx is designed to be **AI-agent-first**. It provides configuration files for 15+ AI coding assistants, ensuring that any AI agent working with vx-managed projects automatically understands how to use `vx` correctly.
+vx is designed to be **AI-agent-first**. It provides configuration files for 17+ AI coding assistants, ensuring that any AI agent working with vx-managed projects automatically understands how to use `vx` correctly.
 
 ### Why vx Matters for AI Agents
 
@@ -671,13 +683,23 @@ Traditional tool management creates friction for AI agents:
 - **Without vx**: AI must guess if Node.js is installed, check `nvm` vs `fnm` vs system install, handle version mismatches — all before running a single `npm install`.
 - **With vx**: AI just prefixes `vx` → tool auto-installs → command runs. Zero ambiguity, zero setup.
 
+**Key insight (from ETH Zurich research)**: AI agents perform best when given non-inferable details — information they cannot discover by reading code alone. vx's `AGENTS.md` focuses on exactly this: the `vx` prefix requirement, correct terminology, and architecture layer rules that no AI could guess from code inspection.
+
+### How AI Agents Should Use vx
+
+1. **Check for `vx.toml`** in the project root → if present, always use `vx` prefix
+2. **Never suggest manual installation** of any tool — `vx` handles it
+3. **Use structured output** for parsing: `vx list --json` or `vx list --format toon` (saves 40-60% tokens)
+4. **For MCP servers**, replace `npx`/`uvx` with `vx` in the config
+5. **For CI/CD**, use `loonghao/vx@main` GitHub Action with `cache: 'true'`
+
 ### Supported AI Agents
 
 | Agent | Config File(s) | Format |
 |-------|---------------|--------|
 | **OpenAI Codex** | `AGENTS.md` | Markdown |
 | **Claude Code** | `CLAUDE.md` | Markdown with @imports |
-| **GitHub Copilot** | `.github/copilot-instructions.md` | Markdown |
+| **GitHub Copilot** | `.github/copilot-instructions.md`, `.github/instructions/*.instructions.md` | Markdown with YAML frontmatter |
 | **Cursor** | `.cursor/rules/*.mdc`, `.cursorrules` | MDC (YAML frontmatter + Markdown) |
 | **Cline / Roo** | `.clinerules` | Markdown |
 | **Windsurf** | `.windsurfrules` | Markdown |
@@ -685,9 +707,11 @@ Traditional tool management creates friction for AI agents:
 | **Trae** | `.trae/rules/*.md` | Markdown |
 | **Google Jules** | `AGENTS.md` | Markdown |
 | **Amp** | `AGENTS.md` | Markdown |
+| **Augment** | `AGENTS.md` | Markdown |
 | **Devin** | `AGENTS.md` | Markdown |
 | **Aider** | `AGENTS.md` | Markdown |
 | **Zed** | `AGENTS.md` | Markdown |
+| **OpenCode** | `AGENTS.md` | Markdown |
 | **JetBrains Junie** | `AGENTS.md` | Markdown |
 | **CodeBuddy** | `.codebuddy/skills/` | SKILL.md |
 
@@ -730,16 +754,17 @@ vx is **MCP-ready** — replace `npx`/`uvx` with `vx` in any MCP server config:
 ## Documentation Map
 
 ```
-# AI Agent Ecosystem (root files — 15+ agents supported)
+# AI Agent Ecosystem (root files — 17+ agents supported)
 AGENTS.md                 # THIS FILE — primary AI agent entry point (cross-tool standard)
 CLAUDE.md                 # Claude Code instructions (@import supported)
 llms.txt                  # LLM-friendly project index (llmstxt.org protocol)
 llms-full.txt             # Detailed LLM documentation
 
 # Agent-specific config files
-.github/copilot-instructions.md  # GitHub Copilot instructions
+.github/copilot-instructions.md  # GitHub Copilot instructions (repo-wide)
+.github/instructions/            # GitHub Copilot file-scoped instructions (3 files)
 .cursorrules              # Cursor IDE agent rules (legacy format)
-.cursor/rules/*.mdc       # Cursor IDE rules (modern .mdc format, 3 files)
+.cursor/rules/*.mdc       # Cursor IDE rules (modern .mdc format, 4 files)
 .clinerules               # Cline/Roo agent rules
 .windsurfrules            # Windsurf AI IDE rules
 .kiro/steering/           # Kiro AI IDE steering documents
@@ -896,7 +921,7 @@ export VX_OUTPUT=json             # Default all commands to JSON
 
 ## Skills Distribution
 
-vx ships AI agent skills in the [`skills/`](skills/) directory. These skills are the **single source of truth** shared across 15+ AI agents:
+vx ships AI agent skills in the [`skills/`](skills/) directory. These skills are the **single source of truth** shared across 17+ AI agents:
 
 ```bash
 # Install skills to all AI agents

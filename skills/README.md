@@ -1,11 +1,11 @@
 # vx — AI Agent Skills
 
-This directory contains AI agent skills for **[vx](https://github.com/loonghao/vx)** — the universal development tool manager (v0.8.19).
+This directory contains AI agent skills for **[vx](https://github.com/loonghao/vx)** — the universal development tool manager (v0.8.20).
 
 > **Core concept**: vx = prefix any dev tool command with `vx` → it auto-installs the tool and runs it.
 
 These skills are the **single source of truth** shared across:
-- `vx ai setup` — embeds skills into the vx binary at compile time, distributes to 13+ AI agents
+- `vx ai setup` — embeds skills into the vx binary at compile time, distributes to 17+ AI agents
 - **ClawHub** — published automatically via CI when changes merge to main
 - **Agent config directories** — `.codebuddy/skills/`, `.claude/skills/`, `.cursor/skills/`, etc.
 
