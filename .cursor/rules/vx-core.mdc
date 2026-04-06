@@ -5,7 +5,7 @@ alwaysApply: true
 
 # VX Project Rules
 
-vx is a universal development tool manager (v0.8.19, Rust, 105 providers, Starlark DSL).
+vx is a universal development tool manager (v0.8.20, Rust, 105 providers, Starlark DSL).
 Users prefix commands with `vx` (e.g., `vx node --version`) and tools auto-install on first use.
 
 ## Commands
