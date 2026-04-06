@@ -1486,7 +1486,14 @@ async fn verify_checksum(
     // Calculate actual checksum
     let mut hasher = Sha256::new();
     hasher.update(content);
-    let actual_hash = format!("{:x}", hasher.finalize());
+    let actual_hash = hasher
+        .finalize()
+        .iter()
+        .fold(String::with_capacity(64), |mut acc, b| {
+            use std::fmt::Write;
+            let _ = write!(acc, "{b:02x}");
+            acc
+        });
 
     // Compare
     if expected_hash != actual_hash {

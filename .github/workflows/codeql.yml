@@ -28,7 +28,7 @@ jobs:
       RUSTC_WRAPPER: sccache
       SCCACHE_DIR: ${{ github.workspace }}/.cache/sccache
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
 
       - name: Setup vx
         uses: ./
