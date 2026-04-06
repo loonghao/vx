@@ -61,7 +61,7 @@ jobs:
           - arm64
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Download release binary
         run: |
@@ -157,7 +157,7 @@ jobs:
           - aarch64
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Install build tools
         run: |
@@ -276,7 +276,7 @@ jobs:
 
       - name: Checkout
         if: steps.check-key.outputs.skip != 'true'
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Setup SSH
         if: steps.check-key.outputs.skip != 'true'
