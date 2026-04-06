@@ -5,7 +5,7 @@
 
 ## Project
 
-vx is a **universal development tool manager** (v0.8.19, Rust, MIT). Users prefix any command with `vx` and tools auto-install on first use. 105 providers defined via Starlark DSL (`provider.star`).
+vx is a **universal development tool manager** (v0.8.20, Rust, MIT). Users prefix any command with `vx` and tools auto-install on first use. 105 providers defined via Starlark DSL (`provider.star`).
 
 ```bash
 vx node --version     # Auto-installs Node.js

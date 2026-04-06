@@ -20,6 +20,7 @@ vx eliminates the complexity of managing multiple language runtimes (Node.js, Py
 - **Trae Rules**: [.trae/rules/](https://github.com/loonghao/vx/blob/main/.trae/rules/)
 - **Cursor Rules**: [.cursor/rules/](https://github.com/loonghao/vx/blob/main/.cursor/rules/) (4 .mdc files)
 - **Cline/Roo Rules**: [.clinerules](https://github.com/loonghao/vx/blob/main/.clinerules)
+- **Copilot File-scoped Instructions**: [.github/instructions/](https://github.com/loonghao/vx/blob/main/.github/instructions/) (3 .instructions.md files)
 
 ## Quick Start (for AI Agents)
 
