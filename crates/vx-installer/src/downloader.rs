@@ -526,7 +526,14 @@ impl Downloader {
             hasher.update(&buffer[..bytes_read]);
         }
 
-        Ok(format!("{:x}", hasher.finalize()))
+        Ok(hasher.finalize().iter().fold(
+            String::with_capacity(64),
+            |mut acc, b| {
+                use std::fmt::Write;
+                let _ = write!(acc, "{b:02x}");
+                acc
+            },
+        ))
     }
 }
 

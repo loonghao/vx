@@ -42,7 +42,7 @@ jobs:
     outputs:
       should_run: ${{ steps.filter.outputs.should_run }}
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
       - uses: dorny/paths-filter@v3
         id: filter
         with:
@@ -61,7 +61,7 @@ jobs:
     needs: [check-changes, build]
     if: needs.check-changes.outputs.should_run == 'true' || github.event_name == 'workflow_dispatch'
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
 
       - name: Download built binary
         uses: actions/download-artifact@v7
@@ -99,7 +99,7 @@ jobs:
       RUSTC_WRAPPER: sccache
       SCCACHE_DIR: ${{ github.workspace }}/.cache/sccache
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
       - uses: dtolnay/rust-toolchain@stable
 
       - name: Install sccache
@@ -151,7 +151,7 @@ jobs:
     needs: [check-changes, test-dockerfile-syntax, build]
     if: needs.check-changes.outputs.should_run == 'true' || github.event_name == 'workflow_dispatch'
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
 
       - name: Download built binary
         uses: actions/download-artifact@v7
@@ -190,7 +190,7 @@ jobs:
     needs: [check-changes, test-dockerfile-syntax, build]
     if: needs.check-changes.outputs.should_run == 'true' || github.event_name == 'workflow_dispatch'
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
 
       - name: Download built binary
         uses: actions/download-artifact@v7

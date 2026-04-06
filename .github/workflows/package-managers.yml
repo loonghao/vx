@@ -105,7 +105,7 @@ jobs:
     if: needs.check-release.outputs.should-publish == 'true'
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Download Windows binary from release
         run: |
