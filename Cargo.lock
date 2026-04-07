@@ -5802,6 +5802,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "vx-provider-tokei"
+version = "0.8.21"
+dependencies = [
+ "rstest",
+ "starlark",
+ "vx-runtime",
+ "vx-starlark",
+ "workspace-hack",
+]
+
+[[package]]
 name = "vx-provider-trippy"
 version = "0.8.21"
 dependencies = [
