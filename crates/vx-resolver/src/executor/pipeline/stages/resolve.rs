@@ -406,11 +406,23 @@ impl<'a> ResolveStage<'a> {
         resolved_version: Option<&str>,
         source: VersionSource,
     ) -> ExecutionPlan {
+        // Build dependency PlannedRuntimes
+        // For bundled runtimes (e.g., npx@20), propagate the explicit version
+        // to the parent runtime dependency (e.g., node) so it installs the correct version.
+        let bundled_parent_version = if matches!(source, VersionSource::Explicit) {
+            resolved_version.and_then(|ver| {
+                self.get_bundled_parent_name(&resolution.runtime)
+                    .map(|parent| (parent, ver.to_string()))
+            })
+        } else {
+            None
+        };
+
         // Build the primary PlannedRuntime
         let primary = self.build_primary_runtime(resolution, resolved_version, source);
 
-        // Build dependency PlannedRuntimes
-        let dependencies = self.build_dependency_runtimes(resolution);
+        let dependencies =
+            self.build_dependency_runtimes(resolution, bundled_parent_version.as_ref());
 
         // Build injected (--with) PlannedRuntimes
         let injected = self.build_injected_runtimes(&request.with_deps);
@@ -471,13 +483,35 @@ impl<'a> ResolveStage<'a> {
         }
     }
 
+    /// Get the parent runtime name if this runtime is a bundled runtime.
+    ///
+    /// Bundled runtimes (e.g., npm, npx) are not independently installable and
+    /// are provided by a parent runtime (e.g., node). When a user specifies
+    /// `vx npx@20`, the version "20" refers to the parent (node), not npx itself.
+    fn get_bundled_parent_name(&self, runtime_name: &str) -> Option<String> {
+        // Use the resolver's spec lookup to find provided_by dependencies
+        let spec = self.resolver.get_spec(runtime_name)?;
+        spec.dependencies
+            .iter()
+            .find(|dep| dep.required && dep.provided_by.is_some())
+            .and_then(|dep| dep.provided_by.clone())
+    }
+
     /// Build `PlannedRuntime` entries for missing dependencies from install_order
     ///
     /// For bundled runtimes (e.g., npm bundled with node), when the primary
     /// runtime's version comes from vx.lock via ecosystem fallback, we propagate
     /// that version to the parent dependency. This ensures `vx npm ci` with
     /// `node = "22.22.0"` in vx.lock installs node 22.22.0 — not "latest".
-    fn build_dependency_runtimes(&self, resolution: &ResolutionResult) -> Vec<PlannedRuntime> {
+    ///
+    /// Additionally, when a bundled runtime has an explicit version (e.g., `vx npx@20`),
+    /// `bundled_parent_version` carries `Some(("node", "20"))` so the parent dep
+    /// receives the user-specified version.
+    fn build_dependency_runtimes(
+        &self,
+        resolution: &ResolutionResult,
+        bundled_parent_version: Option<&(String, String)>,
+    ) -> Vec<PlannedRuntime> {
         resolution
             .install_order
             .iter()
@@ -487,7 +521,15 @@ impl<'a> ResolveStage<'a> {
                 let dep_version = self
                     .project_config
                     .and_then(|pc| pc.get_version_with_fallback(name))
-                    .map(|v| v.to_string());
+                    .map(|v| v.to_string())
+                    // For bundled runtimes: if the user specified an explicit version
+                    // on the bundled runtime (e.g., `vx npx@20`), propagate that
+                    // version to the matching parent dependency (e.g., node).
+                    .or_else(|| {
+                        bundled_parent_version
+                            .filter(|(parent, _)| parent == name)
+                            .map(|(_, ver)| ver.clone())
+                    });
 
                 if resolution.missing_dependencies.contains(name) {
                     if let Some(ver) = dep_version {
@@ -953,7 +995,7 @@ mod tests {
             unsupported_platform_runtimes: vec![],
         };
 
-        let deps = stage.build_dependency_runtimes(&resolution);
+        let deps = stage.build_dependency_runtimes(&resolution, None);
         assert_eq!(deps.len(), 1); // "npm" is filtered out (same as primary)
         assert_eq!(deps[0].name, "node");
         assert_eq!(deps[0].status, InstallStatus::NeedsInstall);
@@ -1132,5 +1174,199 @@ mod tests {
             stage.determine_source("unknown", None),
             VersionSource::InstalledLatest
         );
+    }
+
+    // =============================================================================
+    // Bundled runtime version propagation tests
+    // =============================================================================
+
+    /// Create a resolver with a runtime map that includes bundled runtimes (npm → node)
+    fn test_resolver_with_bundled_runtimes() -> Resolver {
+        use crate::runtime_spec::{Ecosystem, RuntimeDependency, RuntimeSpec};
+
+        let config = ResolverConfig::default();
+        let mut runtime_map = RuntimeMap::empty();
+
+        // Register "node" runtime
+        let node_spec =
+            RuntimeSpec::new("node", "Node.js runtime").with_ecosystem(Ecosystem::NodeJs);
+        runtime_map.register(node_spec);
+
+        // Register "npm" as bundled with "node" (provided_by = "node")
+        let npm_dep =
+            RuntimeDependency::required("node", "npm is bundled with node").provided_by("node");
+        let npm_spec = RuntimeSpec::new("npm", "Node Package Manager")
+            .with_ecosystem(Ecosystem::NodeJs)
+            .with_dependency(npm_dep);
+        runtime_map.register(npm_spec);
+
+        // Register "npx" as bundled with "node" (provided_by = "node")
+        let npx_dep =
+            RuntimeDependency::required("node", "npx is bundled with node").provided_by("node");
+        let npx_spec = RuntimeSpec::new("npx", "Node Package eXecute")
+            .with_ecosystem(Ecosystem::NodeJs)
+            .with_dependency(npx_dep);
+        runtime_map.register(npx_spec);
+
+        // Register "go" as standalone (not bundled)
+        let go_spec =
+            RuntimeSpec::new("go", "Go programming language").with_ecosystem(Ecosystem::Go);
+        runtime_map.register(go_spec);
+
+        Resolver::new(config, runtime_map).unwrap()
+    }
+
+    #[test]
+    fn test_get_bundled_parent_name_for_bundled_runtime() {
+        let resolver = test_resolver_with_bundled_runtimes();
+        let config = ResolverConfig::default();
+        let stage = ResolveStage::new(&resolver, &config);
+
+        // npm is bundled with node → parent is "node"
+        assert_eq!(
+            stage.get_bundled_parent_name("npm"),
+            Some("node".to_string())
+        );
+
+        // npx is bundled with node → parent is "node"
+        assert_eq!(
+            stage.get_bundled_parent_name("npx"),
+            Some("node".to_string())
+        );
+    }
+
+    #[test]
+    fn test_get_bundled_parent_name_for_standalone_runtime() {
+        let resolver = test_resolver_with_bundled_runtimes();
+        let config = ResolverConfig::default();
+        let stage = ResolveStage::new(&resolver, &config);
+
+        // node is standalone → no parent
+        assert_eq!(stage.get_bundled_parent_name("node"), None);
+
+        // go is standalone → no parent
+        assert_eq!(stage.get_bundled_parent_name("go"), None);
+
+        // unknown runtime → no parent
+        assert_eq!(stage.get_bundled_parent_name("unknown-tool"), None);
+    }
+
+    #[test]
+    fn test_build_dependency_runtimes_with_bundled_parent_version() {
+        let resolver = test_resolver_with_bundled_runtimes();
+        let config = ResolverConfig::default();
+        let stage = ResolveStage::new(&resolver, &config);
+
+        let resolution = ResolutionResult {
+            runtime: "npx".to_string(),
+            executable: PathBuf::from("npx"),
+            command_prefix: vec![],
+            missing_dependencies: vec!["node".to_string()],
+            install_order: vec!["node".to_string(), "npx".to_string()],
+            runtime_needs_install: true,
+            incompatible_dependencies: vec![],
+            dependency_requirements: vec![],
+            unsupported_platform_runtimes: vec![],
+        };
+
+        // Simulate `vx npx@20` — propagate version "20" to parent "node"
+        let parent_version = ("node".to_string(), "20".to_string());
+        let deps = stage.build_dependency_runtimes(&resolution, Some(&parent_version));
+
+        assert_eq!(deps.len(), 1);
+        assert_eq!(deps[0].name, "node");
+        assert_eq!(deps[0].status, InstallStatus::NeedsInstall);
+        // The key assertion: node gets version "20" from the bundled runtime's explicit version
+        assert_eq!(deps[0].version_string(), Some("20"));
+    }
+
+    #[test]
+    fn test_build_dependency_runtimes_without_bundled_parent_version() {
+        let resolver = test_resolver_with_bundled_runtimes();
+        let config = ResolverConfig::default();
+        let stage = ResolveStage::new(&resolver, &config);
+
+        let resolution = ResolutionResult {
+            runtime: "npx".to_string(),
+            executable: PathBuf::from("npx"),
+            command_prefix: vec![],
+            missing_dependencies: vec!["node".to_string()],
+            install_order: vec!["node".to_string(), "npx".to_string()],
+            runtime_needs_install: true,
+            incompatible_dependencies: vec![],
+            dependency_requirements: vec![],
+            unsupported_platform_runtimes: vec![],
+        };
+
+        // No explicit version (just `vx npx`) → node version is Unresolved
+        let deps = stage.build_dependency_runtimes(&resolution, None);
+
+        assert_eq!(deps.len(), 1);
+        assert_eq!(deps[0].name, "node");
+        assert_eq!(deps[0].status, InstallStatus::NeedsInstall);
+        // Without explicit version, node gets no version (Unresolved)
+        assert_eq!(deps[0].version_string(), None);
+    }
+
+    #[test]
+    fn test_build_plan_propagates_bundled_version_to_parent() {
+        let resolver = test_resolver_with_bundled_runtimes();
+        let config = ResolverConfig::default();
+        let stage = ResolveStage::new(&resolver, &config);
+
+        let request = ResolveRequest::new("npx", vec!["create-react-app".into(), "my-app".into()]);
+
+        let resolution = ResolutionResult {
+            runtime: "npx".to_string(),
+            executable: PathBuf::from("npx"),
+            command_prefix: vec![],
+            missing_dependencies: vec!["node".to_string()],
+            install_order: vec!["node".to_string(), "npx".to_string()],
+            runtime_needs_install: true,
+            incompatible_dependencies: vec![],
+            dependency_requirements: vec![],
+            unsupported_platform_runtimes: vec![],
+        };
+
+        // Simulate `vx npx@20 create-react-app my-app`
+        let plan = stage.build_plan(&request, &resolution, Some("20"), VersionSource::Explicit);
+
+        // Primary should be npx with version 20
+        assert_eq!(plan.primary.name, "npx");
+        assert_eq!(plan.primary.version_string(), Some("20"));
+
+        // Dependency node should also get version 20 (propagated from bundled runtime)
+        assert_eq!(plan.dependencies.len(), 1);
+        assert_eq!(plan.dependencies[0].name, "node");
+        assert_eq!(plan.dependencies[0].version_string(), Some("20"));
+    }
+
+    #[test]
+    fn test_build_plan_standalone_runtime_does_not_propagate() {
+        let resolver = test_resolver_with_bundled_runtimes();
+        let config = ResolverConfig::default();
+        let stage = ResolveStage::new(&resolver, &config);
+
+        let request = ResolveRequest::new("go", vec!["build".into()]);
+
+        let resolution = ResolutionResult {
+            runtime: "go".to_string(),
+            executable: PathBuf::from("go"),
+            command_prefix: vec![],
+            missing_dependencies: vec![],
+            install_order: vec!["go".to_string()],
+            runtime_needs_install: true,
+            incompatible_dependencies: vec![],
+            dependency_requirements: vec![],
+            unsupported_platform_runtimes: vec![],
+        };
+
+        // `vx go@1.21 build` — standalone, no bundled parent propagation
+        let plan = stage.build_plan(&request, &resolution, Some("1.21"), VersionSource::Explicit);
+
+        assert_eq!(plan.primary.name, "go");
+        assert_eq!(plan.primary.version_string(), Some("1.21"));
+        // No dependencies to propagate to
+        assert!(plan.dependencies.is_empty());
     }
 }

@@ -526,14 +526,14 @@ impl Downloader {
             hasher.update(&buffer[..bytes_read]);
         }
 
-        Ok(hasher.finalize().iter().fold(
-            String::with_capacity(64),
-            |mut acc, b| {
+        Ok(hasher
+            .finalize()
+            .iter()
+            .fold(String::with_capacity(64), |mut acc, b| {
                 use std::fmt::Write;
                 let _ = write!(acc, "{b:02x}");
                 acc
-            },
-        ))
+            }))
     }
 }
 
@@ -644,5 +644,104 @@ mod tests {
         assert_eq!(downloader.max_retries, 5);
         assert_eq!(downloader.min_delay, Duration::from_millis(100));
         assert_eq!(downloader.max_delay, Duration::from_secs(10));
+    }
+
+    #[test]
+    fn test_calculate_sha256_known_hash() {
+        use std::io::Write;
+
+        let downloader = Downloader::default();
+        let mut temp_file = tempfile::NamedTempFile::new().unwrap();
+        temp_file.write_all(b"hello world").unwrap();
+        temp_file.flush().unwrap();
+
+        let hash = downloader.calculate_sha256(temp_file.path()).unwrap();
+        // SHA256("hello world") standard known value
+        assert_eq!(
+            hash,
+            "b94d27b9934d3e08a52e52d7da7dabfac484efe37a5380ee9088f7ace2efcde9"
+        );
+        assert_eq!(hash.len(), 64);
+        assert!(hash.chars().all(|c| c.is_ascii_hexdigit()));
+    }
+
+    #[test]
+    fn test_calculate_sha256_empty_file() {
+        let downloader = Downloader::default();
+        let temp_file = tempfile::NamedTempFile::new().unwrap();
+
+        let hash = downloader.calculate_sha256(temp_file.path()).unwrap();
+        // SHA256("") standard known value
+        assert_eq!(
+            hash,
+            "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        );
+    }
+
+    #[test]
+    fn test_calculate_sha256_large_file() {
+        use std::io::Write;
+
+        let downloader = Downloader::default();
+        let mut temp_file = tempfile::NamedTempFile::new().unwrap();
+        // Write more than 8192 bytes to exercise the buffer loop
+        let data = vec![0u8; 16384];
+        temp_file.write_all(&data).unwrap();
+        temp_file.flush().unwrap();
+
+        let hash = downloader.calculate_sha256(temp_file.path()).unwrap();
+        assert_eq!(hash.len(), 64);
+        assert!(hash.chars().all(|c| c.is_ascii_hexdigit()));
+    }
+
+    #[test]
+    fn test_calculate_sha256_nonexistent_file() {
+        let downloader = Downloader::default();
+        let result = downloader.calculate_sha256(Path::new("/nonexistent/path/file.bin"));
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_parse_content_disposition_simple_filename() {
+        let result = Downloader::parse_content_disposition("attachment; filename=file.zip");
+        assert_eq!(result, Some("file.zip".to_string()));
+    }
+
+    #[test]
+    fn test_parse_content_disposition_quoted_filename() {
+        let result =
+            Downloader::parse_content_disposition("attachment; filename=\"my file.zip\"");
+        assert_eq!(result, Some("my file.zip".to_string()));
+    }
+
+    #[test]
+    fn test_parse_content_disposition_rfc5987_encoded() {
+        let result = Downloader::parse_content_disposition(
+            "attachment; filename*=UTF-8''OpenJDK25U-jdk_x64_windows.zip",
+        );
+        assert_eq!(
+            result,
+            Some("OpenJDK25U-jdk_x64_windows.zip".to_string())
+        );
+    }
+
+    #[test]
+    fn test_parse_content_disposition_rfc5987_url_encoded() {
+        let result = Downloader::parse_content_disposition(
+            "attachment; filename*=UTF-8''my%20file%20name.zip",
+        );
+        assert_eq!(result, Some("my file name.zip".to_string()));
+    }
+
+    #[test]
+    fn test_parse_content_disposition_no_filename() {
+        let result = Downloader::parse_content_disposition("attachment");
+        assert_eq!(result, None);
+    }
+
+    #[test]
+    fn test_parse_content_disposition_empty_filename() {
+        let result = Downloader::parse_content_disposition("attachment; filename=");
+        assert_eq!(result, None);
     }
 }

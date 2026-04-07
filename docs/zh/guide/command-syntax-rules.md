@@ -22,6 +22,7 @@
 | 意图 | 规范语法 | 示例 | 兼容策略 |
 |---|---|---|---|
 | 运行时执行 | `vx <runtime>[@runtime_version] [args...]` | `vx node@22 --version` | 保留现有直接运行时写法。 |
+| 捆绑运行时执行 | `vx <bundled_runtime>[@parent_version] [args...]` | `vx npx@20 create-react-app my-app` | 对于捆绑运行时，`@version` 指父运行时的版本。 |
 | 运行时可执行覆盖 | `vx <runtime>[@runtime_version]::<executable> [args...]` | `vx msvc@14.42::cl main.cpp` | 兼容 `runtime::exe@version`，但规范写法为版本前置。 |
 | 包执行 | `vx <ecosystem>[@runtime_version]:<package>[@package_version][::executable] [args...]` | `vx uvx:pyinstaller::pyinstaller --version` | 这是唯一包语法。 |
 | 多运行时组装执行 | `vx --with <runtime>[@runtime_version] [--with <runtime>[@runtime_version] ...] <target_command>` | `vx --with bun@1.1.0 --with deno node app.js` | `--with` 仅为本次执行注入伴随运行时。 |
