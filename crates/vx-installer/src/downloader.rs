@@ -709,8 +709,7 @@ mod tests {
 
     #[test]
     fn test_parse_content_disposition_quoted_filename() {
-        let result =
-            Downloader::parse_content_disposition("attachment; filename=\"my file.zip\"");
+        let result = Downloader::parse_content_disposition("attachment; filename=\"my file.zip\"");
         assert_eq!(result, Some("my file.zip".to_string()));
     }
 
@@ -719,10 +718,7 @@ mod tests {
         let result = Downloader::parse_content_disposition(
             "attachment; filename*=UTF-8''OpenJDK25U-jdk_x64_windows.zip",
         );
-        assert_eq!(
-            result,
-            Some("OpenJDK25U-jdk_x64_windows.zip".to_string())
-        );
+        assert_eq!(result, Some("OpenJDK25U-jdk_x64_windows.zip".to_string()));
     }
 
     #[test]
