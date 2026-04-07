@@ -68,36 +68,41 @@ USAGE MODES:
        vx <runtime>[@version] [args...]
        vx node@20 --version
 
-  2. Runtime executable override:
+  2. Bundled runtime execution (version targets parent):
+       vx <bundled_runtime>[@parent_version] [args...]
+       vx npx@20 create-react-app my-app
+       vx npm@22 ci
+
+  3. Runtime executable override:
        vx <runtime>[@version]::<executable> [args...]
        vx msvc@14.42::cl main.cpp
 
-  3. Package execution (RFC 0027):
+  4. Package execution (RFC 0027):
        vx <ecosystem>[@runtime_version]:<package>[@version][::executable] [args...]
        vx npm:typescript::tsc --version
        vx uvx:ruff check .
        vx cargo:ripgrep::rg --version
 
-  4. Multi-runtime composition:
+  5. Multi-runtime composition:
        vx --with <runtime>[@version] [--with ...] <target_command>
        vx --with bun@1.1.0 --with deno node app.js
 
-  5. Shell launch (canonical):
+  6. Shell launch (canonical):
        vx shell <runtime>[@version] [shell_name]
        vx shell node@22 powershell
        vx shell git git-bash
      Compatibility alias: vx <runtime>::<shell_name>
 
-  6. Globally installed package shims:
+  7. Globally installed package shims:
        vx tsc --version        (from: vx pkg install npm:typescript)
        vx ruff check .         (from: vx pkg install uvx:ruff)
 
-  7. Global package management:
+  8. Global package management:
        vx pkg <install|uninstall|list|info|update> ...
        vx pkg install npm:typescript
      Compatibility alias: vx global ...
 
-  8. Project toolchain management:
+  9. Project toolchain management:
        vx project <init|add|rm|sync|lock|check> ...
      Compatibility aliases: vx init, vx add, vx sync, etc.
 
@@ -114,6 +119,8 @@ SUPPORTED ECOSYSTEMS:
 
 EXAMPLES:
   vx node --version
+  vx npx@20 create-react-app my-app
+  vx npm@22 ci
   vx npm:create-react-app my-app
   vx uvx:ruff check .
   vx cargo:ripgrep::rg --version
