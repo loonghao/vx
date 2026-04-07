@@ -85,6 +85,7 @@ members = [
   "crates/vx-providers/delta",
   "crates/vx-providers/tealdeer",
   "crates/vx-providers/dust",
+  "crates/vx-providers/tokei",
   "crates/vx-providers/xh",
   "crates/vx-providers/bottom",
   "crates/vx-providers/zellij",
@@ -301,6 +302,7 @@ vx-provider-atuin = { path = "crates/vx-providers/atuin" }
 vx-provider-delta = { path = "crates/vx-providers/delta" }
 vx-provider-tealdeer = { path = "crates/vx-providers/tealdeer" }
 vx-provider-dust = { path = "crates/vx-providers/dust" }
+vx-provider-tokei = { path = "crates/vx-providers/tokei" }
 vx-provider-xh = { path = "crates/vx-providers/xh" }
 vx-provider-bottom = { path = "crates/vx-providers/bottom" }
 vx-provider-zellij = { path = "crates/vx-providers/zellij" }
