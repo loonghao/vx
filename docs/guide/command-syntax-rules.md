@@ -22,6 +22,7 @@ It is the canonical reference for future CLI evolution and documentation consist
 | Intent | Canonical Syntax | Example | Compatibility Notes |
 |---|---|---|---|
 | Runtime execution | `vx <runtime>[@runtime_version] [args...]` | `vx node@22 --version` | Keep existing direct runtime forms. |
+| Bundled runtime execution | `vx <bundled_runtime>[@parent_version] [args...]` | `vx npx@20 create-react-app my-app` | For bundled runtimes, `@version` refers to the parent runtime's version. |
 | Runtime executable override | `vx <runtime>[@runtime_version]::<executable> [args...]` | `vx msvc@14.42::cl main.cpp` | Accept `runtime::exe@version` temporarily; canonical is version-before-`::`. |
 | Package execution | `vx <ecosystem>[@runtime_version]:<package>[@package_version][::executable] [args...]` | `vx uvx:pyinstaller::pyinstaller --version` | This is the only package grammar. |
 | Multi-runtime composition | `vx --with <runtime>[@runtime_version] [--with <runtime>[@runtime_version] ...] <target_command>` | `vx --with bun@1.1.0 --with deno node app.js` | `--with` only injects companion runtimes for this invocation. |
@@ -89,6 +90,33 @@ Resolution notes:
 - Companion runtimes are **additive** to the current invocation environment only.
 - Every `--with` runtime resolves versions using the same unified version policy.
 - `--with` does not replace the primary target command; it augments execution prerequisites.
+
+## Bundled Runtime Version Semantics
+
+Bundled runtimes (e.g., `npm`, `npx` bundled with `node`; `cargo`, `rustc` bundled with `rust`) do not have independent version numbers in vx. They share the parent runtime's version space.
+
+When `@version` is used with a bundled runtime, the version refers to the **parent runtime's version**, not the bundled runtime's own version:
+
+```bash
+# npx is bundled with node — @20 means "node version 20"
+vx npx@20 create-react-app my-app   # Uses npx from Node.js 20
+
+# npm is bundled with node — @22 means "node version 22"
+vx npm@22 ci                         # Uses npm from Node.js 22
+
+# cargo is bundled with rust — @1.80 means "rust version 1.80"
+vx cargo@1.80 build --release        # Uses cargo from Rust 1.80
+```
+
+This is semantically equivalent to using `--with`:
+
+```bash
+# These two commands are equivalent:
+vx npx@20 create-react-app my-app
+vx --with node@20 npx create-react-app my-app
+```
+
+The version propagation happens automatically: when a bundled runtime is requested with an explicit version, vx installs the parent runtime at that version and uses the bundled tool from it.
 
 ## Project-Aware Execution Contract (`vx.toml` + `vx.lock`)
 
