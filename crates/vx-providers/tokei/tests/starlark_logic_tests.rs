@@ -1,7 +1,10 @@
 //! Pure Starlark logic tests for tokei provider.star
 //!
-//! tokei uses a custom download_url: asset is `tokei-{triple}.tar.gz` (Unix)
-//! or `tokei-{triple}.exe` (Windows) — no version number in the filename.
+//! tokei has an unusual asset naming convention:
+//! - No version number in the filename: tokei-{triple}.{ext}
+//! - Windows: direct .exe binary (binary_install layout, placed in bin/)
+//! - Unix:    .tar.gz archive (archive layout, binary at root)
+//! - macOS arm64: falls back to x86_64 binary via Rosetta 2
 
 use starlark::assert::Assert;
 use starlark::syntax::Dialect;
@@ -86,8 +89,23 @@ url != None and url.endswith(".exe")
 }
 
 #[test]
-fn test_download_url_macos_arm64_returns_none() {
-    // tokei has never released a native aarch64-apple-darwin binary.
+fn test_download_url_macos_x64_returns_tar_gz() {
+    let mut a = Assert::new();
+    a.dialect(&Dialect::Standard);
+    a.is_true(&format!(
+        r#"
+{}
+ctx = struct(platform = struct(os = "macos", arch = "x64", target = "x86_64-apple-darwin"))
+url = download_url(ctx, "12.1.2")
+url != None and url.endswith(".tar.gz")
+"#,
+        provider_star_prefix()
+    ));
+}
+
+#[test]
+fn test_download_url_macos_arm64_returns_x86_url() {
+    // macOS arm64 has no native build; falls back to x86_64 via Rosetta 2
     let mut a = Assert::new();
     a.dialect(&Dialect::Standard);
     a.is_true(&format!(
@@ -95,7 +113,7 @@ fn test_download_url_macos_arm64_returns_none() {
 {}
 ctx = struct(platform = struct(os = "macos", arch = "arm64", target = "aarch64-apple-darwin"))
 url = download_url(ctx, "12.1.2")
-url == None
+url != None and "x86_64-apple-darwin" in url
 "#,
         provider_star_prefix()
     ));
@@ -126,6 +144,38 @@ fn test_download_url_contains_v_prefix_tag() {
 ctx = struct(platform = struct(os = "linux", arch = "x64", target = "x86_64-unknown-linux-musl"))
 url = download_url(ctx, "12.1.2")
 "v12.1.2" in url
+"#,
+        provider_star_prefix()
+    ));
+}
+
+// ── install_layout logic ──────────────────────────────────────────────────────
+
+#[test]
+fn test_install_layout_windows_is_binary_install() {
+    let mut a = Assert::new();
+    a.dialect(&Dialect::Standard);
+    a.is_true(&format!(
+        r#"
+{}
+ctx = struct(platform = struct(os = "windows", arch = "x64", target = "x86_64-pc-windows-msvc"))
+layout = install_layout(ctx, "12.1.2")
+layout["__type"] == "binary_install"
+"#,
+        provider_star_prefix()
+    ));
+}
+
+#[test]
+fn test_install_layout_linux_is_archive() {
+    let mut a = Assert::new();
+    a.dialect(&Dialect::Standard);
+    a.is_true(&format!(
+        r#"
+{}
+ctx = struct(platform = struct(os = "linux", arch = "x64", target = "x86_64-unknown-linux-musl"))
+layout = install_layout(ctx, "12.1.2")
+layout["__type"] == "archive"
 "#,
         provider_star_prefix()
     ));

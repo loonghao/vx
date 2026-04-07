@@ -5,23 +5,23 @@
 # Asset format: tokei-{triple}.tar.gz (Unix) / tokei-{triple}.exe (Windows)
 # Tag format:   v{version}
 #
-# NOTE: tokei assets embed the Rust target triple but NOT the version number.
+# NOTE: tokei asset names embed the Rust target triple WITHOUT a version number.
 # Windows ships a direct .exe binary; Unix ships a .tar.gz containing the binary.
 #
-# Supported triples (from v12.1.2 release):
-#   windows/x64  → x86_64-pc-windows-msvc (.exe)
-#   windows/x86  → i686-pc-windows-msvc   (.exe)
-#   macos/x64    → x86_64-apple-darwin    (.tar.gz)
-#   linux/x64    → x86_64-unknown-linux-musl (.tar.gz)
-#   linux/arm64  → aarch64-unknown-linux-gnu (.tar.gz)
+# macOS arm64 has no native build; the x86_64 binary runs via Rosetta 2.
 #
-# NOTE: tokei has never released a native aarch64-apple-darwin binary.
-# macOS arm64 users can run via Rosetta 2 (x86_64 binary works transparently).
+# Platform mapping:
+#   windows/x64  → x86_64-pc-windows-msvc  (.exe — binary_install)
+#   windows/x86  → i686-pc-windows-msvc    (.exe — binary_install)
+#   macos/x64    → x86_64-apple-darwin     (.tar.gz — archive)
+#   macos/arm64  → x86_64-apple-darwin     (.tar.gz — Rosetta 2 fallback)
+#   linux/x64    → x86_64-unknown-linux-musl (.tar.gz — archive)
+#   linux/arm64  → aarch64-unknown-linux-gnu (.tar.gz — archive)
 
 load("@vx//stdlib:provider.star",
-     "runtime_def", "github_permissions",
-     "binary_layout", "archive_layout", "path_fns")
+     "runtime_def", "github_permissions", "path_fns")
 load("@vx//stdlib:github.star", "make_fetch_versions", "github_asset_url")
+load("@vx//stdlib:env.star",    "env_prepend")
 
 # ---------------------------------------------------------------------------
 # Provider metadata
@@ -60,53 +60,61 @@ permissions = github_permissions()
 fetch_versions = make_fetch_versions("XAMPPRocky", "tokei")
 
 # ---------------------------------------------------------------------------
-# Platform → Rust triple mapping
+# Platform → (triple, ext) mapping
 #
-# tokei asset names embed the Rust target triple without a version number:
-#   Windows: tokei-{triple}.exe      (direct binary)
-#   Unix:    tokei-{triple}.tar.gz   (archive)
+# tokei asset names: tokei-{triple}.{ext}  (no version number in filename)
+# macOS arm64 has no native build; falls back to x86_64 via Rosetta 2.
 # ---------------------------------------------------------------------------
 
-_TRIPLES = {
-    "windows/x64":  "x86_64-pc-windows-msvc",
-    "windows/x86":  "i686-pc-windows-msvc",
-    "macos/x64":    "x86_64-apple-darwin",
-    # macos/arm64 is intentionally omitted: tokei has never released a native
-    # aarch64-apple-darwin binary. macOS arm64 (Apple Silicon) users are
-    # expected to run the x86_64 binary via Rosetta 2.
-    "linux/x64":    "x86_64-unknown-linux-musl",
-    "linux/arm64":  "aarch64-unknown-linux-gnu",
+_PLATFORMS = {
+    "windows/x64":  ("x86_64-pc-windows-msvc",    "exe"),
+    "windows/x86":  ("i686-pc-windows-msvc",      "exe"),
+    "macos/x64":    ("x86_64-apple-darwin",        "tar.gz"),
+    "macos/arm64":  ("x86_64-apple-darwin",        "tar.gz"),  # Rosetta 2 fallback
+    "linux/x64":    ("x86_64-unknown-linux-musl",  "tar.gz"),
+    "linux/arm64":  ("aarch64-unknown-linux-gnu",  "tar.gz"),
 }
 
-def _triple(ctx):
-    return _TRIPLES.get("{}/{}".format(ctx.platform.os, ctx.platform.arch))
+def _platform(ctx):
+    return _PLATFORMS.get("{}/{}".format(ctx.platform.os, ctx.platform.arch))
 
 # ---------------------------------------------------------------------------
 # download_url
 # ---------------------------------------------------------------------------
 
 def download_url(ctx, version):
-    triple = _triple(ctx)
-    if not triple:
+    p = _platform(ctx)
+    if not p:
         return None
-    tag = "v" + version
-    if ctx.platform.os == "windows":
-        asset = "tokei-{}.exe".format(triple)
-    else:
-        asset = "tokei-{}.tar.gz".format(triple)
-    return github_asset_url("XAMPPRocky", "tokei", tag, asset)
+    triple, ext = p
+    asset = "tokei-{}.{}".format(triple, ext)
+    return github_asset_url("XAMPPRocky", "tokei", "v" + version, asset)
 
 # ---------------------------------------------------------------------------
 # install_layout
 #
-# Windows: direct .exe binary → binary_layout
-# Unix:    .tar.gz archive    → archive_layout (binary at archive root)
+# Windows: binary_install — direct .exe download, placed into bin/
+# Unix:    archive        — .tar.gz, binary at archive root (no strip_prefix)
 # ---------------------------------------------------------------------------
 
-def install_layout(ctx, version):
+def install_layout(ctx, _version):
+    p = _platform(ctx)
+    if not p:
+        return None
+    triple, _ext = p
     if ctx.platform.os == "windows":
-        return binary_layout("tokei")(ctx, version)
-    return archive_layout("tokei")(ctx, version)
+        return {
+            "__type":           "binary_install",
+            "source_name":      "tokei-{}.exe".format(triple),
+            "target_name":      "tokei.exe",
+            "target_dir":       "bin",
+            "executable_paths": ["bin/tokei.exe"],
+        }
+    return {
+        "__type":           "archive",
+        "strip_prefix":     "",
+        "executable_paths": ["tokei"],
+    }
 
 # ---------------------------------------------------------------------------
 # Path + environment helpers
@@ -116,11 +124,17 @@ _paths       = path_fns("tokei")
 store_root   = _paths["store_root"]
 
 def get_execute_path(ctx, _version):
-    exe = "tokei.exe" if ctx.platform.os == "windows" else "tokei"
-    return ctx.install_dir + "/bin/" + exe
+    if ctx.platform.os == "windows":
+        return ctx.install_dir + "/bin/tokei.exe"
+    return ctx.install_dir + "/tokei"
 
 def environment(ctx, _version):
-    return [{"op": "prepend", "name": "PATH", "value": ctx.install_dir + "/bin"}]
+    if ctx.platform.os == "windows":
+        return [env_prepend("PATH", ctx.install_dir + "/bin")]
+    return [env_prepend("PATH", ctx.install_dir)]
+
+def post_install(_ctx, _version):
+    return None
 
 def deps(_ctx, _version):
     return []
