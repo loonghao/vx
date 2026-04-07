@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.22](https://github.com/loonghao/vx/compare/v0.8.21...v0.8.22) (2026-04-07)
+
+
+### Features
+
+* **providers:** add tokei provider + triage stale issues ([f1077a1](https://github.com/loonghao/vx/commit/f1077a15b5224bf289af15f67f0ee710063cb29b))
+
 ## [0.8.21](https://github.com/loonghao/vx/compare/v0.8.20...v0.8.21) (2026-04-07)
 
 
