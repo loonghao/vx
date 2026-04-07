@@ -5,6 +5,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.21](https://github.com/loonghao/vx/compare/v0.8.20...v0.8.21) (2026-04-07)
+
+
+### Features
+
+* propagate explicit version from bundled runtime to parent dependency ([#766](https://github.com/loonghao/vx/issues/766)) ([b48abe6](https://github.com/loonghao/vx/commit/b48abe6aaceec92455830c2476770a4657fecd65))
+
+
+### Bug Fixes
+
+* gracefully resolve numeric version hints for pure opaque providers ([4891b84](https://github.com/loonghao/vx/commit/4891b84942b85972e53e129937545b4e311ff633))
+* resolve sha2 LowerHex compile errors and upgrade GitHub Actions ([d148868](https://github.com/loonghao/vx/commit/d148868e133136b9d33627d0a793dadffa9ee5af))
+* **vx-config:** fix sha2 GenericArray LowerHex compile error ([0c60d1b](https://github.com/loonghao/vx/commit/0c60d1b3f88f6378aa7d80eeb49f5f63d2c2abb4))
+
+
+### Documentation
+
+* optimize agent docs for v0.8.20 — add Copilot instructions, expand AI agent support to 17+ ([#762](https://github.com/loonghao/vx/issues/762)) ([95f30f4](https://github.com/loonghao/vx/commit/95f30f43c4d91aa4da37ba0e826ca06728f5cd3b))
+
 ## [0.8.20](https://github.com/loonghao/vx/compare/v0.8.19...v0.8.20) (2026-04-05)
 
 
