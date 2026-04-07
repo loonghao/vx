@@ -123,10 +123,9 @@ def install_layout(ctx, _version):
 # system_install — Homebrew fallback for macOS (including arm64)
 # ---------------------------------------------------------------------------
 
-def system_install(_ctx, _version):
-    return system_install_strategies([
-        brew_install("tokei", priority = 80),
-    ])
+system_install = system_install_strategies([
+    brew_install("tokei", priority = 80),
+])
 
 # ---------------------------------------------------------------------------
 # Path + environment helpers
