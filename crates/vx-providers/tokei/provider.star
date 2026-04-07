@@ -8,18 +8,21 @@
 # NOTE: tokei asset names embed the Rust target triple WITHOUT a version number.
 # Windows ships a direct .exe binary; Unix ships a .tar.gz containing the binary.
 #
-# macOS arm64 has no native build; the x86_64 binary runs via Rosetta 2.
+# macOS arm64 (Apple Silicon) has no official binary build, and the x86_64 build
+# does not run reliably via Rosetta 2 (TLS compatibility issue in old binaries).
+# On macOS, Homebrew is provided as a fallback — it supplies a native arm64 build
+# and can also be used on x64. The direct download is preferred on macOS x64.
 #
-# Platform mapping:
+# Platform mapping (direct download):
 #   windows/x64  → x86_64-pc-windows-msvc  (.exe — binary_install)
 #   windows/x86  → i686-pc-windows-msvc    (.exe — binary_install)
 #   macos/x64    → x86_64-apple-darwin     (.tar.gz — archive)
-#   macos/arm64  → x86_64-apple-darwin     (.tar.gz — Rosetta 2 fallback)
 #   linux/x64    → x86_64-unknown-linux-musl (.tar.gz — archive)
 #   linux/arm64  → aarch64-unknown-linux-gnu (.tar.gz — archive)
 
 load("@vx//stdlib:provider.star",
-     "runtime_def", "github_permissions", "path_fns")
+     "runtime_def", "github_permissions", "path_fns",
+     "system_install_strategies", "brew_install")
 load("@vx//stdlib:github.star", "make_fetch_versions", "github_asset_url")
 load("@vx//stdlib:env.star",    "env_prepend")
 
@@ -63,14 +66,14 @@ fetch_versions = make_fetch_versions("XAMPPRocky", "tokei")
 # Platform → (triple, ext) mapping
 #
 # tokei asset names: tokei-{triple}.{ext}  (no version number in filename)
-# macOS arm64 has no native build; falls back to x86_64 via Rosetta 2.
+# macOS arm64 is intentionally absent: the x86_64 build fails via Rosetta 2
+# due to TLS compatibility issues. macOS arm64 falls back to Homebrew below.
 # ---------------------------------------------------------------------------
 
 _PLATFORMS = {
     "windows/x64":  ("x86_64-pc-windows-msvc",    "exe"),
     "windows/x86":  ("i686-pc-windows-msvc",      "exe"),
     "macos/x64":    ("x86_64-apple-darwin",        "tar.gz"),
-    "macos/arm64":  ("x86_64-apple-darwin",        "tar.gz"),  # Rosetta 2 fallback
     "linux/x64":    ("x86_64-unknown-linux-musl",  "tar.gz"),
     "linux/arm64":  ("aarch64-unknown-linux-gnu",  "tar.gz"),
 }
@@ -115,6 +118,15 @@ def install_layout(ctx, _version):
         "strip_prefix":     "",
         "executable_paths": ["tokei"],
     }
+
+# ---------------------------------------------------------------------------
+# system_install — Homebrew fallback for macOS (including arm64)
+# ---------------------------------------------------------------------------
+
+def system_install(_ctx, _version):
+    return system_install_strategies([
+        brew_install("tokei", priority = 80),
+    ])
 
 # ---------------------------------------------------------------------------
 # Path + environment helpers

@@ -104,8 +104,8 @@ url != None and url.endswith(".tar.gz")
 }
 
 #[test]
-fn test_download_url_macos_arm64_returns_x86_url() {
-    // macOS arm64 has no native build; falls back to x86_64 via Rosetta 2
+fn test_download_url_macos_arm64_returns_none() {
+    // macOS arm64 has no direct download; falls back to Homebrew (brew install tokei)
     let mut a = Assert::new();
     a.dialect(&Dialect::Standard);
     a.is_true(&format!(
@@ -113,7 +113,7 @@ fn test_download_url_macos_arm64_returns_x86_url() {
 {}
 ctx = struct(platform = struct(os = "macos", arch = "arm64", target = "aarch64-apple-darwin"))
 url = download_url(ctx, "12.1.2")
-url != None and "x86_64-apple-darwin" in url
+url == None
 "#,
         provider_star_prefix()
     ));
