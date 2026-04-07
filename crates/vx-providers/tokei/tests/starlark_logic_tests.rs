@@ -86,7 +86,8 @@ url != None and url.endswith(".exe")
 }
 
 #[test]
-fn test_download_url_macos_arm64_returns_tar_gz() {
+fn test_download_url_macos_arm64_returns_none() {
+    // tokei has never released a native aarch64-apple-darwin binary.
     let mut a = Assert::new();
     a.dialect(&Dialect::Standard);
     a.is_true(&format!(
@@ -94,7 +95,7 @@ fn test_download_url_macos_arm64_returns_tar_gz() {
 {}
 ctx = struct(platform = struct(os = "macos", arch = "arm64", target = "aarch64-apple-darwin"))
 url = download_url(ctx, "12.1.2")
-url != None and url.endswith(".tar.gz")
+url == None
 "#,
         provider_star_prefix()
     ));

@@ -12,9 +12,11 @@
 #   windows/x64  → x86_64-pc-windows-msvc (.exe)
 #   windows/x86  → i686-pc-windows-msvc   (.exe)
 #   macos/x64    → x86_64-apple-darwin    (.tar.gz)
-#   macos/arm64  → aarch64-apple-darwin   (.tar.gz)  [v13+]
 #   linux/x64    → x86_64-unknown-linux-musl (.tar.gz)
 #   linux/arm64  → aarch64-unknown-linux-gnu (.tar.gz)
+#
+# NOTE: tokei has never released a native aarch64-apple-darwin binary.
+# macOS arm64 users can run via Rosetta 2 (x86_64 binary works transparently).
 
 load("@vx//stdlib:provider.star",
      "runtime_def", "github_permissions",
@@ -69,7 +71,9 @@ _TRIPLES = {
     "windows/x64":  "x86_64-pc-windows-msvc",
     "windows/x86":  "i686-pc-windows-msvc",
     "macos/x64":    "x86_64-apple-darwin",
-    "macos/arm64":  "aarch64-apple-darwin",
+    # macos/arm64 is intentionally omitted: tokei has never released a native
+    # aarch64-apple-darwin binary. macOS arm64 (Apple Silicon) users are
+    # expected to run the x86_64 binary via Rosetta 2.
     "linux/x64":    "x86_64-unknown-linux-musl",
     "linux/arm64":  "aarch64-unknown-linux-gnu",
 }
