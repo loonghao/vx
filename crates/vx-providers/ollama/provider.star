@@ -56,8 +56,8 @@ _OLLAMA_TARGETS = {
     "windows/arm64":("windows-arm64", "zip"),
     "macos/x64":    ("darwin",        "tgz"),
     "macos/arm64":  ("darwin",        "tgz"),
-    "linux/x64":    ("linux-amd64",   "tgz"),
-    "linux/arm64":  ("linux-arm64",   "tgz"),
+    "linux/x64":    ("linux-amd64",   "tar.zst"),
+    "linux/arm64":  ("linux-arm64",   "tar.zst"),
 }
 
 def _ollama_target(ctx):

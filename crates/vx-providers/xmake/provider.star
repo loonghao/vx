@@ -65,11 +65,12 @@ fetch_versions = make_fetch_versions("xmake-io", "xmake")
 # ---------------------------------------------------------------------------
 
 _XMAKE_PLATFORMS = {
-    "windows/x64":   ("win64",   ".exe",     ""),
-    "windows/x86":   ("win32",   ".exe",     ""),
-    "macos/x64":     ("macos",   "",         ".x86_64"),
-    "macos/arm64":   ("macos",   "",         ".arm64"),
-    "linux/x64":     ("linux",   "",         ".x86_64"),
+    "windows/x64":   ("win64",  ".exe",     ""),
+    "windows/arm64": ("arm64",  ".exe",     ""),  # asset: xmake-bundle-v{ver}.arm64.exe
+    "windows/x86":   ("win32",  ".exe",     ""),
+    "macos/x64":     ("macos",  "",         ".x86_64"),
+    "macos/arm64":   ("macos",  "",         ".arm64"),
+    "linux/x64":     ("linux",  "",         ".x86_64"),
     "linux/arm64":   None,  # No arm64 linux binary available
 }
 
