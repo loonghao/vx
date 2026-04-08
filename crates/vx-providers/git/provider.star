@@ -49,18 +49,56 @@ fetch_versions = make_fetch_versions("git-for-windows", "git")
 # ---------------------------------------------------------------------------
 # download_url — Windows-only portable Git (7z.exe self-extracting)
 # macOS/Linux use system package manager
+#
+# Version format: "{base}.windows.{N}" (e.g. "2.53.0.windows.2")
+# Tag:   "v{base}.windows.{N}"  (e.g. "v2.53.0.windows.2")
+# Asset version:
+#   N=1 → "{base}"       (e.g. "2.53.0")
+#   N>1 → "{base}.{N}"   (e.g. "2.53.0.2")
 # ---------------------------------------------------------------------------
+
+def _parse_git_version(version):
+    """Parse git-for-windows version string.
+
+    Returns (base, windows_n) where base is the semver part and
+    windows_n is the integer patch suffix (1, 2, …).
+
+    Accepts both:
+      "2.53.0.windows.2"  → ("2.53.0", 2)
+      "2.53.0"            → ("2.53.0", 1)  # treat plain version as .windows.1
+    """
+    marker = ".windows."
+    idx = version.find(marker)
+    if idx >= 0:
+        base = version[:idx]
+        n_str = version[idx + len(marker):]
+        n = int(n_str) if n_str.isdigit() else 1
+    else:
+        base = version
+        n = 1
+    return base, n
 
 def download_url(ctx, version):
     if ctx.platform.os != "windows":
         return None
-    tag = "v{}.windows.1".format(version)
+
+    base, n = _parse_git_version(version)
+
+    # The GitHub tag is always "v{base}.windows.{N}"
+    tag = "v{}.windows.{}".format(base, n)
+
+    # Asset filename uses "{base}" for .windows.1, "{base}.{N}" for .windows.N>1
+    asset_ver = "{}.{}".format(base, n) if n > 1 else base
+
     if ctx.platform.arch == "x64":
-        asset = "PortableGit-{}-64-bit.7z.exe".format(version)
+        asset = "PortableGit-{}-64-bit.7z.exe".format(asset_ver)
+    elif ctx.platform.arch == "arm64":
+        asset = "PortableGit-{}-arm64.7z.exe".format(asset_ver)
     elif ctx.platform.arch == "x86":
-        asset = "PortableGit-{}-32-bit.7z.exe".format(version)
+        asset = "PortableGit-{}-32-bit.7z.exe".format(asset_ver)
     else:
         return None
+
     return github_asset_url("git-for-windows", "git", tag, asset)
 
 # ---------------------------------------------------------------------------
