@@ -53,7 +53,8 @@ names = [r["name"] for r in runtimes]
 // ── download_url logic ────────────────────────────────────────────────────────
 
 #[test]
-fn test_download_url_linux_x64_is_tgz() {
+fn test_download_url_linux_x64_is_tar_zst() {
+    // Regression: Linux uses .tar.zst (not .tgz) since ollama adopted zstd compression
     let mut a = Assert::new();
     a.dialect(&Dialect::Standard);
     a.is_true(&format!(
@@ -61,14 +62,15 @@ fn test_download_url_linux_x64_is_tgz() {
 {}
 ctx = struct(platform = struct(os = "linux", arch = "x64", target = ""))
 url = download_url(ctx, "0.3.0")
-url != None and url.endswith(".tgz")
+url != None and url.endswith(".tar.zst")
 "#,
         provider_star_prefix()
     ));
 }
 
 #[test]
-fn test_download_url_linux_arm64_is_tgz() {
+fn test_download_url_linux_arm64_is_tar_zst() {
+    // Regression: Linux uses .tar.zst (not .tgz) since ollama adopted zstd compression
     let mut a = Assert::new();
     a.dialect(&Dialect::Standard);
     a.is_true(&format!(
@@ -76,7 +78,7 @@ fn test_download_url_linux_arm64_is_tgz() {
 {}
 ctx = struct(platform = struct(os = "linux", arch = "arm64", target = ""))
 url = download_url(ctx, "0.3.0")
-url != None and "arm64" in url
+url != None and "arm64" in url and url.endswith(".tar.zst")
 "#,
         provider_star_prefix()
     ));
