@@ -182,6 +182,57 @@ len(env) == 0
     ));
 }
 
+// ── windows version with .windows.N suffix ────────────────────────────────────
+
+#[test]
+fn test_download_url_windows_version_with_windows_2_suffix() {
+    // Regression test: version "2.53.0.windows.2" must produce
+    // tag "v2.53.0.windows.2" and asset "PortableGit-2.53.0.2-64-bit.7z.exe"
+    let mut a = Assert::new();
+    a.dialect(&Dialect::Standard);
+    a.is_true(&format!(
+        r#"
+{}
+ctx = struct(platform = struct(os = "windows", arch = "x64", target = ""))
+url = download_url(ctx, "2.53.0.windows.2")
+url != None and "v2.53.0.windows.2" in url and "PortableGit-2.53.0.2-64-bit.7z.exe" in url
+"#,
+        provider_star_prefix()
+    ));
+}
+
+#[test]
+fn test_download_url_windows_version_with_windows_1_suffix() {
+    // version "2.53.0.windows.1" → tag "v2.53.0.windows.1", asset base "2.53.0"
+    let mut a = Assert::new();
+    a.dialect(&Dialect::Standard);
+    a.is_true(&format!(
+        r#"
+{}
+ctx = struct(platform = struct(os = "windows", arch = "x64", target = ""))
+url = download_url(ctx, "2.53.0.windows.1")
+url != None and "v2.53.0.windows.1" in url and "PortableGit-2.53.0-64-bit.7z.exe" in url
+"#,
+        provider_star_prefix()
+    ));
+}
+
+#[test]
+fn test_download_url_windows_arm64() {
+    // arm64 arch should produce arm64 asset
+    let mut a = Assert::new();
+    a.dialect(&Dialect::Standard);
+    a.is_true(&format!(
+        r#"
+{}
+ctx = struct(platform = struct(os = "windows", arch = "arm64", target = ""))
+url = download_url(ctx, "2.53.0.windows.2")
+url != None and "arm64.7z.exe" in url
+"#,
+        provider_star_prefix()
+    ));
+}
+
 // ── lint check ────────────────────────────────────────────────────────────────
 
 #[test]
