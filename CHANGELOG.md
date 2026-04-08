@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.23](https://github.com/loonghao/vx/compare/v0.8.22...v0.8.23) (2026-04-08)
+
+
+### Bug Fixes
+
+* **providers:** fix download URL bugs in git, xmake, and ollama ([#777](https://github.com/loonghao/vx/issues/777)) ([0287fff](https://github.com/loonghao/vx/commit/0287fff7a6e7f86b8a8cd07aa06be004158678fc))
+
 ## [0.8.22](https://github.com/loonghao/vx/compare/v0.8.21...v0.8.22) (2026-04-07)
 
 
