@@ -3,13 +3,12 @@
 # Deno - A modern runtime for JavaScript and TypeScript
 # Downloads from GitHub releases (denoland/deno)
 #
-# Uses stdlib templates from @vx//stdlib:provider.star
+# Asset format: deno-{triple}.zip  (always zip, Rust triple naming)
+# Tag format:   v{version}
 
 load("@vx//stdlib:provider.star",
-     "runtime_def", "github_permissions",
-     "archive_layout", "path_fns")
-load("@vx//stdlib:github.star", "make_fetch_versions", "github_asset_url")
-load("@vx//stdlib:env.star",    "env_prepend", "env_set")
+     "runtime_def", "github_permissions", "github_rust_provider")
+load("@vx//stdlib:env.star", "env_set", "env_prepend")
 
 # ---------------------------------------------------------------------------
 # Provider metadata
@@ -41,57 +40,25 @@ runtimes = [
 permissions = github_permissions()
 
 # ---------------------------------------------------------------------------
-# fetch_versions
+# Provider template - github_rust_provider
+#
+# Asset: deno-{triple}.zip  (Deno always uses .zip for all platforms)
+# Tag:   v{version}
 # ---------------------------------------------------------------------------
 
-fetch_versions = make_fetch_versions("denoland", "deno")
+_p = github_rust_provider(
+    "denoland", "deno",
+    asset = "deno-{triple}.zip",
+)
 
-# ---------------------------------------------------------------------------
-# Platform helpers
-# Deno uses Rust target triples
-# ---------------------------------------------------------------------------
-
-_DENO_TRIPLES = {
-    "windows/x64":   "x86_64-pc-windows-msvc",
-    "windows/arm64": "aarch64-pc-windows-msvc",
-    "macos/x64":     "x86_64-apple-darwin",
-    "macos/arm64":   "aarch64-apple-darwin",
-    "linux/x64":     "x86_64-unknown-linux-gnu",
-    "linux/arm64":   "aarch64-unknown-linux-gnu",
-}
-
-def _deno_triple(ctx):
-    key = "{}/{}".format(ctx.platform.os, ctx.platform.arch)
-    return _DENO_TRIPLES.get(key)
-
-# ---------------------------------------------------------------------------
-# download_url
-# ---------------------------------------------------------------------------
-
-def download_url(ctx, version):
-    triple = _deno_triple(ctx)
-    if not triple:
-        return None
-    asset = "deno-{}.zip".format(triple)
-    return github_asset_url("denoland", "deno", "v" + version, asset)
-
-# ---------------------------------------------------------------------------
-# install_layout — zip contains single binary at root
-# ---------------------------------------------------------------------------
-
-install_layout   = archive_layout("deno")
-paths            = path_fns("deno")
-store_root       = paths["store_root"]
-get_execute_path = paths["get_execute_path"]
-
-def post_install(_ctx, _version):
-    return None
+fetch_versions   = _p["fetch_versions"]
+download_url     = _p["download_url"]
+install_layout   = _p["install_layout"]
+store_root       = _p["store_root"]
+get_execute_path = _p["get_execute_path"]
 
 def environment(ctx, _version):
     return [
         env_prepend("PATH", ctx.install_dir),
         env_set("DENO_HOME", ctx.install_dir),
     ]
-
-def deps(_ctx, _version):
-    return []
