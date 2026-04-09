@@ -335,10 +335,6 @@ fn file_mtime_fingerprint(path: &Path) -> std::io::Result<String> {
     Ok(format!("{}-{}", mtime, size))
 }
 
-fn file_sha256_hex(path: &Path) -> std::io::Result<String> {
-    let bytes = std::fs::read(path)?;
-    Ok(sha256_hex_bytes(&bytes))
-}
 
 fn hex_encode(bytes: &[u8]) -> String {
     const LUT: &[u8; 16] = b"0123456789abcdef";
