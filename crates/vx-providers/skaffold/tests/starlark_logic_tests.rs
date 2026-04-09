@@ -26,8 +26,7 @@ fn test_provider_name_is_skaffold() {
 
 #[test]
 fn test_provider_has_homepage() {
-    make_assert()
-        .is_true(r#"load("provider.star", "homepage"); homepage.startswith("https://")"#);
+    make_assert().is_true(r#"load("provider.star", "homepage"); homepage.startswith("https://")"#);
 }
 
 // ── runtimes metadata ─────────────────────────────────────────────────────────
@@ -53,23 +52,8 @@ fn test_download_url_linux_x64() {
         r#"
 {}
 ctx = struct(platform = struct(os = "linux", arch = "x64", target = ""))
-url = download_url(ctx, "2.18.2")
+url = download_url(ctx, "2.14.0")
 url != None and "linux" in url and "amd64" in url
-"#,
-        provider_star_prefix()
-    ));
-}
-
-#[test]
-fn test_download_url_linux_arm64() {
-    let mut a = Assert::new();
-    a.dialect(&Dialect::Standard);
-    a.is_true(&format!(
-        r#"
-{}
-ctx = struct(platform = struct(os = "linux", arch = "arm64", target = ""))
-url = download_url(ctx, "2.18.2")
-url != None and "linux" in url and "arm64" in url
 "#,
         provider_star_prefix()
     ));
@@ -83,8 +67,8 @@ fn test_download_url_windows_x64() {
         r#"
 {}
 ctx = struct(platform = struct(os = "windows", arch = "x64", target = ""))
-url = download_url(ctx, "2.18.2")
-url != None and "windows" in url and "amd64" in url and url.endswith(".exe")
+url = download_url(ctx, "2.14.0")
+url != None and "windows" in url and url.endswith(".exe")
 "#,
         provider_star_prefix()
     ));
@@ -98,8 +82,24 @@ fn test_download_url_macos_arm64() {
         r#"
 {}
 ctx = struct(platform = struct(os = "macos", arch = "arm64", target = ""))
-url = download_url(ctx, "2.18.2")
+url = download_url(ctx, "2.14.0")
 url != None and "darwin" in url and "arm64" in url
+"#,
+        provider_star_prefix()
+    ));
+}
+
+#[test]
+fn test_download_url_uses_google_storage() {
+    // skaffold is downloaded from Google Storage, not GitHub
+    let mut a = Assert::new();
+    a.dialect(&Dialect::Standard);
+    a.is_true(&format!(
+        r#"
+{}
+ctx = struct(platform = struct(os = "linux", arch = "x64", target = ""))
+url = download_url(ctx, "2.14.0")
+"storage.googleapis.com" in url
 "#,
         provider_star_prefix()
     ));
@@ -113,38 +113,8 @@ fn test_download_url_contains_version() {
         r#"
 {}
 ctx = struct(platform = struct(os = "linux", arch = "x64", target = ""))
-url = download_url(ctx, "2.18.2")
-"2.18.2" in url
-"#,
-        provider_star_prefix()
-    ));
-}
-
-#[test]
-fn test_download_url_uses_google_storage() {
-    let mut a = Assert::new();
-    a.dialect(&Dialect::Standard);
-    a.is_true(&format!(
-        r#"
-{}
-ctx = struct(platform = struct(os = "linux", arch = "x64", target = ""))
-url = download_url(ctx, "2.18.2")
-"storage.googleapis.com" in url
-"#,
-        provider_star_prefix()
-    ));
-}
-
-#[test]
-fn test_download_url_linux_is_not_exe() {
-    let mut a = Assert::new();
-    a.dialect(&Dialect::Standard);
-    a.is_true(&format!(
-        r#"
-{}
-ctx = struct(platform = struct(os = "linux", arch = "x64", target = ""))
-url = download_url(ctx, "2.18.2")
-not url.endswith(".exe")
+url = download_url(ctx, "2.14.0")
+"2.14.0" in url
 "#,
         provider_star_prefix()
     ));

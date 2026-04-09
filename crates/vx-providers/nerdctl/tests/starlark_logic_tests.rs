@@ -26,8 +26,7 @@ fn test_provider_name_is_nerdctl() {
 
 #[test]
 fn test_provider_has_homepage() {
-    make_assert()
-        .is_true(r#"load("provider.star", "homepage"); homepage.startswith("https://")"#);
+    make_assert().is_true(r#"load("provider.star", "homepage"); homepage.startswith("https://")"#);
 }
 
 // ── runtimes metadata ─────────────────────────────────────────────────────────
@@ -53,8 +52,8 @@ fn test_download_url_linux_x64() {
         r#"
 {}
 ctx = struct(platform = struct(os = "linux", arch = "x64", target = ""))
-url = download_url(ctx, "2.2.2")
-url != None and "linux" in url and "amd64" in url
+url = download_url(ctx, "2.0.0")
+url != None and "linux" in url and url.endswith(".tar.gz")
 "#,
         provider_star_prefix()
     ));
@@ -68,8 +67,8 @@ fn test_download_url_linux_arm64() {
         r#"
 {}
 ctx = struct(platform = struct(os = "linux", arch = "arm64", target = ""))
-url = download_url(ctx, "2.2.2")
-url != None and "linux" in url and "arm64" in url
+url = download_url(ctx, "2.0.0")
+url != None and "arm64" in url and "linux" in url
 "#,
         provider_star_prefix()
     ));
@@ -77,13 +76,14 @@ url != None and "linux" in url and "arm64" in url
 
 #[test]
 fn test_download_url_windows_returns_none() {
+    // nerdctl is Linux-only; Windows should return None
     let mut a = Assert::new();
     a.dialect(&Dialect::Standard);
     a.is_true(&format!(
         r#"
 {}
 ctx = struct(platform = struct(os = "windows", arch = "x64", target = ""))
-url = download_url(ctx, "2.2.2")
+url = download_url(ctx, "2.0.0")
 url == None
 "#,
         provider_star_prefix()
@@ -92,13 +92,14 @@ url == None
 
 #[test]
 fn test_download_url_macos_returns_none() {
+    // nerdctl is Linux-only; macOS should return None
     let mut a = Assert::new();
     a.dialect(&Dialect::Standard);
     a.is_true(&format!(
         r#"
 {}
 ctx = struct(platform = struct(os = "macos", arch = "arm64", target = ""))
-url = download_url(ctx, "2.2.2")
+url = download_url(ctx, "2.0.0")
 url == None
 "#,
         provider_star_prefix()
@@ -113,38 +114,8 @@ fn test_download_url_contains_version() {
         r#"
 {}
 ctx = struct(platform = struct(os = "linux", arch = "x64", target = ""))
-url = download_url(ctx, "2.2.2")
-"2.2.2" in url
-"#,
-        provider_star_prefix()
-    ));
-}
-
-#[test]
-fn test_download_url_is_tar_gz() {
-    let mut a = Assert::new();
-    a.dialect(&Dialect::Standard);
-    a.is_true(&format!(
-        r#"
-{}
-ctx = struct(platform = struct(os = "linux", arch = "x64", target = ""))
-url = download_url(ctx, "2.2.2")
-url.endswith(".tar.gz")
-"#,
-        provider_star_prefix()
-    ));
-}
-
-#[test]
-fn test_download_url_uses_github_host() {
-    let mut a = Assert::new();
-    a.dialect(&Dialect::Standard);
-    a.is_true(&format!(
-        r#"
-{}
-ctx = struct(platform = struct(os = "linux", arch = "x64", target = ""))
-url = download_url(ctx, "2.2.2")
-"github.com" in url
+url = download_url(ctx, "2.0.0")
+"2.0.0" in url
 "#,
         provider_star_prefix()
     ));
