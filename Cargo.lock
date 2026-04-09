@@ -4591,6 +4591,7 @@ dependencies = [
  "vx-provider-gh",
  "vx-provider-git",
  "vx-provider-go",
+ "vx-provider-grpcurl",
  "vx-provider-hadolint",
  "vx-provider-helm",
  "vx-provider-imagemagick",
@@ -5365,6 +5366,17 @@ dependencies = [
 
 [[package]]
 name = "vx-provider-gping"
+version = "0.8.23"
+dependencies = [
+ "rstest",
+ "starlark",
+ "vx-runtime",
+ "vx-starlark",
+ "workspace-hack",
+]
+
+[[package]]
+name = "vx-provider-grpcurl"
 version = "0.8.23"
 dependencies = [
  "rstest",

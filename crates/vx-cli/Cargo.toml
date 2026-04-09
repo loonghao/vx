@@ -65,6 +65,7 @@ vx-provider-kubectl = { workspace = true }
 vx-provider-helm = { workspace = true }
 vx-provider-kind = { workspace = true }
 vx-provider-k3d = { workspace = true }
+vx-provider-grpcurl = { workspace = true }
 # CLI utilities
 vx-provider-bat = { workspace = true }
 vx-provider-fd = { workspace = true }
