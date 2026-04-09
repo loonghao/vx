@@ -71,9 +71,6 @@ members = [
   # Kubernetes tools
   "crates/vx-providers/kubectl",
   "crates/vx-providers/helm",
-  "crates/vx-providers/kind",
-  "crates/vx-providers/k3d",
-  "crates/vx-providers/skaffold",
   "crates/vx-providers/flux",
   # Data tools
   "crates/vx-providers/duckdb",
