@@ -21,7 +21,7 @@ static GLOBAL_PROGRESS_MANAGER: Lazy<Arc<ProgressManager>> =
 ///
 /// # Example
 /// ```rust,no_run
-/// use vx_console::progress::global_progress_manager;
+/// use vx_console::global_progress_manager;
 ///
 /// let pm = global_progress_manager();
 /// pm.println("ℹ Installing deno...");

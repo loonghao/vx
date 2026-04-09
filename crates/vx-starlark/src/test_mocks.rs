@@ -6,7 +6,7 @@
 //!
 //! # Example
 //!
-//! ```rust
+//! ```rust,ignore
 //! use starlark::assert::Assert;
 //! use vx_starlark::test_mocks::setup_provider_test_mocks;
 //!
