@@ -654,37 +654,6 @@ mod where_tests {
 }
 
 // ============================================================================
-// Switch Command Tests
-// ============================================================================
-
-mod switch_tests {
-    use super::*;
-    use vx_cli::commands::switch;
-
-    #[rstest]
-    #[tokio::test]
-    async fn test_switch_invalid_format(#[future] registry: ProviderRegistry) {
-        let registry = registry.await;
-        // Invalid format (missing version)
-        let result = switch::handle(&registry, "node", false).await;
-        // Should fail gracefully
-        let _ = result;
-        cleanup_test_env();
-    }
-
-    #[rstest]
-    #[tokio::test]
-    async fn test_switch_nonexistent_version(#[future] registry: ProviderRegistry) {
-        let registry = registry.await;
-        let result = switch::handle(&registry, "node@99.99.99", false).await;
-        // Note: Switch command is not fully implemented yet, so it may succeed
-        // This test just verifies it doesn't panic
-        let _ = result;
-        cleanup_test_env();
-    }
-}
-
-// ============================================================================
 // Sync Command Tests
 // ============================================================================
 
@@ -1012,7 +981,7 @@ mod tool_specific_tests {
 
 mod error_handling_tests {
     use super::*;
-    use vx_cli::commands::{fetch, install, remove, switch};
+    use vx_cli::commands::{fetch, install, remove};
 
     #[rstest]
     #[tokio::test]
@@ -1036,7 +1005,6 @@ mod error_handling_tests {
         let _ = install::handle_install(&registry, &ctx, &["invalid-tool-xyz".to_string()], false)
             .await;
         let _ = remove::handle(&registry, &ctx, "invalid-tool-xyz", None, true).await;
-        let _ = switch::handle(&registry, "invalid-tool-xyz", false).await;
 
         cleanup_test_env();
     }

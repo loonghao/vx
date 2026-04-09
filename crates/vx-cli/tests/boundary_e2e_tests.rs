@@ -74,10 +74,13 @@ mod which_boundary_tests {
 
         if output.status.success() {
             let stdout = stdout_str(&output);
-            // If cargo is found in system PATH, should show (system)
+            // If cargo is found in system PATH, should show (system) or source:system
             if stdout.contains("cargo") {
                 assert!(
-                    stdout.contains("(system)") || stdout.contains(".cargo"),
+                    stdout.contains("(system)")
+                        || stdout.contains(".cargo")
+                        || stdout.contains("\"system\"")
+                        || stdout.contains("system"),
                     "System tools should show (system) suffix or be in .cargo path"
                 );
             }

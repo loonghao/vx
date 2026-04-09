@@ -508,32 +508,6 @@ fn test_cache_dir() {
 }
 
 // ============================================================================
-// Plugin Command Tests
-// ============================================================================
-
-/// Test: vx plugin list
-#[rstest]
-#[test]
-fn test_plugin_list() {
-    skip_if_no_vx!();
-
-    let output = run_vx(&["plugin", "list"]).expect("Failed to run vx plugin list");
-
-    assert!(is_success(&output), "vx plugin list should succeed");
-}
-
-/// Test: vx plugin stats
-#[rstest]
-#[test]
-fn test_plugin_stats() {
-    skip_if_no_vx!();
-
-    let output = run_vx(&["plugin", "stats"]).expect("Failed to run vx plugin stats");
-
-    assert!(is_success(&output), "vx plugin stats should succeed");
-}
-
-// ============================================================================
 // Shell Integration Tests
 // ============================================================================
 

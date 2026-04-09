@@ -71,6 +71,9 @@ members = [
   # Kubernetes tools
   "crates/vx-providers/kubectl",
   "crates/vx-providers/helm",
+  "crates/vx-providers/flux",
+  # Data tools
+  "crates/vx-providers/duckdb",
   # CLI utilities
   "crates/vx-providers/bat",
   "crates/vx-providers/fd",
