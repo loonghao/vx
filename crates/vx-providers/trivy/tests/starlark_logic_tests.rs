@@ -1,4 +1,4 @@
-﻿//! Pure Starlark logic tests for trivy provider.star
+//! Pure Starlark logic tests for trivy provider.star
 
 use starlark::assert::Assert;
 use starlark::syntax::Dialect;
@@ -19,17 +19,12 @@ fn provider_star_prefix() -> String {
 
 #[test]
 fn test_provider_name_is_trivy() {
-    make_assert().eq(
-        r#"load("provider.star", "name"); name"#,
-        r#""trivy""#,
-    );
+    make_assert().eq(r#"load("provider.star", "name"); name"#, r#""trivy""#);
 }
 
 #[test]
 fn test_provider_has_homepage() {
-    make_assert().is_true(
-        r#"load("provider.star", "homepage"); homepage.startswith("https://")"#,
-    );
+    make_assert().is_true(r#"load("provider.star", "homepage"); homepage.startswith("https://")"#);
 }
 
 #[test]
