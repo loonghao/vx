@@ -910,9 +910,7 @@ impl ProviderHandleRegistry {
             let runtimes = handle.runtime_metas();
             runtimes.iter().find_map(|r| {
                 if r.name.eq_ignore_ascii_case(&candidate)
-                    || r.aliases
-                        .iter()
-                        .any(|a| a.eq_ignore_ascii_case(&candidate))
+                    || r.aliases.iter().any(|a| a.eq_ignore_ascii_case(&candidate))
                 {
                     Some(r.name.as_str())
                 } else {
