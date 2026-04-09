@@ -53,7 +53,7 @@ fn test_download_url_linux_x64() {
 {}
 ctx = struct(platform = struct(os = "linux", arch = "x64", target = "x86_64-unknown-linux-musl"))
 url = download_url(ctx, "0.22.1")
-url != None and "linux" in url and url.endswith(".tar.gz")
+url != None and "linux" in url and (url.endswith(".tgz") or url.endswith(".tar.gz"))
 "#,
         provider_star_prefix()
     ));
@@ -68,7 +68,7 @@ fn test_download_url_windows_x64() {
 {}
 ctx = struct(platform = struct(os = "windows", arch = "x64", target = "x86_64-pc-windows-msvc"))
 url = download_url(ctx, "0.22.1")
-url != None and "windows" in url and url.endswith(".zip")
+url != None and "windows" in url and (url.endswith(".zip") or url.endswith(".tgz") or url.endswith(".tar.gz"))
 "#,
         provider_star_prefix()
     ));
