@@ -64,8 +64,8 @@ fetch_versions = fetch_versions_with_tag_prefix(
 
 _TRIPLES = {
     "windows/x64":  "x86_64-pc-windows-msvc",
-    "macos/x64":    "x86_64-apple-darwin",
-    "macos/arm64":  "aarch64-apple-darwin",
+    "macos/x64":    "universal-apple-darwin",
+    "macos/arm64":  "universal-apple-darwin",
     "linux/x64":    "x86_64-unknown-linux-musl",
     "linux/arm64":  "aarch64-unknown-linux-musl",
 }
