@@ -5618,6 +5618,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "vx-provider-nerdctl"
+version = "0.8.23"
+dependencies = [
+ "rstest",
+ "starlark",
+ "vx-runtime",
+ "vx-starlark",
+ "workspace-hack",
+]
+
+[[package]]
 name = "vx-provider-ninja"
 version = "0.8.23"
 dependencies = [
@@ -5817,6 +5828,17 @@ dependencies = [
 
 [[package]]
 name = "vx-provider-sd"
+version = "0.8.23"
+dependencies = [
+ "rstest",
+ "starlark",
+ "vx-runtime",
+ "vx-starlark",
+ "workspace-hack",
+]
+
+[[package]]
+name = "vx-provider-skaffold"
 version = "0.8.23"
 dependencies = [
  "rstest",

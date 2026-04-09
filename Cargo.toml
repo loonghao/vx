@@ -74,6 +74,8 @@ members = [
   "crates/vx-providers/flux",
   "crates/vx-providers/kind",
   "crates/vx-providers/k3d",
+  "crates/vx-providers/nerdctl",
+  "crates/vx-providers/skaffold",
   # Data tools
   "crates/vx-providers/duckdb",
   # gRPC tools
@@ -303,6 +305,8 @@ vx-provider-kubectl = { path = "crates/vx-providers/kubectl" }
 vx-provider-helm = { path = "crates/vx-providers/helm" }
 vx-provider-kind = { path = "crates/vx-providers/kind" }
 vx-provider-k3d = { path = "crates/vx-providers/k3d" }
+vx-provider-nerdctl = { path = "crates/vx-providers/nerdctl" }
+vx-provider-skaffold = { path = "crates/vx-providers/skaffold" }
 # gRPC tools
 vx-provider-grpcurl = { path = "crates/vx-providers/grpcurl" }
 # CLI utilities
