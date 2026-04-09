@@ -148,12 +148,18 @@ impl ProgressManager {
     ///
     /// This is the correct way to print text while progress bars are active.
     /// Using `println!` directly will cause visual glitches.
+    ///
+    /// Note: Status and progress messages are written to stderr to avoid
+    /// contaminating the stdout of the tool being proxied by vx.
     pub fn println(&self, message: &str) {
         // Use suspend to ensure the message is printed correctly on all terminals,
         // especially Windows where MultiProgress::println can have issues with
         // cursor positioning and message interleaving.
+        // Use eprintln! (stderr) so that vx's own status messages don't pollute
+        // the stdout of the proxied command (e.g., `vx node -p "1+2"` must only
+        // output "3" on stdout, not installation progress lines).
         self.multi.suspend(|| {
-            println!("{}", message);
+            eprintln!("{}", message);
         });
     }
 }
