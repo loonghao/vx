@@ -5,6 +5,41 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.24](https://github.com/loonghao/vx/compare/v0.8.23...v0.8.24) (2026-04-09)
+
+
+### Features
+
+* **ecosystem_aliases:** route ecosystem:package to dedicated provider binary ([e7ccfb4](https://github.com/loonghao/vx/commit/e7ccfb438fda1eff06f5c55c00642389a57dbbad))
+* **providers:** add cargo-audit provider ([dc2734a](https://github.com/loonghao/vx/commit/dc2734a1157ac168b3c12115811c1b3459c4308a))
+* **providers:** add cargo-nextest and cargo-deny providers ([a484a8b](https://github.com/loonghao/vx/commit/a484a8b99c7266924bdf5511d7eab24ce542b3ee))
+* **providers:** add grpcurl provider + update provider count to 114 ([906d97e](https://github.com/loonghao/vx/commit/906d97ea0c45496f2bb43d74426cf9b879403d11))
+* **providers:** add kind and k3d providers ([ea33834](https://github.com/loonghao/vx/commit/ea338348cd3e53f350a1cc0f78fc5f708c5090f4))
+* **routing:** prefer dedicated provider over cargo install for ecosystem:package ([1cefc75](https://github.com/loonghao/vx/commit/1cefc75f8e8a0ef4a8b845a2aff2994c33eb0ab8))
+
+
+### Bug Fixes
+
+* **cargo-audit:** remove unused rust_triple import (lint) ([48a1a87](https://github.com/loonghao/vx/commit/48a1a87ea8b90c1634c0b41db33fd3040e0ca38d))
+* **cleanup:** fix compile errors from ecosystem_aliases feature ([d89bc38](https://github.com/loonghao/vx/commit/d89bc38489f7f670d738d199b866027cf7965dff))
+* **console:** use eprintln for progress output to avoid stdout contamination ([7ebf3e7](https://github.com/loonghao/vx/commit/7ebf3e7dc4db23a13927b9e65d4ee5c93618d2ac))
+* **docs:** fix broken doctests in vx-console and vx-starlark ([58d88e8](https://github.com/loonghao/vx/commit/58d88e8ac48cd2e9ad73e607b9e5bbc15282f8c9))
+* **providers:** add fetch_versions_with_tag_prefix to layout mock + fix cargo-deny Windows ([eea4d7e](https://github.com/loonghao/vx/commit/eea4d7e813170e8a9e6e05ba4f36e3fbdcd01282))
+* **providers:** fix cargo-nextest macOS triple and cargo-audit test assertions ([86186d9](https://github.com/loonghao/vx/commit/86186d9cfd1c5c53af16b64ca352ef6a597280aa))
+* **providers:** fix download URLs for cargo-audit, cargo-nextest, and deno ([66555ed](https://github.com/loonghao/vx/commit/66555ed3e2a642a9965e209f3b597e033435d8bc))
+* **tests:** fix 14 failing tests across multiple crates ([5069772](https://github.com/loonghao/vx/commit/5069772a3a7a9aa9edca8a8581acdb00d696b7e9))
+* **tests:** fix cargo-deny Windows URL test and add missing provider tests ([aaae704](https://github.com/loonghao/vx/commit/aaae704b513bcf018ed115e1ba1443a9a9a8da31))
+
+
+### Code Refactoring
+
+* **providers:** simplify providers to use standard templates ([0085259](https://github.com/loonghao/vx/commit/008525996aebffc16cdd56422efeece7f03ee1aa))
+
+
+### Documentation
+
+* **cleanup:** sync provider count from 105 to 111 across all docs ([3ffd6af](https://github.com/loonghao/vx/commit/3ffd6aff8f9051e36c26dcfd88cb509850d233c7))
+
 ## [0.8.23](https://github.com/loonghao/vx/compare/v0.8.22...v0.8.23) (2026-04-08)
 
 
