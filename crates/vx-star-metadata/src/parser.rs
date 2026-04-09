@@ -967,19 +967,18 @@ fn extract_ecosystem_aliases(source: &str) -> Vec<(String, String)> {
                     let mut pos = 0;
                     let bytes = list_body.as_bytes();
                     while pos < list_body.len() {
-                        if bytes[pos] == b'{' {
-                            if let Some(dict_body) =
+                        if bytes[pos] == b'{'
+                            && let Some(dict_body) =
                                 find_matching_bracket(&list_body[pos..], 0, '{', '}')
-                            {
-                                if let (Some(ecosystem), Some(package)) = (
-                                    extract_dict_string_value(dict_body, "ecosystem"),
-                                    extract_dict_string_value(dict_body, "package"),
-                                ) {
-                                    result.push((ecosystem, package));
-                                }
-                                pos += dict_body.len() + 2; // skip '{' + body + '}'
-                                continue;
+                        {
+                            if let (Some(ecosystem), Some(package)) = (
+                                extract_dict_string_value(dict_body, "ecosystem"),
+                                extract_dict_string_value(dict_body, "package"),
+                            ) {
+                                result.push((ecosystem, package));
                             }
+                            pos += dict_body.len() + 2; // skip '{' + body + '}'
+                            continue;
                         }
                         pos += 1;
                     }
