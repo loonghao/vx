@@ -651,6 +651,10 @@ def pre_run_ensure_deps(runtime, trigger_args = None, check_file = None, lock_fi
             result["lock_file"] = lock_file
         return [result]
     return _pre_run
+
+def fetch_versions_with_tag_prefix(owner, repo, tag_prefix = "v", prereleases = False):
+    """Mock: returns a version descriptor with the given tag prefix."""
+    return {"__type": "github_versions", "owner": owner, "repo": repo, "tag_prefix": tag_prefix}
 "#;
 
 /// Standard mock for @vx//stdlib:platform.star
