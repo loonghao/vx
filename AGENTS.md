@@ -8,7 +8,7 @@
 
 ## What is vx?
 
-vx is a **zero-config universal development tool manager** (v0.8.20, MIT-licensed, written in Rust). Users prefix any command with `vx` (e.g., `vx node --version`, `vx cargo build`) and vx automatically installs, manages, and forwards to the correct tool version. vx currently ships **111 providers** covering language runtimes, build tools, DevOps CLIs, cloud platforms, and more — all defined via Starlark DSL (`provider.star`).
+vx is a **zero-config universal development tool manager** (v0.8.20, MIT-licensed, written in Rust). Users prefix any command with `vx` (e.g., `vx node --version`, `vx cargo build`) and vx automatically installs, manages, and forwards to the correct tool version. vx currently ships **114 providers** covering language runtimes, build tools, DevOps CLIs, cloud platforms, and more — all defined via Starlark DSL (`provider.star`).
 
 **Key insight for agents**: vx is a transparent proxy. The user writes the exact same commands they already know — just prepended with `vx`. There is **no new syntax to learn** for tool execution.
 
@@ -53,7 +53,7 @@ This entire flow is **automatic** — the user never needs to know about it.
 | See all CLI commands                 | [`docs/cli/`](docs/cli/)                         |
 | Follow unified syntax rules          | [`docs/guide/command-syntax-rules.md`](docs/guide/command-syntax-rules.md) |
 | Check project configuration          | [`Cargo.toml`](Cargo.toml) (workspace root)      |
-| See all 111 providers                | [`crates/vx-providers/`](crates/vx-providers/)   |
+| See all 114 providers                | [`crates/vx-providers/`](crates/vx-providers/)   |
 | Contribute to the project            | [`docs/advanced/contributing.md`](docs/advanced/contributing.md) |
 | Understand vx.toml configuration     | [`docs/config/vx-toml.md`](docs/config/vx-toml.md) |
 | Troubleshoot issues                  | [`docs/appendix/troubleshooting.md`](docs/appendix/troubleshooting.md) |
@@ -336,7 +336,7 @@ def environment(ctx, _version):
     ]
 ```
 
-## All 111 Providers
+## All 114 Providers
 
 Organized by category:
 
@@ -350,7 +350,7 @@ Organized by category:
 | **System/CLI** | git, bash, curl, pwsh, jq, yq, fd, bat, ripgrep, fzf, starship, jj, sd, eza, dust, duf, xh, atuin, zoxide, tealdeer, gping, delta, hyperfine, watchexec, bottom |
 | **TUI/Terminal** | helix, yazi, zellij, lazygit, lazydocker, k9s |
 | **Build Tools** | just, task, cmake, ninja, make, meson, xmake, protoc, conan, vcpkg, spack |
-| **DevOps** | kubectl, helm, podman, terraform, hadolint, dagu, actionlint |
+| **DevOps** | kubectl, helm, flux, kind, k3d, podman, terraform, hadolint, dagu, actionlint |
 | **Security** | gitleaks, trivy |
 | **Cloud CLI** | awscli, azcli, gcloud |
 | **.NET** | dotnet, msbuild, nuget |
@@ -362,6 +362,7 @@ Organized by category:
 | **Config Mgmt** | chezmoi, mise |
 | **Package Managers** | brew, choco, winget |
 | **AI** | ollama, openclaw |
+| **Data/API** | duckdb, grpcurl |
 | **Misc** | gh, prek, actrun, wix, vscode, xcodebuild, systemctl, release-please, rez, 7zip, trippy |
 
 ## Decision Framework for AI Agents
