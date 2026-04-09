@@ -216,6 +216,54 @@ async fn execute_tool(
     );
 
     if is_pkg_req {
+        // Before delegating to the package manager, check whether a dedicated
+        // vx provider already handles this tool (e.g. `cargo:audit` → `cargo-audit`
+        // provider, `cargo:nextest` → `cargo-nextest` provider).
+        // A dedicated provider ships a pre-compiled binary and is always preferred
+        // over `cargo install`, which requires Rust to be installed and compiles
+        // from source.
+        let provider_runtime_name = if let Some(colon_pos) = tool_spec.find(':') {
+            let ecosystem = tool_spec[..colon_pos].split('@').next().unwrap_or("");
+            let package_part = &tool_spec[colon_pos + 1..];
+            let package = package_part.split('@').next().unwrap_or("").split("::").next().unwrap_or("");
+            let candidate = format!("{}-{}", ecosystem, package);
+            if ctx.registry().get_runtime(&candidate).is_some() {
+                Some(candidate)
+            } else {
+                None
+            }
+        } else {
+            None
+        };
+
+        if let Some(runtime_name) = provider_runtime_name {
+            tracing::debug!(
+                "Dedicated provider '{}' found for package request '{}', using provider instead of package manager",
+                runtime_name, tool_spec
+            );
+            // Re-route: treat it as `vx cargo-audit [args]`, preserving any @version suffix
+            let redirected_spec = if let Some(at_pos) = tool_spec.rfind('@') {
+                let version_part = &tool_spec[at_pos..];
+                format!("{}{}", runtime_name, version_part)
+            } else {
+                runtime_name
+            };
+            let request = RuntimeRequest::parse(&redirected_spec);
+            return commands::execute::handle_with_deps(
+                ctx.registry(),
+                ctx.runtime_context(),
+                &request.name,
+                request.version.as_deref(),
+                request.executable.as_deref(),
+                &tool_args,
+                ctx.use_system_path(),
+                ctx.inherit_env(),
+                ctx.cache_mode(),
+                with_deps,
+            )
+            .await;
+        }
+
         tracing::debug!("Routing to execute_package_request");
         return execute_package_request(ctx, tool_spec, &tool_args, &with_deps).await;
     }
