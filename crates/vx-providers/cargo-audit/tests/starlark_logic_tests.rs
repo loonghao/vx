@@ -21,17 +21,12 @@ fn provider_star_prefix() -> String {
 
 #[test]
 fn test_provider_name_is_cargo_audit() {
-    make_assert().eq(
-        r#"load("provider.star", "name"); name"#,
-        r#""cargo-audit""#,
-    );
+    make_assert().eq(r#"load("provider.star", "name"); name"#, r#""cargo-audit""#);
 }
 
 #[test]
 fn test_provider_has_homepage() {
-    make_assert().is_true(
-        r#"load("provider.star", "homepage"); homepage.startswith("https://")"#,
-    );
+    make_assert().is_true(r#"load("provider.star", "homepage"); homepage.startswith("https://")"#);
 }
 
 // ── runtimes metadata ─────────────────────────────────────────────────────────

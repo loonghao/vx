@@ -244,7 +244,8 @@ async fn execute_tool(
         if let Some(runtime_name) = provider_runtime_name {
             tracing::debug!(
                 "ecosystem_aliases match: '{}' handles '{}', routing to provider binary",
-                runtime_name, tool_spec
+                runtime_name,
+                tool_spec
             );
             // Re-route: treat it as `vx cargo-audit [args]`, preserving any @version suffix
             let redirected_spec = if let Some(at_pos) = tool_spec.rfind('@') {

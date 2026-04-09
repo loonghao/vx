@@ -37,7 +37,11 @@ dependencies = ["requests"]
     assert!(
         !analysis.required_tools.is_empty(),
         "Should detect required tools for Python project, got: {:?}",
-        analysis.required_tools.iter().map(|t| &t.name).collect::<Vec<_>>()
+        analysis
+            .required_tools
+            .iter()
+            .map(|t| &t.name)
+            .collect::<Vec<_>>()
     );
 
     // With check_tools=false, is_available defaults to false, so all tools appear missing
