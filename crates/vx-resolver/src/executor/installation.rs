@@ -160,7 +160,10 @@ impl<'a> InstallationManager<'a> {
                 // seconds with no other terminal output).
                 // Use eprintln_status_above_bars (→ stderr) so this message does NOT
                 // appear in the stdout of the tool being proxied (e.g. `vx node -p`).
-                eprintln_status_above_bars(format!("⬇  Installing {}@{}...", runtime_name, version));
+                eprintln_status_above_bars(format!(
+                    "⬇  Installing {}@{}...",
+                    runtime_name, version
+                ));
 
                 match self
                     .try_install_version(runtime_name, &version, context)
