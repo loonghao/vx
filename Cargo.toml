@@ -153,6 +153,10 @@ members = [
   "crates/vx-providers/systemctl",
   "crates/vx-providers/xcodebuild",
 
+  # Rust testing tools
+  "crates/vx-providers/cargo-nextest",
+  # Rust dependency linting
+  "crates/vx-providers/cargo-deny",
   # Build cache
   "crates/vx-providers/sccache",
   "crates/vx-providers/ccache",
