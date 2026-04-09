@@ -24,9 +24,11 @@ use vx_runtime::{CacheMode, ProviderRegistry, RuntimeContext};
 ///
 /// # Example
 /// ```rust
+/// use vx_runtime::CacheMode;
+/// use vx_cli::commands::execute::ExecuteOptions;
 /// let opts = ExecuteOptions {
 ///     version: Some("20"),
-///     cache_mode: CacheMode::Force,
+///     cache_mode: CacheMode::Refresh,
 ///     ..Default::default()
 /// };
 /// ```

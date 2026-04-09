@@ -91,7 +91,7 @@ pub use test_support::{TestOutput, TestWriter};
 pub use progress::{
     DownloadProgress, InstallProgress, ManagedDownload, ManagedSpinner, ManagedTask,
     MultiStepProgress, ProgressManager, ProgressSpinner, global_progress_manager,
-    println_above_bars,
+    println_above_bars, eprintln_status_above_bars,
 };
 
 #[cfg(feature = "progress")]
