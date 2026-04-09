@@ -318,15 +318,6 @@ pub enum Commands {
         all: bool,
     },
 
-    /// Switch to a different version of a tool
-    Switch {
-        /// Tool and version (e.g., go@1.21.6, node@18.0.0)
-        tool_version: String,
-        /// Make this the global default
-        #[arg(long)]
-        global: bool,
-    },
-
     /// Search available tools
     Search {
         /// Search query
@@ -685,13 +676,6 @@ pub enum Commands {
         /// Arguments to pass to the extension
         #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
         args: Vec<String>,
-    },
-
-    /// Plugin management commands (legacy alias for `provider`)
-    #[command(hide = true)]
-    Plugin {
-        #[command(subcommand)]
-        command: ProviderCommand,
     },
 
     // =========================================================================
@@ -1429,7 +1413,6 @@ impl CommandHandler for Commands {
             Commands::Uninstall { .. } => "uninstall",
             Commands::Which { .. } => "which",
             Commands::Versions { .. } => "versions",
-            Commands::Switch { .. } => "switch",
             Commands::Config { .. } => "config",
             Commands::Search { .. } => "search",
             Commands::Global { .. } => "global",
@@ -1437,7 +1420,6 @@ impl CommandHandler for Commands {
             Commands::Sync { .. } => "sync",
             Commands::Init { .. } => "init",
             Commands::Cache { .. } => "cache",
-            Commands::Plugin { .. } => "plugin",
             Commands::Shell { .. } => "shell",
             Commands::Env { .. } => "env",
             Commands::Dev { .. } => "dev",
@@ -1594,11 +1576,6 @@ impl CommandHandler for Commands {
                 .await
             }
 
-            Commands::Switch {
-                tool_version,
-                global,
-            } => commands::switch::handle(ctx.registry(), tool_version, *global).await,
-
             Commands::Config { command } => match command {
                 Some(ConfigCommand::Show) | None => commands::config::handle().await,
                 Some(ConfigCommand::Set { key, value }) => {
@@ -1639,7 +1616,7 @@ impl CommandHandler for Commands {
 
             Commands::Cache { command } => commands::cache::handle(command.clone()).await,
 
-            Commands::Plugin { command } | Commands::Provider { command } => {
+            Commands::Provider { command } => {
                 commands::provider::handle(ctx.registry(), command.clone()).await
             }
 

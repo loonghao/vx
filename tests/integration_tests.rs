@@ -115,11 +115,11 @@ fn test_vx_list_command() {
 
 #[test]
 fn test_vx_plugin_list() {
-    let output = run_vx_command(&["plugin", "list"]);
+    let output = run_vx_command(&["provider", "list"]);
     assert!(output.status.success());
 
     let stdout = String::from_utf8_lossy(&output.stdout);
-    // Should show available plugins
+    // Should show available providers
     assert!(!stdout.is_empty());
 }
 

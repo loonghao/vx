@@ -363,56 +363,6 @@ mod cache_e2e_tests {
 }
 
 // ============================================================================
-// Plugin Command E2E Tests
-// ============================================================================
-
-mod plugin_e2e_tests {
-    use super::*;
-
-    /// Test vx plugin list
-    #[rstest]
-    #[test]
-    fn test_vx_plugin_list() {
-        init_test_env();
-
-        if !vx_exists() {
-            eprintln!("Skipping test: vx binary not found");
-            return;
-        }
-
-        let output = Command::new(vx_binary())
-            .args(["plugin", "list"])
-            .output()
-            .expect("Failed to execute vx");
-
-        assert!(output.status.success(), "vx plugin list should succeed");
-
-        cleanup_test_env();
-    }
-
-    /// Test vx plugin stats
-    #[rstest]
-    #[test]
-    fn test_vx_plugin_stats() {
-        init_test_env();
-
-        if !vx_exists() {
-            eprintln!("Skipping test: vx binary not found");
-            return;
-        }
-
-        let output = Command::new(vx_binary())
-            .args(["plugin", "stats"])
-            .output()
-            .expect("Failed to execute vx");
-
-        assert!(output.status.success(), "vx plugin stats should succeed");
-
-        cleanup_test_env();
-    }
-}
-
-// ============================================================================
 // Shell Command E2E Tests
 // ============================================================================
 

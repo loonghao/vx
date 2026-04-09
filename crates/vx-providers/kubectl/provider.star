@@ -9,6 +9,7 @@
 
 load("@vx//stdlib:provider.star",
      "runtime_def", "github_permissions", "binary_layout")
+load("@vx//stdlib:env.star", "env_prepend")
 load("@vx//stdlib:github.star", "make_fetch_versions")
 
 # ---------------------------------------------------------------------------
@@ -92,7 +93,7 @@ def post_install(_ctx, _version):
 
 
 def environment(ctx, _version):
-    return [{"op": "prepend", "name": "PATH", "value": ctx.install_dir + "/bin"}]
+    return [env_prepend("PATH", ctx.install_dir + "/bin")]
 
 
 def deps(_ctx, _version):
