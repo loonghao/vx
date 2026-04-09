@@ -28,6 +28,11 @@ pub struct StarMetadata {
     pub package_alias: Option<(String, String)>,
     /// Supported package prefixes for ecosystem:package syntax (RFC 0027)
     pub package_prefixes: Vec<String>,
+    /// Ecosystem aliases declaring that this provider handles specific `ecosystem:package` calls.
+    /// Declared as `ecosystem_aliases = [{"ecosystem": "cargo", "package": "audit"}]`.
+    /// When set, `vx cargo:audit` routes directly to this provider's pre-compiled binary
+    /// instead of falling back to `cargo install`.
+    pub ecosystem_aliases: Vec<(String, String)>,
     /// Minimum vx version required to use this provider (semver constraint)
     pub vx_version: Option<String>,
 }
@@ -75,6 +80,7 @@ impl StarMetadata {
             pip_package: extract_simple_return(source, "pip_package"),
             package_alias: extract_package_alias(source),
             package_prefixes: extract_string_list_var(source, "package_prefixes"),
+            ecosystem_aliases: extract_ecosystem_aliases(source),
             vx_version: extract_simple_return(source, "vx_version"),
         }
     }
@@ -940,6 +946,49 @@ fn extract_package_alias(source: &str) -> Option<(String, String)> {
         }
     }
     None
+}
+
+/// Extract `ecosystem_aliases = [{"ecosystem": "cargo", "package": "audit"}, ...]`.
+///
+/// This declares that this provider handles the given `ecosystem:package` invocations
+/// directly (using its pre-compiled binary) instead of delegating to the package manager.
+fn extract_ecosystem_aliases(source: &str) -> Vec<(String, String)> {
+    let mut result = Vec::new();
+    for line in source.lines() {
+        let trimmed = line.trim();
+        if let Some(rest) = trimmed.strip_prefix("ecosystem_aliases") {
+            let rest = rest.trim_start();
+            if let Some(after_eq) = rest.strip_prefix('=') {
+                let after_eq = after_eq.trim_start();
+                if after_eq.starts_with('[')
+                    && let Some(list_body) = find_matching_bracket(after_eq, 0, '[', ']')
+                {
+                    // Parse each dict in the list
+                    let mut pos = 0;
+                    let bytes = list_body.as_bytes();
+                    while pos < list_body.len() {
+                        if bytes[pos] == b'{' {
+                            if let Some(dict_body) =
+                                find_matching_bracket(&list_body[pos..], 0, '{', '}')
+                            {
+                                if let (Some(ecosystem), Some(package)) = (
+                                    extract_dict_string_value(dict_body, "ecosystem"),
+                                    extract_dict_string_value(dict_body, "package"),
+                                ) {
+                                    result.push((ecosystem, package));
+                                }
+                                pos += dict_body.len() + 2; // skip '{' + body + '}'
+                                continue;
+                            }
+                        }
+                        pos += 1;
+                    }
+                }
+            }
+            break; // Only one top-level `ecosystem_aliases` variable
+        }
+    }
+    result
 }
 
 /// Extract a top-level string list variable like `package_prefixes = ["deno", "npm"]`.
