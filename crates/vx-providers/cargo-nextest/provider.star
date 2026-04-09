@@ -22,6 +22,9 @@ repository  = "https://github.com/nextest-rs/nextest"
 license     = "Apache-2.0 OR MIT"
 ecosystem   = "rust"
 
+# `vx cargo:nextest` or `vx cargo:next` routes to this provider's pre-compiled binary.
+ecosystem_aliases = [{"ecosystem": "cargo", "package": "nextest"}]
+
 # ---------------------------------------------------------------------------
 # Runtime definitions
 # ---------------------------------------------------------------------------

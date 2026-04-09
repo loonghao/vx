@@ -22,6 +22,9 @@ repository  = "https://github.com/EmbarkStudios/cargo-deny"
 license     = "Apache-2.0 OR MIT"
 ecosystem   = "rust"
 
+# `vx cargo:deny` routes to this provider's pre-compiled binary.
+ecosystem_aliases = [{"ecosystem": "cargo", "package": "deny"}]
+
 # ---------------------------------------------------------------------------
 # Runtime definitions
 # ---------------------------------------------------------------------------
