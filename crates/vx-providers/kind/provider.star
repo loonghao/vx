@@ -87,7 +87,7 @@ def store_root(ctx):
 
 def get_execute_path(ctx, _version):
     exe = "kind.exe" if ctx.platform.os == "windows" else "kind"
-    return ctx.install_dir + "/bin/" + exe
+    return ctx.install_dir + "/" + exe
 
 
 def post_install(_ctx, _version):
@@ -95,7 +95,7 @@ def post_install(_ctx, _version):
 
 
 def environment(ctx, _version):
-    return [env_prepend("PATH", ctx.install_dir + "/bin")]
+    return [env_prepend("PATH", ctx.install_dir)]
 
 
 def deps(_ctx, _version):
