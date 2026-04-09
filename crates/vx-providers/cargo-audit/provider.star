@@ -12,7 +12,6 @@ load("@vx//stdlib:provider.star",
      "runtime_def", "github_permissions")
 load("@vx//stdlib:layout.star", "fetch_versions_with_tag_prefix")
 load("@vx//stdlib:github.star", "github_asset_url")
-load("@vx//stdlib:platform.star", "rust_triple")
 load("@vx//stdlib:env.star", "env_prepend")
 
 # ---------------------------------------------------------------------------
