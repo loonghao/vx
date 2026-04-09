@@ -48,7 +48,8 @@ permissions = github_permissions()
 
 _p = github_rust_provider(
     "denoland", "deno",
-    asset = "deno-{triple}.zip",
+    asset      = "deno-{triple}.zip",
+    linux_libc = "gnu",
 )
 
 fetch_versions   = _p["fetch_versions"]
