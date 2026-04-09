@@ -891,6 +891,36 @@ impl ProviderHandleRegistry {
             })
             .collect()
     }
+
+    /// Find the runtime name for a given `ecosystem:package` pair.
+    ///
+    /// Returns the provider's primary runtime name if any registered provider's runtime
+    /// matches the `{ecosystem}-{package}` naming convention.
+    ///
+    /// This enables `vx cargo:audit` to be routed directly to the `cargo-audit` provider's
+    /// pre-compiled binary instead of falling back to `cargo install audit`.
+    pub fn get_runtime_for_ecosystem_package(
+        &self,
+        ecosystem: &str,
+        package: &str,
+    ) -> Option<&str> {
+        // Construct the conventional runtime name: `{ecosystem}-{package}` (e.g. `cargo-audit`)
+        let candidate = format!("{}-{}", ecosystem, package);
+        self.handles.values().find_map(|handle| {
+            let runtimes = handle.runtime_metas();
+            runtimes.iter().find_map(|r| {
+                if r.name.eq_ignore_ascii_case(&candidate)
+                    || r.aliases
+                        .iter()
+                        .any(|a| a.eq_ignore_ascii_case(&candidate))
+                {
+                    Some(r.name.as_str())
+                } else {
+                    None
+                }
+            })
+        })
+    }
 }
 
 /// Global lazy-initialized ProviderHandleRegistry
