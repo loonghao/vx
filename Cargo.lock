@@ -5472,29 +5472,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "vx-provider-k3d"
-version = "0.8.23"
-dependencies = [
- "rstest",
- "starlark",
- "vx-runtime",
- "vx-starlark",
- "workspace-hack",
-]
-
-[[package]]
 name = "vx-provider-k9s"
-version = "0.8.23"
-dependencies = [
- "rstest",
- "starlark",
- "vx-runtime",
- "vx-starlark",
- "workspace-hack",
-]
-
-[[package]]
-name = "vx-provider-kind"
 version = "0.8.23"
 dependencies = [
  "rstest",
@@ -5803,17 +5781,6 @@ dependencies = [
 
 [[package]]
 name = "vx-provider-sd"
-version = "0.8.23"
-dependencies = [
- "rstest",
- "starlark",
- "vx-runtime",
- "vx-starlark",
- "workspace-hack",
-]
-
-[[package]]
-name = "vx-provider-skaffold"
 version = "0.8.23"
 dependencies = [
  "rstest",
