@@ -1,4 +1,9 @@
-//! Pure Starlark logic tests for cargo-deny provider.star
+//! Pure Starlark logic tests for duckdb provider.star
+//!
+//! DuckDB uses an unusual asset naming scheme:
+//!   - Linux:   duckdb_cli-linux-{arch}.zip
+//!   - macOS:   duckdb_cli-osx-universal.gz  (universal binary)
+//!   - Windows: duckdb_cli-windows-{arch}.zip
 
 use starlark::assert::Assert;
 use starlark::syntax::Dialect;
@@ -8,36 +13,38 @@ fn make_assert() -> Assert<'static> {
     let mut a = Assert::new();
     a.dialect(&Dialect::Standard);
     setup_provider_test_mocks(&mut a);
-    a.module("provider.star", vx_provider_cargo_deny::PROVIDER_STAR);
+    a.module("provider.star", vx_provider_duckdb::PROVIDER_STAR);
     a
 }
 
 fn provider_star_prefix() -> String {
     use vx_starlark::test_mocks::prepare_provider_source;
-    prepare_provider_source(vx_provider_cargo_deny::PROVIDER_STAR)
+    prepare_provider_source(vx_provider_duckdb::PROVIDER_STAR)
 }
 
 // ── provider metadata ─────────────────────────────────────────────────────────
 
 #[test]
-fn test_provider_name_is_cargo_deny() {
-    make_assert().eq(r#"load("provider.star", "name"); name"#, r#""cargo-deny""#);
+fn test_provider_name_is_duckdb() {
+    make_assert().eq(r#"load("provider.star", "name"); name"#, r#""duckdb""#);
 }
 
 #[test]
 fn test_provider_has_homepage() {
-    make_assert().is_true(r#"load("provider.star", "homepage"); homepage.startswith("https://")"#);
+    make_assert().is_true(
+        r#"load("provider.star", "homepage"); homepage.startswith("https://")"#,
+    );
 }
 
 // ── runtimes metadata ─────────────────────────────────────────────────────────
 
 #[test]
-fn test_runtimes_has_cargo_deny() {
+fn test_runtimes_has_duckdb() {
     make_assert().is_true(
         r#"
 load("provider.star", "runtimes")
 names = [r["name"] for r in runtimes]
-"cargo-deny" in names
+"duckdb" in names
 "#,
     );
 }
@@ -46,14 +53,15 @@ names = [r["name"] for r in runtimes]
 
 #[test]
 fn test_download_url_linux_x64() {
+    // Linux uses .zip format: duckdb_cli-linux-amd64.zip
     let mut a = Assert::new();
     a.dialect(&Dialect::Standard);
     a.is_true(&format!(
         r#"
 {}
-ctx = struct(platform = struct(os = "linux", arch = "x64", target = "x86_64-unknown-linux-musl"))
-url = download_url(ctx, "0.19.0")
-url != None and "linux" in url and url.endswith(".tar.gz")
+ctx = struct(platform = struct(os = "linux", arch = "x64", target = ""))
+url = download_url(ctx, "1.2.0")
+url != None and "linux" in url and url.endswith(".zip")
 "#,
         provider_star_prefix()
     ));
@@ -61,30 +69,31 @@ url != None and "linux" in url and url.endswith(".tar.gz")
 
 #[test]
 fn test_download_url_windows_x64() {
-    // cargo-deny uses .tar.gz on all platforms (no .zip variant exists in releases)
+    // Windows uses .zip format: duckdb_cli-windows-amd64.zip
     let mut a = Assert::new();
     a.dialect(&Dialect::Standard);
     a.is_true(&format!(
         r#"
 {}
-ctx = struct(platform = struct(os = "windows", arch = "x64", target = "x86_64-pc-windows-msvc"))
-url = download_url(ctx, "0.19.0")
-url != None and "windows" in url and url.endswith(".tar.gz")
+ctx = struct(platform = struct(os = "windows", arch = "x64", target = ""))
+url = download_url(ctx, "1.2.0")
+url != None and "windows" in url and url.endswith(".zip")
 "#,
         provider_star_prefix()
     ));
 }
 
 #[test]
-fn test_download_url_macos_arm64() {
+fn test_download_url_macos_is_gz() {
+    // macOS uses universal .gz format: duckdb_cli-osx-universal.gz
     let mut a = Assert::new();
     a.dialect(&Dialect::Standard);
     a.is_true(&format!(
         r#"
 {}
-ctx = struct(platform = struct(os = "macos", arch = "arm64", target = "aarch64-apple-darwin"))
-url = download_url(ctx, "0.19.0")
-url != None and "darwin" in url and "aarch64" in url
+ctx = struct(platform = struct(os = "macos", arch = "arm64", target = ""))
+url = download_url(ctx, "1.2.0")
+url != None and "osx" in url and url.endswith(".gz")
 "#,
         provider_star_prefix()
     ));
@@ -97,9 +106,9 @@ fn test_download_url_contains_version() {
     a.is_true(&format!(
         r#"
 {}
-ctx = struct(platform = struct(os = "linux", arch = "x64", target = "x86_64-unknown-linux-musl"))
-url = download_url(ctx, "0.19.0")
-"0.19.0" in url
+ctx = struct(platform = struct(os = "linux", arch = "x64", target = ""))
+url = download_url(ctx, "1.2.0")
+"1.2.0" in url
 "#,
         provider_star_prefix()
     ));
@@ -110,6 +119,6 @@ url = download_url(ctx, "0.19.0")
 #[test]
 fn test_provider_star_lint_clean() {
     vx_starlark::provider_test_support::assert_provider_star_lint_clean(
-        vx_provider_cargo_deny::PROVIDER_STAR,
+        vx_provider_duckdb::PROVIDER_STAR,
     );
 }
