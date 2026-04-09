@@ -5,14 +5,10 @@
 # Releases: https://github.com/PyO3/maturin/releases
 # Asset format: maturin-{triple}.{ext}  (no version in filename)
 # Tag format:   v{version}
-#
-# Uses Rust target triples for platform naming.
+# Linux uses musl for static linking.
 
 load("@vx//stdlib:provider.star",
-     "runtime_def", "github_permissions",
-     "archive_layout", "path_fns")
-load("@vx//stdlib:github.star", "make_fetch_versions", "github_asset_url")
-load("@vx//stdlib:env.star",    "env_prepend")
+     "runtime_def", "github_permissions", "github_rust_provider")
 
 # ---------------------------------------------------------------------------
 # Provider metadata
@@ -44,60 +40,22 @@ runtimes = [
 permissions = github_permissions()
 
 # ---------------------------------------------------------------------------
-# fetch_versions — maturin uses standard "v{version}" tags
+# Provider template - github_rust_provider
+#
+# Asset: maturin-{triple}.{ext}  (no version in filename)
+# Tag:   v{version}
+# Linux: musl (static binary)
 # ---------------------------------------------------------------------------
 
-fetch_versions = make_fetch_versions("PyO3", "maturin")
+_p = github_rust_provider(
+    "PyO3", "maturin",
+    asset      = "maturin-{triple}.{ext}",
+    linux_libc = "musl",
+)
 
-# ---------------------------------------------------------------------------
-# Platform helpers
-# maturin uses Rust target triples, musl for Linux
-# ---------------------------------------------------------------------------
-
-_MATURIN_TRIPLES = {
-    "windows/x64":   "x86_64-pc-windows-msvc",
-    "windows/arm64": "aarch64-pc-windows-msvc",
-    "macos/x64":     "x86_64-apple-darwin",
-    "macos/arm64":   "aarch64-apple-darwin",
-    "linux/x64":     "x86_64-unknown-linux-musl",
-    "linux/arm64":   "aarch64-unknown-linux-musl",
-}
-
-def _maturin_triple(ctx):
-    key = "{}/{}".format(ctx.platform.os, ctx.platform.arch)
-    return _MATURIN_TRIPLES.get(key)
-
-# ---------------------------------------------------------------------------
-# download_url — maturin-{triple}.{ext}, tag = "v{version}"
-# ---------------------------------------------------------------------------
-
-def download_url(ctx, version):
-    triple = _maturin_triple(ctx)
-    if not triple:
-        return None
-    ext = "zip" if ctx.platform.os == "windows" else "tar.gz"
-    asset = "maturin-{}.{}".format(triple, ext)
-    return github_asset_url("PyO3", "maturin", "v" + version, asset)
-
-# ---------------------------------------------------------------------------
-# install_layout — archive contains maturin binary at root
-# ---------------------------------------------------------------------------
-
-install_layout = archive_layout("maturin")
-
-# ---------------------------------------------------------------------------
-# Path queries + environment
-# ---------------------------------------------------------------------------
-
-paths            = path_fns("maturin")
-store_root       = paths["store_root"]
-get_execute_path = paths["get_execute_path"]
-
-def post_install(_ctx, _version):
-    return None
-
-def environment(ctx, _version):
-    return [env_prepend("PATH", ctx.install_dir)]
-
-def deps(_ctx, _version):
-    return []
+fetch_versions   = _p["fetch_versions"]
+download_url     = _p["download_url"]
+install_layout   = _p["install_layout"]
+store_root       = _p["store_root"]
+get_execute_path = _p["get_execute_path"]
+environment      = _p["environment"]
