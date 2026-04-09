@@ -492,3 +492,42 @@ runtimes = [runtime_def("mytool")]
         "Expected multi-OS platforms to be sorted"
     );
 }
+
+#[test]
+fn test_parse_runtimes_with_comments_between_entries() {
+    // Regression: comments between runtime_def / bundled_runtime_def entries
+    // caused the static parser to stop processing after the first entry.
+    let source = r#"
+name = "rust"
+ecosystem = "rust"
+
+runtimes = [
+    # Primary runtime: rust (executable: rustup)
+    # bundled_with must use "rust" so store_name() matches store_root()
+    runtime_def("rust",
+        executable      = "rustup",
+        aliases         = ["rustup"],
+        version_pattern = "rustup",
+    ),
+    # Bundled runtimes live in cargo/bin/ under the rust store
+    bundled_runtime_def("rustc",   bundled_with = "rust",
+        version_pattern = "rustc"),
+    bundled_runtime_def("cargo",   bundled_with = "rust",
+        version_pattern = "cargo"),
+    bundled_runtime_def("rustfmt", bundled_with = "rust"),
+]
+"#;
+    let meta = StarMetadata::parse(source);
+    assert_eq!(
+        meta.runtimes.len(),
+        4,
+        "All 4 runtimes should be parsed even when comments appear between entries"
+    );
+    assert_eq!(meta.runtimes[0].name, Some("rust".to_string()));
+    assert_eq!(meta.runtimes[1].name, Some("rustc".to_string()));
+    assert_eq!(meta.runtimes[1].bundled_with, Some("rust".to_string()));
+    assert_eq!(meta.runtimes[2].name, Some("cargo".to_string()));
+    assert_eq!(meta.runtimes[2].bundled_with, Some("rust".to_string()));
+    assert_eq!(meta.runtimes[3].name, Some("rustfmt".to_string()));
+    assert_eq!(meta.runtimes[3].bundled_with, Some("rust".to_string()));
+}
