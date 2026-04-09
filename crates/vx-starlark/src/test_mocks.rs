@@ -1008,6 +1008,18 @@ def platform_select(ctx, windows = None, macos = None, linux = None, default = N
         return linux
     return default
 
+def rust_triple(ctx, linux_libc = "musl"):
+    """Mock: returns the Rust target triple for the current platform."""
+    return {{
+        "windows/x64":   "x86_64-pc-windows-msvc",
+        "windows/arm64": "aarch64-pc-windows-msvc",
+        "macos/x64":     "x86_64-apple-darwin",
+        "macos/arm64":   "aarch64-apple-darwin",
+        "linux/x64":     "x86_64-unknown-linux-" + linux_libc,
+        "linux/arm64":   "aarch64-unknown-linux-" + linux_libc,
+        "linux/armv7":   "armv7-unknown-linux-gnueabihf",
+    }}.get(ctx.platform.os + "/" + ctx.platform.arch)
+
 # --- permissions.star ---
 def github_permissions(extra_hosts = None, exec_cmds = None, **kwargs):
     return []

@@ -11,7 +11,7 @@ use super::pipeline::error::EnsureError;
 use super::project_config::ProjectToolsConfig;
 use crate::{Resolver, ResolverConfig, Result};
 use tracing::{debug, info, warn};
-use vx_console::{ProgressSpinner, println_above_bars};
+use vx_console::{ProgressSpinner, eprintln_status_above_bars};
 use vx_runtime::{InstallResult, ProviderRegistry, RuntimeContext};
 
 /// Maximum number of version fallback attempts when installation fails
@@ -158,7 +158,9 @@ impl<'a> InstallationManager<'a> {
                 // Show a visible status message so the user sees progress during
                 // the CDN-optimisation and download phases (these can take several
                 // seconds with no other terminal output).
-                println_above_bars(format!("⬇  Installing {}@{}...", runtime_name, version));
+                // Use eprintln_status_above_bars (→ stderr) so this message does NOT
+                // appear in the stdout of the tool being proxied (e.g. `vx node -p`).
+                eprintln_status_above_bars(format!("⬇  Installing {}@{}...", runtime_name, version));
 
                 match self
                     .try_install_version(runtime_name, &version, context)
@@ -488,7 +490,9 @@ impl<'a> InstallationManager<'a> {
         );
         // Always show a visible line so the user doesn't perceive a hang
         // while the CDN-optimization and download phases are in progress.
-        println_above_bars(format!(
+        // Use eprintln_status_above_bars (→ stderr) to avoid polluting the stdout
+        // of the tool being proxied (e.g. `vx node -p "1+2"` must output "3" only).
+        eprintln_status_above_bars(format!(
             "⬇  Installing {}@{}...",
             runtime_name, resolved_version
         ));
