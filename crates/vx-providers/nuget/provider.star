@@ -9,6 +9,7 @@
 load("@vx//stdlib:provider.star",
      "runtime_def", "github_permissions",
      "system_install_strategies", "winget_install", "choco_install")
+load("@vx//stdlib:env.star", "env_prepend")
 
 # ---------------------------------------------------------------------------
 # Provider metadata
@@ -99,7 +100,7 @@ def get_execute_path(ctx, _version):
 
 
 def environment(ctx, _version):
-    return [{"op": "prepend", "name": "PATH", "value": ctx.install_dir + "/bin"}]
+    return [env_prepend("PATH", ctx.install_dir + "/bin")]
 
 
 def post_install(_ctx, _version):

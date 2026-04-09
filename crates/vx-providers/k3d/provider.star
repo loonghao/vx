@@ -1,37 +1,40 @@
-# provider.star - kubectl provider
+# provider.star - k3d provider
 #
-# kubectl is a single binary downloaded from dl.k8s.io (not GitHub releases).
-# URL: https://dl.k8s.io/release/v{version}/bin/{os}/{arch}/kubectl[.exe]
+# k3d is a lightweight wrapper to run k3s (Rancher Lab's minimal Kubernetes
+# distribution) in Docker containers.
 #
-# Version source: kubernetes/kubernetes releases (kubectl version matches Kubernetes version)
+# Release assets are single binaries with the naming format:
+#   k3d-{os}-{arch}[.exe]
+# e.g. k3d-linux-amd64, k3d-darwin-arm64, k3d-windows-amd64.exe
 #
-# Uses runtime_def + github_permissions from @vx//stdlib:provider.star
+# Download URL format:
+#   https://github.com/k3d-io/k3d/releases/download/v{version}/k3d-{os}-{arch}[.exe]
+#
+# Uses binary_layout (single binary, no archive).
 
 load("@vx//stdlib:provider.star",
      "runtime_def", "github_permissions", "binary_layout")
-load("@vx//stdlib:env.star", "env_prepend")
 load("@vx//stdlib:github.star", "make_fetch_versions")
+load("@vx//stdlib:env.star", "env_prepend")
 
 # ---------------------------------------------------------------------------
 # Provider metadata
 # ---------------------------------------------------------------------------
-name        = "kubectl"
-description = "kubectl - The Kubernetes command-line tool"
-homepage    = "https://kubernetes.io/docs/reference/kubectl/"
-repository  = "https://github.com/kubernetes/kubernetes"
-license     = "Apache-2.0"
+name        = "k3d"
+description = "k3d - Lightweight Kubernetes wrapper for k3s in Docker"
+homepage    = "https://k3d.io"
+repository  = "https://github.com/k3d-io/k3d"
+license     = "MIT"
 ecosystem   = "devtools"
-aliases     = ["kube", "k"]
 
 # ---------------------------------------------------------------------------
 # Runtime definitions
 # ---------------------------------------------------------------------------
 
 runtimes = [
-    runtime_def("kubectl",
-        aliases         = ["kube", "k"],
-        version_cmd     = "{executable} version --client",
-        version_pattern = "Client Version",
+    runtime_def("k3d",
+        version_cmd     = "{executable} version",
+        version_pattern = "k3d version v",
     ),
 ]
 
@@ -39,52 +42,53 @@ runtimes = [
 # Permissions
 # ---------------------------------------------------------------------------
 
-permissions = github_permissions(extra_hosts = ["dl.k8s.io"])
+permissions = github_permissions()
 
 # ---------------------------------------------------------------------------
-# fetch_versions — from kubernetes/kubernetes releases
-# kubectl versions match Kubernetes versions (e.g., v1.31.0)
+# fetch_versions — from k3d-io/k3d releases
 # ---------------------------------------------------------------------------
 
-fetch_versions = make_fetch_versions("kubernetes", "kubernetes")
+fetch_versions = make_fetch_versions("k3d-io", "k3d")
 
 # ---------------------------------------------------------------------------
 # Platform helpers
+# k3d uses os/arch format: linux/amd64, darwin/arm64, windows/amd64
 # ---------------------------------------------------------------------------
 
-def _kubectl_platform(ctx):
+def _k3d_platform(ctx):
     os_map   = {"windows": "windows", "macos": "darwin", "linux": "linux"}
-    arch_map = {"x64": "amd64", "arm64": "arm64", "x86": "386", "arm": "arm"}
+    arch_map = {"x64": "amd64", "arm64": "arm64", "arm": "arm"}
     os_str   = os_map.get(ctx.platform.os)
     arch_str = arch_map.get(ctx.platform.arch, "amd64")
     return os_str, arch_str
 
 # ---------------------------------------------------------------------------
-# download_url — dl.k8s.io single binary
-# URL: https://dl.k8s.io/release/v{version}/bin/{os}/{arch}/kubectl[.exe]
+# download_url — single binary, no archive
+# URL: https://github.com/k3d-io/k3d/releases/download/v{version}/k3d-{os}-{arch}[.exe]
 # ---------------------------------------------------------------------------
 
 def download_url(ctx, version):
-    os_str, arch_str = _kubectl_platform(ctx)
+    os_str, arch_str = _k3d_platform(ctx)
     if not os_str:
         return None
     exe = ".exe" if ctx.platform.os == "windows" else ""
-    return "https://dl.k8s.io/release/v{}/bin/{}/{}/kubectl{}".format(
+    return "https://github.com/k3d-io/k3d/releases/download/v{}/k3d-{}-{}{}".format(
         version, os_str, arch_str, exe)
 
 # ---------------------------------------------------------------------------
 # Layout + path/env functions
+# k3d is a single binary, no archive
 # ---------------------------------------------------------------------------
 
-install_layout = binary_layout("kubectl")
+install_layout = binary_layout("k3d")
 
 
 def store_root(ctx):
-    return ctx.vx_home + "/store/kubectl"
+    return ctx.vx_home + "/store/k3d"
 
 
 def get_execute_path(ctx, _version):
-    exe = "kubectl.exe" if ctx.platform.os == "windows" else "kubectl"
+    exe = "k3d.exe" if ctx.platform.os == "windows" else "k3d"
     return ctx.install_dir + "/bin/" + exe
 
 
