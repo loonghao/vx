@@ -39,6 +39,15 @@ pub fn println_above_bars(message: impl AsRef<str>) {
     GLOBAL_PROGRESS_MANAGER.println(message.as_ref());
 }
 
+/// Print a status/progress message to stderr above all active progress bars.
+///
+/// Use this for vx's own operational messages (e.g. "⬇  Installing cmake@4.3.1...")
+/// that should NOT pollute the stdout of the proxied tool command.
+/// Regular UI messages (version info, listings) should use `println_above_bars` instead.
+pub fn eprintln_status_above_bars(message: impl AsRef<str>) {
+    GLOBAL_PROGRESS_MANAGER.println_status(message.as_ref());
+}
+
 /// Progress manager for handling multiple progress bars.
 #[derive(Debug)]
 pub struct ProgressManager {
@@ -148,16 +157,21 @@ impl ProgressManager {
     ///
     /// This is the correct way to print text while progress bars are active.
     /// Using `println!` directly will cause visual glitches.
-    ///
-    /// Note: Status and progress messages are written to stderr to avoid
-    /// contaminating the stdout of the tool being proxied by vx.
     pub fn println(&self, message: &str) {
         // Use suspend to ensure the message is printed correctly on all terminals,
         // especially Windows where MultiProgress::println can have issues with
         // cursor positioning and message interleaving.
-        // Use eprintln! (stderr) so that vx's own status messages don't pollute
-        // the stdout of the proxied command (e.g., `vx node -p "1+2"` must only
-        // output "3" on stdout, not installation progress lines).
+        self.multi.suspend(|| {
+            println!("{}", message);
+        });
+    }
+
+    /// Print a status/progress line to stderr above all active progress bars.
+    ///
+    /// Use this for vx's own operational messages (e.g. "Installing cmake@4.3.1...")
+    /// that should NOT appear in the stdout of the proxied command.
+    /// Normal UI messages (version info, listings) should use `println` instead.
+    pub fn println_status(&self, message: &str) {
         self.multi.suspend(|| {
             eprintln!("{}", message);
         });
