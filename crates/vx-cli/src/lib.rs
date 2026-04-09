@@ -217,28 +217,33 @@ async fn execute_tool(
 
     if is_pkg_req {
         // Before delegating to the package manager, check whether a dedicated
-        // vx provider already handles this tool (e.g. `cargo:audit` → `cargo-audit`
-        // provider, `cargo:nextest` → `cargo-nextest` provider).
-        // A dedicated provider ships a pre-compiled binary and is always preferred
-        // over `cargo install`, which requires Rust to be installed and compiles
-        // from source.
+        // vx provider explicitly declares it handles this `ecosystem:package` via
+        // `ecosystem_aliases` in its provider.star.
+        //
+        // Example: cargo-audit declares
+        //   ecosystem_aliases = [{"ecosystem": "cargo", "package": "audit"}]
+        // so `vx cargo:audit` routes to the cargo-audit provider's pre-compiled
+        // binary instead of `cargo install audit` (which fails — audit is a library).
         let provider_runtime_name = if let Some(colon_pos) = tool_spec.find(':') {
             let ecosystem = tool_spec[..colon_pos].split('@').next().unwrap_or("");
             let package_part = &tool_spec[colon_pos + 1..];
-            let package = package_part.split('@').next().unwrap_or("").split("::").next().unwrap_or("");
-            let candidate = format!("{}-{}", ecosystem, package);
-            if ctx.registry().get_runtime(&candidate).is_some() {
-                Some(candidate)
-            } else {
-                None
-            }
+            let package = package_part
+                .split('@')
+                .next()
+                .unwrap_or("")
+                .split("::")
+                .next()
+                .unwrap_or("");
+            let reg = vx_starlark::handle::global_registry().await;
+            reg.get_runtime_for_ecosystem_package(ecosystem, package)
+                .map(|s| s.to_owned())
         } else {
             None
         };
 
         if let Some(runtime_name) = provider_runtime_name {
             tracing::debug!(
-                "Dedicated provider '{}' found for package request '{}', using provider instead of package manager",
+                "ecosystem_aliases match: '{}' handles '{}', routing to provider binary",
                 runtime_name, tool_spec
             );
             // Re-route: treat it as `vx cargo-audit [args]`, preserving any @version suffix
@@ -259,7 +264,7 @@ async fn execute_tool(
                 ctx.use_system_path(),
                 ctx.inherit_env(),
                 ctx.cache_mode(),
-                with_deps,
+                &with_deps,
             )
             .await;
         }

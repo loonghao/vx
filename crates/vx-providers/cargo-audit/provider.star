@@ -20,6 +20,10 @@ repository  = "https://github.com/rustsec/rustsec"
 license     = "Apache-2.0 OR MIT"
 ecosystem   = "rust"
 
+# `vx cargo:audit` routes directly to this provider's pre-compiled binary
+# instead of `cargo install audit` (which fails — audit is a library crate).
+ecosystem_aliases = [{"ecosystem": "cargo", "package": "audit"}]
+
 # ---------------------------------------------------------------------------
 # Runtime definitions
 # ---------------------------------------------------------------------------
