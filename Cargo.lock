@@ -5065,6 +5065,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "vx-provider-cargo-audit"
+version = "0.8.23"
+dependencies = [
+ "rstest",
+ "starlark",
+ "vx-runtime",
+ "vx-starlark",
+ "workspace-hack",
+]
+
+[[package]]
 name = "vx-provider-cargo-deny"
 version = "0.8.23"
 dependencies = [

@@ -157,6 +157,8 @@ members = [
   "crates/vx-providers/cargo-nextest",
   # Rust dependency linting
   "crates/vx-providers/cargo-deny",
+  # Rust security auditing
+  "crates/vx-providers/cargo-audit",
   # Build cache
   "crates/vx-providers/sccache",
   "crates/vx-providers/ccache",
