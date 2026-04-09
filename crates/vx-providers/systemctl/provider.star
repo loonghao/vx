@@ -8,6 +8,7 @@
 
 load("@vx//stdlib:provider.star", "runtime_def", "bundled_runtime_def", "system_permissions")
 
+name        = "systemctl"
 description = "systemd system and service manager"
 homepage    = "https://systemd.io"
 repository  = "https://github.com/systemd/systemd"
@@ -50,11 +51,6 @@ runtimes = [
 permissions = system_permissions(
     exec_cmds = ["systemctl", "journalctl"],
 )
-
-# ---------------------------------------------------------------------------
-# Provider metadata
-# ---------------------------------------------------------------------------
-name        = "systemctl"
 
 # ---------------------------------------------------------------------------
 # fetch_versions — system detection only

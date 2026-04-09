@@ -112,7 +112,7 @@ rustflags = [
 [build]
 # Enable sccache wrapper for rustc
 # Comment out if sccache is not installed
-rustc-wrapper = "sccache"
+# rustc-wrapper = "sccache"
 
 # Increase parallel jobs (default is num_cpus)
 # jobs = 8

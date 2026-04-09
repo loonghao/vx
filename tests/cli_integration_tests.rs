@@ -258,26 +258,6 @@ fn test_versions_no_tool_error() {
 }
 
 // ============================================
-// Switch Command
-// ============================================
-
-#[test]
-fn test_switch_help() {
-    vx().args(["switch", "--help"])
-        .assert()
-        .success()
-        .stdout(predicate::str::contains("Switch"));
-}
-
-#[test]
-fn test_switch_no_tool_error() {
-    vx().arg("switch")
-        .assert()
-        .failure()
-        .stderr(predicate::str::contains("required"));
-}
-
-// ============================================
 // Sync Command
 // ============================================
 
@@ -314,23 +294,6 @@ fn test_sync_help() {
 // fn test_stats_command() {
 //     vx().arg("stats").assert().success();
 // }
-
-// ============================================
-// Plugin Command
-// ============================================
-
-#[test]
-fn test_plugin_help() {
-    vx().args(["plugin", "--help"])
-        .assert()
-        .success()
-        .stdout(predicate::str::contains("Plugin"));
-}
-
-#[test]
-fn test_plugin_list() {
-    vx().args(["plugin", "list"]).assert().success();
-}
 
 // ============================================
 // Shell Command

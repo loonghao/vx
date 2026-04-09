@@ -137,7 +137,6 @@ def environment(ctx, _version):
     return [{"op": "prepend", "key": "PATH", "value": ctx.install_dir + "/bin"}]
 
 
-
 def post_install(_ctx, _version):
     return None
 

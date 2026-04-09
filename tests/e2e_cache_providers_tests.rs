@@ -224,7 +224,7 @@ fn test_local_provider_buildcache() {
 #[test]
 fn test_plugin_list_shows_installed_providers_header() {
     let env = E2ETestEnv::new();
-    let output = env.run(&["plugin", "list"]);
+    let output = env.run(&["provider", "list"]);
 
     assert!(output.status.success());
 
@@ -239,7 +239,7 @@ fn test_plugin_list_shows_installed_providers_header() {
 #[test]
 fn test_plugin_list_shows_empty_state_when_no_local_providers() {
     let env = E2ETestEnv::new();
-    let output = env.run(&["plugin", "list"]);
+    let output = env.run(&["provider", "list"]);
 
     assert!(output.status.success());
 
