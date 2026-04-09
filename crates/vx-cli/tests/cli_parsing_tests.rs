@@ -1247,4 +1247,3 @@ fn test_cli_container_build() {
         _ => panic!("Expected Container Build command"),
     }
 }
-

@@ -56,12 +56,18 @@ fetch_versions = make_fetch_versions("GoogleContainerTools", "skaffold")
 # skaffold uses os/arch format: linux/amd64, darwin/arm64, windows/amd64
 # ---------------------------------------------------------------------------
 
+_SKAFFOLD_PLATFORMS = {
+    "windows/x64":   ("windows", "amd64"),
+    "windows/arm64": ("windows", "arm64"),
+    "macos/x64":     ("darwin",  "amd64"),
+    "macos/arm64":   ("darwin",  "arm64"),
+    "linux/x64":     ("linux",   "amd64"),
+    "linux/arm64":   ("linux",   "arm64"),
+}
+
 def _skaffold_platform(ctx):
-    os_map   = {"windows": "windows", "macos": "darwin", "linux": "linux"}
-    arch_map = {"x64": "amd64", "arm64": "arm64"}
-    os_str   = os_map.get(ctx.platform.os)
-    arch_str = arch_map.get(ctx.platform.arch, "amd64")
-    return os_str, arch_str
+    key = "{}/{}".format(ctx.platform.os, ctx.platform.arch)
+    return _SKAFFOLD_PLATFORMS.get(key)
 
 # ---------------------------------------------------------------------------
 # download_url — from Google Cloud Storage (not GitHub releases)
@@ -69,16 +75,16 @@ def _skaffold_platform(ctx):
 # ---------------------------------------------------------------------------
 
 def download_url(ctx, version):
-    os_str, arch_str = _skaffold_platform(ctx)
-    if not os_str:
+    platform = _skaffold_platform(ctx)
+    if not platform:
         return None
+    os_str, arch_str = platform
     exe = ".exe" if ctx.platform.os == "windows" else ""
     return "https://storage.googleapis.com/skaffold/releases/v{}/skaffold-{}-{}{}".format(
         version, os_str, arch_str, exe)
 
 # ---------------------------------------------------------------------------
 # Layout + path/env functions
-# skaffold is a single binary, no archive
 # ---------------------------------------------------------------------------
 
 install_layout = binary_layout("skaffold")
@@ -90,16 +96,13 @@ def store_root(ctx):
 
 def get_execute_path(ctx, _version):
     exe = "skaffold.exe" if ctx.platform.os == "windows" else "skaffold"
-    return ctx.install_dir + "/" + exe
+    return ctx.install_dir + "/bin/" + exe
 
+def environment(ctx, _version):
+    return [env_prepend("PATH", ctx.install_dir + "/bin")]
 
 def post_install(_ctx, _version):
     return None
-
-
-def environment(ctx, _version):
-    return [env_prepend("PATH", ctx.install_dir)]
-
 
 def deps(_ctx, _version):
     return []
