@@ -4598,6 +4598,8 @@ dependencies = [
  "vx-provider-jj",
  "vx-provider-jq",
  "vx-provider-just",
+ "vx-provider-k3d",
+ "vx-provider-kind",
  "vx-provider-kubectl",
  "vx-provider-make",
  "vx-provider-meson",
@@ -5472,7 +5474,29 @@ dependencies = [
 ]
 
 [[package]]
+name = "vx-provider-k3d"
+version = "0.8.23"
+dependencies = [
+ "rstest",
+ "starlark",
+ "vx-runtime",
+ "vx-starlark",
+ "workspace-hack",
+]
+
+[[package]]
 name = "vx-provider-k9s"
+version = "0.8.23"
+dependencies = [
+ "rstest",
+ "starlark",
+ "vx-runtime",
+ "vx-starlark",
+ "workspace-hack",
+]
+
+[[package]]
+name = "vx-provider-kind"
 version = "0.8.23"
 dependencies = [
  "rstest",
