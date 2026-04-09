@@ -418,40 +418,6 @@ fn test_cli_versions_interactive() {
 }
 
 // ============================================
-// Switch Command Tests
-// ============================================
-
-#[test]
-fn test_cli_switch_command() {
-    let args = vec!["vx", "switch", "node@18.0.0", "--global"];
-    let cli = Cli::try_parse_from(args).unwrap();
-
-    match cli.command {
-        Some(Commands::Switch {
-            tool_version,
-            global,
-        }) => {
-            assert_eq!(tool_version, "node@18.0.0");
-            assert!(global);
-        }
-        _ => panic!("Expected Switch command"),
-    }
-}
-
-#[test]
-fn test_cli_switch_local() {
-    let args = vec!["vx", "switch", "python@3.11"];
-    let cli = Cli::try_parse_from(args).unwrap();
-
-    match cli.command {
-        Some(Commands::Switch { global, .. }) => {
-            assert!(!global);
-        }
-        _ => panic!("Expected Switch command"),
-    }
-}
-
-// ============================================
 // Search Command Tests
 // ============================================
 
@@ -1282,36 +1248,3 @@ fn test_cli_container_build() {
     }
 }
 
-// ============================================
-// Plugin Subcommand Tests (legacy alias)
-// ============================================
-
-#[test]
-fn test_cli_plugin_list() {
-    let args = vec!["vx", "plugin", "list", "--enabled"];
-    let cli = Cli::try_parse_from(args).unwrap();
-
-    match cli.command {
-        Some(Commands::Plugin {
-            command: ProviderCommand::List { enabled, .. },
-        }) => {
-            assert!(enabled);
-        }
-        _ => panic!("Expected Plugin List command"),
-    }
-}
-
-#[test]
-fn test_cli_plugin_enable() {
-    let args = vec!["vx", "plugin", "enable", "my-plugin"];
-    let cli = Cli::try_parse_from(args).unwrap();
-
-    match cli.command {
-        Some(Commands::Plugin {
-            command: ProviderCommand::Enable { name },
-        }) => {
-            assert_eq!(name, "my-plugin");
-        }
-        _ => panic!("Expected Plugin Enable command"),
-    }
-}
