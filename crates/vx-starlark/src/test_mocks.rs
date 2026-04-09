@@ -587,12 +587,128 @@ def post_extract_permissions(paths = None, **kwargs):
     return []
 "#;
 
+/// Standard mock for @vx//stdlib:layout.star
+pub const MOCK_LAYOUT_STAR: &str = r#"
+def archive_layout(executable, strip_prefix = None):
+    def _layout(ctx, version):
+        exe = executable + (".exe" if ctx.platform.os == "windows" else "")
+        return {"type": "archive", "strip_prefix": strip_prefix or "", "executable_paths": [exe, executable]}
+    return _layout
+
+def binary_layout(executable):
+    def _layout(ctx, _version):
+        exe = executable + (".exe" if ctx.platform.os == "windows" else "")
+        return {"type": "binary", "executable_paths": [exe, executable]}
+    return _layout
+
+def bin_subdir_layout(executables, strip_prefix = None):
+    def _layout(ctx, version):
+        return {"type": "archive", "strip_prefix": strip_prefix or "", "executable_paths": executables}
+    return _layout
+
+def post_extract_flatten(pattern = None):
+    def _post_extract(_ctx, _version, _install_dir):
+        result = {"__type": "flatten_dir"}
+        if pattern != None:
+            result["pattern"] = pattern
+        return [result]
+    return _post_extract
+
+def post_extract_shim(shim_name = None, target_executable = None, args = None, **kwargs):
+    def _post_extract(_ctx, _version, _install_dir):
+        result = {"__type": "create_shim"}
+        if shim_name != None:
+            result["name"] = shim_name
+        if target_executable != None:
+            result["target"] = target_executable
+        if args != None:
+            result["args"] = args
+        return [result]
+    return _post_extract
+
+def post_extract_permissions(paths = None, mode = "755", unix_only = True, **kwargs):
+    def _post_extract(ctx, _version, _install_dir):
+        if unix_only and ctx.platform.os == "windows":
+            return []
+        return [{"__type": "set_permissions", "path": p, "mode": mode} for p in (paths or [])]
+    return _post_extract
+
+def post_extract_combine(hooks):
+    def _post_extract(ctx, version, install_dir):
+        result = []
+        for hook in hooks:
+            result = result + hook(ctx, version, install_dir)
+        return result
+    return _post_extract
+
+def pre_run_ensure_deps(runtime, trigger_args = None, check_file = None, lock_file = None, install_dir = None):
+    def _pre_run(_ctx, args, _executable):
+        if trigger_args != None:
+            if len(args) == 0 or args[0] not in trigger_args:
+                return []
+        result = {"__type": "ensure_dependencies", "package_manager": runtime, "check_file": check_file, "install_dir": install_dir}
+        if lock_file != None:
+            result["lock_file"] = lock_file
+        return [result]
+    return _pre_run
+"#;
+
+/// Standard mock for @vx//stdlib:platform.star
+pub const MOCK_PLATFORM_STAR: &str = r#"
+def exe_suffix(ctx):
+    return ".exe" if ctx.platform.os == "windows" else ""
+
+def archive_ext(ctx):
+    return "zip" if ctx.platform.os == "windows" else "tar.gz"
+
+def rust_triple(ctx, linux_libc = "musl"):
+    key = ctx.platform.os + "/" + ctx.platform.arch
+    mapping = {
+        "windows/x64": "x86_64-pc-windows-msvc",
+        "windows/arm64": "aarch64-pc-windows-msvc",
+        "macos/x64": "x86_64-apple-darwin",
+        "macos/arm64": "aarch64-apple-darwin",
+        "linux/x64": "x86_64-unknown-linux-" + linux_libc,
+        "linux/arm64": "aarch64-unknown-linux-" + linux_libc,
+    }
+    return mapping.get(key)
+
+def go_os_arch(ctx):
+    key = ctx.platform.os + "/" + ctx.platform.arch
+    mapping = {
+        "windows/x64": ("windows", "amd64"),
+        "windows/arm64": ("windows", "arm64"),
+        "macos/x64": ("darwin", "amd64"),
+        "macos/arm64": ("darwin", "arm64"),
+        "linux/x64": ("linux", "amd64"),
+        "linux/arm64": ("linux", "arm64"),
+    }
+    return mapping.get(key)
+
+def platform_map(ctx, mapping):
+    key = ctx.platform.os + "/" + ctx.platform.arch
+    return mapping.get(key)
+
+def platform_select(ctx, windows = None, macos = None, linux = None, default = None):
+    os = ctx.platform.os
+    if os == "windows" and windows != None:
+        return windows
+    if os == "macos" and macos != None:
+        return macos
+    if os == "linux" and linux != None:
+        return linux
+    return default
+"#;
+
 /// Sets up all standard provider test mocks on the given Assert instance.
 ///
 /// This registers mocks for:
 /// - `@vx//stdlib:env.star`
 /// - `@vx//stdlib:http.star`
+/// - `@vx//stdlib:github.star`
 /// - `@vx//stdlib:install.star`
+/// - `@vx//stdlib:layout.star`
+/// - `@vx//stdlib:platform.star`
 /// - `@vx//stdlib:provider.star`
 /// - `@vx//stdlib:system.star`
 pub fn setup_provider_test_mocks(a: &mut Assert<'static>) {
@@ -600,6 +716,8 @@ pub fn setup_provider_test_mocks(a: &mut Assert<'static>) {
     a.module("@vx//stdlib:http.star", MOCK_HTTP_STAR);
     a.module("@vx//stdlib:github.star", MOCK_GITHUB_STAR);
     a.module("@vx//stdlib:install.star", MOCK_INSTALL_STAR);
+    a.module("@vx//stdlib:layout.star", MOCK_LAYOUT_STAR);
+    a.module("@vx//stdlib:platform.star", MOCK_PLATFORM_STAR);
     a.module("@vx//stdlib:provider.star", MOCK_PROVIDER_STAR);
     a.module("@vx//stdlib:system.star", MOCK_SYSTEM_STAR);
 }
