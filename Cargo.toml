@@ -76,8 +76,11 @@ members = [
   "crates/vx-providers/k3d",
   "crates/vx-providers/nerdctl",
   "crates/vx-providers/skaffold",
+  "crates/vx-providers/minikube",
+  "crates/vx-providers/kustomize",
   # Data tools
   "crates/vx-providers/duckdb",
+  "crates/vx-providers/usql",
   # gRPC tools
   "crates/vx-providers/grpcurl",
   # VM tools
@@ -324,6 +327,8 @@ vx-provider-kind = { path = "crates/vx-providers/kind" }
 vx-provider-k3d = { path = "crates/vx-providers/k3d" }
 vx-provider-nerdctl = { path = "crates/vx-providers/nerdctl" }
 vx-provider-skaffold = { path = "crates/vx-providers/skaffold" }
+vx-provider-minikube = { path = "crates/vx-providers/minikube" }
+vx-provider-kustomize = { path = "crates/vx-providers/kustomize" }
 # gRPC tools
 vx-provider-grpcurl = { path = "crates/vx-providers/grpcurl" }
 # VM tools
@@ -437,6 +442,8 @@ vx-provider-uv = { path = "crates/vx-providers/uv" }
 vx-provider-prek = { path = "crates/vx-providers/prek" }
 vx-provider-vcpkg = { path = "crates/vx-providers/vcpkg" }
 vx-provider-winget = { path = "crates/vx-providers/winget" }
+# Data tools
+vx-provider-usql = { path = "crates/vx-providers/usql" }
 vx-console = { path = "crates/vx-console" }
 vx-manifest = { path = "crates/vx-manifest" }
 vx-bridge = { path = "crates/vx-bridge" }

@@ -5604,6 +5604,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "vx-provider-kustomize"
+version = "0.8.25"
+dependencies = [
+ "rstest",
+ "starlark",
+ "vx-runtime",
+ "vx-starlark",
+ "workspace-hack",
+]
+
+[[package]]
 name = "vx-provider-lazydocker"
 version = "0.8.25"
 dependencies = [
@@ -5671,6 +5682,17 @@ dependencies = [
 
 [[package]]
 name = "vx-provider-meson"
+version = "0.8.25"
+dependencies = [
+ "rstest",
+ "starlark",
+ "vx-runtime",
+ "vx-starlark",
+ "workspace-hack",
+]
+
+[[package]]
+name = "vx-provider-minikube"
 version = "0.8.25"
 dependencies = [
  "rstest",
@@ -6089,6 +6111,17 @@ dependencies = [
 
 [[package]]
 name = "vx-provider-turbo"
+version = "0.8.25"
+dependencies = [
+ "rstest",
+ "starlark",
+ "vx-runtime",
+ "vx-starlark",
+ "workspace-hack",
+]
+
+[[package]]
+name = "vx-provider-usql"
 version = "0.8.25"
 dependencies = [
  "rstest",
