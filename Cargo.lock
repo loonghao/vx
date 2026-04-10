@@ -5156,6 +5156,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "vx-provider-cosign"
+version = "0.8.23"
+dependencies = [
+ "rstest",
+ "starlark",
+ "vx-runtime",
+ "vx-starlark",
+ "workspace-hack",
+]
+
+[[package]]
 name = "vx-provider-curl"
 version = "0.8.23"
 dependencies = [
@@ -5355,6 +5366,28 @@ dependencies = [
 
 [[package]]
 name = "vx-provider-go"
+version = "0.8.23"
+dependencies = [
+ "rstest",
+ "starlark",
+ "vx-runtime",
+ "vx-starlark",
+ "workspace-hack",
+]
+
+[[package]]
+name = "vx-provider-golangci-lint"
+version = "0.8.23"
+dependencies = [
+ "rstest",
+ "starlark",
+ "vx-runtime",
+ "vx-starlark",
+ "workspace-hack",
+]
+
+[[package]]
+name = "vx-provider-goreleaser"
 version = "0.8.23"
 dependencies = [
  "rstest",
