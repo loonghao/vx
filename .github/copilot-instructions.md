@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-vx is a **universal development tool manager** (v0.8.25, Rust, MIT, 122 providers).
+vx is a **universal development tool manager** (v0.8.25, Rust, MIT, 129 providers).
 Users prefix any command with `vx` (e.g., `vx node --version`, `vx cargo build`) and vx automatically installs, manages, and forwards to the correct tool version. Providers defined via Starlark DSL (`provider.star`).
 
 ## Critical Rules

@@ -1,6 +1,6 @@
 ---
 name: vx-usage
-description: "Teaches AI agents how to use vx, the universal dev tool manager. Use when the project has vx.toml or .vx/, or when the user mentions vx, tool version management, or cross-platform setup. vx auto-manages Node.js, Python, Go, Rust, and 122 tools via Starlark DSL providers. Also covers MCP integration patterns and GitHub Actions."
+description: "Teaches AI agents how to use vx, the universal dev tool manager. Use when the project has vx.toml or .vx/, or when the user mentions vx, tool version management, or cross-platform setup. vx auto-manages Node.js, Python, Go, Rust, and 129 tools via Starlark DSL providers. Also covers MCP integration patterns and GitHub Actions."
 ---
 
 # VX - Universal Development Tool Manager
@@ -195,7 +195,7 @@ vx msvc@14.40 cl main.cpp
 | lib | `vx msvc lib` | Library manager |
 | nmake | `vx msvc nmake` | Make utility |
 
-## Supported Tools (122 Providers)
+## Supported Tools (129 Providers)
 
 | Category | Tools |
 |----------|-------|
@@ -224,7 +224,7 @@ vx msvc@14.40 cl main.cpp
 
 ## Provider System (Starlark DSL)
 
-All 122 providers are defined using **provider.star** (Starlark DSL) — a declarative, zero-compilation approach. Each provider lives in `crates/vx-providers/<name>/provider.star`.
+All 129 providers are defined using **provider.star** (Starlark DSL) — a declarative, zero-compilation approach. Each provider lives in `crates/vx-providers/<name>/provider.star`.
 
 vx uses a **two-phase execution model** (inspired by Buck2):
 1. **Analysis Phase (Starlark)**: `provider.star` runs as pure computation, returning descriptor dicts. No I/O.

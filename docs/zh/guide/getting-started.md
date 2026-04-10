@@ -194,4 +194,4 @@ all = "just dev"
 - [核心概念](/zh/guide/concepts) — 了解 Provider、运行时和版本
 - [配置](/zh/guide/configuration) — 深入了解 `vx.toml`
 - [CLI 参考](/zh/cli/overview) — 探索所有可用命令
-- [支持的工具](/zh/tools/overview) — 查看 122 工具的完整列表
+- [支持的工具](/zh/tools/overview) — 查看 129 工具的完整列表

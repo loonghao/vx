@@ -1,8 +1,8 @@
 # vx
 
-> vx is a universal development tool manager — prefix any command with `vx` and it auto-installs the tool on first use. No manual setup, no version conflicts. 122 tools, one command prefix.
+> vx is a universal development tool manager — prefix any command with `vx` and it auto-installs the tool on first use. No manual setup, no version conflicts. 129 tools, one command prefix.
 
-vx eliminates the complexity of managing multiple language runtimes (Node.js, Python, Go, Rust, etc.) while maintaining zero learning curve. Built with Rust for performance, it supports direct execution, project environments via `vx.toml`, MCP integration, and AI-native development workflows. Providers are defined using Starlark DSL (`provider.star`) — a declarative, zero-compilation approach that covers 122 tools.
+vx eliminates the complexity of managing multiple language runtimes (Node.js, Python, Go, Rust, etc.) while maintaining zero learning curve. Built with Rust for performance, it supports direct execution, project environments via `vx.toml`, MCP integration, and AI-native development workflows. Providers are defined using Starlark DSL (`provider.star`) — a declarative, zero-compilation approach that covers 129 tools.
 
 - **Install (Linux/macOS)**: `curl -fsSL https://raw.githubusercontent.com/loonghao/vx/main/install.sh | bash`
 - **Install (Windows)**: `powershell -c "irm https://raw.githubusercontent.com/loonghao/vx/main/install.ps1 | iex"`
@@ -46,7 +46,7 @@ vx analyze --json          # Project analysis as JSON
 ## Key Features
 
 - Zero learning curve — use the same commands you already know, just prefix with `vx`
-- Auto-installs runtimes on first use (Node.js, Python/UV, Go, Rust, Bun, Deno, and 122 tools in total)
+- Auto-installs runtimes on first use (Node.js, Python/UV, Go, Rust, Bun, Deno, and 129 tools in total)
 - Project environments via `vx.toml` with `vx setup` / `vx dev`
 - Enhanced script system with `{{args}}` passthrough for complex tool arguments
 - MCP (Model Context Protocol) ready — replace `npx`/`uvx` with `vx` in MCP configs
@@ -89,7 +89,7 @@ vx analyze --json          # Project analysis as JSON
 
 ## Tools Reference
 
-- [Tools Overview](https://github.com/loonghao/vx/blob/main/docs/tools/overview.md): All 105 supported tools
+- [Tools Overview](https://github.com/loonghao/vx/blob/main/docs/tools/overview.md): All 129 supported tools
 - [Node.js Tools](https://github.com/loonghao/vx/blob/main/docs/tools/nodejs.md): node, npm, npx, bun, deno
 - [Python Tools](https://github.com/loonghao/vx/blob/main/docs/tools/python.md): uv, uvx, python, pip
 - [Rust Tools](https://github.com/loonghao/vx/blob/main/docs/tools/rust.md): cargo, rustc, rustup

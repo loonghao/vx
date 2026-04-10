@@ -2,7 +2,7 @@
 
 ## Project Context
 
-vx is a **universal development tool manager** (v0.8.25, Rust, MIT, 122 providers).
+vx is a **universal development tool manager** (v0.8.25, Rust, MIT, 129 providers).
 Users prefix commands with `vx` (e.g., `vx node --version`) and tools auto-install on first use.
 Providers are defined via Starlark DSL (`provider.star`) — no Rust code needed.
 
