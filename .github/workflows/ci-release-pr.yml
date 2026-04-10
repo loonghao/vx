@@ -64,7 +64,7 @@ jobs:
           echo "- \`Cargo.toml\` (version field)" >> $GITHUB_STEP_SUMMARY
 
       - name: Report CI Success status
-        uses: actions/github-script@v8
+        uses: actions/github-script@v9
         with:
           script: |
             // Create a commit status matching the main CI's check name
