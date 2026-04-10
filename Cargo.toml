@@ -181,6 +181,8 @@ members = [
   # Go development tools
   "crates/vx-providers/goreleaser",
   "crates/vx-providers/golangci-lint",
+  "crates/vx-providers/ctlptl",
+  "crates/vx-providers/tilt",
   # Protobuf tools
   "crates/vx-providers/buf",
   # Security/supply-chain tools
@@ -405,6 +407,8 @@ vx-provider-ruff = { path = "crates/vx-providers/ruff" }
 # Go development tools
 vx-provider-goreleaser = { path = "crates/vx-providers/goreleaser" }
 vx-provider-golangci-lint = { path = "crates/vx-providers/golangci-lint" }
+vx-provider-ctlptl = { path = "crates/vx-providers/ctlptl" }
+vx-provider-tilt = { path = "crates/vx-providers/tilt" }
 # Protobuf tools
 vx-provider-buf = { path = "crates/vx-providers/buf" }
 # Security/supply-chain tools

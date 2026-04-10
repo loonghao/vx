@@ -5184,6 +5184,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "vx-provider-ctlptl"
+version = "0.8.25"
+dependencies = [
+ "rstest",
+ "starlark",
+ "vx-runtime",
+ "vx-starlark",
+ "workspace-hack",
+]
+
+[[package]]
 name = "vx-provider-curl"
 version = "0.8.25"
 dependencies = [
@@ -5999,6 +6010,17 @@ dependencies = [
 
 [[package]]
 name = "vx-provider-terraform"
+version = "0.8.25"
+dependencies = [
+ "rstest",
+ "starlark",
+ "vx-runtime",
+ "vx-starlark",
+ "workspace-hack",
+]
+
+[[package]]
+name = "vx-provider-tilt"
 version = "0.8.25"
 dependencies = [
  "rstest",
