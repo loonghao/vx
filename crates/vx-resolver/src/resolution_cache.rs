@@ -61,7 +61,9 @@ impl ResolutionCacheKey {
         let config_path = find_config_file_upward(&cwd);
         // Use mtime+size fingerprint instead of full SHA256 to avoid reading
         // the entire file on every startup — mtime is sufficient for detecting changes.
-        let config_digest = config_path.as_deref().and_then(|p| file_mtime_fingerprint(p).ok());
+        let config_digest = config_path
+            .as_deref()
+            .and_then(|p| file_mtime_fingerprint(p).ok());
 
         let project_root = find_project_root(&cwd);
         let lock_digest = project_root
@@ -334,7 +336,6 @@ fn file_mtime_fingerprint(path: &Path) -> std::io::Result<String> {
     let size = meta.len();
     Ok(format!("{}-{}", mtime, size))
 }
-
 
 fn hex_encode(bytes: &[u8]) -> String {
     const LUT: &[u8; 16] = b"0123456789abcdef";

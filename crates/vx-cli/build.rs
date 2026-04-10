@@ -210,9 +210,7 @@ fn embed_provider_stars(out_dir: &str, providers_dir: &Path) {
     code.push_str("/// Pre-computed runtime name → provider name lookup table.\n");
     code.push_str("/// Generated at build time from provider.star metadata.\n");
     code.push_str("/// Format: `(runtime_or_alias_name, provider_name)`\n");
-    code.push_str(
-        "pub(crate) static PROVIDER_RUNTIME_NAMES: &[(&str, &[&str])] = &[\n",
-    );
+    code.push_str("pub(crate) static PROVIDER_RUNTIME_NAMES: &[(&str, &[&str])] = &[\n");
     for (name, _, runtime_names) in &entries {
         if runtime_names.is_empty() {
             continue;

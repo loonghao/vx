@@ -33,7 +33,7 @@ fn test_provider_runtimes() {
 #[rstest]
 #[case("cargo", true)]
 #[case("rustc", true)]
-#[case("rustup", true)]  // rustup is an alias for "rust"
+#[case("rustup", true)] // rustup is an alias for "rust"
 #[case("rust", true)]
 #[case("node", false)]
 fn test_provider_supports(#[case] name: &str, #[case] expected: bool) {
@@ -57,7 +57,10 @@ fn test_star_metadata() {
     eprintln!("meta.name = {:?}", meta.name);
     eprintln!("meta.runtimes.len() = {}", meta.runtimes.len());
     for rt in &meta.runtimes {
-        eprintln!("  runtime: name={:?} bundled_with={:?}", rt.name, rt.bundled_with);
+        eprintln!(
+            "  runtime: name={:?} bundled_with={:?}",
+            rt.name, rt.bundled_with
+        );
     }
     assert!(meta.name.is_some());
     assert!(!meta.runtimes.is_empty(), "runtimes should not be empty");
