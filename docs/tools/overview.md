@@ -1,6 +1,6 @@
 # Supported Tools Overview
 
-vx supports **105 tools** out of the box, spanning language runtimes, package managers, DevOps tools, build systems, and more. All tools are managed through the same unified interface.
+vx supports **129 tools** out of the box, spanning language runtimes, package managers, DevOps tools, build systems, and more. All tools are managed through the same unified interface.
 
 ## At a Glance
 
@@ -146,22 +146,29 @@ vx install <tool>@<version>
 
 ## Custom Tools
 
-You can add support for any tool through [Manifest-Driven Providers](/guide/manifest-driven-providers):
+You can add support for any tool through [Provider Development Guide](/guide/provider-star-reference):
 
-```toml
-# ~/.vx/providers/mytool/provider.toml
-[provider]
-name = "mytool"
+```starlark
+# ~/.vx/providers/mytool/provider.star
+load("@vx//stdlib:provider.star", "runtime_def", "github_permissions")
+load("@vx//stdlib:provider_templates.star", "github_rust_provider")
+
+name        = "mytool"
 description = "My custom tool"
+ecosystem   = "custom"
 
-[[runtimes]]
-name = "mytool"
-executable = "mytool"
+runtimes    = [runtime_def("mytool")]
+permissions = github_permissions()
 
-[runtimes.version_source]
-type = "github_releases"
-owner = "myorg"
-repo = "mytool"
+_p = github_rust_provider("myorg", "mytool",
+    asset = "mytool-{vversion}-{triple}.{ext}")
+
+fetch_versions   = _p["fetch_versions"]
+download_url     = _p["download_url"]
+install_layout   = _p["install_layout"]
+store_root       = _p["store_root"]
+get_execute_path = _p["get_execute_path"]
+environment      = _p["environment"]
 ```
 
-See [Provider Development](/advanced/plugin-development) for building Rust-based providers.
+See [Provider Star Reference](/guide/provider-star-reference) for the full Starlark DSL documentation.
