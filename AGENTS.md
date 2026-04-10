@@ -521,8 +521,7 @@ crates/vx-<name>/
 
 crates/vx-providers/<name>/
 ├── provider.star     # Provider definition (required, Starlark DSL)
-├── provider.toml     # Provider manifest (metadata)
-└── src/lib.rs        # Rust glue (if needed)
+└── src/lib.rs        # Rust glue (required for built-in providers)
 
 crates/vx-starlark/stdlib/
 ├── provider.star              # Unified facade (re-exports all)
