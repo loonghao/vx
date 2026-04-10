@@ -33,7 +33,9 @@ ecosystem   = "devtools"
 
 runtimes = [
     runtime_def("ctlptl",
-        version_pattern = "\\d+\\.\\d+\\.\\d+",
+        # ctlptl uses `ctlptl version` (not --version)
+        version_cmd     = "{executable} version",
+        version_pattern = "v?\\d+\\.\\d+\\.\\d+",
     ),
 ]
 
