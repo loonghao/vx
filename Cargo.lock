@@ -4608,6 +4608,8 @@ dependencies = [
  "vx-provider-k3d",
  "vx-provider-kind",
  "vx-provider-kubectl",
+ "vx-provider-lefthook",
+ "vx-provider-lima",
  "vx-provider-make",
  "vx-provider-meson",
  "vx-provider-msbuild",
@@ -5614,6 +5616,28 @@ dependencies = [
 
 [[package]]
 name = "vx-provider-lazygit"
+version = "0.8.25"
+dependencies = [
+ "rstest",
+ "starlark",
+ "vx-runtime",
+ "vx-starlark",
+ "workspace-hack",
+]
+
+[[package]]
+name = "vx-provider-lefthook"
+version = "0.8.25"
+dependencies = [
+ "rstest",
+ "starlark",
+ "vx-runtime",
+ "vx-starlark",
+ "workspace-hack",
+]
+
+[[package]]
+name = "vx-provider-lima"
 version = "0.8.25"
 dependencies = [
  "rstest",

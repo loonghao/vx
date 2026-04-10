@@ -80,6 +80,10 @@ members = [
   "crates/vx-providers/duckdb",
   # gRPC tools
   "crates/vx-providers/grpcurl",
+  # VM tools
+  "crates/vx-providers/lima",
+  # Git tools
+  "crates/vx-providers/lefthook",
   # CLI utilities
   "crates/vx-providers/bat",
   "crates/vx-providers/fd",
@@ -322,6 +326,10 @@ vx-provider-nerdctl = { path = "crates/vx-providers/nerdctl" }
 vx-provider-skaffold = { path = "crates/vx-providers/skaffold" }
 # gRPC tools
 vx-provider-grpcurl = { path = "crates/vx-providers/grpcurl" }
+# VM tools
+vx-provider-lima = { path = "crates/vx-providers/lima" }
+# Git tools
+vx-provider-lefthook = { path = "crates/vx-providers/lefthook" }
 # CLI utilities
 vx-provider-bat = { path = "crates/vx-providers/bat" }
 vx-provider-fd = { path = "crates/vx-providers/fd" }
