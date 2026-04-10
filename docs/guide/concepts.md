@@ -71,28 +71,34 @@ vx ships with **48+ built-in providers** covering major ecosystems:
 | **AI** | ollama |
 | **Other** | git, jq, deno, zig, java, gh, curl, pwsh... |
 
-### Manifest-Driven Providers
+### Starlark-Driven Providers
 
-You can define custom providers using TOML manifests without writing Rust code:
+You can define custom providers using `provider.star` (Starlark DSL) without writing Rust code:
 
-```toml
-# ~/.vx/providers/mytool/provider.toml
-[provider]
-name = "mytool"
+```starlark
+# ~/.vx/providers/mytool/provider.star
+load("@vx//stdlib:provider.star", "runtime_def", "github_permissions")
+load("@vx//stdlib:provider_templates.star", "github_rust_provider")
+
+name        = "mytool"
 description = "My custom tool"
+ecosystem   = "custom"
 
-[[runtimes]]
-name = "mytool"
-executable = "mytool"
-description = "My awesome tool"
+runtimes    = [runtime_def("mytool")]
+permissions = github_permissions()
 
-[runtimes.version_source]
-type = "github_releases"
-owner = "myorg"
-repo = "mytool"
+_p = github_rust_provider("myorg", "mytool",
+    asset = "mytool-{vversion}-{triple}.{ext}")
+
+fetch_versions   = _p["fetch_versions"]
+download_url     = _p["download_url"]
+install_layout   = _p["install_layout"]
+store_root       = _p["store_root"]
+get_execute_path = _p["get_execute_path"]
+environment      = _p["environment"]
 ```
 
-See [Manifest-Driven Providers](/guide/manifest-driven-providers) for details.
+See [Provider Development Guide](/guide/provider-star-reference) for details.
 
 ## Runtime
 
