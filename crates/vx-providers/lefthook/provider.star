@@ -94,10 +94,12 @@ def install_layout(ctx, _version):
         return {
             "type":             "binary",
             "executable_name":  "lefthook.exe",
+            "target_dir":       "bin",
         }
     return {
         "type":             "binary",
         "executable_name":  "lefthook",
+        "target_dir":       "bin",
     }
 
 # ---------------------------------------------------------------------------
@@ -109,7 +111,7 @@ def store_root(ctx):
 
 def get_execute_path(ctx, _version):
     exe = "lefthook.exe" if ctx.platform.os == "windows" else "lefthook"
-    return ctx.install_dir + "/" + exe
+    return ctx.install_dir + "/bin/" + exe
 
 def post_install(_ctx, _version):
     return None

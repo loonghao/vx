@@ -37,7 +37,8 @@ ecosystem   = "devtools"
 
 runtimes = [
     runtime_def("cosign",
-        # cosign version outputs e.g. "GitVersion: 2.4.3"
+        # cosign uses `cosign version` (not --version)
+        version_cmd     = "{executable} version",
         version_pattern = "\\d+\\.\\d+\\.\\d+",
     ),
 ]
