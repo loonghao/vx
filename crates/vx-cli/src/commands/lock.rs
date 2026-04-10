@@ -11,7 +11,20 @@ use vx_paths::project::{LOCK_FILE_NAME, find_vx_config};
 use vx_resolver::{
     Ecosystem, LockFile, LockedTool, ResolvedVersion, Version, VersionRequest, VersionSolver,
 };
-use vx_runtime::{ProviderRegistry, RuntimeContext};
+use vx_runtime::{Arch, Os, Platform, ProviderRegistry, RuntimeContext};
+
+/// Common platforms to generate download URLs for in the lock file.
+/// These are the primary supported platforms for most tools.
+fn common_platforms() -> Vec<Platform> {
+    vec![
+        Platform::new(Os::Windows, Arch::X86_64),
+        Platform::new(Os::Windows, Arch::Aarch64),
+        Platform::new(Os::MacOS, Arch::X86_64),
+        Platform::new(Os::MacOS, Arch::Aarch64),
+        Platform::new(Os::Linux, Arch::X86_64),
+        Platform::new(Os::Linux, Arch::Aarch64),
+    ]
+}
 
 /// Handle the lock command
 pub async fn handle(
@@ -400,6 +413,15 @@ async fn resolve_tool_version(
         if let Some(url) = download_url {
             locked = locked.with_download_url(url);
         }
+
+        // Generate platform-specific URLs for cross-platform reproducibility
+        for platform in common_platforms() {
+            let platform_key = platform.as_str();
+            if let Ok(Some(url)) = runtime.download_url(&dl_version, &platform).await {
+                locked = locked.with_platform_url(platform_key, url);
+            }
+        }
+
         return Ok(locked);
     }
 
@@ -478,8 +500,7 @@ async fn resolve_tool_version(
         }
     };
 
-    // Get download URL
-    let current_platform = vx_runtime::Platform::current();
+    // Determine the download version string
     let download_version = if is_passthrough && resolved.original_version.is_some() {
         versions
             .first()
@@ -488,26 +509,30 @@ async fn resolve_tool_version(
     } else {
         resolved.version.to_string()
     };
-    let download_url = if let Ok(Some(url)) = runtime
-        .download_url(&download_version, &current_platform)
-        .await
-    {
-        Some(url)
-    } else {
-        if verbose {
-            eprintln!("    ⚠ Warning: No download URL available for {}", tool_name);
-        }
-        None
-    };
 
     // Create locked tool entry
     let mut locked = LockedTool::new(resolved.version.to_string(), resolved.source.clone())
         .with_resolved_from(version_str)
         .with_ecosystem(ecosystem);
 
-    // Add download URL if available
-    if let Some(url) = download_url {
-        locked = locked.with_download_url(url);
+    // Generate platform-specific download URLs for cross-platform reproducibility.
+    // This allows vx.lock to be used on any platform without re-resolving versions.
+    let mut found_any_url = false;
+    let current_platform = vx_runtime::Platform::current();
+    for platform in common_platforms() {
+        let platform_key = platform.as_str();
+        if let Ok(Some(url)) = runtime.download_url(&download_version, &platform).await {
+            // Also set the current platform URL as the primary download_url
+            if platform == current_platform {
+                locked = locked.with_download_url(url.clone());
+            }
+            locked = locked.with_platform_url(platform_key, url);
+            found_any_url = true;
+        }
+    }
+
+    if !found_any_url && verbose {
+        eprintln!("    ⚠ Warning: No download URL available for {}", tool_name);
     }
 
     // Copy metadata

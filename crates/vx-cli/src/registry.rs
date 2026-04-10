@@ -81,12 +81,26 @@ fn register_builtin_provider_lazy(
     name: &'static str,
     star_content: &'static str,
 ) {
-    let runtime_names = extract_runtime_lookup_names(name, star_content);
+    let runtime_names = builtin_runtime_lookup_names(name);
     registry.register_lazy(
         name.to_string(),
         runtime_names,
         Box::new(move || vx_starlark::create_provider(name, star_content)),
     );
+}
+
+/// Look up pre-computed runtime names for a builtin provider.
+///
+/// Uses the `PROVIDER_RUNTIME_NAMES` table generated at build time,
+/// avoiding a `StarMetadata::parse()` call per provider at startup.
+fn builtin_runtime_lookup_names(provider_name: &str) -> Vec<String> {
+    for (name, names) in PROVIDER_RUNTIME_NAMES {
+        if *name == provider_name {
+            return names.iter().map(|s| s.to_string()).collect();
+        }
+    }
+    // Fallback: parse at runtime (handles dynamic/user providers)
+    vec![provider_name.to_string()]
 }
 
 fn register_dynamic_provider_lazy(registry: &ProviderRegistry, name: String, star_content: String) {
@@ -175,14 +189,35 @@ fn collect_star_files(dir: &std::path::Path, out: &mut Vec<(String, String)>) {
 ///
 /// Should be called once at CLI startup, before any command is dispatched.
 async fn init_provider_handles_inner() {
-    use vx_starlark::handle::global_registry_mut;
+    use vx_starlark::handle::{ProviderHandle, global_registry_mut};
 
-    let mut reg = global_registry_mut().await;
+    // Build all ProviderHandles concurrently before acquiring the write lock.
+    // This moves the Starlark parsing work (CPU-bound) out of the critical section.
+    let mut futures: Vec<tokio::task::JoinHandle<(&str, Result<ProviderHandle, _>)>> = Vec::new();
 
-    // 1. Built-in embedded providers
     for (name, star_content) in ALL_PROVIDER_STARS {
-        match reg.register_builtin(name, star_content).await {
-            Ok(()) => {
+        let name: &'static str = name;
+        let star_content: &'static str = star_content;
+        futures.push(tokio::task::spawn(async move {
+            let result = ProviderHandle::from_content(name, star_content).await;
+            (name, result)
+        }));
+    }
+
+    // Collect all built handles (parallel resolution)
+    let mut built_handles = Vec::with_capacity(ALL_PROVIDER_STARS.len());
+    for fut in futures {
+        if let Ok((name, result)) = fut.await {
+            built_handles.push((name, result));
+        }
+    }
+
+    // Acquire write lock once and batch-insert all handles
+    let mut reg = global_registry_mut().await;
+    for (name, result) in built_handles {
+        match result {
+            Ok(handle) => {
+                reg.insert_handle(handle);
                 trace!(provider = %name, "Registered ProviderHandle");
             }
             Err(e) => {
@@ -195,7 +230,7 @@ async fn init_provider_handles_inner() {
         }
     }
 
-    // 2. User / project-level overrides (vx provider add)
+    // 2. User / project-level overrides (vx provider add) — serial, few entries
     for (name, star_content) in load_star_overrides() {
         match reg.register_dynamic(&name, star_content).await {
             Ok(()) => {
@@ -326,12 +361,13 @@ static RUNTIME_NAMES_CACHE: OnceLock<Vec<String>> = OnceLock::new();
 pub fn available_runtime_names() -> Vec<String> {
     RUNTIME_NAMES_CACHE
         .get_or_init(|| {
-            let mut names = Vec::new();
+            // Use pre-computed table from build.rs — no StarMetadata::parse() needed
+            let mut names: Vec<String> = PROVIDER_RUNTIME_NAMES
+                .iter()
+                .flat_map(|(_, runtime_names)| runtime_names.iter().map(|s| s.to_string()))
+                .collect();
 
-            for (name, star_content) in ALL_PROVIDER_STARS {
-                names.extend(extract_runtime_lookup_names(name, star_content));
-            }
-
+            // Include names from dynamic (user/project) overrides
             for (name, star_content) in load_star_overrides() {
                 names.extend(extract_runtime_lookup_names(&name, &star_content));
             }

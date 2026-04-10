@@ -34,15 +34,18 @@ package_prefixes = ["cargo"]
 # ---------------------------------------------------------------------------
 
 runtimes = [
-    runtime_def("rustup",
+    # Primary runtime: "rust" (executable: rustup). Store dir = "rust" via store_root().
+    # bundled_with must use "rust" (not "rustup") so store_name() matches store_root().
+    runtime_def("rust",
+        executable      = "rustup",
+        aliases         = ["rustup"],
         version_pattern = "rustup",
     ),
-    bundled_runtime_def("rustc",   bundled_with = "rustup",
-        aliases         = ["rust"],
+    bundled_runtime_def("rustc",   bundled_with = "rust",
         version_pattern = "rustc"),
-    bundled_runtime_def("cargo",   bundled_with = "rustup",
+    bundled_runtime_def("cargo",   bundled_with = "rust",
         version_pattern = "cargo"),
-    bundled_runtime_def("rustfmt", bundled_with = "rustup"),
+    bundled_runtime_def("rustfmt", bundled_with = "rust"),
 ]
 
 # ---------------------------------------------------------------------------
@@ -184,13 +187,16 @@ def store_root(ctx):
     return ctx.vx_home + "/store/rust"
 
 def get_execute_path(ctx, _version):
-    runtime = ctx.runtime_name or "rustup"
+    # ctx.runtime_name is the requested runtime (e.g. "cargo", "rustc", "rustfmt", "rust").
+    # The parent runtime is "rust" (executable: rustup); bundled runtimes live in cargo/bin/.
+    runtime = ctx.runtime_name or "rust"
+    exe_suffix = ".exe" if ctx.platform.os == "windows" else ""
 
-    if runtime in ("rustc", "cargo", "rustfmt", "rustup"):
-        exe = runtime + (".exe" if ctx.platform.os == "windows" else "")
+    if runtime in ("rustc", "cargo", "rustfmt"):
+        exe = runtime + exe_suffix
         return ctx.install_dir + "/cargo/bin/" + exe
-    # Fallback to rustup
-    exe = "rustup.exe" if ctx.platform.os == "windows" else "rustup"
+    # "rust" runtime → the rustup installer/manager binary
+    exe = "rustup" + exe_suffix
     return ctx.install_dir + "/cargo/bin/" + exe
 
 def post_install(_ctx, _version):

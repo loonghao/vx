@@ -126,9 +126,11 @@ mod read_tests {
             .load_from_dir(&providers_dir)
             .expect("Failed to load");
 
-        // Test finding common runtimes
-        // Note: rust provider has rustup/rustc/cargo, not "rust"
-        let runtimes_to_find = ["node", "python", "go", "rustup", "bun"];
+        // Test finding common runtimes by their primary name.
+        // Note: the "rust" provider defines runtime_def("rust", aliases=["rustup",...]),
+        // so "rust" is the primary name. When looked up by alias the runtime.name still
+        // returns the primary name, not the alias.
+        let runtimes_to_find = ["node", "python", "go", "rust", "bun"];
         for name in runtimes_to_find {
             let result = loader.find_runtime(name);
             assert!(result.is_some(), "Could not find runtime '{}'", name);

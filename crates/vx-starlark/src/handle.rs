@@ -799,6 +799,14 @@ impl ProviderHandleRegistry {
         Ok(())
     }
 
+    /// Insert a pre-built handle and register all its runtime aliases.
+    ///
+    /// Use this when the `ProviderHandle` has been constructed externally
+    /// (e.g., in a parallel task) to avoid holding the write lock during parsing.
+    pub fn insert_handle(&mut self, handle: ProviderHandle) {
+        self.insert(handle);
+    }
+
     /// Insert a handle and register all its runtime aliases
     fn insert(&mut self, handle: ProviderHandle) {
         let canonical = handle.name().to_string();
