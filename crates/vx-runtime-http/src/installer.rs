@@ -571,6 +571,11 @@ impl Installer for RealInstaller {
             || archive_str.ends_with(".tzst")
             || archive_str.ends_with(".zip")
             || archive_str.ends_with(".7z")
+            // 7z Self-Extracting Archives (.7z.exe, .7z.sfx) must be treated as
+            // archives, not as single executables. PortableGit for Windows
+            // distributes as PortableGit-*.7z.exe which contains cmd/git.exe etc.
+            || archive_str.ends_with(".7z.exe")
+            || archive_str.ends_with(".7z.sfx")
             || archive_str.ends_with(".msi")
             || archive_str.ends_with(".pkg");
 
