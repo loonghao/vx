@@ -43,12 +43,23 @@ fn test_provider_has_homepage() {
 // ── runtimes metadata ─────────────────────────────────────────────────────────
 
 #[test]
-fn test_runtimes_has_rustup() {
+fn test_runtimes_has_rust() {
     make_assert().is_true(
         r#"
 load("provider.star", "runtimes")
 names = [r["name"] for r in runtimes]
-"rustup" in names
+"rust" in names
+"#,
+    );
+}
+
+#[test]
+fn test_rust_runtime_has_rustup_alias() {
+    make_assert().is_true(
+        r#"
+load("provider.star", "runtimes")
+rt = [r for r in runtimes if r["name"] == "rust"][0]
+"rustup" in rt["aliases"]
 "#,
     );
 }
@@ -65,34 +76,23 @@ names = [r["name"] for r in runtimes]
 }
 
 #[test]
-fn test_rustc_is_bundled_with_rustup() {
+fn test_rustc_is_bundled_with_rust() {
     make_assert().is_true(
         r#"
 load("provider.star", "runtimes")
 rt = [r for r in runtimes if r["name"] == "rustc"][0]
-rt["bundled_with"] == "rustup"
+rt["bundled_with"] == "rust"
 "#,
     );
 }
 
 #[test]
-fn test_cargo_is_bundled_with_rustup() {
+fn test_cargo_is_bundled_with_rust() {
     make_assert().is_true(
         r#"
 load("provider.star", "runtimes")
 rt = [r for r in runtimes if r["name"] == "cargo"][0]
-rt["bundled_with"] == "rustup"
-"#,
-    );
-}
-
-#[test]
-fn test_rustc_has_rust_alias() {
-    make_assert().is_true(
-        r#"
-load("provider.star", "runtimes")
-rt = [r for r in runtimes if r["name"] == "rustc"][0]
-"rust" in rt["aliases"]
+rt["bundled_with"] == "rust"
 "#,
     );
 }

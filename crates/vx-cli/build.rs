@@ -126,7 +126,7 @@ fn embed_provider_manifests() {
 fn embed_provider_stars(out_dir: &str, providers_dir: &Path) {
     let dest_path = Path::new(out_dir).join("provider_stars.rs");
 
-    let mut entries: Vec<(String, PathBuf)> = Vec::new();
+    let mut entries: Vec<(String, PathBuf, Vec<String>)> = Vec::new();
 
     if providers_dir.exists()
         && let Ok(dir_entries) = fs::read_dir(providers_dir)
@@ -143,7 +143,32 @@ fn embed_provider_stars(out_dir: &str, providers_dir: &Path) {
                     .and_then(|n| n.to_str())
                     .unwrap_or("unknown")
                     .to_string();
-                entries.push((dir_name, star_path));
+                // Pre-compute runtime lookup names at build time to avoid
+                // repeated StarMetadata::parse() calls at startup.
+                let runtime_names = if let Ok(content) = fs::read_to_string(&star_path) {
+                    let meta = StarMetadata::parse(&content);
+                    let mut names: Vec<String> = meta
+                        .runtimes
+                        .iter()
+                        .flat_map(|rt| {
+                            let mut n = Vec::new();
+                            if let Some(ref name) = rt.name {
+                                n.push(name.clone());
+                            }
+                            n.extend(rt.aliases.clone());
+                            n
+                        })
+                        .collect();
+                    if names.is_empty() {
+                        names.push(dir_name.clone());
+                    }
+                    names.sort();
+                    names.dedup();
+                    names
+                } else {
+                    vec![dir_name.clone()]
+                };
+                entries.push((dir_name, star_path, runtime_names));
             }
         }
     }
@@ -156,7 +181,7 @@ fn embed_provider_stars(out_dir: &str, providers_dir: &Path) {
     code.push_str("// Embedded provider.star contents for ProviderHandle registration\n\n");
 
     // Generate individual constants
-    for (name, star_path) in &entries {
+    for (name, star_path, _) in &entries {
         let const_name = name.to_uppercase().replace('-', "_");
         let path_escaped = star_path.display().to_string().replace('\\', "\\\\");
         code.push_str(&format!(
@@ -170,11 +195,31 @@ fn embed_provider_stars(out_dir: &str, providers_dir: &Path) {
     // Generate the combined array
     code.push_str("/// All embedded provider.star contents: `(provider_name, star_content)`\n");
     code.push_str("pub(crate) static ALL_PROVIDER_STARS: &[(&str, &str)] = &[\n");
-    for (name, _) in &entries {
+    for (name, _, _) in &entries {
         let const_name = name.to_uppercase().replace('-', "_");
         code.push_str(&format!(
             "    (\"{}\", PROVIDER_STAR_{}),\n",
             name, const_name
+        ));
+    }
+    code.push_str("];\n\n");
+
+    // Generate pre-computed runtime names lookup table.
+    // This avoids calling StarMetadata::parse() at startup for each provider
+    // in extract_runtime_lookup_names(), saving ~114x string parsing operations.
+    code.push_str("/// Pre-computed runtime name → provider name lookup table.\n");
+    code.push_str("/// Generated at build time from provider.star metadata.\n");
+    code.push_str("/// Format: `(runtime_or_alias_name, provider_name)`\n");
+    code.push_str("pub(crate) static PROVIDER_RUNTIME_NAMES: &[(&str, &[&str])] = &[\n");
+    for (name, _, runtime_names) in &entries {
+        if runtime_names.is_empty() {
+            continue;
+        }
+        let names_lit: Vec<String> = runtime_names.iter().map(|n| format!("\"{}\"", n)).collect();
+        code.push_str(&format!(
+            "    (\"{}\", &[{}]),\n",
+            name,
+            names_lit.join(", ")
         ));
     }
     code.push_str("];\n");
