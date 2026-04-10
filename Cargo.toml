@@ -176,6 +176,8 @@ members = [
   # Python ecosystem tools
   "crates/vx-providers/pre-commit",
   "crates/vx-providers/spack",
+  "crates/vx-providers/maturin",
+  "crates/vx-providers/ruff",
   # Generic command bridge framework
   "crates/vx-bridge",
   # Workspace-hack crate (managed by cargo-hakari, reduces duplicate dependency compilations)
@@ -389,6 +391,8 @@ vx-provider-vite = { path = "crates/vx-providers/vite" }
 # Python ecosystem tools
 vx-provider-pre-commit = { path = "crates/vx-providers/pre-commit" }
 vx-provider-spack = { path = "crates/vx-providers/spack" }
+vx-provider-maturin = { path = "crates/vx-providers/maturin" }
+vx-provider-ruff = { path = "crates/vx-providers/ruff" }
 # Version control
 vx-provider-git = { path = "crates/vx-providers/git" }
 # Go ecosystem

@@ -5563,6 +5563,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "vx-provider-maturin"
+version = "0.8.23"
+dependencies = [
+ "rstest",
+ "starlark",
+ "vx-runtime",
+ "vx-starlark",
+ "workspace-hack",
+]
+
+[[package]]
 name = "vx-provider-meson"
 version = "0.8.23"
 dependencies = [
@@ -5795,6 +5806,17 @@ dependencies = [
 
 [[package]]
 name = "vx-provider-ripgrep"
+version = "0.8.23"
+dependencies = [
+ "rstest",
+ "starlark",
+ "vx-runtime",
+ "vx-starlark",
+ "workspace-hack",
+]
+
+[[package]]
+name = "vx-provider-ruff"
 version = "0.8.23"
 dependencies = [
  "rstest",
