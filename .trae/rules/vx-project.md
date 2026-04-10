@@ -2,7 +2,7 @@
 
 ## Project Context
 
-vx is a **universal development tool manager** (v0.8.20, Rust, MIT, 105 providers).
+vx is a **universal development tool manager** (v0.8.25, Rust, MIT, 122 providers).
 Users prefix commands with `vx` (e.g., `vx node --version`) and tools auto-install on first use.
 Providers are defined via Starlark DSL (`provider.star`) — no Rust code needed.
 
@@ -25,7 +25,7 @@ Providers are defined via Starlark DSL (`provider.star`) — no Rust code needed
 2. **Orchestration**: `vx-resolver`, `vx-setup`, `vx-project-analyzer`
 3. **Service**: `vx-runtime`, `vx-starlark`, `vx-installer`, `vx-config`, `vx-console`
 4. **Foundation**: `vx-core`, `vx-paths`, `vx-cache`, `vx-versions`, `vx-manifest`
-5. **Providers**: `vx-providers/*` — 105 Starlark DSL definitions
+5. **Providers**: `vx-providers/*` — 122 Starlark DSL definitions
 
 ## New Provider (copy-paste template)
 
