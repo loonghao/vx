@@ -43,6 +43,7 @@ flate2 = { workspace = true }
 xz2 = { workspace = true }
 zstd = { workspace = true }
 zip = { workspace = true }
+bzip2 = "0.5"
 sevenz-rust = { version = "0.6", optional = true }
 
 # Internal dependencies

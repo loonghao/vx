@@ -334,6 +334,8 @@ impl Installer for RealInstaller {
             Some("tar.gz")
         } else if archive_str.ends_with(".tar.xz") {
             Some("tar.xz")
+        } else if archive_str.ends_with(".tar.bz2") || archive_str.ends_with(".tbz2") {
+            Some("tar.bz2")
         } else if archive_str.ends_with(".tar.zst") || archive_str.ends_with(".tzst") {
             Some("tar.zst")
         } else if archive_str.ends_with(".zip") {
@@ -430,6 +432,13 @@ impl Installer for RealInstaller {
                 use xz2::read::XzDecoder;
                 let file = std::fs::File::open(archive)?;
                 let decoder = XzDecoder::new(file);
+                let mut archive = tar::Archive::new(decoder);
+                archive.unpack(dest)?;
+            }
+            Some("tar.bz2") => {
+                use bzip2::read::BzDecoder;
+                let file = std::fs::File::open(archive)?;
+                let decoder = BzDecoder::new(file);
                 let mut archive = tar::Archive::new(decoder);
                 archive.unpack(dest)?;
             }
@@ -567,6 +576,8 @@ impl Installer for RealInstaller {
         let mut is_archive = archive_str.ends_with(".tar.gz")
             || archive_str.ends_with(".tgz")
             || archive_str.ends_with(".tar.xz")
+            || archive_str.ends_with(".tar.bz2")
+            || archive_str.ends_with(".tbz2")
             || archive_str.ends_with(".tar.zst")
             || archive_str.ends_with(".tzst")
             || archive_str.ends_with(".zip")
