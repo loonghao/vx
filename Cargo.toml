@@ -181,8 +181,12 @@ members = [
   # Go development tools
   "crates/vx-providers/goreleaser",
   "crates/vx-providers/golangci-lint",
+  # Protobuf tools
+  "crates/vx-providers/buf",
   # Security/supply-chain tools
   "crates/vx-providers/cosign",
+  "crates/vx-providers/syft",
+  "crates/vx-providers/grype",
   # Generic command bridge framework
   "crates/vx-bridge",
   # Workspace-hack crate (managed by cargo-hakari, reduces duplicate dependency compilations)
@@ -401,8 +405,12 @@ vx-provider-ruff = { path = "crates/vx-providers/ruff" }
 # Go development tools
 vx-provider-goreleaser = { path = "crates/vx-providers/goreleaser" }
 vx-provider-golangci-lint = { path = "crates/vx-providers/golangci-lint" }
+# Protobuf tools
+vx-provider-buf = { path = "crates/vx-providers/buf" }
 # Security/supply-chain tools
 vx-provider-cosign = { path = "crates/vx-providers/cosign" }
+vx-provider-syft = { path = "crates/vx-providers/syft" }
+vx-provider-grype = { path = "crates/vx-providers/grype" }
 # Version control
 vx-provider-git = { path = "crates/vx-providers/git" }
 # Go ecosystem
