@@ -4,7 +4,66 @@
 
 ---
 
-### Run 7 — 2026-04-10 (Friday 10:55)
+### Run 8 — 2026-04-10 (Friday 14:07)
+
+**Branch**: `auto-improve` (synced with origin/main v0.8.25)  
+**Baseline**: `cargo clippy` ✅ (0 warnings), `cargo test --workspace` ✅
+
+**Key challenge**: origin/main had new commit `0effcb8c` (v0.8.25) which caused merge conflicts in multiple doc files and Cargo.toml/Cargo.lock when merging into auto-improve.
+
+**Issues found and fixed**:
+
+1. **Merge conflicts (7 files)** — After `git merge origin/main`, multiple files had unresolved `<<<<<<<` markers:
+   - `Cargo.toml:245` — version 0.8.24 vs 0.8.25 → selected 0.8.25
+   - `docs/architecture/OVERVIEW.md` (2 blocks) — provider count 122 vs 114 → kept 122
+   - `AGENTS.md` — provider count 122 vs 114 → kept 122
+   - `CLAUDE.md` — provider count 122 vs 114 → kept 122
+   - `skills/vx-usage/SKILL.md` (2 blocks) — provider count 122 vs 114 → kept 122
+   - `CHANGELOG.md` — missing v0.8.25 entry → merged in new entry
+   - `llms-full.txt` — provider count 122 vs 114 → kept 122
+   - `Cargo.lock` (9 conflicts) → used `git checkout origin/main -- Cargo.lock` then `cargo generate-lockfile`
+
+2. **git provider missing install_layout/get_execute_path tests** — `f208ef53` introduced new `install_layout()` and `get_execute_path()` functions for PortableGit Windows, but starlark_logic_tests.rs had no coverage. Added 5 new tests (Windows archive paths, Linux bin/git path, execute path assertions). Tests: 17 → 22.
+
+3. **Debug eprintln! in rust provider tests** — `test_star_metadata` in `runtime_tests.rs` (from `f208ef53`) had 5 `eprintln!` debug lines. Removed them.
+
+4. **Version number stale in IDE rules** — Multiple agent IDE config files showed v0.8.20/v0.8.24 and 105 providers:
+   - `.github/copilot-instructions.md` → v0.8.25, 122
+   - `.kiro/steering/vx-project.md` → v0.8.25, 122 (two occurrences)
+   - `.trae/rules/vx-project.md` → v0.8.25, 122 (two occurrences)
+   - `skills/README.md` → v0.8.25
+   - `AGENTS.md` header → v0.8.25
+   - `CLAUDE.md` → v0.8.25
+
+5. **llms.txt and llms-full.txt** — Both had "105 tools" in descriptions and feature lists. Updated to 122.
+
+**Commits**:
+- `4d9adeee` chore: merge origin/main (v0.8.25) into auto-improve
+- `668f6b0c` chore: resolve merge conflicts from origin/main (v0.8.25)
+- `c38f4bf8` chore(deps): regenerate Cargo.lock after merging origin/main v0.8.25
+- `95302331` fix(tests): add install_layout and get_execute_path tests for git provider (PortableGit Windows layout)
+- `cf054b29` docs(cleanup): update version v0.8.20/v0.8.24 to v0.8.25 and provider count 105 to 122 in IDE rules
+- `7b66c11c` docs(cleanup): update llms.txt and llms-full.txt provider count from 105 to 122
+- `e06d044e` chore(cleanup): remove debug eprintln! from rust provider test_star_metadata
+- Pushed to `origin/auto-improve` ✅
+
+**Quality gate results**:
+- `cargo clippy --workspace -- -D warnings`: ✅ PASS (0 warnings)
+- `cargo test --workspace`: ✅ PASS (all tests pass)
+- Provider count: 122 (actual) = 122 (docs) ✅
+
+**Notes for future runs**:
+- **Always `git branch` first** — The automation can start on the wrong branch; always verify we're on `auto-improve`
+- **Merge conflicts from upstream** — When origin/main diverges, expect conflicts in doc files (provider count) and Cargo.lock. Use `git checkout origin/main -- Cargo.lock` + `cargo generate-lockfile` to fix Cargo.lock conflicts cleanly.
+- **Cargo.lock regeneration is slow** — Takes ~30s and requires internet; plan accordingly
+- GitHub Dependabot still reports 4 vulnerabilities (2 high, 2 moderate) on default branch — needs separate PR
+- `cargo fmt` still fails on Windows due to OS error 206 (path too long) — environment issue
+- Large files (>500 lines) still present: `cli.rs` 2054L, `self_update.rs` 1498L — splitting deferred
+- git provider tests now comprehensively cover PortableGit Windows `install_layout` and `get_execute_path`
+
+---
+
+
 
 **Branch**: `auto-improve` (based on Run 6 commit `3d419c88`)  
 **Baseline**: `cargo clippy` ✅ (0 warnings), `cargo test --workspace` ✅
