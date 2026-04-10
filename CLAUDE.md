@@ -46,7 +46,7 @@ CLI:           vx-cli (entry point, command parsing)
 Orchestration: vx-resolver, vx-setup, vx-project-analyzer
 Service:       vx-runtime, vx-starlark, vx-installer, vx-config, vx-console
 Foundation:    vx-core, vx-paths, vx-cache, vx-versions, vx-manifest
-Providers:     vx-providers/* (105 Starlark DSL definitions)
+Providers:     vx-providers/* (119 Starlark DSL definitions)
 ```
 
 ## Key Paths

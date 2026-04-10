@@ -106,7 +106,7 @@ User Command: vx npm install
 7. **Check `vx.toml`** first to understand project tool requirements
 8. **New providers use Starlark DSL only** — No Rust code required for new tool definitions
 9. **Layer dependencies go downward only** — Never import from a higher architectural layer
-10. **Provider count is 105** — Update any docs that reference old counts (78, 73, 70+, 50+, etc.)
+10. **Provider count is 119** — Update any docs that reference old counts (78, 73, 70+, 50+, etc.)
 
 ### Setup Commands
 
