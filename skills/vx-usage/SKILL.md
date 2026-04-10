@@ -206,9 +206,9 @@ vx msvc@14.40 cl main.cpp
 | **Go** | go, gofmt, gws, goreleaser, golangci-lint |
 | **System/CLI** | git, bash, curl, pwsh, jq, yq, fd, bat, ripgrep, fzf, starship, jj, sd, eza, dust, duf, xh, atuin, zoxide, tealdeer, gping, delta, hyperfine, watchexec, bottom |
 | **TUI/Terminal** | helix, yazi, zellij, lazygit, lazydocker, k9s |
-| **Build Tools** | just, task, cmake, ninja, make, meson, xmake, protoc, conan, vcpkg, spack |
+| **Build Tools** | just, task, cmake, ninja, make, meson, xmake, protoc, buf, conan, vcpkg, spack |
 | **DevOps** | kubectl, helm, flux, kind, k3d, nerdctl, skaffold, podman, terraform, hadolint, dagu, actionlint |
-| **Security** | gitleaks, trivy, cosign |
+| **Security** | gitleaks, trivy, cosign, grype, syft |
 | **Cloud CLI** | awscli, azcli, gcloud |
 | **.NET** | dotnet, msbuild, nuget |
 | **C/C++** | msvc, llvm, nasm, ccache, buildcache, sccache, rcedit |
