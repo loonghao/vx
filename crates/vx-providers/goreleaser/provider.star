@@ -34,7 +34,11 @@ ecosystem   = "devtools"
 
 runtimes = [
     runtime_def("goreleaser",
-        version_pattern = "goreleaser version \\d+",
+        # goreleaser --version outputs:
+        #   GitVersion:    2.15.2
+        #   GitCommit:     ...
+        # So we match the version number after "GitVersion:"
+        version_pattern = "\\d+\.\\d+\.\\d+",
     ),
 ]
 

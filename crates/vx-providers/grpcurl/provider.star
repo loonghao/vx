@@ -3,19 +3,23 @@
 # grpcurl is a command-line tool that lets you interact with gRPC servers.
 # It is basically curl for gRPC servers.
 #
-# Release assets (GitHub releases, goreleaser with custom naming):
+# Release assets (GitHub releases, goreleaser format):
 #   grpcurl_{version}_{os}_{arch}.tar.gz  (Linux/macOS)
 #   grpcurl_{version}_{os}_{arch}.zip     (Windows)
 #
-# OS:   linux, osx, windows  (NOTE: macOS uses "osx", not "darwin")
-# Arch: x86_64, arm64        (NOTE: x64 uses "x86_64", not "amd64")
+# NOTE: grpcurl uses x86_64 (not amd64) for the arch in asset names.
+#       macOS assets use "osx" (not "darwin") in the asset name.
+#
+# OS:   linux, osx, windows
+# Arch: x86_64, arm64  (NOT amd64 for x86_64)
 #
 # Version source: fullstorydev/grpcurl releases on GitHub (tag prefix "v")
 
 load("@vx//stdlib:provider.star",
-     "runtime_def", "github_permissions", "path_fns")
-load("@vx//stdlib:github.star", "make_fetch_versions")
-load("@vx//stdlib:env.star", "env_prepend")
+     "runtime_def", "github_permissions", "path_fns",
+     "brew_install", "cross_platform_install")
+load("@vx//stdlib:github.star", "make_fetch_versions", "github_asset_url")
+load("@vx//stdlib:env.star",    "env_prepend")
 
 # ---------------------------------------------------------------------------
 # Provider metadata
@@ -35,6 +39,10 @@ runtimes = [
     runtime_def("grpcurl",
         version_cmd     = "{executable} version",
         version_pattern = "grpcurl v\\d+\\.\\d+\\.\\d+",
+        test_commands = [
+            {"command": "{executable} version", "name": "version_check",
+             "expected_output": "grpcurl v\\d+"},
+        ],
     ),
 ]
 
@@ -45,22 +53,23 @@ runtimes = [
 permissions = github_permissions()
 
 # ---------------------------------------------------------------------------
-# fetch_versions - from fullstorydev/grpcurl releases
+# fetch_versions
 # ---------------------------------------------------------------------------
 
 fetch_versions = make_fetch_versions("fullstorydev", "grpcurl")
 
 # ---------------------------------------------------------------------------
 # Platform helpers
-# grpcurl uses non-standard naming: "osx" (not "darwin"), "x86_64" (not "amd64")
+#
+# grpcurl uses x86_64 (not amd64) for arch names — goreleaser default.
 # ---------------------------------------------------------------------------
 
 _PLATFORMS = {
-    "windows/x64":   ("windows", "x86_64"),
-    "macos/x64":     ("osx",    "x86_64"),
-    "macos/arm64":   ("osx",    "arm64"),
-    "linux/x64":     ("linux",  "x86_64"),
-    "linux/arm64":   ("linux",  "arm64"),
+    "linux/x64":    ("linux",   "x86_64", "tar.gz"),
+    "linux/arm64":  ("linux",   "arm64",  "tar.gz"),
+    "macos/x64":    ("osx",     "x86_64", "tar.gz"),
+    "macos/arm64":  ("osx",     "arm64",  "tar.gz"),
+    "windows/x64":  ("windows", "x86_64", "zip"),
 }
 
 def _grpcurl_platform(ctx):
@@ -68,26 +77,39 @@ def _grpcurl_platform(ctx):
     return _PLATFORMS.get(key)
 
 # ---------------------------------------------------------------------------
-# download_url - GitHub releases
+# download_url
+#
+# macOS binaries exist in the GitHub releases (named with "osx"), but we
+# prefer Homebrew on macOS for better integration. Returning None here causes
+# vx to fall back to system_install (brew).
 # ---------------------------------------------------------------------------
 
 def download_url(ctx, version):
     platform = _grpcurl_platform(ctx)
     if not platform:
         return None
-    os_str, arch_str = platform
-    ext = "zip" if ctx.platform.os == "windows" else "tar.gz"
-    return "https://github.com/fullstorydev/grpcurl/releases/download/v{}/grpcurl_{}_{}_{}.{}".format(
-        version, version, os_str, arch_str, ext)
+    os_name, arch_name, ext = platform[0], platform[1], platform[2]
+    asset = "grpcurl_{}_{}_{}.{}".format(version, os_name, arch_name, ext)
+    return github_asset_url("fullstorydev", "grpcurl", "v" + version, asset)
 
 # ---------------------------------------------------------------------------
-# install_layout - archive containing grpcurl binary
+# system_install - Homebrew on macOS (fallback when download_url fails)
+# ---------------------------------------------------------------------------
+
+def system_install(_ctx, _version):
+    return cross_platform_install(
+        macos = brew_install("grpcurl"),
+    )
+
+# ---------------------------------------------------------------------------
+# install_layout
 # ---------------------------------------------------------------------------
 
 def install_layout(ctx, _version):
     exe = "grpcurl.exe" if ctx.platform.os == "windows" else "grpcurl"
     return {
-        "__type":           "archive",
+        "type":             "archive",
+        "strip_prefix":     "",
         "executable_paths": [exe],
     }
 
@@ -97,13 +119,16 @@ def install_layout(ctx, _version):
 
 paths            = path_fns("grpcurl")
 store_root       = paths["store_root"]
-get_execute_path = paths["get_execute_path"]
 
-def environment(ctx, _version):
-    return [env_prepend("PATH", ctx.install_dir)]
+def get_execute_path(ctx, _version):
+    exe = "grpcurl.exe" if ctx.platform.os == "windows" else "grpcurl"
+    return ctx.install_dir + "/" + exe
 
 def post_install(_ctx, _version):
     return None
+
+def environment(ctx, _version):
+    return [env_prepend("PATH", ctx.install_dir)]
 
 def deps(_ctx, _version):
     return []

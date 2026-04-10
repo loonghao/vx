@@ -11,10 +11,13 @@
 #   cosign-darwin-arm64
 #   cosign-windows-amd64.exe
 #
+# The downloaded binary keeps its platform-suffixed name (e.g. cosign-linux-amd64).
+# install_layout uses source_name/target_name to rename it to plain "cosign".
+#
 # Tag format: v{version}
 
 load("@vx//stdlib:provider.star",
-     "runtime_def", "github_permissions")
+     "runtime_def", "github_permissions", "path_fns")
 load("@vx//stdlib:github.star", "make_fetch_versions", "github_asset_url")
 load("@vx//stdlib:env.star",    "env_prepend")
 
@@ -34,7 +37,8 @@ ecosystem   = "devtools"
 
 runtimes = [
     runtime_def("cosign",
-        version_pattern = "cosign version \\d+",
+        # cosign version outputs e.g. "GitVersion: 2.4.3"
+        version_pattern = "\\d+\\.\\d+\\.\\d+",
     ),
 ]
 
@@ -54,8 +58,7 @@ fetch_versions = make_fetch_versions("sigstore", "cosign")
 # Platform helpers
 #
 # cosign uses lowercase os/arch with amd64 (standard Go GOOS/GOARCH naming).
-# Single binary, no archive.
-# Windows binary has .exe suffix; others have no extension.
+# Single binary, no archive. Windows binary has .exe suffix.
 # ---------------------------------------------------------------------------
 
 _ARCH_MAP = {
@@ -93,35 +96,39 @@ def download_url(ctx, version):
 
 # ---------------------------------------------------------------------------
 # install_layout
+#
+# cosign distributes as a single binary named "cosign-{os}-{arch}[.exe]".
+# Use source_name/target_name to rename it to plain "cosign[.exe]" in bin/.
 # ---------------------------------------------------------------------------
 
 def install_layout(ctx, _version):
-    if ctx.platform.os == "windows":
-        return {
-            "type":             "binary",
-            "executable_name":  "cosign.exe",
-        }
+    platform = _cosign_platform(ctx)
+    if not platform:
+        return {"type": "binary", "executable_name": "cosign"}
+    os_name, arch_name = platform[0], platform[1]
+    ext = ".exe" if ctx.platform.os == "windows" else ""
+    source_name = "cosign-{}-{}{}".format(os_name, arch_name, ext)
+    target_name = "cosign" + ext
     return {
-        "type":             "binary",
-        "executable_name":  "cosign",
+        "type":        "binary",
+        "source_name": source_name,
+        "target_name": target_name,
+        "target_dir":  "bin",
     }
 
 # ---------------------------------------------------------------------------
 # Path queries + environment
 # ---------------------------------------------------------------------------
 
-def store_root(ctx):
-    return ctx.vx_home + "/store/cosign"
-
-def get_execute_path(ctx, _version):
-    exe = "cosign.exe" if ctx.platform.os == "windows" else "cosign"
-    return ctx.install_dir + "/" + exe
+paths      = path_fns("cosign", executable = "bin/cosign")
+store_root       = paths["store_root"]
+get_execute_path = paths["get_execute_path"]
 
 def post_install(_ctx, _version):
     return None
 
 def environment(ctx, _version):
-    return [env_prepend("PATH", ctx.install_dir)]
+    return [env_prepend("PATH", ctx.install_dir + "/bin")]
 
 def deps(_ctx, _version):
     return []
