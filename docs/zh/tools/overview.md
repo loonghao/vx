@@ -146,22 +146,30 @@ vx install <tool>@<version>
 
 ## 自定义工具
 
-你可以通过[声明式 Provider](/zh/guide/manifest-driven-providers) 添加任何工具的支持：
+你可以通过 [Provider 开发指南](/zh/guide/provider-star-reference) 添加任何工具的支持：
 
-```toml
-# ~/.vx/providers/mytool/provider.toml
-[provider]
-name = "mytool"
+```starlark
+# ~/.vx/providers/mytool/provider.star
+load("@vx//stdlib:provider.star", "runtime_def", "github_permissions")
+load("@vx//stdlib:provider_templates.star", "github_rust_provider")
+
+name        = "mytool"
 description = "我的自定义工具"
+ecosystem   = "custom"
 
-[[runtimes]]
-name = "mytool"
-executable = "mytool"
+runtimes    = [runtime_def("mytool")]
+permissions = github_permissions()
 
-[runtimes.version_source]
-type = "github_releases"
-owner = "myorg"
-repo = "mytool"
+_p = github_rust_provider("myorg", "mytool",
+    asset = "mytool-{vversion}-{triple}.{ext}")
+
+fetch_versions   = _p["fetch_versions"]
+download_url     = _p["download_url"]
+install_layout   = _p["install_layout"]
+store_root       = _p["store_root"]
+get_execute_path = _p["get_execute_path"]
+environment      = _p["environment"]
 ```
 
-参见 [Provider 开发](/zh/advanced/plugin-development) 了解如何构建基于 Rust 的 Provider。
+参见 [Provider Star 参考文档](/zh/guide/provider-star-reference) 了解完整的 Starlark DSL 文档。
+

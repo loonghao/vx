@@ -42,7 +42,7 @@
 | `vx-paths` | Cross-platform path management (`~/.vx/` structure) |
 | `vx-cache` | Caching layer (HTTP responses, version lists) |
 | `vx-versions` | Semver parsing and comparison |
-| `vx-manifest` | Provider manifest parsing (provider.toml) |
+| `vx-manifest` | Provider manifest parsing (provider.star metadata) |
 | `vx-args` | Argument parsing utilities |
 
 ### Layer 1: Infrastructure (depends on Layer 0)
