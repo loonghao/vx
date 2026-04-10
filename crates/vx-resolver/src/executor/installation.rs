@@ -132,7 +132,12 @@ impl<'a> InstallationManager<'a> {
                     runtime: runtime_name.to_string(),
                 })?;
 
-            // Try installing with version fallback
+            // Try installing with version fallback.
+            // Only fall back to older versions for transient errors (network, 404, etc.).
+            // Local errors like PostInstallVerificationFailed mean the archive was
+            // downloaded and extracted successfully but the expected executable path is
+            // wrong — trying an older version would just waste bandwidth on the same
+            // structural mismatch.
             let mut last_error = None;
             let max_attempts = (MAX_FALLBACK_ATTEMPTS + 1).min(stable_versions.len().max(1));
 
@@ -142,7 +147,7 @@ impl<'a> InstallationManager<'a> {
                 } else if attempt < stable_versions.len() {
                     let fallback = stable_versions[attempt].clone();
                     warn!(
-                        "Installation of {} {} failed, falling back to {} (attempt {}/{})",
+                        "Installation of {} {} failed, trying older version {} (attempt {}/{})",
                         runtime_name,
                         stable_versions.get(attempt - 1).unwrap_or(&first_version),
                         fallback,
@@ -171,6 +176,21 @@ impl<'a> InstallationManager<'a> {
                 {
                     Ok(result) => return Ok(Some(result)),
                     Err(e) => {
+                        // PostInstallVerificationFailed means the archive was extracted
+                        // but the executable path is wrong — this is a provider config
+                        // issue, not a transient download error. Stop fallback immediately
+                        // so we don't download N more versions with the same outcome.
+                        if matches!(
+                            e.downcast_ref::<EnsureError>(),
+                            Some(EnsureError::PostInstallVerificationFailed { .. })
+                        ) {
+                            warn!(
+                                "Installation of {} {} completed but executable not found — \
+                                 skipping version fallback (this is a provider layout issue, not a network error)",
+                                runtime_name, version
+                            );
+                            return Err(e);
+                        }
                         debug!("Installation of {} {} failed: {}", runtime_name, version, e);
                         last_error = Some(e);
                     }
@@ -296,8 +316,23 @@ impl<'a> InstallationManager<'a> {
             {
                 Ok(result) => return Ok(Some(result)),
                 Err(first_error) => {
+                    // PostInstallVerificationFailed is a provider layout issue — the
+                    // archive extracted fine but the executable path is wrong. Trying
+                    // older versions will hit the same issue and waste bandwidth.
+                    if matches!(
+                        first_error.downcast_ref::<EnsureError>(),
+                        Some(EnsureError::PostInstallVerificationFailed { .. })
+                    ) {
+                        warn!(
+                            "Installation of {} {} completed but executable not found — \
+                             skipping version fallback (provider layout issue)",
+                            runtime_name, version
+                        );
+                        return Err(first_error);
+                    }
+
                     warn!(
-                        "Installation of {} {} failed: {}, trying fallback versions",
+                        "Installation of {} {} failed: {}, trying older versions",
                         runtime_name, version, first_error
                     );
 
@@ -315,7 +350,7 @@ impl<'a> InstallationManager<'a> {
                             .enumerate()
                         {
                             warn!(
-                                "Falling back to {} {} (attempt {}/{})",
+                                "Trying older version {} {} (attempt {}/{})",
                                 runtime_name,
                                 fallback_version,
                                 i + 1,
@@ -328,6 +363,17 @@ impl<'a> InstallationManager<'a> {
                             {
                                 Ok(result) => return Ok(Some(result)),
                                 Err(e) => {
+                                    if matches!(
+                                        e.downcast_ref::<EnsureError>(),
+                                        Some(EnsureError::PostInstallVerificationFailed { .. })
+                                    ) {
+                                        warn!(
+                                            "Fallback {} {} also has executable path mismatch — \
+                                             stopping further fallback attempts",
+                                            runtime_name, fallback_version
+                                        );
+                                        return Err(e);
+                                    }
                                     debug!(
                                         "Fallback {} {} also failed: {}",
                                         runtime_name, fallback_version, e
@@ -517,8 +563,23 @@ impl<'a> InstallationManager<'a> {
                 Ok(Some(result))
             }
             Err(first_error) => {
+                // PostInstallVerificationFailed means the archive was extracted but the
+                // executable path is wrong — a provider layout issue that will affect
+                // all versions equally. Don't waste bandwidth downloading older versions.
+                if matches!(
+                    first_error.downcast_ref::<EnsureError>(),
+                    Some(EnsureError::PostInstallVerificationFailed { .. })
+                ) {
+                    warn!(
+                        "Installation of {} {} completed but executable not found — \
+                         skipping version fallback (this is a provider layout issue, not a network error)",
+                        runtime_name, resolved_version
+                    );
+                    return Err(first_error);
+                }
+
                 warn!(
-                    "Installation of {} {} failed: {}, trying fallback versions",
+                    "Installation of {} {} failed: {}, trying older versions",
                     runtime_name, resolved_version, first_error
                 );
 
@@ -536,7 +597,7 @@ impl<'a> InstallationManager<'a> {
                         .enumerate()
                     {
                         warn!(
-                            "Falling back to {} {} (attempt {}/{})",
+                            "Trying older version {} {} (attempt {}/{})",
                             runtime_name,
                             fallback_version,
                             i + 1,
@@ -564,6 +625,18 @@ impl<'a> InstallationManager<'a> {
                                 return Ok(Some(result));
                             }
                             Err(e) => {
+                                // Also stop fallback on verification failures
+                                if matches!(
+                                    e.downcast_ref::<EnsureError>(),
+                                    Some(EnsureError::PostInstallVerificationFailed { .. })
+                                ) {
+                                    warn!(
+                                        "Fallback {} {} also has executable path mismatch — \
+                                         stopping further fallback attempts",
+                                        runtime_name, fallback_version
+                                    );
+                                    return Err(e);
+                                }
                                 debug!(
                                     "Fallback {} {} also failed: {}",
                                     runtime_name, fallback_version, e
