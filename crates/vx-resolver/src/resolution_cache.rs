@@ -16,7 +16,11 @@ use vx_paths::{LOCK_FILE_NAMES, VxPaths, find_config_file_upward, find_project_r
 use vx_runtime::CacheMode;
 
 /// Current schema version for resolution cache entries.
-pub const RESOLUTION_CACHE_SCHEMA_VERSION: u32 = 2;
+///
+/// Bump this whenever the cache key format changes to invalidate stale entries.
+/// v3: switched config/lock digest from SHA-256 content hash to mtime+size fingerprint
+///     for faster startup (avoids reading entire vx.toml/vx.lock on every invocation).
+pub const RESOLUTION_CACHE_SCHEMA_VERSION: u32 = 3;
 
 /// Default cache subdirectory under `~/.vx/cache/`.
 pub const RESOLUTION_CACHE_DIR_NAME: &str = "resolutions";
@@ -55,13 +59,17 @@ impl ResolutionCacheKey {
         let args_digest = sha256_hex(&args.join("\0"));
 
         let config_path = find_config_file_upward(&cwd);
-        let config_digest = config_path.as_deref().and_then(|p| file_sha256_hex(p).ok());
+        // Use mtime+size fingerprint instead of full SHA256 to avoid reading
+        // the entire file on every startup — mtime is sufficient for detecting changes.
+        let config_digest = config_path
+            .as_deref()
+            .and_then(|p| file_mtime_fingerprint(p).ok());
 
         let project_root = find_project_root(&cwd);
         let lock_digest = project_root
             .as_deref()
             .and_then(find_lock_file)
-            .and_then(|p| file_sha256_hex(&p).ok());
+            .and_then(|p| file_mtime_fingerprint(&p).ok());
 
         Self {
             schema_version: RESOLUTION_CACHE_SCHEMA_VERSION,
@@ -317,9 +325,16 @@ fn sha256_hex_bytes(bytes: &[u8]) -> String {
     hex_encode(&out)
 }
 
-fn file_sha256_hex(path: &Path) -> std::io::Result<String> {
-    let bytes = std::fs::read(path)?;
-    Ok(sha256_hex_bytes(&bytes))
+fn file_mtime_fingerprint(path: &Path) -> std::io::Result<String> {
+    let meta = std::fs::metadata(path)?;
+    let mtime = meta
+        .modified()
+        .ok()
+        .and_then(|t| t.duration_since(SystemTime::UNIX_EPOCH).ok())
+        .map(|d| d.as_nanos())
+        .unwrap_or(0);
+    let size = meta.len();
+    Ok(format!("{}-{}", mtime, size))
 }
 
 fn hex_encode(bytes: &[u8]) -> String {
