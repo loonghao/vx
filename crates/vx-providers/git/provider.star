@@ -9,7 +9,7 @@
 load("@vx//stdlib:provider.star",
      "runtime_def",
      "github_permissions",
-     "archive_layout", "path_fns",
+     "path_fns",
      "system_install_strategies", "pkg_strategy")
 load("@vx//stdlib:github.star", "make_fetch_versions", "github_asset_url")
 load("@vx//stdlib:env.star",    "env_prepend")
@@ -105,7 +105,27 @@ def download_url(ctx, version):
 # install_layout
 # ---------------------------------------------------------------------------
 
-install_layout = archive_layout("git")
+# PortableGit is a self-extracting 7z archive. The extracted layout is:
+#   <install_dir>/
+#     cmd/git.exe          ← cmd-style wrapper
+#     mingw64/bin/git.exe  ← real MinGW git binary
+#     bin/sh.exe           ← shell
+#     usr/bin/...
+#
+# We list the candidate paths so the installer can verify the right one.
+def install_layout(ctx, _version):
+    if ctx.platform.os == "windows":
+        return {
+            "type":             "archive",
+            "strip_prefix":     "",
+            "executable_paths": ["cmd/git.exe", "mingw64/bin/git.exe", "git.exe"],
+        }
+    # Non-Windows: plain archive (or system install — download_url returns None)
+    return {
+        "type":             "archive",
+        "strip_prefix":     "",
+        "executable_paths": ["bin/git", "git"],
+    }
 
 # ---------------------------------------------------------------------------
 # system_install — package manager strategies
@@ -125,9 +145,22 @@ system_install = system_install_strategies([
 # Path + env functions
 # ---------------------------------------------------------------------------
 
-_paths           = path_fns("git")
-store_root       = _paths["store_root"]
-get_execute_path = _paths["get_execute_path"]
+_paths     = path_fns("git")
+store_root = _paths["store_root"]
+
+def get_execute_path(ctx, _version):
+    """Return the path to the git executable inside the install dir.
+
+    PortableGit for Windows extracts to a directory tree; the canonical
+    entry point is cmd/git.exe (the cmd-shell wrapper) which is on PATH.
+    The real MinGW binary lives at mingw64/bin/git.exe.
+
+    On non-Windows the tool is managed by the system package manager,
+    so install_dir points to the vx store where we placed the binary.
+    """
+    if ctx.platform.os == "windows":
+        return ctx.install_dir + "/cmd/git.exe"
+    return ctx.install_dir + "/bin/git"
 
 def post_install(_ctx, _version):
     return None

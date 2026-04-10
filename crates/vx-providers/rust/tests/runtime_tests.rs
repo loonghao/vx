@@ -26,13 +26,14 @@ fn test_provider_runtimes() {
         .collect();
     assert!(names.contains(&"cargo"));
     assert!(names.contains(&"rustc"));
-    assert!(names.contains(&"rustup"));
+    // Primary runtime is now "rust" (with rustup as alias)
+    assert!(names.contains(&"rust"));
 }
 
 #[rstest]
 #[case("cargo", true)]
 #[case("rustc", true)]
-#[case("rustup", true)]
+#[case("rustup", true)] // rustup is an alias for "rust"
 #[case("rust", true)]
 #[case("node", false)]
 fn test_provider_supports(#[case] name: &str, #[case] expected: bool) {
@@ -45,15 +46,24 @@ fn test_provider_get_runtime() {
     let provider = create_provider();
     assert!(provider.get_runtime("cargo").is_some());
     assert!(provider.get_runtime("rustc").is_some());
-    assert!(provider.get_runtime("rustup").is_some());
+    // "rust" is the primary runtime name; "rustup" is an alias
+    assert!(provider.get_runtime("rust").is_some());
     assert!(provider.get_runtime("unknown").is_none());
 }
 
 #[test]
 fn test_star_metadata() {
     let meta = vx_starlark::StarMetadata::parse(vx_provider_rust::PROVIDER_STAR);
+    eprintln!("meta.name = {:?}", meta.name);
+    eprintln!("meta.runtimes.len() = {}", meta.runtimes.len());
+    for rt in &meta.runtimes {
+        eprintln!(
+            "  runtime: name={:?} bundled_with={:?}",
+            rt.name, rt.bundled_with
+        );
+    }
     assert!(meta.name.is_some());
-    assert!(!meta.runtimes.is_empty());
+    assert!(!meta.runtimes.is_empty(), "runtimes should not be empty");
 }
 fn create_provider() -> std::sync::Arc<dyn vx_runtime::Provider> {
     let meta = vx_starlark::StarMetadata::parse(vx_provider_rust::PROVIDER_STAR);

@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+<<<<<<< HEAD
+=======
+## [0.8.25](https://github.com/loonghao/vx/compare/v0.8.24...v0.8.25) (2026-04-10)
+
+
+### Bug Fixes
+
+* git Windows exe path, rust bundled store mismatch, lock multi-platform URLs + perf optimizations ([#787](https://github.com/loonghao/vx/issues/787)) ([f208ef5](https://github.com/loonghao/vx/commit/f208ef535b434e3eab4d0e047ac7a61e164806d1))
+
+>>>>>>> origin/main
 ## [0.8.24](https://github.com/loonghao/vx/compare/v0.8.23...v0.8.24) (2026-04-09)
 
 

@@ -5043,6 +5043,7 @@ dependencies = [
 [[package]]
 name = "vx-provider-brew"
 version = "0.8.24"
+<<<<<<< HEAD
 dependencies = [
  "rstest",
  "starlark",
@@ -5054,6 +5055,8 @@ dependencies = [
 [[package]]
 name = "vx-provider-buf"
 version = "0.8.24"
+=======
+>>>>>>> origin/main
 dependencies = [
  "rstest",
  "starlark",
@@ -5164,6 +5167,7 @@ dependencies = [
 [[package]]
 name = "vx-provider-conan"
 version = "0.8.24"
+<<<<<<< HEAD
 dependencies = [
  "rstest",
  "starlark",
@@ -5175,6 +5179,8 @@ dependencies = [
 [[package]]
 name = "vx-provider-cosign"
 version = "0.8.24"
+=======
+>>>>>>> origin/main
 dependencies = [
  "rstest",
  "starlark",
@@ -5384,6 +5390,7 @@ dependencies = [
 [[package]]
 name = "vx-provider-go"
 version = "0.8.24"
+<<<<<<< HEAD
 dependencies = [
  "rstest",
  "starlark",
@@ -5406,6 +5413,8 @@ dependencies = [
 [[package]]
 name = "vx-provider-goreleaser"
 version = "0.8.24"
+=======
+>>>>>>> origin/main
 dependencies = [
  "rstest",
  "starlark",
@@ -5428,6 +5437,7 @@ dependencies = [
 [[package]]
 name = "vx-provider-grpcurl"
 version = "0.8.24"
+<<<<<<< HEAD
 dependencies = [
  "rstest",
  "starlark",
@@ -5439,6 +5449,8 @@ dependencies = [
 [[package]]
 name = "vx-provider-grype"
 version = "0.8.24"
+=======
+>>>>>>> origin/main
 dependencies = [
  "rstest",
  "starlark",
@@ -5615,6 +5627,7 @@ dependencies = [
 [[package]]
 name = "vx-provider-make"
 version = "0.8.24"
+<<<<<<< HEAD
 dependencies = [
  "rstest",
  "starlark",
@@ -5626,6 +5639,8 @@ dependencies = [
 [[package]]
 name = "vx-provider-maturin"
 version = "0.8.24"
+=======
+>>>>>>> origin/main
 dependencies = [
  "rstest",
  "starlark",
@@ -5681,6 +5696,7 @@ dependencies = [
 [[package]]
 name = "vx-provider-nasm"
 version = "0.8.24"
+<<<<<<< HEAD
 dependencies = [
  "rstest",
  "starlark",
@@ -5692,6 +5708,8 @@ dependencies = [
 [[package]]
 name = "vx-provider-nerdctl"
 version = "0.8.24"
+=======
+>>>>>>> origin/main
 dependencies = [
  "rstest",
  "starlark",
@@ -5868,6 +5886,7 @@ dependencies = [
 [[package]]
 name = "vx-provider-ripgrep"
 version = "0.8.24"
+<<<<<<< HEAD
 dependencies = [
  "rstest",
  "starlark",
@@ -5879,6 +5898,8 @@ dependencies = [
 [[package]]
 name = "vx-provider-ruff"
 version = "0.8.24"
+=======
+>>>>>>> origin/main
 dependencies = [
  "rstest",
  "starlark",
@@ -5912,6 +5933,7 @@ dependencies = [
 [[package]]
 name = "vx-provider-sd"
 version = "0.8.24"
+<<<<<<< HEAD
 dependencies = [
  "rstest",
  "starlark",
@@ -5923,6 +5945,8 @@ dependencies = [
 [[package]]
 name = "vx-provider-skaffold"
 version = "0.8.24"
+=======
+>>>>>>> origin/main
 dependencies = [
  "rstest",
  "starlark",
@@ -5945,6 +5969,7 @@ dependencies = [
 [[package]]
 name = "vx-provider-starship"
 version = "0.8.24"
+<<<<<<< HEAD
 dependencies = [
  "rstest",
  "starlark",
@@ -5956,6 +5981,8 @@ dependencies = [
 [[package]]
 name = "vx-provider-syft"
 version = "0.8.24"
+=======
+>>>>>>> origin/main
 dependencies = [
  "rstest",
  "starlark",

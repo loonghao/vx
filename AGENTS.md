@@ -185,7 +185,11 @@ vx dev                         # Enter dev environment
 │  vx-manifest       (Provider manifest parsing)          │
 │  vx-args           (Argument parsing)                   │
 ├─────────────────────────────────────────────────────────┤
+<<<<<<< HEAD
 │  vx-providers/*    (122 Providers — provider.star DSL)  │
+=======
+│  vx-providers/*    (114 Providers — provider.star DSL)  │
+>>>>>>> origin/main
 │  vx-bridge         (Generic command bridge)             │
 └─────────────────────────────────────────────────────────┘
 ```

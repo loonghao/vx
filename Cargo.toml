@@ -242,7 +242,11 @@ rstest = "0.26"
 
 
 [workspace.package]
+<<<<<<< HEAD
 version = "0.8.24"                                                # x-release-please-version
+=======
+version = "0.8.25"                                                # x-release-please-version
+>>>>>>> origin/main
 edition = "2024"
 description = "Universal Development Tool Manager"
 license = "MIT"

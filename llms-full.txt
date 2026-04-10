@@ -318,7 +318,11 @@ vx uses a 5-layer Provider/Runtime architecture with Starlark DSL:
 │  vx-core / vx-paths / vx-cache / vx-versions            │
 │  vx-manifest / vx-args (Foundation layer)               │
 ├─────────────────────────────────────────────────────────┤
+<<<<<<< HEAD
 │  vx-providers/*    (122 Providers — provider.star DSL) │
+=======
+│  vx-providers/*    (114 Providers — provider.star DSL) │
+>>>>>>> origin/main
 │  vx-bridge         (Generic command bridge)             │
 └─────────────────────────────────────────────────────────┘
 ```
