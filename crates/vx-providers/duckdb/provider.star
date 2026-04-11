@@ -3,14 +3,14 @@
 # DuckDB is an in-process SQL OLAP database management system.
 # The CLI tool is released as a compressed single binary.
 #
-# Asset naming: duckdb_cli-{os}-{arch}.zip
+# Asset naming: duckdb_cli-{os}-{arch}.{ext}
 #   - Linux:   duckdb_cli-linux-amd64.zip, duckdb_cli-linux-arm64.zip
 #   - macOS:   duckdb_cli-osx-amd64.zip, duckdb_cli-osx-arm64.zip
-#              (universal: duckdb_cli-osx-universal.zip — used as fallback)
+#              (also universal: duckdb_cli-osx-universal.zip)
 #   - Windows: duckdb_cli-windows-amd64.zip, duckdb_cli-windows-arm64.zip
 #
-# Note: .gz variants also exist but contain a raw binary (not an archive).
-#       Always use .zip — it contains the duckdb binary and is a proper archive.
+# NOTE: macOS also ships a .gz single-binary, but we use .zip for
+#       consistent archive extraction across all platforms.
 
 load("@vx//stdlib:provider.star",
      "runtime_def", "github_permissions", "path_fns")
@@ -55,12 +55,9 @@ fetch_versions = make_fetch_versions("duckdb", "duckdb")
 # ---------------------------------------------------------------------------
 
 def _duckdb_asset(ctx):
-    """Return the asset filename for the DuckDB CLI on the current platform.
-
-    All platforms use .zip archives (not .gz, which is a raw binary).
-    macOS uses arch-specific builds: osx-amd64 for x64, osx-arm64 for arm64.
-    """
+    """Return the asset filename for the DuckDB CLI on the current platform."""
     if ctx.platform.os == "macos":
+        # Use arch-specific zip assets (available since v1.1.x)
         arch_map = {"x64": "amd64", "arm64": "arm64"}
         arch_str = arch_map.get(ctx.platform.arch, "amd64")
         return "duckdb_cli-osx-{}.zip".format(arch_str)
