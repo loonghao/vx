@@ -34,6 +34,7 @@ runtimes = [
     runtime_def("nerdctl",
         version_cmd     = "{executable} --version",
         version_pattern = "nerdctl version v?\\d+\\.\\d+\\.\\d+",
+        platform_constraint = {"os": ["linux"]},
     ),
 ]
 
