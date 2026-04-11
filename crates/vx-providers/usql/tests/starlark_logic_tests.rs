@@ -53,7 +53,7 @@ fn test_download_url_linux_x64() {
 {}
 ctx = struct(platform = struct(os = "linux", arch = "x64", target = ""))
 url = download_url(ctx, "0.19.6")
-url != None and "linux" in url and "amd64" in url and url.endswith(".tar.gz")
+url != None and "linux" in url and "amd64" in url and url.endswith(".tar.bz2")
 "#,
         provider_star_prefix()
     ));
