@@ -101,7 +101,7 @@ vx analyze --json          # Project analysis as JSON
 ## Guides
 
 - [GitHub Actions](https://github.com/loonghao/vx/blob/main/docs/guides/github-action.md): Using vx in CI/CD pipelines
-- [MCP Integration](https://github.com/loonghao/vx/blob/main/docs/guide/concepts.md): Using vx with Model Context Protocol servers
+- [MCP Integration](https://github.com/loonghao/vx/blob/main/docs/guide/mcp-integration.md): Using vx with Model Context Protocol servers (Claude Desktop, Cursor, Windsurf)
 - [Creating a Provider](https://github.com/loonghao/vx/blob/main/docs/guide/creating-provider.md): Adding new tools via provider.star
 - [Best Practices](https://github.com/loonghao/vx/blob/main/docs/guide/best-practices.md): Recommended patterns for teams
 - [Migration Guide](https://github.com/loonghao/vx/blob/main/docs/guide/migration.md): Migrating from nvm, pyenv, asdf, etc.

@@ -27,7 +27,8 @@ const enSidebar = {
         { text: 'Version Management', link: '/guide/version-management' },
         { text: 'Configuration', link: '/guide/configuration' },
         { text: 'Enhanced Scripts', link: '/guide/enhanced-scripts' },
-        { text: 'Shell Integration', link: '/guide/shell-integration' }
+        { text: 'Shell Integration', link: '/guide/shell-integration' },
+        { text: 'MCP Integration', link: '/guide/mcp-integration' }
       ]
     },
     {
@@ -200,7 +201,8 @@ const zhSidebar = {
         { text: '版本管理', link: '/zh/guide/version-management' },
         { text: '配置', link: '/zh/guide/configuration' },
         { text: '增强脚本系统', link: '/zh/guide/enhanced-scripts' },
-        { text: 'Shell 集成', link: '/zh/guide/shell-integration' }
+        { text: 'Shell 集成', link: '/zh/guide/shell-integration' },
+        { text: 'MCP 集成', link: '/guide/mcp-integration' }
       ]
     },
     {
