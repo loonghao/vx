@@ -479,7 +479,7 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add crates/workspace-hack/Cargo.toml Cargo.lock
-          git commit -m "chore: regenerate workspace-hack (cargo-hakari)"
+          git commit -m "chore: regenerate workspace-hack (cargo-hakari) [skip ci]"
           git push origin HEAD:${{ github.head_ref }}
 
       - name: Fail if workspace-hack is outdated (non-PR)
