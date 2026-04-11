@@ -106,7 +106,7 @@ User Command: vx npm install
 7. **Check `vx.toml`** first to understand project tool requirements
 8. **New providers use Starlark DSL only** — No Rust code required for new tool definitions
 9. **Layer dependencies go downward only** — Never import from a higher architectural layer
-10. **Provider count is 122** — Update any docs that reference old counts (78, 73, 70+, 50+, etc.)
+10. **Provider count is 129** — Update any docs that reference old counts (78, 73, 70+, 50+, etc.)
 
 ### Setup Commands
 
@@ -185,7 +185,7 @@ vx dev                         # Enter dev environment
 │  vx-manifest       (Provider manifest parsing)          │
 │  vx-args           (Argument parsing)                   │
 ├─────────────────────────────────────────────────────────┤
-│  vx-providers/*    (124 Providers — provider.star DSL)  │
+│  vx-providers/*    (129 Providers — provider.star DSL)  │
 │  vx-bridge         (Generic command bridge)             │
 └─────────────────────────────────────────────────────────┘
 ```
@@ -336,7 +336,7 @@ def environment(ctx, _version):
     ]
 ```
 
-## All 126 Providers
+## All 129 Providers
 
 Organized by category:
 
@@ -349,9 +349,9 @@ Organized by category:
 | **Go** | go, gws, goreleaser, golangci-lint |
 | **System/CLI** | git, bash, curl, pwsh, jq, yq, fd, bat, ripgrep, fzf, starship, jj, sd, eza, dust, duf, xh, atuin, zoxide, tealdeer, gping, delta, hyperfine, watchexec, bottom |
 | **TUI/Terminal** | helix, yazi, zellij, lazygit, lazydocker, k9s |
-| **Build Tools** | just, task, cmake, ninja, make, meson, xmake, protoc, conan, vcpkg, spack |
-| **DevOps** | kubectl, helm, flux, kind, k3d, nerdctl, skaffold, ctlptl, tilt, podman, terraform, hadolint, dagu, actionlint |
-| **Security** | gitleaks, trivy, cosign |
+| **Build Tools** | just, task, cmake, ninja, make, meson, xmake, protoc, buf, conan, vcpkg, spack |
+| **DevOps** | kubectl, helm, flux, kind, k3d, nerdctl, skaffold, ctlptl, tilt, kustomize, minikube, podman, terraform, hadolint, dagu, actionlint |
+| **Security** | gitleaks, trivy, grype, syft, cosign, cargo-audit, cargo-deny |
 | **Cloud CLI** | awscli, azcli, gcloud |
 | **.NET** | dotnet, msbuild, nuget |
 | **C/C++** | msvc, llvm, nasm, ccache, buildcache, sccache, rcedit |
@@ -362,9 +362,10 @@ Organized by category:
 | **Config Mgmt** | chezmoi, mise |
 | **Package Managers** | brew, choco, winget |
 | **AI** | ollama, openclaw |
-| **Data/API** | duckdb, grpcurl |
+| **Data/API** | duckdb, usql, grpcurl |
 | **VM** | lima |
 | **Git Tools** | lefthook |
+| **Code Analysis** | tokei |
 | **Misc** | gh, prek, actrun, wix, vscode, xcodebuild, systemctl, release-please, rez, 7zip, trippy |
 
 ## Decision Framework for AI Agents
