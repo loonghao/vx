@@ -687,6 +687,17 @@ impl Resolver {
             return status;
         }
 
+        // Fall back to system PATH: if the tool is system-installed (e.g. rustup/cargo
+        // installed by an external installer), report it as SystemAvailable rather than
+        // NotInstalled.  Without this fallback, every `vx cargo` invocation triggers a
+        // re-download even though a fully-working cargo is already on the system PATH.
+        if self.config.fallback_to_system {
+            let status = self.check_system_path(executable_name);
+            if status.is_available() {
+                return status;
+            }
+        }
+
         RuntimeStatus::NotInstalled
     }
 
