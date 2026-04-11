@@ -245,58 +245,236 @@ lint-fix = "eslint {{args}}"
 | 6 | Permission error |
 | 7 | Configuration error |
 
-## Supported Tools
+## Supported Tools (129 Total)
+
+All tools follow the same pattern: `vx <tool> [args...]` — auto-installs on first use.
 
 ### Language Runtimes
 
 | Tool | Commands | Description |
 |------|----------|-------------|
-| **Node.js** | `node`, `npm`, `npx` | JavaScript runtime and package manager |
-| **Bun** | `bun`, `bunx` | Fast all-in-one JavaScript runtime |
-| **Deno** | `deno` | Secure JavaScript/TypeScript runtime |
-| **Go** | `go`, `gofmt` | Go programming language |
-| **Rust** | `cargo`, `rustc`, `rustup` | Rust toolchain |
-| **Java** | `java`, `javac` | Java Development Kit |
-| **Zig** | `zig` | Zig programming language |
+| **node** | `node`, `npm`, `npx` | Node.js — JavaScript runtime and package manager |
+| **bun** | `bun`, `bunx` | Incredibly fast JavaScript runtime, bundler, test runner, and package manager |
+| **deno** | `deno` | Deno — A modern runtime for JavaScript and TypeScript |
+| **go** | `go`, `gofmt` | Go programming language |
+| **rust** | `cargo`, `rustc`, `rustup` | Rust toolchain |
+| **python** | `python`, `pip` | Python (via python-build-standalone) |
+| **java** | `java`, `javac` | Java Development Kit (via Adoptium) |
+| **zig** | `zig` | Zig — A general-purpose programming language and toolchain |
+| **dotnet** | `dotnet` | .NET SDK — Developer platform for building apps |
 
 ### Package Managers
 
 | Tool | Commands | Description |
 |------|----------|-------------|
-| **UV** | `uv`, `uvx` | Fast Python package manager |
-| **pnpm** | `pnpm`, `pnpx` | Fast, disk-efficient Node.js package manager |
-| **Yarn** | `yarn` | JavaScript package manager |
+| **uv** | `uv`, `uvx` | An extremely fast Python package installer and resolver |
+| **pnpm** | `pnpm` | Fast, disk-efficient Node.js package manager |
+| **yarn** | `yarn` | Fast, reliable, and secure dependency management |
+| **nuget** | `nuget` | NuGet — Package manager for .NET |
 
 ### Build Tools
 
 | Tool | Commands | Description |
 |------|----------|-------------|
-| **Vite** | `vite` | Next generation frontend tooling |
-| **Just** | `just` | Command runner for project tasks |
-| **Task** | `task` | Task runner / build tool (go-task) |
-| **CMake** | `cmake` | Cross-platform build system generator |
-| **Ninja** | `ninja` | Small build system focused on speed |
+| **cmake** | `cmake` | CMake — Cross-platform build system generator |
+| **ninja** | `ninja` | Ninja — Small, fast build system |
+| **just** | `just` | Just — Command runner (modern Make) |
+| **task** | `task` | Task — A task runner / simpler Make alternative written in Go |
+| **make** | `make` | GNU Make |
+| **meson** | `meson` | Meson — A fast and user friendly build system |
+| **xmake** | `xmake` | xmake — A cross-platform build utility based on Lua |
 | **protoc** | `protoc` | Protocol Buffers compiler |
+| **buf** | `buf` | buf — The best way to work with Protocol Buffers |
+| **msbuild** | `msbuild` | MSBuild — Microsoft Build Engine |
+| **msvc** | `cl`, `link` | MSVC Build Tools — Microsoft C/C++ compiler toolchain |
+| **nasm** | `nasm` | NASM — Netwide Assembler |
+| **conan** | `conan` | Conan — The C/C++ Package Manager |
+| **vcpkg** | `vcpkg` | C++ library manager for Windows, Linux, and macOS |
+| **vite** | `vite` | Vite — Next generation frontend build tool |
+| **nx** | `nx` | Nx — Smart Monorepos · Fast CI |
+| **turbo** | `turbo` | Turborepo — High-performance Build System for JavaScript/TypeScript |
+| **wix** | `wix` | WiX Toolset — Build Windows installation packages |
+| **xcodebuild** | `xcodebuild` | Apple Xcode build tools (macOS only) |
+| **maturin** | `maturin` | maturin — Build and publish Rust-based Python packages |
 
-### DevOps Tools
+### Compiler Caches & Speedup
 
 | Tool | Commands | Description |
 |------|----------|-------------|
-| **Docker** | `docker` | Container runtime and tooling |
-| **Terraform** | `terraform` | Infrastructure as Code |
-| **kubectl** | `kubectl` | Kubernetes CLI |
-| **Helm** | `helm` | Kubernetes package manager |
-| **goreleaser** | `goreleaser` | Release engineering for Go projects |
-| **golangci-lint** | `golangci-lint` | Fast linters runner for Go |
-| **cosign** | `cosign` | Container signing and verification (Sigstore) |
+| **ccache** | `ccache` | ccache — C/C++ Compiler Cache for faster recompilation |
+| **sccache** | `sccache` | sccache — Shared Compilation Cache (supports Rust, C/C++) |
+| **buildcache** | `buildcache` | buildcache — Compiler Cache with excellent MSVC support |
+
+### DevOps & Kubernetes
+
+| Tool | Commands | Description |
+|------|----------|-------------|
+| **terraform** | `terraform` | Terraform — Infrastructure as Code tool by HashiCorp |
+| **kubectl** | `kubectl` | kubectl — Kubernetes CLI |
+| **helm** | `helm` | Helm — Kubernetes package manager |
+| **podman** | `podman` | Podman — Container engine and compose workflow |
+| **nerdctl** | `nerdctl` | nerdctl — Docker-compatible CLI for containerd |
+| **skaffold** | `skaffold` | skaffold — Local Kubernetes Development |
+| **k9s** | `k9s` | k9s — Terminal UI for Kubernetes clusters |
+| **k3d** | `k3d` | k3d — Little helper to run Rancher Lab's k3s in Docker |
+| **kind** | `kind` | kind — Kubernetes IN Docker |
+| **minikube** | `minikube` | minikube — Run a local Kubernetes cluster |
+| **ctlptl** | `ctlptl` | ctlptl — Making local Kubernetes clusters fun and easy to set up |
+| **tilt** | `tilt` | tilt — A toolkit for fixing the pains of microservice development |
+| **kustomize** | `kustomize` | kustomize — Customization of Kubernetes YAML configurations |
+| **flux** | `flux` | Flux — GitOps for Kubernetes |
+| **cosign** | `cosign` | cosign — Container signing, verification and storage in an OCI registry |
+| **trivy** | `trivy` | trivy — A comprehensive security scanner for containers and code |
+| **grype** | `grype` | grype — A vulnerability scanner for container images and filesystems |
+| **syft** | `syft` | syft — CLI tool for generating a Software Bill of Materials (SBOM) |
+| **dive** | `dive` | dive — A tool for exploring Docker image layers |
+| **goreleaser** | `goreleaser` | goreleaser — Release engineering for Go projects |
+| **golangci-lint** | `golangci-lint` | golangci-lint — Fast linters runner for Go |
+| **dagu** | `dagu` | Dagu — A powerful DAG workflow engine with a Web UI |
+| **actionlint** | `actionlint` | actionlint — Static checker for GitHub Actions workflow files |
+| **actrun** | `actrun` | Actionforge workflow runner CLI for executing GitHub Actions-compatible workflows locally |
 
 ### Cloud CLI Tools
 
 | Tool | Commands | Description |
 |------|----------|-------------|
-| **AWS CLI** | `aws` | Amazon Web Services CLI |
-| **Azure CLI** | `az` | Microsoft Azure CLI |
-| **gcloud** | `gcloud` | Google Cloud Platform CLI |
+| **awscli** | `aws` | AWS CLI — Unified command line interface to Amazon Web Services |
+| **azcli** | `az` | Azure CLI — Command-line interface for Microsoft Azure |
+| **gcloud** | `gcloud` | Google Cloud CLI — Google Cloud Platform CLI |
+
+### Security & Signing
+
+| Tool | Commands | Description |
+|------|----------|-------------|
+| **gitleaks** | `gitleaks` | gitleaks — Secrets scanner for git repos and files |
+| **cargo-audit** | `cargo-audit` | cargo-audit — Audit Cargo.lock for security vulnerabilities |
+| **cargo-deny** | `cargo-deny` | cargo-deny — Cargo plugin for linting dependencies |
+
+### Code Quality & Linting
+
+| Tool | Commands | Description |
+|------|----------|-------------|
+| **ruff** | `ruff` | Ruff — An extremely fast Python linter and formatter, written in Rust |
+| **biome** | `biome` | biome — Fast formatter and linter for JS/TS/JSON/CSS |
+| **oxlint** | `oxlint` | oxlint — A suite of high-performance linting tools for JavaScript and TypeScript |
+| **golangci-lint** | `golangci-lint` | golangci-lint — Fast linters runner for Go |
+| **hadolint** | `hadolint` | hadolint — Dockerfile linter |
+| **pre-commit** | `pre-commit` | pre-commit — Multi-language pre-commit hooks framework |
+| **prek** | `prek` | prek — Pre-commit hook runner (vx's built-in hook system) |
+| **cargo-nextest** | `cargo-nextest` | cargo-nextest — A next-generation test runner for Rust |
+
+### Terminal Utilities & CLI Tools
+
+| Tool | Commands | Description |
+|------|----------|-------------|
+| **ripgrep** | `rg` | ripgrep — Recursively searches directories for a regex pattern (extremely fast) |
+| **fd** | `fd` | fd — A simple, fast and user-friendly alternative to 'find' |
+| **bat** | `bat` | bat — A cat clone with syntax highlighting and Git integration |
+| **eza** | `eza` | eza — A modern, maintained replacement for ls |
+| **delta** | `delta` | delta — A syntax-highlighting pager for git, diff, grep, and blame output |
+| **sd** | `sd` | sd — Intuitive find & replace CLI (sed alternative) |
+| **fzf** | `fzf` | fzf — A command-line fuzzy finder |
+| **zoxide** | `zoxide` | zoxide — A smarter cd command that learns your habits |
+| **atuin** | `atuin` | atuin — Magical shell history with SQLite and encrypted sync |
+| **yazi** | `yazi` | yazi — A blazing fast terminal file manager |
+| **zellij** | `zellij` | zellij — A modern terminal workspace (terminal multiplexer) |
+| **helix** | `hx` | Helix — A post-modern modal text editor |
+| **tealdeer** | `tldr` | tealdeer — A very fast Rust implementation of tldr |
+| **tokei** | `tokei` | tokei — Count your code, quickly |
+| **hyperfine** | `hyperfine` | hyperfine — A command-line benchmarking tool |
+| **watchexec** | `watchexec` | watchexec — Execute commands when watched files change |
+| **bottom** | `btm` | bottom — A cross-platform graphical process/system monitor |
+| **duf** | `duf` | duf — Disk usage utility with a user-friendly interface |
+| **dust** | `dust` | dust — A more intuitive version of du written in Rust |
+| **gping** | `gping` | gping — Ping, but with a graph |
+| **xh** | `xh` | xh — A friendly and fast HTTP request tool |
+| **grpcurl** | `grpcurl` | grpcurl — Like curl, but for gRPC |
+| **trippy** | `trip` | trippy — Network path tracer combining traceroute and ping |
+| **jq** | `jq` | jq — Lightweight and flexible command-line JSON processor |
+| **yq** | `yq` | yq — A portable command-line YAML, JSON, XML, CSV, TOML and properties processor |
+
+### Version Control & Git Tools
+
+| Tool | Commands | Description |
+|------|----------|-------------|
+| **git** | `git` | Git — version control (MinGit on Windows) |
+| **gh** | `gh` | GitHub CLI — GitHub's official command line tool |
+| **gitleaks** | `gitleaks` | gitleaks — Secrets scanner for git repos |
+| **delta** | `delta` | delta — Syntax-highlighting pager for git |
+| **lazygit** | `lazygit` | lazygit — Simple terminal UI for git commands |
+| **jj** | `jj` | jj — A Git-compatible DVCS that is both simple and powerful |
+| **gws** | `gws` | gws — Manage multiple git repositories |
+
+### Project & Environment Management
+
+| Tool | Commands | Description |
+|------|----------|-------------|
+| **mise** | `mise` | mise — Dev tools, env vars, task runner (asdf/direnv replacement) |
+| **chezmoi** | `chezmoi` | chezmoi — Manage your dotfiles across multiple machines |
+| **lefthook** | `lefthook` | lefthook — Fast and powerful Git hooks manager |
+
+### AI & ML Tools
+
+| Tool | Commands | Description |
+|------|----------|-------------|
+| **ollama** | `ollama` | Ollama — Run LLMs locally (Llama, Mistral, Gemma, etc.) |
+
+### Database Tools
+
+| Tool | Commands | Description |
+|------|----------|-------------|
+| **duckdb** | `duckdb` | DuckDB — In-process SQL OLAP database management system |
+| **usql** | `usql` | usql — Universal command-line interface for SQL databases |
+
+### Media & Creative
+
+| Tool | Commands | Description |
+|------|----------|-------------|
+| **ffmpeg** | `ffmpeg`, `ffprobe` | FFmpeg — Audio/video processing |
+| **imagemagick** | `magick`, `convert` | ImageMagick — Image processing |
+
+### Scientific & HPC
+
+| Tool | Commands | Description |
+|------|----------|-------------|
+| **spack** | `spack` | Spack — A flexible package manager for HPC |
+| **rez** | `rez` | Rez — VFX/animation package manager |
+
+### System & Platform Tools
+
+| Tool | Commands | Description |
+|------|----------|-------------|
+| **curl** | `curl` | curl — Command-line tool for transferring data with URLs |
+| **bash** | `bash` | GNU Bourne Again SHell |
+| **pwsh** | `pwsh` | PowerShell — Cross-platform task automation and configuration |
+| **7zip** | `7z` | 7-Zip — High compression ratio file archiver |
+| **nasm** | `nasm` | NASM — Netwide Assembler |
+| **systemctl** | `systemctl` | systemd system and service manager (Linux) |
+| **vscode** | `code` | Visual Studio Code — Code editing. Redefined. |
+| **llvm** | `clang`, `llvm-*` | LLVM — Compiler infrastructure project |
+| **openclaw** | `openclaw` | OpenClaw — Open-source 2D platformer game engine |
+
+### Windows-Specific
+
+| Tool | Commands | Description |
+|------|----------|-------------|
+| **choco** | `choco` | Chocolatey — The package manager for Windows |
+| **winget** | `winget` | Windows Package Manager — Official package manager for Windows |
+| **rcedit** | `rcedit` | rcedit — Windows resource editor for PE files |
+| **wix** | `wix` | WiX Toolset — Build Windows installation packages |
+| **msvc** | `cl`, `link`, `lib`, `nmake` | MSVC Build Tools — Microsoft C/C++ compiler toolchain |
+
+### Package Aliases (Implicit Execution)
+
+These commands auto-route to their ecosystem package managers:
+
+| `vx` command | Routes to | Notes |
+|-------------|-----------|-------|
+| `vx vite` | `vx npx:vite` | npm package |
+| `vx create-react-app` | `vx npx:create-react-app` | npm package |
+| `vx meson` | `vx uvx:meson` | PyPI package |
+| `vx black` | `vx uvx:black` | PyPI package |
+| `vx ruff` | `vx uvx:ruff` | PyPI package (or direct provider) |
 
 ## Architecture
 
