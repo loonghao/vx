@@ -6,6 +6,7 @@
 //! providers.  The three `*_owned` variants are used internally by
 //! [`super::builder`] when building multi-runtime providers.
 
+use std::path::Path;
 use std::sync::Arc;
 
 use super::StarlarkProvider;
@@ -408,21 +409,34 @@ pub fn make_version_info_fn_owned(
     })
 }
 
-// ---------------------------------------------------------------------------
-// Post-install hooks (post_extract → post_install bridge)
-// ---------------------------------------------------------------------------
-
-/// Create a `PostInstallFn` closure backed by an embedded `provider.star`.
+/// Create a `PostExtractFn` closure backed by an embedded `provider.star`.
 ///
-/// The closure calls `post_extract(ctx, version, install_dir)` in Starlark and converts
-/// the returned `PostExtractAction` values to JSON descriptors that can be executed
-/// by `ManifestDrivenRuntime::post_install()`.
-pub fn make_post_install_fn_owned(
+/// The returned function calls `post_extract(ctx, version, install_dir)` in the
+/// Starlark script and returns the raw action descriptors as JSON values.
+/// `ManifestDrivenRuntime::post_install` iterates over those descriptors and
+/// executes each one (SetPermissions / RunCommand).
+///
+/// This is the type alias used in `vx-runtime` for the post_extract function pointer.
+/// It must exactly match `vx_runtime::PostExtractFn`.
+type PostExtractFn = Arc<
+    dyn Fn(
+            String, // version
+            String, // install_dir
+        ) -> std::pin::Pin<
+            Box<
+                dyn std::future::Future<Output = anyhow::Result<Vec<serde_json::Value>>>
+                    + Send,
+            >,
+        > + Send
+        + Sync,
+>;
+
+pub(super) fn make_post_extract_fn_owned(
     provider_name: Arc<str>,
     content: Arc<str>,
     _runtime_name: String,
-) -> vx_runtime::manifest_runtime::PostInstallFn {
-    Arc::new(move |version: String, install_dir: std::path::PathBuf| {
+) -> PostExtractFn {
+    Arc::new(move |version: String, install_dir: String| {
         let provider_name = Arc::clone(&provider_name);
         let content = Arc::clone(&content);
         Box::pin(async move {
@@ -432,63 +446,46 @@ pub fn make_post_install_fn_owned(
                     anyhow::anyhow!("Failed to load {} provider.star: {e}", provider_name)
                 })?;
 
-            let actions = provider
-                .post_extract(&version, &install_dir)
-                .await
-                .map_err(|e| {
-                    anyhow::anyhow!("{} post_extract failed: {e}", provider_name)
-                })?;
+            let install_path = Path::new(&install_dir);
+            let actions = provider.post_extract(&version, install_path).await?;
 
-            // Convert PostExtractAction to JSON descriptors
-            Ok(actions
+            // Convert PostExtractAction → serde_json::Value so vx-runtime does not
+            // need to import vx-starlark types (that would create a dependency cycle).
+            let json_actions = actions
                 .into_iter()
-                .filter_map(|action| post_extract_action_to_json(action))
-                .collect())
+                .map(|a| match a {
+                    crate::provider::types::PostExtractAction::SetPermissions { path, mode } => {
+                        serde_json::json!({
+                            "type": "set_permissions",
+                            "path": path,
+                            "mode": mode,
+                        })
+                    }
+                    crate::provider::types::PostExtractAction::RunCommand {
+                        executable,
+                        args,
+                        env,
+                        on_failure,
+                        ..
+                    } => {
+                        serde_json::json!({
+                            "type": "run_command",
+                            "command": executable,
+                            "args": args,
+                            "env": env,
+                            "on_failure": on_failure,
+                        })
+                    }
+                    crate::provider::types::PostExtractAction::CreateShim { .. }
+                    | crate::provider::types::PostExtractAction::FlattenDir { .. } => {
+                        // Shims and flatten-dir are not yet handled in the manifest-driven post_install path.
+                        serde_json::json!({"type": "skip"})
+                    }
+                })
+                .filter(|v| v.get("type").and_then(|t| t.as_str()) != Some("skip"))
+                .collect();
+
+            Ok(json_actions)
         })
     })
-}
-
-/// Convert a `PostExtractAction` to a JSON descriptor for `ManifestDrivenRuntime::post_install`.
-fn post_extract_action_to_json(
-    action: crate::provider::types::PostExtractAction,
-) -> Option<serde_json::Value> {
-    use crate::provider::types::PostExtractAction;
-
-    match action {
-        PostExtractAction::SetPermissions { path, mode } => Some(serde_json::json!({
-            "type": "set_permissions",
-            "path": path,
-            "mode": mode,
-        })),
-        PostExtractAction::RunCommand {
-            executable,
-            args,
-            working_dir,
-            env,
-            on_failure,
-        } => Some(serde_json::json!({
-            "type": "run_command",
-            "executable": executable,
-            "args": args,
-            "env": env,
-            "working_dir": working_dir,
-            "on_failure": on_failure,
-        })),
-        PostExtractAction::CreateShim {
-            name,
-            target,
-            args,
-            shim_dir,
-        } => Some(serde_json::json!({
-            "type": "create_shim",
-            "name": name,
-            "target": target,
-            "args": args,
-            "shim_dir": shim_dir,
-        })),
-        PostExtractAction::FlattenDir { pattern, .. } => Some(serde_json::json!({
-            "type": "flatten_dir",
-            "pattern": pattern,
-        })),
-    }
 }
