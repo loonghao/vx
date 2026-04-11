@@ -439,6 +439,9 @@ vx meson                       # Same as: vx uv:meson
 ```bash
 # Prerequisites: Rust toolchain (1.93+), just
 
+# One-time setup after cloning (installs git hooks)
+vx just setup-hooks            # Enables pre-push workspace-hack auto-regen
+
 # Build
 vx just build                  # Debug build
 vx just build-release          # Release build
