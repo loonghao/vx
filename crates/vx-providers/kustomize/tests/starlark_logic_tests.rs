@@ -68,7 +68,7 @@ fn test_download_url_windows_x64() {
 {}
 ctx = struct(platform = struct(os = "windows", arch = "x64", target = ""))
 url = download_url(ctx, "5.3.0")
-url != None and "windows" in url and "amd64" in url and url.endswith(".tar.gz")
+url != None and "windows" in url and "amd64" in url and url.endswith(".zip")
 "#,
         provider_star_prefix()
     ));
