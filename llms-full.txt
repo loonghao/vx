@@ -744,6 +744,7 @@ jobs:
 - [Enhanced Scripts](https://github.com/loonghao/vx/blob/main/docs/guide/enhanced-scripts.md): Advanced script system with `{{args}}`
 - [Version Management](https://github.com/loonghao/vx/blob/main/docs/guide/version-management.md): Pinning, ranges, switching
 - [Shell Integration](https://github.com/loonghao/vx/blob/main/docs/guide/shell-integration.md): Auto-completion setup
+- [MCP Integration](https://github.com/loonghao/vx/blob/main/docs/guide/mcp-integration.md): Using vx with Claude Desktop, Cursor, Windsurf and other MCP clients
 - [Environment Variables](https://github.com/loonghao/vx/blob/main/docs/config/env-vars.md): All supported env vars
 - [Global Configuration](https://github.com/loonghao/vx/blob/main/docs/config/global.md): ~/.config/vx/config.toml reference
 - [Provider Overrides](https://github.com/loonghao/vx/blob/main/docs/config/provider-overrides.md): Customizing provider behavior
