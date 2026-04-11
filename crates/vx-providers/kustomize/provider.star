@@ -84,7 +84,8 @@ def download_url(ctx, version):
     if not platform:
         return None
     os_str, arch_str = platform
-    asset = "kustomize_v{}_{}_{}.tar.gz".format(version, os_str, arch_str)
+    ext = "zip" if ctx.platform.os == "windows" else "tar.gz"
+    asset = "kustomize_v{}_{}_{}.{}".format(version, os_str, arch_str, ext)
     tag = "kustomize/v" + version
     return github_asset_url("kubernetes-sigs", "kustomize", tag, asset)
 
