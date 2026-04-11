@@ -1003,7 +1003,9 @@ mod tests {
 
     #[test]
     fn test_list_installed_versions_nonexistent_dir() {
-        let versions = list_installed_versions(&PathBuf::from("/nonexistent/path")).unwrap();
+        // Use a path that is guaranteed not to exist on any platform
+        let tmp = std::env::temp_dir().join("vx_test_nonexistent_resolve_dir_xyz_12345");
+        let versions = list_installed_versions(&tmp).unwrap();
         assert!(versions.is_empty());
     }
 
