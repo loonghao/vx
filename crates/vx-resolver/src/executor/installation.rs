@@ -9,7 +9,7 @@
 
 use super::pipeline::error::EnsureError;
 use super::project_config::ProjectToolsConfig;
-use crate::{Resolver, ResolverConfig, Result, resolver::RuntimeStatus};
+use crate::{Resolver, ResolverConfig, Result};
 use tracing::{debug, info, warn};
 use vx_console::{ProgressSpinner, eprintln_status_above_bars};
 use vx_runtime::{InstallResult, ProviderRegistry, RuntimeContext};
@@ -512,29 +512,6 @@ impl<'a> InstallationManager<'a> {
                     return Ok(Some(InstallResult::already_installed_with(
                         resolved_version,
                         exe_path,
-                    )));
-                }
-
-                // is_installed() returned true (the tool was found) but find_executable()
-                // returned None (the vx store path doesn't exist).  This can happen when:
-                //   1. The tool is system-installed (e.g. rustup from an external installer),
-                //      so is_installed() found it via `which::which()` rather than the store.
-                //   2. The store entry is corrupt/incomplete.
-                //
-                // For case 1, falling through to reinstall would download the tool again
-                // every single invocation.  Detect this by checking whether the resolver
-                // reports the runtime as SystemAvailable; if so, use the system path directly.
-                let system_status = self.resolver.check_runtime_status(runtime_name);
-                if let RuntimeStatus::SystemAvailable { path } = system_status {
-                    debug!(
-                        "{} {} is system-installed at {}, skipping vx reinstall",
-                        runtime_name,
-                        resolved_version,
-                        path.display()
-                    );
-                    return Ok(Some(InstallResult::already_installed_with(
-                        resolved_version,
-                        Some(path),
                     )));
                 }
 
