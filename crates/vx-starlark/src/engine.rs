@@ -387,6 +387,16 @@ impl StarlarkEngine {
             .map(|p| p.to_string_lossy().to_string())
             .unwrap_or_default();
 
+        // Platform-specific install directory = install_dir/<platform>
+        // (e.g. ~/.vx/store/rust/1.29.0/windows-x64)
+        // This is the actual directory where `install_impl` places files.
+        let platform_dir_name = vx_paths::manager::CurrentPlatform::current().as_str();
+        let platform_install_dir = if install_dir.is_empty() {
+            String::new()
+        } else {
+            format!("{}/{}", install_dir, platform_dir_name)
+        };
+
         let vx_home = ctx.paths.vx_home.to_string_lossy().to_string();
 
         let version = ctx.paths.version.clone().unwrap_or_default();
@@ -412,8 +422,12 @@ impl StarlarkEngine {
                 "target": ctx.platform.target,
             },
             "env": ctx.env,
+            // platform_install_dir = install_dir/<platform> — the actual on-disk location
+            // where install_impl places extracted/downloaded files.
+            "platform_install_dir": platform_install_dir,
             "paths": {
-                "install_dir":    install_dir,
+                "install_dir":          install_dir,
+                "platform_install_dir": platform_install_dir,
                 "vx_home":        ctx.paths.vx_home.to_string_lossy().as_ref(),
                 "store_dir":      ctx.paths.store_dir.to_string_lossy().as_ref(),
                 "cache_dir":      ctx.paths.cache_dir.to_string_lossy().as_ref(),
