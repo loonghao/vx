@@ -83,7 +83,11 @@ fn test_download_url_macos_arm64() {
 {}
 ctx = struct(platform = struct(os = "macos", arch = "arm64", target = ""))
 url = download_url(ctx, "5.7.4")
+<<<<<<< HEAD
 url != None and "darwin" in url and "arm64" in url and not url.endswith(".tar.gz") and not url.endswith(".exe")
+=======
+url != None and "darwin" in url and "arm64" in url and not url.endswith(".tar.gz")
+>>>>>>> babd8c85 (test(providers): fix incorrect download URL assertions in grpcurl/k3d/usql tests)
 "#,
         provider_star_prefix()
     ));

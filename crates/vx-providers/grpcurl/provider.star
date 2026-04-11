@@ -16,8 +16,12 @@
 # Version source: fullstorydev/grpcurl releases on GitHub (tag prefix "v")
 
 load("@vx//stdlib:provider.star",
+<<<<<<< HEAD
      "runtime_def", "github_permissions", "path_fns",
      "brew_install", "cross_platform_install")
+=======
+     "runtime_def", "github_permissions", "path_fns")
+>>>>>>> babd8c85 (test(providers): fix incorrect download URL assertions in grpcurl/k3d/usql tests)
 load("@vx//stdlib:github.star", "make_fetch_versions", "github_asset_url")
 load("@vx//stdlib:env.star",    "env_prepend")
 
