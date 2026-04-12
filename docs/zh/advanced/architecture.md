@@ -1,389 +1,229 @@
-# 架构
+# 系统架构
 
-vx 的内部架构概述。
+> 本文档是 vx 架构的**权威参考**。所有架构决策应记录在此或 [`docs/rfcs/`](../rfcs/)。
 
-## 高层架构
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│                        vx CLI                               │
-├─────────────────────────────────────────────────────────────┤
-│ 命令  │ 配置  │ UI  │ Shell 集成                            │
-├─────────────────────────────────────────────────────────────┤
-│                     vx-resolver                             │
-│ 版本解析 │ 依赖图 │ 执行器                                   │
-├─────────────────────────────────────────────────────────────┤
-│                     vx-runtime                              │
-│ Provider 注册表 │ Manifest 注册表 │ 运行时上下文             │
-├─────────────────────────────────────────────────────────────┤
-│                     vx-providers                            │
-│ Node │ Go │ Rust │ UV │ Deno │ ... (可插拔)                 │
-├─────────────────────────────────────────────────────────────┤
-│                      vx-core                                │
-│ 类型 │ Traits │ 工具 │ 平台抽象                             │
-├─────────────────────────────────────────────────────────────┤
-│                      vx-paths                               │
-│ 路径管理 │ 存储 │ 环境 │ 缓存                               │
-└─────────────────────────────────────────────────────────────┘
-```
-
-## Crate 结构
-
-### vx-core
-
-所有 crate 共享的核心类型和 traits。
+## 系统架构图
 
 ```
-vx-core/
-├── src/
-│   ├── lib.rs
-│   ├── types.rs      # 通用类型
-│   ├── traits.rs     # 核心 traits
-│   ├── error.rs      # 错误类型
-│   └── platform.rs   # 平台检测
+                        用户命令
+                            │
+                            ▼
+                  ┌──────────────────┐
+                  │     vx-cli       │  CLI 解析、命令路由
+                  └────────┬─────────┘
+                           │
+                  ┌────────▼─────────┐
+                  │   vx-resolver    │  解析运行时、检查依赖、
+                  │   + Executor     │  自动安装、转发命令
+                  └────────┬─────────┘
+                           │
+            ┌──────────────┼──────────────┐
+            │              │              │
+   ┌────────▼───────┐ ┌───▼──────┐ ┌────▼─────────┐
+   │  vx-starlark   │ │vx-runtime│ │ vx-installer  │
+   │ (DSL 引擎)     │ │(注册表)  │ │ (下载与安装)  │
+   └────────┬───────┘ └──────────┘ └──────────────┘
+            │
+   ┌────────▼───────┐
+   │ provider.star   │  129 个 Provider 定义
+   │ 文件            │  (Starlark DSL)
+   └────────────────┘
 ```
 
-### vx-paths
+## Crate 依赖层级
 
-路径管理和目录结构。
+### 第 0 层：基础（无内部依赖）
 
-```
-vx-paths/
-├── src/
-│   ├── lib.rs
-│   ├── manager.rs    # PathManager
-│   ├── store.rs      # 版本存储
-│   ├── envs.rs       # 环境
-│   └── cache.rs      # 缓存管理
-```
+| Crate | 职责 |
+|-------|------|
+| `vx-core` | 核心 trait：`Runtime`、`Provider`、`PackageManager` |
+| `vx-paths` | 跨平台路径管理（`~/.vx/` 目录结构） |
+| `vx-cache` | 缓存层（HTTP 响应、版本列表） |
+| `vx-versions` | 语义化版本解析与比较 |
+| `vx-manifest` | Provider 清单解析（provider.star 元数据） |
+| `vx-args` | 参数解析工具 |
 
-### vx-runtime
+### 第 1 层：基础设施（依赖第 0 层）
 
-运行时管理和 Provider 注册。
+| Crate | 职责 | 关键依赖 |
+|-------|------|---------|
+| `vx-runtime-core` | Runtime trait 扩展 | vx-core |
+| `vx-runtime-archive` | 归档解压（tar、zip、xz） | vx-core |
+| `vx-runtime-http` | HTTP 客户端封装 | vx-core、vx-cache |
+| `vx-config` | 分层配置（内置 → 用户 → 项目 → 环境变量） | vx-paths |
+| `vx-env` | 环境变量管理 | vx-paths |
+| `vx-console` | 统一输出、进度条、结构化日志 | — |
+| `vx-metrics` | OpenTelemetry 追踪与指标 | — |
 
-```
-vx-runtime/
-├── src/
-│   ├── lib.rs
-│   ├── registry.rs          # ProviderRegistry
-│   ├── manifest_registry.rs # ManifestRegistry（清单驱动）
-│   ├── context.rs           # RuntimeContext
-│   ├── provider.rs          # Provider trait
-│   └── runtime.rs           # 运行时信息
-```
+### 第 2 层：服务（依赖第 0-1 层）
 
-#### ManifestRegistry
+| Crate | 职责 | 关键依赖 |
+|-------|------|---------|
+| `vx-runtime` | 运行时管理、`ManifestDrivenRuntime`、`ProviderRegistry` | vx-core、vx-runtime-*、vx-paths |
+| `vx-starlark` | Starlark DSL 引擎，加载 `provider.star` | vx-runtime、vx-paths |
+| `vx-installer` | 下载、校验、解压 | vx-runtime-archive、vx-runtime-http |
+| `vx-version-fetcher` | 从 GitHub/npm/PyPI 获取可用版本 | vx-cache、vx-runtime-http |
+| `vx-system-pm` | 系统包管理器集成（apt、brew、winget） | vx-core |
+| `vx-ecosystem-pm` | 生态包管理器（npm、pip、cargo） | vx-core |
+| `vx-shim` | Shim 二进制生成 | vx-paths |
 
-`ManifestRegistry` 提供清单驱动的 Provider 注册，支持延迟加载和元数据查询：
+### 第 3 层：编排（依赖第 0-2 层）
 
-```rust
-// 使用工厂函数创建注册表
-let mut registry = ManifestRegistry::new();
-registry.register_factory("node", || create_node_provider());
-registry.register_factory("go", || create_go_provider());
+| Crate | 职责 | 关键依赖 |
+|-------|------|---------|
+| `vx-resolver` | 依赖解析、拓扑排序、命令执行 | vx-runtime、vx-installer |
+| `vx-setup` | `vx setup` 命令——从 vx.toml 安装所有工具 | vx-resolver、vx-config |
+| `vx-migration` | vx 版本间的迁移 | vx-paths、vx-config |
+| `vx-extension` | 扩展系统 | vx-runtime、vx-args |
+| `vx-project-analyzer` | 检测项目类型（React、Python、Rust 等） | vx-config |
 
-// 从工厂构建 ProviderRegistry
-let provider_registry = registry.build_registry_from_factories()?;
+### 第 4 层：应用（依赖所有层）
 
-// 不加载 provider 即可查询元数据
-if let Some(metadata) = registry.get_runtime_metadata("npm") {
-    println!("Provider: {}", metadata.provider_name);
-    println!("生态系统: {:?}", metadata.ecosystem);
-}
-```
+| Crate | 职责 |
+|-------|------|
+| `vx-cli` | CLI 入口、命令路由、用户交互 |
 
-优势：
-- **延迟加载**：Provider 仅在需要时创建
-- **元数据访问**：无需加载 provider 即可查询运行时信息
-- **可扩展性**：通过清单文件添加新 provider
+### Provider 层（独立，与第 2-3 层并列）
 
-### vx-resolver
+| 目录 | 职责 |
+|------|------|
+| `crates/vx-providers/*` | 129 个 Provider 定义，使用 `provider.star` Starlark DSL |
+| `vx-bridge` | 通用命令桥接框架 |
 
-版本解析和执行，带可观测性支持。
+**依赖规则**：每层只能依赖其**下方**的层，严禁向上依赖。
 
-```
-vx-resolver/
-├── src/
-│   ├── lib.rs
-│   ├── resolver.rs        # 版本解析器
-│   ├── executor.rs        # 命令执行器（带追踪 span）
-│   ├── resolution_cache.rs # 带结构化日志的缓存
-│   ├── deps.rs            # 依赖解析
-│   └── spec.rs            # 运行时规格
-```
-
-#### 可观测性
-
-执行器包含结构化追踪，用于调试和监控：
-
-```rust
-// 带结构化字段的执行 span
-info_span!("vx_execute",
-    runtime = %runtime_name,
-    version = version.unwrap_or("latest"),
-    args_count = args.len()
-)
-
-// 带结构化字段的缓存日志
-debug!(
-    runtime = %runtime,
-    cache_hit = true,
-    "Resolution cache hit"
-);
-```
-
-### vx-cli
-
-命令行界面。
+## 数据流：`vx node --version`
 
 ```
-vx-cli/
-├── src/
-│   ├── lib.rs
-│   ├── cli.rs        # Clap 定义
-│   ├── commands/     # 命令实现
-│   ├── config.rs     # 配置（重新导出 vx-config）
-│   ├── registry.rs   # Provider 注册
-│   └── ui.rs         # 用户界面
+1. CLI 解析
+   vx-cli 接收 ["node", "--version"]
+
+2. 运行时查找
+   vx-resolver → ProviderRegistry.find("node")
+   → 找到：NodeProvider（通过 provider.star）
+
+3. 依赖检查
+   vx-resolver 检查 node 无未满足的依赖
+   （npm/npx 与 node 捆绑，而非反向依赖）
+
+4. 版本解析
+   vx-starlark 调用 provider.star 中的 fetch_versions(ctx)
+   → 返回可用版本列表
+   vx-config 解析使用哪个版本（vx.toml、.vxrc、默认值）
+
+5. 安装检查
+   检查 ~/.vx/store/node/<version>/ 是否存在
+   如不存在：download_url(ctx, version) → vx-installer → 解压
+
+6. 环境配置
+   vx-starlark 调用 environment(ctx, version)
+   → 返回 [env_prepend("PATH", ".../bin")]
+
+7. 命令转发
+   执行：/path/to/node --version
+   将退出码转发给调用方
 ```
 
-### vx-config
-
-配置管理，带安全特性。
+## 存储布局
 
 ```
-vx-config/
-├── src/
-│   ├── lib.rs
-│   ├── parser.rs      # TOML 解析
-│   ├── inheritance.rs # 预设继承，带 SHA256 验证
-│   └── types.rs       # 配置类型
-```
-
-#### 安全特性
-
-远程预设验证：
-
-```rust
-// 带 SHA256 验证的 PresetSource
-impl PresetSource {
-    pub fn warn_if_unverified(&self);
-    pub fn verify_content(&self, content: &str) -> Result<()>;
-    pub fn has_hash_verification(&self) -> bool;
-}
-```
-
-### vx-extension
-
-扩展系统，带信任模型。
-
-```
-vx-extension/
-├── src/
-│   ├── lib.rs
-│   ├── discovery.rs  # 扩展发现，带警告
-│   └── loader.rs     # 扩展加载
-```
-
-#### 扩展信任模型
-
-```rust
-impl Extension {
-    /// 获取扩展来源信息
-    pub fn source_info(&self) -> String;
-    
-    /// 检查扩展是否来自可能不可信的来源
-    pub fn is_potentially_untrusted(&self) -> bool;
-    
-    /// 为不可信扩展显示警告
-    pub fn warn_if_untrusted(&self);
-}
-```
-
-### vx-providers
-
-工具 Provider（每个工具一个 crate）。
-
-```
-vx-providers/
-├── node/
-├── go/
-├── rust/
-├── uv/
-├── deno/
-└── ... (34+ providers)
-```
-
-每个 provider 包含 `provider.toml` 清单：
-
-```toml
-[provider]
-name = "node"
-description = "Node.js 运行时"
-
-[[runtimes]]
-name = "node"
-executable = "node"
-ecosystem = "nodejs"
-
-[[runtimes]]
-name = "npm"
-executable = "npm"
-ecosystem = "nodejs"
-```
-
-## 数据流
-
-### 命令执行
-
-```
-用户输入
-    │
-    ▼
-┌─────────┐
-│  CLI    │ 解析参数
-└────┬────┘
-     │
-     ▼
-┌─────────┐
-│Resolver │ 解析版本，检查依赖
-└────┬────┘
-     │
-     ▼
-┌─────────┐
-│Provider │ 如需要则安装
-└────┬────┘
-     │
-     ▼
-┌─────────┐
-│Executor │ 使用正确的 PATH 运行命令
-└────┬────┘
-     │
-     ▼
-  输出
-```
-
-### 版本解析
-
-```
-版本规格（如 "node@20"）
-    │
-    ▼
-┌──────────────┐
-│解析规格      │ 提取工具名和版本约束
-└──────┬───────┘
-       │
-       ▼
-┌──────────────┐
-│检查存储      │ 版本是否已安装？
-└──────┬───────┘
-       │
-       ▼（如未安装）
-┌──────────────┐
-│获取列表      │ 从 provider 获取可用版本
-└──────┬───────┘
-       │
-       ▼
-┌──────────────┐
-│匹配版本      │ 找到最佳匹配版本
-└──────┬───────┘
-       │
-       ▼
-┌──────────────┐
-│安装          │ 下载并安装
-└──────────────┘
-```
-
-## 目录结构
-
-```
-~/.local/share/vx/
-├── store/              # 已安装的工具版本
+~/.vx/
+├── store/           # 已安装的工具版本（内容寻址）
 │   ├── node/
-│   │   ├── 18.19.0/
-│   │   └── 20.10.0/
-│   ├── go/
-│   │   └── 1.21.5/
-│   └── uv/
-│       └── 0.1.24/
-├── envs/               # 命名环境
-│   ├── default/        # 默认环境（符号链接）
-│   └── my-project/     # 项目环境
-├── cache/              # 下载的归档、版本列表
-└── tmp/                # 临时文件
+│   │   ├── 20.0.0/
+│   │   └── 22.0.0/
+│   └── go/
+│       └── 1.23.0/
+├── cache/           # 下载缓存、版本列表
+│   ├── downloads/
+│   └── versions/
+├── bin/             # 全局 shims
+├── config/          # 用户配置
+└── metrics/         # 遥测数据（JSON 文件）
 ```
 
-## 关键抽象
+## Starlark Provider 系统
 
-### Provider Trait
+vx 使用**两阶段执行模型**（灵感来自 Buck2）：
 
-```rust
-#[async_trait]
-pub trait Provider: Send + Sync {
-    fn info(&self) -> ProviderInfo;
-    async fn list_versions(&self) -> Result<Vec<String>>;
-    async fn install(&self, version: &str) -> Result<()>;
-    fn get_runtime(&self, version: &str) -> Result<RuntimeInfo>;
-}
+1. **分析阶段（Starlark）**：`provider.star` 作为纯计算运行，返回描述符 dict，无 I/O。
+2. **执行阶段（Rust）**：Rust 运行时解释描述符，执行实际的下载、安装和进程执行。
+
+### Provider 模板
+
+| 模板 | 适用场景 |
+|------|---------|
+| `github_rust_provider` | GitHub Releases 发布 Rust 二进制（最常见） |
+| `github_go_provider` | GitHub Releases 发布 Go 二进制（goreleaser 风格） |
+| `github_binary_provider` | 单一二进制下载（无归档） |
+| `system_provider` | 仅系统包管理器安装 |
+
+最简 Provider 示例：
+
+```python
+# crates/vx-providers/mytool/provider.star
+load("@vx//stdlib:provider.star", "runtime_def", "github_permissions")
+load("@vx//stdlib:provider_templates.star", "github_rust_provider")
+
+name        = "mytool"
+description = "My awesome tool"
+ecosystem   = "custom"
+
+runtimes    = [runtime_def("mytool", aliases = ["mt"])]
+permissions = github_permissions()
+
+_p = github_rust_provider("owner", "repo",
+    asset = "mytool-{vversion}-{triple}.{ext}")
+
+fetch_versions   = _p["fetch_versions"]
+download_url     = _p["download_url"]
+install_layout   = _p["install_layout"]
+store_root       = _p["store_root"]
+get_execute_path = _p["get_execute_path"]
+environment      = _p["environment"]
 ```
 
-### RuntimeSpec
+## 关键设计决策
 
-```rust
-pub struct RuntimeSpec {
-    pub name: String,
-    pub description: String,
-    pub aliases: Vec<String>,
-    pub dependencies: Vec<RuntimeDependency>,
-    pub executable: Option<String>,
-    pub command_prefix: Vec<String>,
-    pub ecosystem: Ecosystem,
-}
-```
+| 决策 | 理由 | RFC |
+|------|------|-----|
+| Starlark DSL 用于 Provider | 零编译、声明式、类型安全 | [RFC-0036](../rfcs/0036-starlark-provider-support.md) |
+| provider.star 替代 TOML | 单一真相来源，更具表达力 | [RFC-0038](../rfcs/0038-provider-star-replaces-toml.md) |
+| 清单驱动注册 | 新 Provider 无需 Rust 代码 | [RFC-0013](../rfcs/0013-manifest-driven-registration.md) |
+| cargo-nextest 测试 | 并行测试速度提升 3 倍 | — |
+| sccache CI 缓存 | 减少编译时间 40-60% | — |
+| 纯 Rust TLS（rustls） | 无 OpenSSL 依赖，便于交叉编译 | — |
 
-### PathManager
+## 跨平台支持
 
-```rust
-impl PathManager {
-    pub fn version_store_dir(&self, tool: &str, version: &str) -> PathBuf;
-    pub fn env_dir(&self, name: &str) -> PathBuf;
-    pub fn cache_dir(&self) -> PathBuf;
-    pub fn list_store_versions(&self, tool: &str) -> Result<Vec<String>>;
-}
-```
+| 平台 | 构建目标 | 备注 |
+|------|---------|------|
+| Linux x86_64 | `x86_64-unknown-linux-gnu` | 主要平台 |
+| Linux x86_64（静态）| `x86_64-unknown-linux-musl` | Alpine/Docker |
+| Linux ARM64 | `aarch64-unknown-linux-gnu` | Raspberry Pi、ARM 服务器 |
+| Linux ARM64（静态）| `aarch64-unknown-linux-musl` | Alpine ARM |
+| macOS x86_64 | `x86_64-apple-darwin` | Intel Mac |
+| macOS ARM64 | `aarch64-apple-darwin` | Apple Silicon |
+| Windows x86_64 | `x86_64-pc-windows-msvc` | 主要 Windows 平台 |
 
-### ConfigView
-
-配置的扁平化视图，用于简单的键值操作：
-
-```rust
-pub struct ConfigView {
-    pub tools: HashMap<String, String>,
-    pub settings: HashMap<String, String>,
-    pub env: HashMap<String, String>,
-    pub scripts: HashMap<String, String>,
-}
-
-impl From<VxConfig> for ConfigView {
-    fn from(config: VxConfig) -> Self { ... }
-}
-```
-
-## 并发
+## 并发与错误处理
 
 - 使用 `tokio` 并行安装工具
-- 异步版本获取
-- 线程安全的 provider 注册表
+- 异步版本获取（非阻塞 HTTP）
+- 线程安全的 Provider 注册表（`Arc<RwLock<T>>`）
+- 库代码使用 `thiserror` 定义具体错误类型
+- 应用代码使用 `anyhow::Result` 简化错误传播
+- 日志始终使用 `tracing` 宏，不使用 `println!`
 
-## 错误处理
+## 退出码
 
-- 使用 `anyhow` 传播错误
-- 上下文相关的错误消息
-- 用户友好的错误显示
-
-## 安全
-
-详见 [安全](/zh/advanced/security)：
-- 远程预设 SHA256 验证
-- 扩展信任模型
-- 结构化日志用于审计
+| 代码 | 含义 |
+|------|------|
+| 0 | 成功 |
+| 1 | 通用错误 |
+| 2 | 工具未找到 |
+| 3 | 安装失败 |
+| 4 | 版本未找到 |
+| 5 | 网络错误 |
+| 6 | 权限错误 |
+| 7 | 配置错误 |
