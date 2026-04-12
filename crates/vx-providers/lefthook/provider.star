@@ -111,13 +111,13 @@ def store_root(ctx):
 
 def get_execute_path(ctx, _version):
     exe = "lefthook.exe" if ctx.platform.os == "windows" else "lefthook"
-    return ctx.platform_install_dir + "/bin/" + exe
+    return ctx.install_dir + "/bin/" + exe
 
 def post_install(_ctx, _version):
     return None
 
 def environment(ctx, _version):
-    return [env_prepend("PATH", ctx.platform_install_dir + "/bin")]
+    return [env_prepend("PATH", ctx.install_dir + "/bin")]
 
 def deps(_ctx, _version):
     return []

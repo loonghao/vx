@@ -407,7 +407,11 @@ impl StarlarkEngine {
             "description":  ctx.description,
             "version":      version,
             "vx_home":      vx_home,
-            "install_dir":  install_dir,
+            // ctx.install_dir points to the actual on-disk install location
+            // (includes platform subdir, e.g. ~/.vx/store/node/20.0.0/linux-x64).
+            // This is where `install_impl` places extracted/downloaded files and
+            // where get_execute_path / environment should reference.
+            "install_dir":  platform_install_dir,
             // Runtime name for multi-runtime providers (e.g. "yazi" within "shell-tools").
             // Allows providers to dispatch on the specific runtime being queried.
             "runtime_name": ctx.runtime_name.as_deref().unwrap_or(""),
@@ -424,6 +428,7 @@ impl StarlarkEngine {
             "env": ctx.env,
             // platform_install_dir = install_dir/<platform> — the actual on-disk location
             // where install_impl places extracted/downloaded files.
+            // Same as ctx.install_dir (kept for backward compatibility).
             "platform_install_dir": platform_install_dir,
             "paths": {
                 "install_dir":          install_dir,
