@@ -75,8 +75,8 @@ url != None and "windows" in url and "x86_64" in url
 }
 
 #[test]
-fn test_download_url_macos_returns_none() {
-    // macOS: download_url returns None (use brew via system_install instead)
+fn test_download_url_macos_arm64() {
+    // macOS: download_url returns osx arm64 tar.gz URL
     let mut a = Assert::new();
     a.dialect(&Dialect::Standard);
     a.is_true(&format!(
@@ -84,7 +84,7 @@ fn test_download_url_macos_returns_none() {
 {}
 ctx = struct(platform = struct(os = "macos", arch = "arm64", target = ""))
 url = download_url(ctx, "1.9.3")
-url == None
+url != None and "osx" in url and "arm64" in url and url.endswith(".tar.gz")
 "#,
         provider_star_prefix()
     ));

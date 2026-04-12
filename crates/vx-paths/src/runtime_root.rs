@@ -88,13 +88,18 @@ impl RuntimeRoot {
         let base_dir = manager.version_store_dir(name, version);
         let platform_dir = manager.platform_store_dir(name, version);
 
-        if !platform_dir.exists() {
+        // New layout: try version dir first; old layout: platform subdir fallback.
+        let install_dir = if base_dir.exists() {
+            base_dir.clone()
+        } else if platform_dir.exists() {
+            platform_dir.clone()
+        } else {
             return Ok(None);
-        }
+        };
 
-        // Find the actual root directory within platform_dir
+        // Find the actual root directory within install_dir
         // Some runtimes have nested directories (e.g., node-v20.0.0-win-x64)
-        let (root_dir, bin_dir, executable_path) = Self::resolve_dirs(&platform_dir, name)?;
+        let (root_dir, bin_dir, executable_path) = Self::resolve_dirs(&install_dir, name)?;
 
         // Get all installed versions
         let all_versions = manager.list_store_versions(name).unwrap_or_default();
