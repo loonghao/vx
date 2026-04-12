@@ -262,9 +262,13 @@ async fn install_runtime_for_test(
     let version = versions.first().unwrap_or(&install_result.version);
 
     let platform = vx_runtime::Platform::current();
-    let store_dir = path_manager
-        .version_store_dir(runtime.store_name(), version)
-        .join(platform.as_str());
+    let base_dir = path_manager.version_store_dir(runtime.store_name(), version);
+    // New layout: files directly in version dir. Old layout: platform subdir fallback.
+    let store_dir = if base_dir.exists() {
+        base_dir.clone()
+    } else {
+        base_dir.join(platform.as_str())
+    };
     let exe_relative = runtime.executable_relative_path(version, &platform);
     let exe_path = store_dir.join(&exe_relative);
 
@@ -1090,8 +1094,12 @@ async fn get_installed_executable(ctx: &CommandContext, runtime_name: &str) -> O
             let versions = path_manager.list_store_versions(store_name).ok()?;
             if let Some(version) = versions.first() {
                 let base_dir = path_manager.version_store_dir(store_name, version);
-                // Actual files live under {base}/{platform}/
-                let store_dir = base_dir.join(platform.as_str());
+                // New layout: files directly in version dir; old layout: platform subdir.
+                let store_dir = if base_dir.exists() {
+                    base_dir.clone()
+                } else {
+                    base_dir.join(platform.as_str())
+                };
                 let exe_relative = runtime.executable_relative_path(version, &platform);
                 let exe_path = store_dir.join(&exe_relative);
                 if exe_path.exists() {
@@ -1151,8 +1159,12 @@ fn get_executable_path_for_runtime(
             // 2. Bundled runtimes (e.g., "npm" -> "node", "uvx" -> "uv")
             let store_name = runtime.store_name();
             let base_dir = path_manager.version_store_dir(store_name, version);
-            // Actual files live under {base}/{platform}/
-            let store_dir = base_dir.join(platform.as_str());
+            // New layout: files directly in version dir; old layout: platform subdir.
+            let store_dir = if base_dir.exists() {
+                base_dir.clone()
+            } else {
+                base_dir.join(platform.as_str())
+            };
 
             // Use verify_installation to find the actual executable path
             // This handles complex layouts like VSCode's platform-specific directories

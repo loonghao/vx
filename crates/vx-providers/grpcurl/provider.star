@@ -67,6 +67,8 @@ fetch_versions = make_fetch_versions("fullstorydev", "grpcurl")
 _PLATFORMS = {
     "linux/x64":    ("linux",   "x86_64", "tar.gz"),
     "linux/arm64":  ("linux",   "arm64",  "tar.gz"),
+    "macos/x64":    ("osx",     "x86_64", "tar.gz"),
+    "macos/arm64":  ("osx",     "arm64",  "tar.gz"),
     "windows/x64":  ("windows", "x86_64", "zip"),
 }
 
@@ -83,9 +85,6 @@ def _grpcurl_platform(ctx):
 # ---------------------------------------------------------------------------
 
 def download_url(ctx, version):
-    if ctx.platform.os == "macos":
-        # Prefer Homebrew on macOS; fall back to system_install
-        return None
     platform = _grpcurl_platform(ctx)
     if not platform:
         return None
@@ -94,7 +93,7 @@ def download_url(ctx, version):
     return github_asset_url("fullstorydev", "grpcurl", "v" + version, asset)
 
 # ---------------------------------------------------------------------------
-# system_install - Homebrew on macOS
+# system_install - Homebrew on macOS (fallback when download_url fails)
 # ---------------------------------------------------------------------------
 
 def system_install(_ctx, _version):

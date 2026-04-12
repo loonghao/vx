@@ -32,7 +32,9 @@ impl ManifestDrivenRuntime {
         let platform = Platform::current();
         let store_name = self.bundled_with.as_deref().unwrap_or(&self.name);
         let base_path = ctx.paths.version_store_dir(store_name, version);
-        let install_path = base_path.join(platform.as_str());
+        // New layout: install directly to version dir (no platform subdirectory).
+        // Old layout used base_path.join(platform.as_str()).
+        let install_path = base_path;
 
         // pip package: install via uv pip install <package>==<version>
         if let Some(ref pkg) = self.pip_package {
