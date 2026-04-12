@@ -44,18 +44,24 @@ impl IntegratedVersionResolver {
         version_request: &str,
         ecosystem: &Ecosystem,
     ) -> Result<ResolvedVersionInfo> {
-        // Use platform-specific directory for installation check
+        // New layout: try version_store_dir first (no platform subdirectory).
+        // Old layout: fall back to platform_store_dir for old installations.
+        let version_store_dir = self
+            .path_manager
+            .version_store_dir(runtime_name, version_request);
         let platform_store_dir = self
             .path_manager
             .platform_store_dir(runtime_name, version_request);
 
-        if platform_store_dir.exists() {
-            // Version is installed, return paths
-            self.build_resolved_info(runtime_name, version_request, &platform_store_dir)
+        let install_dir = if version_store_dir.exists() {
+            version_store_dir
+        } else if platform_store_dir.exists() {
+            platform_store_dir
         } else {
-            // Try to resolve version request (if it's a partial version like "3.11")
-            self.resolve_version_request(runtime_name, version_request, ecosystem)
-        }
+            return self.resolve_version_request(runtime_name, version_request, ecosystem);
+        };
+
+        self.build_resolved_info(runtime_name, version_request, &install_dir)
     }
 
     /// Resolve a version request against installed versions

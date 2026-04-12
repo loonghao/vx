@@ -39,7 +39,13 @@ pub fn get_shell_path(
     // 1. Try vx store directory first
     let platform = Platform::current();
     let base_path = ctx.paths.version_store_dir(store_name, version);
-    let install_path = base_path.join(platform.as_str());
+    // New layout: install directly to version dir; fallback to platform dir for old installs.
+    let platform_dir = base_path.join(platform.as_str());
+    let install_path = if base_path.exists() {
+        base_path
+    } else {
+        platform_dir
+    };
     let shell_path = install_path.join(shell_relative);
 
     debug!("Checking vx store path: {}", shell_path.display());

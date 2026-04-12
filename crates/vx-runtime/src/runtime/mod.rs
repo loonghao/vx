@@ -802,11 +802,12 @@ pub trait Runtime: Send + Sync {
             return Ok(!versions.is_empty());
         }
 
-        // Use platform-specific directory for installation check
+        // New layout: install directly to version dir; fallback to platform dir for old installs.
         let platform = Platform::current();
         let base_path = ctx.paths.version_store_dir(self.store_name(), version);
-        let install_path = base_path.join(platform.as_str());
-        Ok(ctx.fs.exists(&install_path))
+        let platform_dir = base_path.join(platform.as_str());
+        let exists = ctx.fs.exists(&base_path) || ctx.fs.exists(&platform_dir);
+        Ok(exists)
     }
 
     /// Get the executable path for an installed version
@@ -821,10 +822,15 @@ pub trait Runtime: Send + Sync {
         version: &str,
         ctx: &RuntimeContext,
     ) -> Result<Option<std::path::PathBuf>> {
-        // Use platform-specific directory for executable lookup
+        // New layout: install directly to version dir; fallback to platform dir for old installs.
         let platform = Platform::current();
         let base_path = ctx.paths.version_store_dir(self.store_name(), version);
-        let install_path = base_path.join(platform.as_str());
+        let platform_dir = base_path.join(platform.as_str());
+        let install_path = if base_path.exists() {
+            base_path
+        } else {
+            platform_dir
+        };
         if !ctx.fs.exists(&install_path) {
             return Ok(None);
         }
@@ -1146,12 +1152,17 @@ pub trait Runtime: Send + Sync {
 
     /// Uninstall a specific version
     async fn uninstall(&self, version: &str, ctx: &RuntimeContext) -> Result<()> {
-        // Use platform-specific directory for uninstallation
+        // New layout: uninstall from version dir directly; also clean up old platform dir.
         let platform = Platform::current();
         let base_path = ctx.paths.version_store_dir(self.store_name(), version);
-        let install_path = base_path.join(platform.as_str());
-        if ctx.fs.exists(&install_path) {
-            ctx.fs.remove_dir_all(&install_path)?;
+        let platform_dir = base_path.join(platform.as_str());
+        // Remove old platform-specific directory if it exists
+        if ctx.fs.exists(&platform_dir) {
+            ctx.fs.remove_dir_all(&platform_dir)?;
+        }
+        // Remove the version directory if it exists (new layout)
+        if ctx.fs.exists(&base_path) {
+            ctx.fs.remove_dir_all(&base_path)?;
         }
         Ok(())
     }

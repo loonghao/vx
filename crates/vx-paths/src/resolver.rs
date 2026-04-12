@@ -226,7 +226,16 @@ impl PathResolver {
         version: &str,
         exe_name: &str,
     ) -> Option<ToolLocation> {
-        // Check store with platform redirection
+        // New layout: try version_store_dir first (no platform subdirectory).
+        // Old layout: fall back to platform_store_dir for old installations.
+        let version_store_dir = self.manager.version_store_dir(tool_name, version);
+        if let Some(path) = self.find_executable_in_dir(&version_store_dir, exe_name) {
+            return Some(ToolLocation {
+                path,
+                version: version.to_string(),
+                source: ToolSource::Store,
+            });
+        }
         let platform_store_dir = self.manager.platform_store_dir(tool_name, version);
         if let Some(path) = self.find_executable_in_dir(&platform_store_dir, exe_name) {
             return Some(ToolLocation {
@@ -292,9 +301,9 @@ impl PathResolver {
         let versions = self.manager.list_store_versions(tool_name)?;
         // Return the latest version (last after sort)
         for version in versions.iter().rev() {
-            // Try platform-specific directory (new structure)
-            let platform_dir = self.manager.platform_store_dir(tool_name, version);
-            if let Some(path) = self.find_executable_in_dir(&platform_dir, exe_name) {
+            // New layout: try version_store_dir first (no platform subdirectory).
+            let version_dir = self.manager.version_store_dir(tool_name, version);
+            if let Some(path) = self.find_executable_in_dir(&version_dir, exe_name) {
                 return Ok(Some(ToolLocation {
                     path,
                     version: version.clone(),
@@ -302,12 +311,10 @@ impl PathResolver {
                 }));
             }
 
-            // Fallback: Try version directory directly (for cross-platform tools like vcpkg)
-            // Some tools don't use platform-specific subdirectories because they manage
-            // multiple platforms/triplets within a single installation
-            let version_dir = self.manager.version_store_dir(tool_name, version);
+            // Old layout fallback: try platform-specific directory.
+            let platform_dir = self.manager.platform_store_dir(tool_name, version);
             if version_dir != platform_dir
-                && let Some(path) = self.find_executable_in_dir(&version_dir, exe_name)
+                && let Some(path) = self.find_executable_in_dir(&platform_dir, exe_name)
             {
                 return Ok(Some(ToolLocation {
                     path,
@@ -338,9 +345,9 @@ impl PathResolver {
         let versions = self.manager.list_store_versions(tool_name)?;
 
         for version in &versions {
-            // Try platform-specific directory (new structure)
-            let platform_dir = self.manager.platform_store_dir(tool_name, version);
-            if let Some(path) = self.find_executable_in_dir(&platform_dir, exe_name) {
+            // New layout: try version_store_dir first (no platform subdirectory).
+            let version_dir = self.manager.version_store_dir(tool_name, version);
+            if let Some(path) = self.find_executable_in_dir(&version_dir, exe_name) {
                 locations.push(ToolLocation {
                     path,
                     version: version.clone(),
@@ -349,10 +356,10 @@ impl PathResolver {
                 continue;
             }
 
-            // Fallback: Try version directory directly (for cross-platform tools like vcpkg)
-            let version_dir = self.manager.version_store_dir(tool_name, version);
+            // Old layout fallback: try platform-specific directory.
+            let platform_dir = self.manager.platform_store_dir(tool_name, version);
             if version_dir != platform_dir
-                && let Some(path) = self.find_executable_in_dir(&version_dir, exe_name)
+                && let Some(path) = self.find_executable_in_dir(&platform_dir, exe_name)
             {
                 locations.push(ToolLocation {
                     path,

@@ -78,7 +78,9 @@ pub async fn default_install_inner(
 ) -> Result<InstallResult> {
     let platform = Platform::current();
     let base_install_path = ctx.paths.version_store_dir(params.store_name, version);
-    let install_path = base_install_path.join(platform.as_str());
+    // New layout: install directly to version dir (no platform subdirectory).
+    // Old layout used base_install_path.join(platform.as_str()).
+    let install_path = base_install_path;
 
     debug!(
         "Install path for {} (store: {}) {}: {} (platform: {})",
