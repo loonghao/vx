@@ -34,7 +34,7 @@ ecosystem   = "devtools"
 
 runtimes = [
     runtime_def("lefthook",
-        version_pattern = "lefthook \\d+",
+        version_pattern = "lefthook version \\d+\\.\\d+",
     ),
 ]
 

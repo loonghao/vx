@@ -707,14 +707,16 @@ impl ProviderHandle {
                 .collect()
         };
 
-        // Directories to search within the version dir
+        // Directories to search within the version dir.
+        // New layout: files are directly in version_dir.
+        // Old layout: files were in version_dir/<platform>/. Both checked for compat.
         let platform_dir_name = vx_paths::platform_dir_name();
         let search_dirs: Vec<std::path::PathBuf> = vec![
             version_dir.clone(),
             version_dir.join("bin"),
+            version_dir.join(&self.name),
             version_dir.join(platform_dir_name),
             version_dir.join(platform_dir_name).join("bin"),
-            version_dir.join(&self.name),
         ];
 
         // Build candidate paths: each directory × each executable name
