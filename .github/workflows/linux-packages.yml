@@ -248,7 +248,7 @@ jobs:
           find packages -type f \( -name "*.deb" -o -name "*.rpm" \)
 
       - name: Upload to GitHub Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ needs.check-release.outputs.version }}
           files: |
