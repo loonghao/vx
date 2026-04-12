@@ -202,7 +202,7 @@ const zhSidebar = {
         { text: '配置', link: '/zh/guide/configuration' },
         { text: '增强脚本系统', link: '/zh/guide/enhanced-scripts' },
         { text: 'Shell 集成', link: '/zh/guide/shell-integration' },
-        { text: 'MCP 集成', link: '/guide/mcp-integration' }
+        { text: 'MCP 集成', link: '/zh/guide/mcp-integration' }
       ]
     },
     {

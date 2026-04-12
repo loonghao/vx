@@ -317,6 +317,7 @@ All tools follow the same pattern: `vx <tool> [args...]` — auto-installs on fi
 | **skaffold** | `skaffold` | skaffold — Local Kubernetes Development |
 | **k9s** | `k9s` | k9s — Terminal UI for Kubernetes clusters |
 | **k3d** | `k3d` | k3d — Little helper to run Rancher Lab's k3s in Docker |
+| **lazydocker** | `lazydocker` | lazydocker — Simple terminal UI for Docker and Docker Compose |
 | **kind** | `kind` | kind — Kubernetes IN Docker |
 | **minikube** | `minikube` | minikube — Run a local Kubernetes cluster |
 | **ctlptl** | `ctlptl` | ctlptl — Making local Kubernetes clusters fun and easy to set up |
@@ -333,6 +334,7 @@ All tools follow the same pattern: `vx <tool> [args...]` — auto-installs on fi
 | **dagu** | `dagu` | Dagu — A powerful DAG workflow engine with a Web UI |
 | **actionlint** | `actionlint` | actionlint — Static checker for GitHub Actions workflow files |
 | **actrun** | `actrun` | Actionforge workflow runner CLI for executing GitHub Actions-compatible workflows locally |
+| **release-please** | `release-please` | release-please — Automated releases based on Conventional Commits |
 
 ### Cloud CLI Tools
 
@@ -392,6 +394,7 @@ All tools follow the same pattern: `vx <tool> [args...]` — auto-installs on fi
 | **trippy** | `trip` | trippy — Network path tracer combining traceroute and ping |
 | **jq** | `jq` | jq — Lightweight and flexible command-line JSON processor |
 | **yq** | `yq` | yq — A portable command-line YAML, JSON, XML, CSV, TOML and properties processor |
+| **starship** | `starship` | Starship — The minimal, blazing-fast, and infinitely customizable prompt |
 
 ### Version Control & Git Tools
 
@@ -453,6 +456,7 @@ All tools follow the same pattern: `vx <tool> [args...]` — auto-installs on fi
 | **vscode** | `code` | Visual Studio Code — Code editing. Redefined. |
 | **llvm** | `clang`, `llvm-*` | LLVM — Compiler infrastructure project |
 | **openclaw** | `openclaw` | OpenClaw — Open-source 2D platformer game engine |
+| **lima** | `limactl` | Lima — Linux virtual machines on macOS (with automatic file sharing) |
 
 ### Windows-Specific
 
@@ -460,6 +464,7 @@ All tools follow the same pattern: `vx <tool> [args...]` — auto-installs on fi
 |------|----------|-------------|
 | **choco** | `choco` | Chocolatey — The package manager for Windows |
 | **winget** | `winget` | Windows Package Manager — Official package manager for Windows |
+| **brew** | `brew` | Homebrew — The missing package manager for macOS (and Linux) |
 | **rcedit** | `rcedit` | rcedit — Windows resource editor for PE files |
 | **wix** | `wix` | WiX Toolset — Build Windows installation packages |
 | **msvc** | `cl`, `link`, `lib`, `nmake` | MSVC Build Tools — Microsoft C/C++ compiler toolchain |

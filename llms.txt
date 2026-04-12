@@ -125,6 +125,19 @@ vx is MCP-ready — replace `npx`/`uvx` with `vx` in any MCP server configuratio
 
 This eliminates the need for users to pre-install Node.js, Python, or any runtime.
 
+## Exit Codes
+
+| Code | Meaning |
+|------|---------|
+| 0 | Success |
+| 1 | General error |
+| 2 | Tool not found |
+| 3 | Installation failed |
+| 4 | Version not found |
+| 5 | Network error |
+| 6 | Permission error |
+| 7 | Configuration error |
+
 ## Advanced
 
 - [Architecture](https://github.com/loonghao/vx/blob/main/docs/architecture/OVERVIEW.md): Internal design — 5-layer architecture, crate dependency graph
