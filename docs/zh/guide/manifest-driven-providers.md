@@ -22,7 +22,7 @@ vx 使用 **`provider.star`**（Starlark）作为所有 Provider 逻辑的唯一
 
 ### 使用内置 Provider
 
-vx 内置了 60+ 个流行工具的 Provider：
+vx 内置了 129 个流行工具的 Provider：
 
 ```bash
 vx node --version      # Node.js
@@ -579,22 +579,6 @@ def environment(ctx, _version):
     return [env_prepend("PATH", ctx.install_dir)]
 ```
 
-## provider.toml（仅元数据）
-
-创建 `provider.star` 后，`provider.toml` 只需包含元数据 — **无布局字段**：
-
-```toml
-[provider]
-name        = "mytool"
-description = "我的工具"
-homepage    = "https://example.com"
-repository  = "https://github.com/myorg/mytool"
-ecosystem   = "devtools"
-license     = "MIT"
-```
-
-不需要 `[runtimes.layout]`、`download_type`、`strip_prefix` — 所有安装逻辑都在 `provider.star` 中。
-
 ## Provider 目录结构
 
 vx 从多个位置加载 Provider：
@@ -602,16 +586,13 @@ vx 从多个位置加载 Provider：
 ```
 ~/.vx/providers/          # 用户定义的 Provider（最高优先级）
 ├── mytool/
-│   ├── provider.star     # 所有逻辑（必需）
-│   └── provider.toml     # 仅元数据（可选）
+│   └── provider.star     # 所有逻辑（必需）
 └── custom-node/
-    ├── provider.star
-    └── provider.toml
+    └── provider.star
 
 $VX_PROVIDERS_PATH/       # 环境变量路径
 └── team-tools/
-    ├── provider.star
-    └── provider.toml
+    └── provider.star
 
 内置 Provider             # 最低优先级（crates/vx-providers/*）
 ```
