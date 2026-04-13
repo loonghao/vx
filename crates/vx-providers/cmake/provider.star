@@ -65,11 +65,11 @@ fetch_versions = make_fetch_versions("Kitware", "CMake")
 # ---------------------------------------------------------------------------
 
 _CMAKE_PLATFORMS = {
-    "windows/x64":   ("windows", "x86_64", "zip"),
-    "windows/arm64": ("windows", "arm64",  "zip"),
-    "macos/x64":     ("Darwin",  "x86_64", "tar.gz"),
-    "macos/arm64":   ("Darwin",  "arm64",  "tar.gz"),
-    "linux/x64":     ("linux",   "x86_64", "tar.gz"),
+    "windows/x64":   ("windows", "x86_64",  "zip"),
+    "windows/arm64": ("windows", "arm64",   "zip"),
+    "macos/x64":     ("macos",   "universal", "tar.gz"),
+    "macos/arm64":   ("macos",   "universal", "tar.gz"),
+    "linux/x64":     ("linux",   "x86_64",  "tar.gz"),
     "linux/arm64":   ("linux",   "aarch64", "tar.gz"),
 }
 

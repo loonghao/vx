@@ -87,4 +87,4 @@ def get_execute_path(ctx, _version):
     return ctx.install_dir + "/bin/" + exe
 
 def environment(ctx, _version):
-    return [{"op": "prepend", "name": "PATH", "value": ctx.install_dir + "/bin"}]
+    return [{"op": "prepend", "key": "PATH", "value": ctx.install_dir + "/bin"}]
