@@ -29,7 +29,7 @@ use std::sync::Arc;
 
 use anyhow::Result;
 use async_trait::async_trait;
-use tracing::{debug, warn};
+use tracing::{debug, info, warn};
 
 /// On Windows, if `path` has no known executable extension, check for `.cmd` /
 /// `.exe` / `.bat` variants in the same directory and return the first one that
@@ -153,6 +153,24 @@ pub type VersionInfoFn = Arc<
         + Sync,
 >;
 
+/// Type alias for an async `post_install` function injected from Starlark providers.
+///
+/// Called after installation to run post-extract hooks (set permissions, run commands, etc.).
+/// Signature: `(version: String, install_dir: PathBuf) -> Vec<serde_json::Value>`
+///
+/// Each JSON value is an action descriptor:
+/// - `{"type": "set_permissions", "path": "...", "mode": "755"}`
+/// - `{"type": "run_command", "executable": "...", "args": [...], "env": {...}, "on_failure": "error"}`
+pub type PostInstallFn = Arc<
+    dyn Fn(
+            String,
+            std::path::PathBuf,
+        ) -> std::pin::Pin<
+            Box<dyn std::future::Future<Output = Result<Vec<serde_json::Value>>> + Send>,
+        > + Send
+        + Sync,
+>;
+
 /// A runtime driven by manifest configuration (`provider.star`).
 ///
 /// For Starlark-driven providers, the `fetch_versions_fn`, `download_url_fn`, and
@@ -183,6 +201,11 @@ pub struct ManifestDrivenRuntime {
     pub deps_fn: Option<DepsFn>,
     /// Optional Starlark-driven `version_info(user_version)` implementation (RFC 0040).
     pub version_info_fn: Option<VersionInfoFn>,
+    /// Optional Starlark-driven `post_install` implementation.
+    ///
+    /// Called after download/extract to run post-extract hooks (e.g., rustup-init
+    /// to install the actual toolchain, set permissions on binaries, etc.).
+    pub post_install_fn: Option<PostInstallFn>,
     /// Optional pip package name for Python-based tools.
     pub pip_package: Option<String>,
 
@@ -246,6 +269,7 @@ impl ManifestDrivenRuntime {
             install_layout_fn: None,
             deps_fn: None,
             version_info_fn: None,
+            post_install_fn: None,
             pip_package: None,
 
             shells: Vec::new(),
@@ -277,6 +301,12 @@ impl ManifestDrivenRuntime {
     /// Set the `version_info` function (RFC 0040).
     pub fn with_version_info(mut self, f: VersionInfoFn) -> Self {
         self.version_info_fn = Some(f);
+        self
+    }
+
+    /// Set the `post_install` function for Starlark-driven post-extract hooks.
+    pub fn with_post_install(mut self, f: PostInstallFn) -> Self {
+        self.post_install_fn = Some(f);
         self
     }
 
@@ -664,6 +694,201 @@ impl Runtime for ManifestDrivenRuntime {
         self.bundled_with.is_none()
     }
 
+    async fn post_install(&self, version: &str, ctx: &RuntimeContext) -> Result<()> {
+        let post_install_fn = match &self.post_install_fn {
+            Some(f) => f,
+            None => {
+                debug!(
+                    "post_install: no post_install_fn for {}",
+                    self.name
+                );
+                return Ok(());
+            }
+        };
+
+        let store_name = self.bundled_with.as_deref().unwrap_or(&self.name);
+        let base_path = ctx.paths.version_store_dir(store_name, version);
+        let platform = Platform::current();
+        let install_dir = base_path.join(platform.as_str());
+
+        debug!(
+            "post_install: {} v{} install_dir={}",
+            self.name,
+            version,
+            install_dir.display()
+        );
+
+        if !install_dir.exists() {
+            debug!(
+                "Skipping post_install for {} — install dir does not exist: {}",
+                self.name,
+                install_dir.display()
+            );
+            return Ok(());
+        }
+
+        let actions = match post_install_fn(version.to_string(), install_dir.clone()).await {
+            Ok(a) => a,
+            Err(e) => {
+                warn!("post_install_fn for {} failed: {}", self.name, e);
+                return Err(e);
+            }
+        };
+        debug!(
+            "post_install: got {} actions for {} v{}",
+            actions.len(),
+            self.name,
+            version
+        );
+        if actions.is_empty() {
+            return Ok(());
+        }
+
+        debug!(
+            "Running {} post_install actions for {} v{}",
+            actions.len(),
+            self.name,
+            version
+        );
+
+        for action in &actions {
+            let action_type = action
+                .get("type")
+                .and_then(|t| t.as_str())
+                .unwrap_or("unknown");
+
+            match action_type {
+                "set_permissions" => {
+                    #[cfg(unix)]
+                    {
+                        use std::os::unix::fs::PermissionsExt;
+                        let path = action
+                            .get("path")
+                            .and_then(|p| p.as_str())
+                            .unwrap_or("");
+                        let mode_str =
+                            action.get("mode").and_then(|m| m.as_str()).unwrap_or("755");
+                        let full_path = install_dir.join(path);
+                        if full_path.exists() {
+                            let mode =
+                                u32::from_str_radix(mode_str, 8).unwrap_or(0o755);
+                            std::fs::set_permissions(
+                                &full_path,
+                                std::fs::Permissions::from_mode(mode),
+                            )?;
+                            debug!("Set permissions {} on {}", mode_str, full_path.display());
+                        } else {
+                            debug!(
+                                "Skipping set_permissions — file not found: {}",
+                                full_path.display()
+                            );
+                        }
+                    }
+                }
+                "run_command" => {
+                    let executable = action
+                        .get("executable")
+                        .and_then(|e| e.as_str())
+                        .unwrap_or("");
+                    let args: Vec<String> = action
+                        .get("args")
+                        .and_then(|a| a.as_array())
+                        .map(|arr| {
+                            arr.iter()
+                                .filter_map(|v| v.as_str().map(|s| s.to_string()))
+                                .collect()
+                        })
+                        .unwrap_or_default();
+                    let env_map: HashMap<String, String> = action
+                        .get("env")
+                        .and_then(|e| e.as_object())
+                        .map(|obj| {
+                            obj.iter()
+                                .filter_map(|(k, v)| {
+                                    v.as_str().map(|s| (k.clone(), s.to_string()))
+                                })
+                                .collect()
+                        })
+                        .unwrap_or_default();
+                    let on_failure = action
+                        .get("on_failure")
+                        .and_then(|o| o.as_str())
+                        .unwrap_or("warn");
+
+                    info!(
+                        "Running post-install command: {} {}",
+                        executable,
+                        args.join(" ")
+                    );
+
+                    let mut cmd = std::process::Command::new(executable);
+                    cmd.args(&args);
+                    for (k, v) in &env_map {
+                        cmd.env(k, v);
+                    }
+
+                    match cmd.output() {
+                        Ok(output) => {
+                            if output.status.success() {
+                                debug!("Post-install command succeeded");
+                            } else {
+                                let stderr =
+                                    String::from_utf8_lossy(&output.stderr);
+                                match on_failure {
+                                    "error" => {
+                                        return Err(anyhow::anyhow!(
+                                            "Post-install command failed (exit {}): {}",
+                                            output.status,
+                                            stderr
+                                        ));
+                                    }
+                                    "ignore" => {
+                                        debug!(
+                                            "Post-install command failed (ignored): {}",
+                                            stderr
+                                        );
+                                    }
+                                    _ => {
+                                        warn!(
+                                            "Post-install command failed: {}",
+                                            stderr
+                                        );
+                                    }
+                                }
+                            }
+                        }
+                        Err(e) => match on_failure {
+                            "error" => {
+                                return Err(anyhow::anyhow!(
+                                    "Failed to run post-install command '{}': {}",
+                                    executable,
+                                    e
+                                ));
+                            }
+                            "ignore" => {
+                                debug!(
+                                    "Failed to run post-install command (ignored): {}",
+                                    e
+                                );
+                            }
+                            _ => {
+                                warn!(
+                                    "Failed to run post-install command '{}': {}",
+                                    executable, e
+                                );
+                            }
+                        },
+                    }
+                }
+                other => {
+                    debug!("Unknown post-install action type: {}", other);
+                }
+            }
+        }
+
+        Ok(())
+    }
+
     async fn prepare_execution(
         &self,
         version: &str,
@@ -727,7 +952,7 @@ impl Runtime for ManifestDrivenRuntime {
                     }
 
                     for path in &candidates {
-                        if path.exists() {
+                        if path.is_file() {
                             let resolved = prefer_windows_executable(path.clone());
                             debug!(
                                 "Found bundled executable {} at {} (parent version: {})",
