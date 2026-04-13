@@ -407,3 +407,88 @@ pub fn make_version_info_fn_owned(
         })
     })
 }
+
+// ---------------------------------------------------------------------------
+// Post-install hooks (post_extract → post_install bridge)
+// ---------------------------------------------------------------------------
+
+/// Create a `PostInstallFn` closure backed by an embedded `provider.star`.
+///
+/// The closure calls `post_extract(ctx, version, install_dir)` in Starlark and converts
+/// the returned `PostExtractAction` values to JSON descriptors that can be executed
+/// by `ManifestDrivenRuntime::post_install()`.
+pub fn make_post_install_fn_owned(
+    provider_name: Arc<str>,
+    content: Arc<str>,
+    _runtime_name: String,
+) -> vx_runtime::manifest_runtime::PostInstallFn {
+    Arc::new(move |version: String, install_dir: std::path::PathBuf| {
+        let provider_name = Arc::clone(&provider_name);
+        let content = Arc::clone(&content);
+        Box::pin(async move {
+            let provider = StarlarkProvider::from_content(&*provider_name, &*content)
+                .await
+                .map_err(|e| {
+                    anyhow::anyhow!("Failed to load {} provider.star: {e}", provider_name)
+                })?;
+
+            let actions = provider
+                .post_extract(&version, &install_dir)
+                .await
+                .map_err(|e| {
+                    anyhow::anyhow!("{} post_extract failed: {e}", provider_name)
+                })?;
+
+            // Convert PostExtractAction to JSON descriptors
+            Ok(actions
+                .into_iter()
+                .filter_map(|action| post_extract_action_to_json(action))
+                .collect())
+        })
+    })
+}
+
+/// Convert a `PostExtractAction` to a JSON descriptor for `ManifestDrivenRuntime::post_install`.
+fn post_extract_action_to_json(
+    action: crate::provider::types::PostExtractAction,
+) -> Option<serde_json::Value> {
+    use crate::provider::types::PostExtractAction;
+
+    match action {
+        PostExtractAction::SetPermissions { path, mode } => Some(serde_json::json!({
+            "type": "set_permissions",
+            "path": path,
+            "mode": mode,
+        })),
+        PostExtractAction::RunCommand {
+            executable,
+            args,
+            working_dir,
+            env,
+            on_failure,
+        } => Some(serde_json::json!({
+            "type": "run_command",
+            "executable": executable,
+            "args": args,
+            "env": env,
+            "working_dir": working_dir,
+            "on_failure": on_failure,
+        })),
+        PostExtractAction::CreateShim {
+            name,
+            target,
+            args,
+            shim_dir,
+        } => Some(serde_json::json!({
+            "type": "create_shim",
+            "name": name,
+            "target": target,
+            "args": args,
+            "shim_dir": shim_dir,
+        })),
+        PostExtractAction::FlattenDir { pattern, .. } => Some(serde_json::json!({
+            "type": "flatten_dir",
+            "pattern": pattern,
+        })),
+    }
+}

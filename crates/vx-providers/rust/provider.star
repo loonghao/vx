@@ -11,7 +11,7 @@
 
 load("@vx//stdlib:provider.star",
      "runtime_def", "bundled_runtime_def", "github_permissions")
-load("@vx//stdlib:github.star", "make_fetch_versions", "github_asset_url")
+load("@vx//stdlib:github.star", "make_fetch_versions")
 load("@vx//stdlib:install.star", "set_permissions", "run_command")
 load("@vx//stdlib:env.star",    "env_set", "env_prepend")
 
@@ -62,7 +62,7 @@ fetch_versions = make_fetch_versions("rust-lang", "rustup")
 
 # ---------------------------------------------------------------------------
 # Platform helpers
-# rustup-init asset: rustup-init-{version}-{triple}[.exe]
+# rustup-init is hosted at: static.rust-lang.org/rustup/archive/{ver}/{triple}/rustup-init[.exe]
 # ---------------------------------------------------------------------------
 
 _RUSTUP_TRIPLES = {
@@ -112,7 +112,11 @@ def version_info(_ctx, user_version):
     }
 
 # ---------------------------------------------------------------------------
-# download_url — rustup-init binary
+# download_url — rustup-init binary from static.rust-lang.org
+#
+# rustup does NOT publish release assets to GitHub Releases (the releases
+# API returns []). Binaries are hosted on static.rust-lang.org instead:
+#   https://static.rust-lang.org/rustup/archive/{version}/{triple}/rustup-init[.exe]
 # ---------------------------------------------------------------------------
 
 def download_url(ctx, version):
@@ -120,24 +124,18 @@ def download_url(ctx, version):
     if not triple:
         return None
     if ctx.platform.os == "windows":
-        asset = "rustup-init-{}-{}.exe".format(version, triple)
-    else:
-        asset = "rustup-init-{}-{}".format(version, triple)
-    return github_asset_url("rust-lang", "rustup", version, asset)
+        return "https://static.rust-lang.org/rustup/archive/{}/{}/rustup-init.exe".format(version, triple)
+    return "https://static.rust-lang.org/rustup/archive/{}/{}/rustup-init".format(version, triple)
 
 # ---------------------------------------------------------------------------
 # install_layout — single binary installer
 # ---------------------------------------------------------------------------
 
-def install_layout(ctx, version):
-    triple = _rustup_triple(ctx)
-    if not triple:
+def install_layout(ctx, _version):
+    if not _rustup_triple(ctx):
         return None
-    source = "rustup-init-{}-{}".format(version, triple)
-    target = "rustup-init"
-    if ctx.platform.os == "windows":
-        source = source + ".exe"
-        target = target + ".exe"
+    source = "rustup-init.exe" if ctx.platform.os == "windows" else "rustup-init"
+    target = source
     return {
         "type":               "binary",
         "source_name":        source,
