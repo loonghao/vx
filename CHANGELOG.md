@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.26](https://github.com/loonghao/vx/compare/v0.8.25...v0.8.26) (2026-04-13)
+
+
+### Bug Fixes
+
+* correct cmake macOS download URL and jq environment key ([e47d36b](https://github.com/loonghao/vx/commit/e47d36b39a3846a5585aefa16c173975b9e89b46))
+* correct download URLs for grpcurl, k3d, kind, and duckdb providers ([108e290](https://github.com/loonghao/vx/commit/108e290654d06867bae9f837301d5a8c96cf09a0))
+* **deps:** update rust crate hashbrown-986da7b5efc2b80e to 0.17 - abandoned ([d934ad1](https://github.com/loonghao/vx/commit/d934ad179813669f0c343585019676eb32a82913))
+* wire Starlark post_extract hooks into ManifestDrivenRuntime and fix bundled runtime detection ([0cab93c](https://github.com/loonghao/vx/commit/0cab93c60355e1ea12fc9b332a41e1fbf18d46d8))
+
 ## [0.8.25](https://github.com/loonghao/vx/compare/v0.8.24...v0.8.25) (2026-04-10)
 
 
