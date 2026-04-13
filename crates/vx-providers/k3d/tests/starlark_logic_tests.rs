@@ -53,7 +53,7 @@ fn test_download_url_linux_x64() {
 {}
 ctx = struct(platform = struct(os = "linux", arch = "x64", target = ""))
 url = download_url(ctx, "5.7.4")
-url != None and "linux" in url and "amd64" in url and url.endswith(".tar.gz")
+url != None and "linux" in url and "amd64" in url and not url.endswith(".tar.gz")
 "#,
         provider_star_prefix()
     ));
@@ -83,7 +83,7 @@ fn test_download_url_macos_arm64() {
 {}
 ctx = struct(platform = struct(os = "macos", arch = "arm64", target = ""))
 url = download_url(ctx, "5.7.4")
-url != None and "darwin" in url and "arm64" in url and url.endswith(".tar.gz")
+url != None and "darwin" in url and "arm64" in url and not url.endswith(".tar.gz") and not url.endswith(".exe")
 "#,
         provider_star_prefix()
     ));

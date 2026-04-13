@@ -13,7 +13,6 @@
 
 load("@vx//stdlib:provider.star",
      "runtime_def", "github_permissions",
-     "path_fns",
      "fetch_versions_with_tag_prefix")
 load("@vx//stdlib:env.star", "env_prepend")
 load("@vx//stdlib:layout.star", "binary_layout")
@@ -88,21 +87,27 @@ def download_url(ctx, version):
 # Layout + path/env functions
 # kind is a single binary (no archive compression on Linux/macOS,
 # .exe directly on Windows)
+# binary_layout places the binary at <install_dir>/bin/kind[.exe]
 # ---------------------------------------------------------------------------
 
 install_layout = binary_layout("kind")
 
-paths            = path_fns("kind")
-store_root       = paths["store_root"]
-get_execute_path = paths["get_execute_path"]
+
+def store_root(ctx):
+    return ctx.vx_home + "/store/kind"
 
 
-def environment(ctx, _version):
-    return [env_prepend("PATH", ctx.install_dir + "/bin")]
+def get_execute_path(ctx, _version):
+    exe = "kind.exe" if ctx.platform.os == "windows" else "kind"
+    return ctx.install_dir + "/bin/" + exe
 
 
 def post_install(_ctx, _version):
     return None
+
+
+def environment(ctx, _version):
+    return [env_prepend("PATH", ctx.install_dir + "/bin")]
 
 
 def deps(_ctx, _version):
