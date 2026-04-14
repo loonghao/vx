@@ -37,11 +37,11 @@ ecosystem   = "devtools"
 
 runtimes = [
     runtime_def("grpcurl",
-        version_cmd     = "{executable} version",
-        version_pattern = "grpcurl v\\d+\\.\\d+\\.\\d+",
+        version_cmd     = "{executable} -version",
+        version_pattern = "grpcurl(?:\\.exe)? v(\\d+\\.\\d+\\.\\d+)",
         test_commands = [
-            {"command": "{executable} version", "name": "version_check",
-             "expected_output": "grpcurl v\\d+"},
+            {"command": "{executable} -version", "name": "version_check",
+             "expected_output": "grpcurl(?:\\.exe)? v\\d+\\.\\d+\\.\\d+"},
         ],
     ),
 ]
