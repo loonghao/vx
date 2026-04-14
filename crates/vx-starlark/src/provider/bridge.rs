@@ -423,10 +423,7 @@ type PostExtractFn = Arc<
             String, // version
             String, // install_dir
         ) -> std::pin::Pin<
-            Box<
-                dyn std::future::Future<Output = anyhow::Result<Vec<serde_json::Value>>>
-                    + Send,
-            >,
+            Box<dyn std::future::Future<Output = anyhow::Result<Vec<serde_json::Value>>> + Send>,
         > + Send
         + Sync,
 >;
