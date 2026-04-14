@@ -6,6 +6,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [0.8.27](https://github.com/loonghao/vx/compare/v0.8.26...v0.8.27) (2026-04-14)
+
+
+### Features
+
+* add vx-output-filter crate for compact subprocess output ([#802](https://github.com/loonghao/vx/issues/802)) ([ba69f04](https://github.com/loonghao/vx/commit/ba69f0402b90b318a90510ec4459d99337aaa5c3))
+
+
+### Bug Fixes
+
+* resolve merge conflict in release manifest ([deab703](https://github.com/loonghao/vx/commit/deab7036e02c58b42e68a99b0d62f5db013fc70f))
+
 ## [0.8.26](https://github.com/loonghao/vx/compare/v0.8.25...v0.8.26) (2026-04-14)
 
 
