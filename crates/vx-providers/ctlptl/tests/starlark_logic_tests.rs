@@ -21,10 +21,7 @@ fn provider_star_prefix() -> String {
 
 #[test]
 fn test_provider_name_is_ctlptl() {
-    make_assert().eq(
-        r#"load("provider.star", "name"); name"#,
-        r#""ctlptl""#,
-    );
+    make_assert().eq(r#"load("provider.star", "name"); name"#, r#""ctlptl""#);
 }
 
 #[test]

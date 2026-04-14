@@ -860,9 +860,9 @@ impl Resolver {
             .manager()
             .platform_store_dir(store_dir_name, version);
 
-        let search_dir = if let Some(exe) =
-            self.path_resolver
-                .find_executable_in_dir(&version_store_dir, executable_name)
+        let search_dir = if let Some(exe) = self
+            .path_resolver
+            .find_executable_in_dir(&version_store_dir, executable_name)
         {
             return Some(exe);
         } else {
