@@ -71,28 +71,34 @@ vx 内置了 **48+ 个 Provider**，覆盖主要生态系统：
 | **AI** | ollama |
 | **其他** | git, jq, deno, zig, java, gh, curl, pwsh... |
 
-### 声明式 Provider
+### Starlark 驱动的 Provider
 
-你可以使用 TOML 清单定义自定义 Provider，无需编写 Rust 代码：
+你可以使用 `provider.star`（Starlark DSL）定义自定义 Provider，无需编写 Rust 代码：
 
-```toml
-# ~/.vx/providers/mytool/provider.toml
-[provider]
-name = "mytool"
+```starlark
+# ~/.vx/providers/mytool/provider.star
+load("@vx//stdlib:provider.star", "runtime_def", "github_permissions")
+load("@vx//stdlib:provider_templates.star", "github_rust_provider")
+
+name        = "mytool"
 description = "我的自定义工具"
+ecosystem   = "custom"
 
-[[runtimes]]
-name = "mytool"
-executable = "mytool"
-description = "我的工具"
+runtimes    = [runtime_def("mytool")]
+permissions = github_permissions()
 
-[runtimes.version_source]
-type = "github_releases"
-owner = "myorg"
-repo = "mytool"
+_p = github_rust_provider("myorg", "mytool",
+    asset = "mytool-{vversion}-{triple}.{ext}")
+
+fetch_versions   = _p["fetch_versions"]
+download_url     = _p["download_url"]
+install_layout   = _p["install_layout"]
+store_root       = _p["store_root"]
+get_execute_path = _p["get_execute_path"]
+environment      = _p["environment"]
 ```
 
-详见[声明式 Provider](/zh/guide/manifest-driven-providers)。
+详见 [Provider 开发指南](/zh/guide/provider-star-reference)。
 
 ## Runtime
 

@@ -62,7 +62,7 @@ fetch_versions = make_fetch_versions("rust-lang", "rustup")
 
 # ---------------------------------------------------------------------------
 # Platform helpers
-# rustup-init is hosted at: static.rust-lang.org/rustup/archive/{ver}/{triple}/rustup-init[.exe]
+# rustup-init asset: rustup-init-{version}-{triple}[.exe]
 # ---------------------------------------------------------------------------
 
 _RUSTUP_TRIPLES = {
@@ -70,8 +70,10 @@ _RUSTUP_TRIPLES = {
     "windows/x86":  "i686-pc-windows-msvc",
     "macos/x64":    "x86_64-apple-darwin",
     "macos/arm64":  "aarch64-apple-darwin",
-    "linux/x64":    "x86_64-unknown-linux-musl",
-    "linux/arm64":  "aarch64-unknown-linux-musl",
+    # rustup-init must match the host libc. Use GNU triples on Linux so the
+    # installed cargo/rustc toolchain runs on glibc-based distributions used by CI.
+    "linux/x64":    "x86_64-unknown-linux-gnu",
+    "linux/arm64":  "aarch64-unknown-linux-gnu",
 }
 
 def _rustup_triple(ctx):
@@ -112,30 +114,36 @@ def version_info(_ctx, user_version):
     }
 
 # ---------------------------------------------------------------------------
-# download_url — rustup-init binary from static.rust-lang.org
-#
-# rustup does NOT publish release assets to GitHub Releases (the releases
-# API returns []). Binaries are hosted on static.rust-lang.org instead:
-#   https://static.rust-lang.org/rustup/archive/{version}/{triple}/rustup-init[.exe]
+# download_url — rustup-init binary
 # ---------------------------------------------------------------------------
 
-def download_url(ctx, version):
+def download_url(ctx, _version):
+    # rustup-init is downloaded from the Rust CDN, not from versioned GitHub assets.
+    # The CDN always serves the latest stable rustup-init for each platform triple;
+    # the toolchain version is installed by running rustup-init with --default-toolchain.
     triple = _rustup_triple(ctx)
     if not triple:
         return None
     if ctx.platform.os == "windows":
-        return "https://static.rust-lang.org/rustup/archive/{}/{}/rustup-init.exe".format(version, triple)
-    return "https://static.rust-lang.org/rustup/archive/{}/{}/rustup-init".format(version, triple)
+        return "https://static.rust-lang.org/rustup/dist/{}/rustup-init.exe".format(triple)
+    else:
+        return "https://static.rust-lang.org/rustup/dist/{}/rustup-init".format(triple)
 
 # ---------------------------------------------------------------------------
 # install_layout — single binary installer
 # ---------------------------------------------------------------------------
 
 def install_layout(ctx, _version):
-    if not _rustup_triple(ctx):
+    # The CDN asset is always named "rustup-init" (or "rustup-init.exe" on Windows).
+    triple = _rustup_triple(ctx)
+    if not triple:
         return None
-    source = "rustup-init.exe" if ctx.platform.os == "windows" else "rustup-init"
-    target = source
+    if ctx.platform.os == "windows":
+        source = "rustup-init.exe"
+        target = "rustup-init.exe"
+    else:
+        source = "rustup-init"
+        target = "rustup-init"
     return {
         "type":               "binary",
         "source_name":        source,
@@ -186,25 +194,31 @@ def store_root(ctx):
 
 def get_execute_path(ctx, _version):
     # ctx.runtime_name is the requested runtime (e.g. "cargo", "rustc", "rustfmt", "rust").
-    # The parent runtime is "rust" (executable: rustup); bundled runtimes live in cargo/bin/.
+    # ctx.install_dir already includes the <platform> sub-directory
+    # (e.g. ~/.vx/store/rust/1.29.0/windows-x64) where cargo/bin/ lives.
     runtime = ctx.runtime_name or "rust"
     exe_suffix = ".exe" if ctx.platform.os == "windows" else ""
 
+    base = ctx.install_dir
+
     if runtime in ("rustc", "cargo", "rustfmt"):
         exe = runtime + exe_suffix
-        return ctx.install_dir + "/cargo/bin/" + exe
-    # "rust" runtime → the rustup installer/manager binary
+        return base + "/cargo/bin/" + exe
+    # "rust" runtime → the rustup manager binary
     exe = "rustup" + exe_suffix
-    return ctx.install_dir + "/cargo/bin/" + exe
+    return base + "/cargo/bin/" + exe
 
 def post_install(_ctx, _version):
     return None
 
 def environment(ctx, _version):
+    # ctx.install_dir already includes the <platform> sub-directory
+    # where rustup-init placed the cargo/rustup directories.
+    base = ctx.install_dir
     return [
-        env_set("RUSTUP_HOME", ctx.install_dir + "/rustup"),
-        env_set("CARGO_HOME",  ctx.install_dir + "/cargo"),
-        env_prepend("PATH",    ctx.install_dir + "/cargo/bin"),
+        env_set("RUSTUP_HOME", base + "/rustup"),
+        env_set("CARGO_HOME",  base + "/cargo"),
+        env_prepend("PATH",    base + "/cargo/bin"),
     ]
 
 def deps(_ctx, _version):

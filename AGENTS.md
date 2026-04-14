@@ -8,7 +8,7 @@
 
 ## What is vx?
 
-vx is a **zero-config universal development tool manager** (v0.8.20, MIT-licensed, written in Rust). Users prefix any command with `vx` (e.g., `vx node --version`, `vx cargo build`) and vx automatically installs, manages, and forwards to the correct tool version. vx currently ships **114 providers** covering language runtimes, build tools, DevOps CLIs, cloud platforms, and more — all defined via Starlark DSL (`provider.star`).
+vx is a **zero-config universal development tool manager** (v0.8.25, MIT-licensed, written in Rust). Users prefix any command with `vx` (e.g., `vx node --version`, `vx cargo build`) and vx automatically installs, manages, and forwards to the correct tool version. vx currently ships **129 providers** covering language runtimes, build tools, DevOps CLIs, cloud platforms, and more — all defined via Starlark DSL (`provider.star`).
 
 **Key insight for agents**: vx is a transparent proxy. The user writes the exact same commands they already know — just prepended with `vx`. There is **no new syntax to learn** for tool execution.
 
@@ -53,7 +53,7 @@ This entire flow is **automatic** — the user never needs to know about it.
 | See all CLI commands                 | [`docs/cli/`](docs/cli/)                         |
 | Follow unified syntax rules          | [`docs/guide/command-syntax-rules.md`](docs/guide/command-syntax-rules.md) |
 | Check project configuration          | [`Cargo.toml`](Cargo.toml) (workspace root)      |
-| See all 114 providers                | [`crates/vx-providers/`](crates/vx-providers/)   |
+| See all 129 providers                | [`crates/vx-providers/`](crates/vx-providers/)   |
 | Contribute to the project            | [`docs/advanced/contributing.md`](docs/advanced/contributing.md) |
 | Understand vx.toml configuration     | [`docs/config/vx-toml.md`](docs/config/vx-toml.md) |
 | Troubleshoot issues                  | [`docs/appendix/troubleshooting.md`](docs/appendix/troubleshooting.md) |
@@ -106,7 +106,7 @@ User Command: vx npm install
 7. **Check `vx.toml`** first to understand project tool requirements
 8. **New providers use Starlark DSL only** — No Rust code required for new tool definitions
 9. **Layer dependencies go downward only** — Never import from a higher architectural layer
-10. **Provider count is 105** — Update any docs that reference old counts (78, 73, 70+, 50+, etc.)
+10. **Provider count is 122** — Update any docs that reference old counts (78, 73, 70+, 50+, etc.)
 
 ### Setup Commands
 
@@ -185,7 +185,7 @@ vx dev                         # Enter dev environment
 │  vx-manifest       (Provider manifest parsing)          │
 │  vx-args           (Argument parsing)                   │
 ├─────────────────────────────────────────────────────────┤
-│  vx-providers/*    (114 Providers — provider.star DSL)  │
+│  vx-providers/*    (124 Providers — provider.star DSL)  │
 │  vx-bridge         (Generic command bridge)             │
 └─────────────────────────────────────────────────────────┘
 ```
@@ -336,7 +336,7 @@ def environment(ctx, _version):
     ]
 ```
 
-## All 114 Providers
+## All 126 Providers
 
 Organized by category:
 
@@ -346,12 +346,12 @@ Organized by category:
 | **JS Tooling** | oxlint, biome |
 | **Python** | uv, python, pre-commit, maturin, ruff |
 | **Rust** | rust (cargo, rustc, rustup) |
-| **Go** | go, gws |
+| **Go** | go, gws, goreleaser, golangci-lint |
 | **System/CLI** | git, bash, curl, pwsh, jq, yq, fd, bat, ripgrep, fzf, starship, jj, sd, eza, dust, duf, xh, atuin, zoxide, tealdeer, gping, delta, hyperfine, watchexec, bottom |
 | **TUI/Terminal** | helix, yazi, zellij, lazygit, lazydocker, k9s |
 | **Build Tools** | just, task, cmake, ninja, make, meson, xmake, protoc, conan, vcpkg, spack |
-| **DevOps** | kubectl, helm, flux, kind, k3d, podman, terraform, hadolint, dagu, actionlint |
-| **Security** | gitleaks, trivy |
+| **DevOps** | kubectl, helm, flux, kind, k3d, nerdctl, skaffold, ctlptl, tilt, podman, terraform, hadolint, dagu, actionlint |
+| **Security** | gitleaks, trivy, cosign |
 | **Cloud CLI** | awscli, azcli, gcloud |
 | **.NET** | dotnet, msbuild, nuget |
 | **C/C++** | msvc, llvm, nasm, ccache, buildcache, sccache, rcedit |
@@ -363,6 +363,8 @@ Organized by category:
 | **Package Managers** | brew, choco, winget |
 | **AI** | ollama, openclaw |
 | **Data/API** | duckdb, grpcurl |
+| **VM** | lima |
+| **Git Tools** | lefthook |
 | **Misc** | gh, prek, actrun, wix, vscode, xcodebuild, systemctl, release-please, rez, 7zip, trippy |
 
 ## Decision Framework for AI Agents
@@ -436,6 +438,9 @@ vx meson                       # Same as: vx uv:meson
 
 ```bash
 # Prerequisites: Rust toolchain (1.93+), just
+
+# One-time setup after cloning (installs git hooks)
+vx just setup-hooks            # Enables pre-push workspace-hack auto-regen
 
 # Build
 vx just build                  # Debug build
@@ -521,8 +526,7 @@ crates/vx-<name>/
 
 crates/vx-providers/<name>/
 ├── provider.star     # Provider definition (required, Starlark DSL)
-├── provider.toml     # Provider manifest (metadata)
-└── src/lib.rs        # Rust glue (if needed)
+└── src/lib.rs        # Rust glue (required for built-in providers)
 
 crates/vx-starlark/stdlib/
 ├── provider.star              # Unified facade (re-exports all)
