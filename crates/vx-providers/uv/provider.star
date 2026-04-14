@@ -32,7 +32,12 @@ runtimes = [
     runtime_def("uv",
         version_pattern = "uv \\d+\\.\\d+",
     ),
-    bundled_runtime_def("uvx", bundled_with = "uv"),
+    bundled_runtime_def(
+        "uvx",
+        bundled_with   = "uv",
+        executable     = "uv",
+        command_prefix = ["tool", "run"],
+    ),
 ]
 
 # ---------------------------------------------------------------------------

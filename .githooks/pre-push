@@ -1,0 +1,38 @@
+#!/usr/bin/env bash
+# .githooks/pre-push
+#
+# Auto-regenerate workspace-hack (cargo-hakari) before pushing.
+# This prevents CI from having to commit a "chore: regenerate workspace-hack"
+# commit on every PR that adds or changes dependencies.
+#
+# Install: git config core.hooksPath .githooks
+#       or: just setup-hooks
+
+set -euo pipefail
+
+# Skip if cargo-hakari is not installed (non-blocking)
+if ! command -v cargo-hakari &>/dev/null && ! cargo hakari --version &>/dev/null 2>&1; then
+    echo "[pre-push] cargo-hakari not installed, skipping workspace-hack check"
+    echo "[pre-push] Run: cargo install cargo-hakari --locked"
+    exit 0
+fi
+
+echo "[pre-push] Checking workspace-hack (cargo-hakari)..."
+
+# Run hakari and check if anything changed
+cargo hakari generate
+cargo hakari manage-deps
+
+if ! git diff --quiet crates/workspace-hack/Cargo.toml Cargo.lock 2>/dev/null; then
+    echo "[pre-push] workspace-hack was out of date — changes staged automatically"
+    git add crates/workspace-hack/Cargo.toml Cargo.lock
+    git commit -m "chore: regenerate workspace-hack (cargo-hakari) [skip ci]" \
+        --no-verify \
+        --author="$(git config user.name) <$(git config user.email)>"
+    echo "[pre-push] Committed workspace-hack update. Re-run git push to include it."
+    # Exit 1 to abort the push so the new commit gets included in the push
+    exit 1
+fi
+
+echo "[pre-push] workspace-hack is up-to-date ✓"
+exit 0

@@ -780,19 +780,20 @@ impl<'a> EnvironmentManager<'a> {
             let version_dir = ctx.paths.version_store_dir(runtime_name, ver);
             let platform_dir = version_dir.join(platform.as_str());
 
-            // First try platform-specific directory
-            if platform_dir.exists() {
-                return Some(platform_dir);
+            // New layout: try version_dir first (no platform subdirectory).
+            // Old layout: fall back to platform_dir.
+            if version_dir.exists() {
+                return Some(version_dir);
             }
 
-            // Fallback to version directory without platform
-            if version_dir.exists() {
+            // Fallback to old platform-specific directory
+            if platform_dir.exists() {
                 debug!(
-                    "Using version directory without platform suffix for {}: {}",
+                    "Using old platform-specific directory for {}: {}",
                     runtime_name,
-                    version_dir.display()
+                    platform_dir.display()
                 );
-                return Some(version_dir);
+                return Some(platform_dir);
             }
 
             debug!(
@@ -835,10 +836,11 @@ impl<'a> EnvironmentManager<'a> {
         let version_dir = ctx.paths.version_store_dir(runtime_name, latest);
         let platform_dir = version_dir.join(platform.as_str());
 
-        if platform_dir.exists() {
-            Some(platform_dir)
-        } else if version_dir.exists() {
+        // New layout: try version_dir first, then fallback to old platform_dir
+        if version_dir.exists() {
             Some(version_dir)
+        } else if platform_dir.exists() {
+            Some(platform_dir)
         } else {
             None
         }

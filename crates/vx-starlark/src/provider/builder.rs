@@ -12,7 +12,7 @@ use vx_star_metadata::StarMetadata;
 use super::bridge::{
     make_deps_fn_owned, make_download_url_fn, make_download_url_fn_owned, make_fetch_versions_fn,
     make_fetch_versions_fn_owned, make_install_layout_fn, make_install_layout_fn_owned,
-    make_post_install_fn_owned, make_version_info_fn_owned,
+    make_post_extract_fn_owned, make_version_info_fn_owned,
 };
 
 use crate::context::ProviderContext;
@@ -148,11 +148,6 @@ pub fn build_runtimes(
             Arc::clone(&content),
             provider_name.to_string(),
         ));
-        rt = rt.with_post_install(make_post_install_fn_owned(
-            Arc::clone(&provider_name),
-            Arc::clone(&content),
-            provider_name.to_string(),
-        ));
 
         return vec![Arc::new(rt)];
     }
@@ -181,6 +176,10 @@ pub fn build_runtimes(
                     .with_description(description)
                     .with_aliases(rt.aliases.clone())
                     .with_ecosystem(ecosystem);
+
+            if !rt.command_prefix.is_empty() {
+                runtime = runtime.with_command_prefix(rt.command_prefix.clone());
+            }
 
             if let Some(ref bundled) = rt.bundled_with {
                 runtime = runtime.with_bundled_with(bundled.clone());
@@ -248,12 +247,17 @@ pub fn build_runtimes(
                 name.clone(),
             ));
 
-            // Wire up post_install for Starlark post_extract hooks (e.g., rustup-init)
-            runtime = runtime.with_post_install(make_post_install_fn_owned(
-                Arc::clone(&provider_name),
-                Arc::clone(&content),
-                name.clone(),
-            ));
+            // Wire up post_extract hook for providers that need a post-install step
+            // (e.g., Rust: downloads rustup-init, then must run it to install cargo/rustc).
+            // Only primary (non-bundled) runtimes need to run post_extract; bundled
+            // runtimes share the parent's install directory.
+            if rt.bundled_with.is_none() {
+                runtime = runtime.with_post_extract(make_post_extract_fn_owned(
+                    Arc::clone(&provider_name),
+                    Arc::clone(&content),
+                    name.clone(),
+                ));
+            }
 
             // Wire up system_paths glob patterns (for tools like MSVC cl.exe that are
             // not on PATH — used to locate the executable after system installation)

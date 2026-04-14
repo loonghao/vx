@@ -334,6 +334,8 @@ impl Installer for RealInstaller {
             Some("tar.gz")
         } else if archive_str.ends_with(".tar.xz") {
             Some("tar.xz")
+        } else if archive_str.ends_with(".tar.bz2") || archive_str.ends_with(".tbz2") {
+            Some("tar.bz2")
         } else if archive_str.ends_with(".tar.zst") || archive_str.ends_with(".tzst") {
             Some("tar.zst")
         } else if archive_str.ends_with(".zip") {
@@ -430,6 +432,13 @@ impl Installer for RealInstaller {
                 use xz2::read::XzDecoder;
                 let file = std::fs::File::open(archive)?;
                 let decoder = XzDecoder::new(file);
+                let mut archive = tar::Archive::new(decoder);
+                archive.unpack(dest)?;
+            }
+            Some("tar.bz2") => {
+                use bzip2::read::BzDecoder;
+                let file = std::fs::File::open(archive)?;
+                let decoder = BzDecoder::new(file);
                 let mut archive = tar::Archive::new(decoder);
                 archive.unpack(dest)?;
             }
@@ -567,10 +576,17 @@ impl Installer for RealInstaller {
         let mut is_archive = archive_str.ends_with(".tar.gz")
             || archive_str.ends_with(".tgz")
             || archive_str.ends_with(".tar.xz")
+            || archive_str.ends_with(".tar.bz2")
+            || archive_str.ends_with(".tbz2")
             || archive_str.ends_with(".tar.zst")
             || archive_str.ends_with(".tzst")
             || archive_str.ends_with(".zip")
             || archive_str.ends_with(".7z")
+            // 7z Self-Extracting Archives (.7z.exe, .7z.sfx) must be treated as
+            // archives, not as single executables. PortableGit for Windows
+            // distributes as PortableGit-*.7z.exe which contains cmd/git.exe etc.
+            || archive_str.ends_with(".7z.exe")
+            || archive_str.ends_with(".7z.sfx")
             || archive_str.ends_with(".msi")
             || archive_str.ends_with(".pkg");
 
@@ -712,35 +728,64 @@ impl Installer for RealInstaller {
         }
 
         // Apply layout transformations if metadata is provided
-        if let (Some(source_name), Some(target_name), Some(target_dir)) = (
-            metadata.get("source_name"),
-            metadata.get("target_name"),
-            metadata.get("target_dir"),
-        ) {
-            let source_path = dest.join(target_dir).join(source_name);
+        if let (Some(target_name), Some(target_dir)) =
+            (metadata.get("target_name"), metadata.get("target_dir"))
+        {
             let target_path = dest.join(target_dir).join(target_name);
 
-            if source_path.exists() && source_path != target_path {
-                // On Windows, rename might fail if target exists, so remove target first
-                if target_path.exists() {
-                    let _ = std::fs::remove_file(&target_path);
-                }
+            // Determine the source file path.
+            //
+            // Case 1: explicit source_name (e.g. rust provider: rustup-init-1.29.0-...)
+            // Case 2: no source_name — single-binary download where the downloaded file
+            //   was placed in target_dir with its original name (e.g. kind-darwin-arm64).
+            //   In that case we look for ANY file in target_dir that is not target_name.
+            let source_path = if let Some(source_name) = metadata.get("source_name") {
+                Some(dest.join(target_dir).join(source_name))
+            } else if !target_path.exists() {
+                // Scan target_dir for the single file placed there by download_and_extract
+                std::fs::read_dir(dest.join(target_dir))
+                    .ok()
+                    .and_then(|entries| {
+                        entries
+                            .filter_map(|e| e.ok())
+                            .filter(|e| e.path().is_file())
+                            .find(|e| {
+                                e.file_name().to_string_lossy().as_ref() != target_name.as_str()
+                            })
+                            .map(|e| e.path())
+                    })
+            } else {
+                None
+            };
 
-                // Try rename first (atomic on same filesystem)
-                if std::fs::rename(&source_path, &target_path).is_err() {
-                    // Fallback to copy + delete
-                    std::fs::copy(&source_path, &target_path)?;
-                    let _ = std::fs::remove_file(&source_path);
-                }
+            if let Some(source_path) = source_path {
+                tracing::info!(
+                    "download_with_layout: renaming {} -> {}",
+                    source_path.display(),
+                    target_path.display()
+                );
+                if source_path.exists() && source_path != target_path {
+                    // On Windows, rename might fail if target exists, so remove target first
+                    if target_path.exists() {
+                        let _ = std::fs::remove_file(&target_path);
+                    }
 
-                // Set permissions if specified
-                #[cfg(unix)]
-                if let Some(perm_str) = metadata.get("target_permissions") {
-                    use std::os::unix::fs::PermissionsExt;
-                    if let Ok(mode) = u32::from_str_radix(perm_str, 8) {
-                        let mut perms = std::fs::metadata(&target_path)?.permissions();
-                        perms.set_mode(mode);
-                        std::fs::set_permissions(&target_path, perms)?;
+                    // Try rename first (atomic on same filesystem)
+                    if std::fs::rename(&source_path, &target_path).is_err() {
+                        // Fallback to copy + delete
+                        std::fs::copy(&source_path, &target_path)?;
+                        let _ = std::fs::remove_file(&source_path);
+                    }
+
+                    // Set permissions if specified
+                    #[cfg(unix)]
+                    if let Some(perm_str) = metadata.get("target_permissions") {
+                        use std::os::unix::fs::PermissionsExt;
+                        if let Ok(mode) = u32::from_str_radix(perm_str, 8) {
+                            let mut perms = std::fs::metadata(&target_path)?.permissions();
+                            perms.set_mode(mode);
+                            std::fs::set_permissions(&target_path, perms)?;
+                        }
                     }
                 }
             }
