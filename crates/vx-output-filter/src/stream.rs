@@ -11,9 +11,9 @@ use tracing::debug;
 
 /// Run a child process whose stdout/stderr are piped, applying output filtering.
 ///
-/// # Panics / Errors
-/// Returns an error if the stdout/stderr handles are not available (i.e. the
-/// caller forgot to set `Stdio::piped()` before spawning).
+/// # Errors
+/// Returns an error if the `stdout` or `stderr` handles are not available
+/// (i.e. the caller forgot to set `Stdio::piped()` before spawning).
 pub async fn run_filtered_child(
     mut child: Child,
     config: OutputFilterConfig,

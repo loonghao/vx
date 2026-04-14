@@ -6,7 +6,7 @@
 use crate::rules::{is_error_line, strip_ansi};
 
 /// Configuration for the output filter.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct OutputFilterConfig {
     /// Collapse ≥N consecutive identical lines into one summary.
     pub dedup_threshold: usize,
@@ -102,10 +102,8 @@ impl OutputFilter {
             if let Some(ref prev) = self.last_line {
                 if *prev == clean {
                     self.repeat_count += 1;
-                    if self.repeat_count < self.config.dedup_threshold {
-                        // Below threshold — emit normally
-                    } else {
-                        // At or above threshold — swallow; will emit summary later
+                    // At or above threshold — swallow; will emit summary on next change
+                    if self.repeat_count >= self.config.dedup_threshold {
                         return vec![];
                     }
                 } else {
@@ -155,12 +153,10 @@ impl OutputFilter {
         let mut out = Vec::new();
 
         // Flush dedup summary for the last run
-        if let Some(ref _prev) = self.last_line {
-            if self.repeat_count >= self.config.dedup_threshold {
-                let extra = self.repeat_count - self.config.dedup_threshold + 1;
-                if extra > 0 {
-                    out.push(format!("  ... (+{extra} identical lines omitted)"));
-                }
+        if self.last_line.is_some() && self.repeat_count >= self.config.dedup_threshold {
+            let extra = self.repeat_count - self.config.dedup_threshold + 1;
+            if extra > 0 {
+                out.push(format!("  ... (+{extra} identical lines omitted)"));
             }
         }
 

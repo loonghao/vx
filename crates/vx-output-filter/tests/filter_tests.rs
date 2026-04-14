@@ -1,6 +1,6 @@
 use rstest::rstest;
 use vx_output_filter::filter::{OutputFilter, OutputFilterConfig};
-use vx_output_filter::rules::strip_ansi;
+use vx_output_filter::rules::{is_error_line, strip_ansi};
 
 fn compact_config() -> OutputFilterConfig {
     OutputFilterConfig::compact_defaults()
@@ -108,6 +108,17 @@ fn test_filter_line_basic(#[case] input: &str, #[case] expected: &str) {
     let emitted = f.filter_line(input);
     assert_eq!(emitted.len(), 1);
     assert_eq!(emitted[0], expected);
+}
+
+// ── Rules ─────────────────────────────────────────────────────────────────────
+
+#[test]
+fn test_is_error_line_detects_error() {
+    assert!(is_error_line("error: failed to compile"));
+    assert!(is_error_line("Error: something went wrong"));
+    assert!(is_error_line("FATAL: out of memory"));
+    assert!(is_error_line("panic! at the disco"));
+    assert!(!is_error_line("everything is fine"));
 }
 
 // ── from_env (unit-level) ─────────────────────────────────────────────────────

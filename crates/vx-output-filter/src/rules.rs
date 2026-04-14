@@ -25,22 +25,3 @@ pub fn strip_ansi(s: &str) -> String {
 
 /// Marker type — future expansion point for pluggable rules.
 pub struct FilterRules;
-
-#[cfg(test)]
-mod inline_tests {
-    use super::*;
-
-    #[test]
-    fn test_strip_ansi_removes_codes() {
-        assert_eq!(strip_ansi("\x1b[32mhello\x1b[0m"), "hello");
-    }
-
-    #[test]
-    fn test_is_error_line_detects_error() {
-        assert!(is_error_line("error: failed to compile"));
-        assert!(is_error_line("Error: something went wrong"));
-        assert!(is_error_line("FATAL: out of memory"));
-        assert!(is_error_line("panic! at the disco"));
-        assert!(!is_error_line("everything is fine"));
-    }
-}
