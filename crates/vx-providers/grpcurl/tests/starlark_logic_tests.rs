@@ -42,6 +42,18 @@ names = [r["name"] for r in runtimes]
     );
 }
 
+#[test]
+fn test_grpcurl_runtime_uses_dash_version_flag() {
+    make_assert().is_true(
+        r#"
+load("provider.star", "runtimes")
+rt = [r for r in runtimes if r["name"] == "grpcurl"][0]
+cmd = rt["test_commands"][0]
+cmd["command"] == "{executable} -version" and cmd["expected_output"] == "grpcurl(?:\\.exe)? v\\d+\\.\\d+\\.\\d+"
+"#,
+    );
+}
+
 // ── download_url logic ────────────────────────────────────────────────────────
 
 #[test]
