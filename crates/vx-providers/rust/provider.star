@@ -70,8 +70,10 @@ _RUSTUP_TRIPLES = {
     "windows/x86":  "i686-pc-windows-msvc",
     "macos/x64":    "x86_64-apple-darwin",
     "macos/arm64":  "aarch64-apple-darwin",
-    "linux/x64":    "x86_64-unknown-linux-musl",
-    "linux/arm64":  "aarch64-unknown-linux-musl",
+    # rustup-init must match the host libc. Use GNU triples on Linux so the
+    # installed cargo/rustc toolchain runs on glibc-based distributions used by CI.
+    "linux/x64":    "x86_64-unknown-linux-gnu",
+    "linux/arm64":  "aarch64-unknown-linux-gnu",
 }
 
 def _rustup_triple(ctx):
