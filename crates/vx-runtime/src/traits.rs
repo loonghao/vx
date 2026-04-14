@@ -279,10 +279,9 @@ pub trait Installer: Send + Sync {
         }
 
         // Apply layout transformations if metadata is provided
-        if let (Some(target_name), Some(target_dir)) = (
-            metadata.get("target_name"),
-            metadata.get("target_dir"),
-        ) {
+        if let (Some(target_name), Some(target_dir)) =
+            (metadata.get("target_name"), metadata.get("target_dir"))
+        {
             let target_path = dest.join(target_dir).join(target_name);
 
             // Determine the source file path.
