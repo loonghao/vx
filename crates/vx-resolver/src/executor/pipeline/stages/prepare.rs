@@ -50,6 +50,10 @@ pub struct PreparedExecution {
 
     /// The original plan (for reference by ExecuteStage)
     pub plan: ExecutionPlan,
+
+    /// Optional output filter config (compact mode).
+    /// Passed through from `ExecutionConfig::output_filter`.
+    pub output_filter: Option<vx_output_filter::OutputFilterConfig>,
 }
 
 /// The Prepare stage: `ExecutionPlan` → `PreparedExecution`
@@ -338,6 +342,7 @@ impl<'a> Stage<ExecutionPlan, PreparedExecution> for PrepareStage<'a> {
             inherit_vx_path: plan.config.inherit_vx_path,
             vx_tools_path,
             working_dir: plan.config.working_dir.clone(),
+            output_filter: plan.config.output_filter.clone(),
             plan,
         })
     }
@@ -358,6 +363,7 @@ mod tests {
             inherit_vx_path: true,
             vx_tools_path: None,
             working_dir: None,
+            output_filter: None,
             plan: ExecutionPlan::new(
                 PlannedRuntime::installed(
                     "node",
