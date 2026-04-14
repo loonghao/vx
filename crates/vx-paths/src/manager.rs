@@ -279,7 +279,31 @@ impl PathManager {
             // Support both unified version directories and legacy
             // platform-specific subdirectories.
             let platform_dir = path.join(&current_platform);
-            if platform_dir.exists() || path.exists() {
+            if platform_dir.exists() {
+                versions.push(version_str);
+                continue;
+            }
+
+            let mut has_entries = false;
+            let mut has_non_platform_entries = false;
+
+            for child in std::fs::read_dir(&path)? {
+                let child = child?;
+                has_entries = true;
+
+                let child_name = child.file_name().to_string_lossy().to_string();
+                let is_platform_dir = child.file_type()?.is_dir()
+                    && ["windows-", "linux-", "darwin-", "macos-"]
+                        .iter()
+                        .any(|prefix| child_name.starts_with(prefix));
+
+                if !is_platform_dir {
+                    has_non_platform_entries = true;
+                    break;
+                }
+            }
+
+            if !has_entries || has_non_platform_entries {
                 versions.push(version_str);
             }
         }
