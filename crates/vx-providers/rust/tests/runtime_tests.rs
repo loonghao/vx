@@ -54,14 +54,6 @@ fn test_provider_get_runtime() {
 #[test]
 fn test_star_metadata() {
     let meta = vx_starlark::StarMetadata::parse(vx_provider_rust::PROVIDER_STAR);
-    eprintln!("meta.name = {:?}", meta.name);
-    eprintln!("meta.runtimes.len() = {}", meta.runtimes.len());
-    for rt in &meta.runtimes {
-        eprintln!(
-            "  runtime: name={:?} bundled_with={:?}",
-            rt.name, rt.bundled_with
-        );
-    }
     assert!(meta.name.is_some());
     assert!(!meta.runtimes.is_empty(), "runtimes should not be empty");
 }

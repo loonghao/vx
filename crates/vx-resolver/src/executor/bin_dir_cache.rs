@@ -108,12 +108,13 @@ pub fn find_bin_dir(store_dir: &std::path::Path, runtime_name: &str) -> Option<P
         vec![runtime_name.to_string()]
     };
 
-    // Platform-specific directory
+    // New layout: try version dir first (no platform subdirectory).
+    // Old layout: fall back to platform-specific directory.
     let platform_dir = store_dir.join(platform.as_str());
-    let search_dir = if platform_dir.exists() {
-        &platform_dir
-    } else if store_dir.exists() {
+    let search_dir: &std::path::Path = if store_dir.exists() {
         store_dir
+    } else if platform_dir.exists() {
+        &platform_dir
     } else {
         return None;
     };

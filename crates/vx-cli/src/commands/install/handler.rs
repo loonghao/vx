@@ -569,7 +569,13 @@ pub async fn install_quiet(
         let base_dir = context
             .paths
             .version_store_dir(runtime.store_name(), &parent_version);
-        let install_dir = base_dir.join(platform.as_str());
+        // New layout: install directly to version dir; fallback to platform dir for old installs.
+        let platform_dir = base_dir.join(platform.as_str());
+        let install_dir = if base_dir.exists() {
+            base_dir
+        } else {
+            platform_dir
+        };
         let exe_relative = runtime.executable_relative_path(&parent_version, &platform);
         let exe_path = install_dir.join(exe_relative);
         return Ok(InstallResult::already_installed(
@@ -633,14 +639,19 @@ pub async fn install_quiet(
         }
 
         // Last resort: return a reasonable default (may not exist)
-        // NOTE: install_path from version_store_dir is the base path without the
-        // platform subdirectory. The actual files live under {base}/{platform}/.
+        // New layout: install_path from version_store_dir is the actual install dir.
+        // Fallback: check old platform-specific subdirectory.
         let platform = vx_runtime::Platform::current();
         let platform_install_path = install_path.join(platform.as_str());
+        let actual_install_path = if install_path.exists() {
+            install_path
+        } else {
+            platform_install_path
+        };
         let exe_relative = runtime.executable_relative_path(&target_version, &platform);
-        let exe_path = platform_install_path.join(&exe_relative);
+        let exe_path = actual_install_path.join(&exe_relative);
         return Ok(InstallResult::already_installed(
-            platform_install_path,
+            actual_install_path,
             exe_path,
             target_version,
         ));

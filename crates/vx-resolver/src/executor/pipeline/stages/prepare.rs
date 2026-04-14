@@ -107,6 +107,26 @@ impl<'a> PrepareStage<'a> {
         )
     }
 
+    fn resolve_system_executable(
+        runtime: &dyn vx_runtime::Runtime,
+        runtime_env: &HashMap<String, String>,
+    ) -> Option<PathBuf> {
+        let executable_name = runtime.executable_name();
+        let working_dir = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
+
+        let runtime_path = runtime_env
+            .iter()
+            .find_map(|(key, value)| key.eq_ignore_ascii_case("PATH").then_some(value));
+
+        if let Some(path) = runtime_path
+            && let Ok(system_exe) = which::which_in(executable_name, Some(path), &working_dir)
+        {
+            return Some(system_exe);
+        }
+
+        which::which(executable_name).ok()
+    }
+
     /// Try proxy execution for bundled runtimes (RFC 0028)
     ///
     /// For runtimes that are bundled with another runtime (e.g., msbuild with dotnet),
@@ -160,8 +180,10 @@ impl<'a> PrepareStage<'a> {
                     );
                     Ok(Some((exe, prep.command_prefix)))
                 } else if prep.use_system_path {
-                    // Try system PATH
-                    if let Ok(system_exe) = which::which(&plan.primary.name) {
+                    // Try system PATH using the runtime's actual executable name.
+                    if let Some(system_exe) =
+                        Self::resolve_system_executable(runtime.as_ref(), runtime_env)
+                    {
                         debug!(
                             "[PrepareStage] Using system executable: {}",
                             system_exe.display()

@@ -279,15 +279,40 @@ pub trait Installer: Send + Sync {
         }
 
         // Apply layout transformations if metadata is provided
-        if let (Some(source_name), Some(target_name), Some(target_dir)) = (
-            metadata.get("source_name"),
-            metadata.get("target_name"),
-            metadata.get("target_dir"),
-        ) {
-            let source_path = dest.join(target_dir).join(source_name);
+        if let (Some(target_name), Some(target_dir)) =
+            (metadata.get("target_name"), metadata.get("target_dir"))
+        {
             let target_path = dest.join(target_dir).join(target_name);
 
-            if source_path.exists() && source_path != target_path {
+            // Determine the source file path.
+            //
+            // Case 1: explicit source_name (e.g. rust provider: rustup-init-1.29.0-...)
+            // Case 2: no source_name — single-binary download where the downloaded file
+            //   was placed in target_dir with its original name (e.g. kind-darwin-arm64).
+            //   In that case we look for ANY file in target_dir that is not target_name.
+            let source_path = if let Some(source_name) = metadata.get("source_name") {
+                Some(dest.join(target_dir).join(source_name))
+            } else if !target_path.exists() {
+                // Scan target_dir for the single file placed there by download_and_extract
+                std::fs::read_dir(dest.join(target_dir))
+                    .ok()
+                    .and_then(|entries| {
+                        entries
+                            .filter_map(|e| e.ok())
+                            .filter(|e| e.path().is_file())
+                            .find(|e| {
+                                e.file_name().to_string_lossy().as_ref() != target_name.as_str()
+                            })
+                            .map(|e| e.path())
+                    })
+            } else {
+                None
+            };
+
+            if let Some(source_path) = source_path
+                && source_path.exists()
+                && source_path != target_path
+            {
                 // On Windows, rename might fail if target exists, so remove target first
                 if target_path.exists() {
                     let _ = std::fs::remove_file(&target_path);

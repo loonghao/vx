@@ -27,7 +27,7 @@
      └────────┬───────┘ └──────────┘ └──────────────┘
               │
      ┌────────▼───────┐
-     │ provider.star   │  114 Provider definitions
+     │ provider.star   │  129 Provider definitions
      │ files           │  (Starlark DSL)
      └────────────────┘
 ```
@@ -42,7 +42,7 @@
 | `vx-paths` | Cross-platform path management (`~/.vx/` structure) |
 | `vx-cache` | Caching layer (HTTP responses, version lists) |
 | `vx-versions` | Semver parsing and comparison |
-| `vx-manifest` | Provider manifest parsing (provider.toml) |
+| `vx-manifest` | Provider manifest parsing (provider.star metadata) |
 | `vx-args` | Argument parsing utilities |
 
 ### Layer 1: Infrastructure (depends on Layer 0)
@@ -89,7 +89,7 @@
 
 | Directory | Purpose |
 |-----------|---------|
-| `crates/vx-providers/*` | 114 Provider definitions using `provider.star` Starlark DSL |
+| `crates/vx-providers/*` | 129 Provider definitions using `provider.star` Starlark DSL |
 | `vx-bridge` | Generic command bridge framework for providers |
 
 ## Data Flow: `vx node --version`

@@ -29,7 +29,7 @@ use std::sync::Arc;
 
 use anyhow::Result;
 use async_trait::async_trait;
-use tracing::{debug, info, warn};
+use tracing::{debug, warn};
 
 /// On Windows, if `path` has no known executable extension, check for `.cmd` /
 /// `.exe` / `.bat` variants in the same directory and return the first one that
@@ -153,18 +153,16 @@ pub type VersionInfoFn = Arc<
         + Sync,
 >;
 
-/// Type alias for an async `post_install` function injected from Starlark providers.
+/// Type alias for the `post_extract(version, install_dir)` function injected from
+/// Starlark providers.
 ///
-/// Called after installation to run post-extract hooks (set permissions, run commands, etc.).
-/// Signature: `(version: String, install_dir: PathBuf) -> Vec<serde_json::Value>`
-///
-/// Each JSON value is an action descriptor:
-/// - `{"type": "set_permissions", "path": "...", "mode": "755"}`
-/// - `{"type": "run_command", "executable": "...", "args": [...], "env": {...}, "on_failure": "error"}`
-pub type PostInstallFn = Arc<
+/// Called after a successful download/extract, receives the install directory
+/// path as a string. Returns a list of serialized post-extract action descriptors.
+/// An empty `Vec` means "no actions".
+pub type PostExtractFn = Arc<
     dyn Fn(
-            String,
-            std::path::PathBuf,
+            String, // version
+            String, // install_dir as string
         ) -> std::pin::Pin<
             Box<dyn std::future::Future<Output = Result<Vec<serde_json::Value>>> + Send>,
         > + Send
@@ -181,6 +179,7 @@ pub struct ManifestDrivenRuntime {
     pub description: String,
     pub executable: String,
     pub aliases: Vec<String>,
+    pub command_prefix: Vec<String>,
     pub ecosystem_override: Option<Ecosystem>,
     pub bundled_with: Option<String>,
     pub provider_name: String,
@@ -201,11 +200,12 @@ pub struct ManifestDrivenRuntime {
     pub deps_fn: Option<DepsFn>,
     /// Optional Starlark-driven `version_info(user_version)` implementation (RFC 0040).
     pub version_info_fn: Option<VersionInfoFn>,
-    /// Optional Starlark-driven `post_install` implementation.
+    /// Optional Starlark-driven `post_extract(version, install_dir)` hook.
     ///
-    /// Called after download/extract to run post-extract hooks (e.g., rustup-init
-    /// to install the actual toolchain, set permissions on binaries, etc.).
-    pub post_install_fn: Option<PostInstallFn>,
+    /// Called after the binary/archive has been placed in `install_dir`.
+    /// Used by providers like Rust that need to run an installer binary
+    /// (e.g. `rustup-init`) after extraction before the tool is usable.
+    pub post_extract_fn: Option<PostExtractFn>,
     /// Optional pip package name for Python-based tools.
     pub pip_package: Option<String>,
 
@@ -254,6 +254,7 @@ impl ManifestDrivenRuntime {
             name,
             description: String::new(),
             aliases: Vec::new(),
+            command_prefix: Vec::new(),
             ecosystem_override: None,
             bundled_with: None,
             provider_name: provider_name.into(),
@@ -269,7 +270,7 @@ impl ManifestDrivenRuntime {
             install_layout_fn: None,
             deps_fn: None,
             version_info_fn: None,
-            post_install_fn: None,
+            post_extract_fn: None,
             pip_package: None,
 
             shells: Vec::new(),
@@ -304,9 +305,14 @@ impl ManifestDrivenRuntime {
         self
     }
 
-    /// Set the `post_install` function for Starlark-driven post-extract hooks.
-    pub fn with_post_install(mut self, f: PostInstallFn) -> Self {
-        self.post_install_fn = Some(f);
+    /// Set the Starlark-driven `post_extract(version, install_dir)` hook.
+    ///
+    /// The hook is called after the provider binary/archive has been placed in
+    /// `install_dir`.  Use this for providers (like Rust) that ship a downloader
+    /// binary (`rustup-init`) rather than the final tool, and therefore need an
+    /// extra run step before `cargo`/`rustc` become available.
+    pub fn with_post_extract(mut self, f: PostExtractFn) -> Self {
+        self.post_extract_fn = Some(f);
         self
     }
 
@@ -322,6 +328,11 @@ impl ManifestDrivenRuntime {
 
     pub fn with_aliases(mut self, aliases: Vec<String>) -> Self {
         self.aliases.extend(aliases);
+        self
+    }
+
+    pub fn with_command_prefix(mut self, command_prefix: Vec<String>) -> Self {
+        self.command_prefix = command_prefix;
         self
     }
 
@@ -694,201 +705,6 @@ impl Runtime for ManifestDrivenRuntime {
         self.bundled_with.is_none()
     }
 
-    async fn post_install(&self, version: &str, ctx: &RuntimeContext) -> Result<()> {
-        let post_install_fn = match &self.post_install_fn {
-            Some(f) => f,
-            None => {
-                debug!(
-                    "post_install: no post_install_fn for {}",
-                    self.name
-                );
-                return Ok(());
-            }
-        };
-
-        let store_name = self.bundled_with.as_deref().unwrap_or(&self.name);
-        let base_path = ctx.paths.version_store_dir(store_name, version);
-        let platform = Platform::current();
-        let install_dir = base_path.join(platform.as_str());
-
-        debug!(
-            "post_install: {} v{} install_dir={}",
-            self.name,
-            version,
-            install_dir.display()
-        );
-
-        if !install_dir.exists() {
-            debug!(
-                "Skipping post_install for {} — install dir does not exist: {}",
-                self.name,
-                install_dir.display()
-            );
-            return Ok(());
-        }
-
-        let actions = match post_install_fn(version.to_string(), install_dir.clone()).await {
-            Ok(a) => a,
-            Err(e) => {
-                warn!("post_install_fn for {} failed: {}", self.name, e);
-                return Err(e);
-            }
-        };
-        debug!(
-            "post_install: got {} actions for {} v{}",
-            actions.len(),
-            self.name,
-            version
-        );
-        if actions.is_empty() {
-            return Ok(());
-        }
-
-        debug!(
-            "Running {} post_install actions for {} v{}",
-            actions.len(),
-            self.name,
-            version
-        );
-
-        for action in &actions {
-            let action_type = action
-                .get("type")
-                .and_then(|t| t.as_str())
-                .unwrap_or("unknown");
-
-            match action_type {
-                "set_permissions" => {
-                    #[cfg(unix)]
-                    {
-                        use std::os::unix::fs::PermissionsExt;
-                        let path = action
-                            .get("path")
-                            .and_then(|p| p.as_str())
-                            .unwrap_or("");
-                        let mode_str =
-                            action.get("mode").and_then(|m| m.as_str()).unwrap_or("755");
-                        let full_path = install_dir.join(path);
-                        if full_path.exists() {
-                            let mode =
-                                u32::from_str_radix(mode_str, 8).unwrap_or(0o755);
-                            std::fs::set_permissions(
-                                &full_path,
-                                std::fs::Permissions::from_mode(mode),
-                            )?;
-                            debug!("Set permissions {} on {}", mode_str, full_path.display());
-                        } else {
-                            debug!(
-                                "Skipping set_permissions — file not found: {}",
-                                full_path.display()
-                            );
-                        }
-                    }
-                }
-                "run_command" => {
-                    let executable = action
-                        .get("executable")
-                        .and_then(|e| e.as_str())
-                        .unwrap_or("");
-                    let args: Vec<String> = action
-                        .get("args")
-                        .and_then(|a| a.as_array())
-                        .map(|arr| {
-                            arr.iter()
-                                .filter_map(|v| v.as_str().map(|s| s.to_string()))
-                                .collect()
-                        })
-                        .unwrap_or_default();
-                    let env_map: HashMap<String, String> = action
-                        .get("env")
-                        .and_then(|e| e.as_object())
-                        .map(|obj| {
-                            obj.iter()
-                                .filter_map(|(k, v)| {
-                                    v.as_str().map(|s| (k.clone(), s.to_string()))
-                                })
-                                .collect()
-                        })
-                        .unwrap_or_default();
-                    let on_failure = action
-                        .get("on_failure")
-                        .and_then(|o| o.as_str())
-                        .unwrap_or("warn");
-
-                    info!(
-                        "Running post-install command: {} {}",
-                        executable,
-                        args.join(" ")
-                    );
-
-                    let mut cmd = std::process::Command::new(executable);
-                    cmd.args(&args);
-                    for (k, v) in &env_map {
-                        cmd.env(k, v);
-                    }
-
-                    match cmd.output() {
-                        Ok(output) => {
-                            if output.status.success() {
-                                debug!("Post-install command succeeded");
-                            } else {
-                                let stderr =
-                                    String::from_utf8_lossy(&output.stderr);
-                                match on_failure {
-                                    "error" => {
-                                        return Err(anyhow::anyhow!(
-                                            "Post-install command failed (exit {}): {}",
-                                            output.status,
-                                            stderr
-                                        ));
-                                    }
-                                    "ignore" => {
-                                        debug!(
-                                            "Post-install command failed (ignored): {}",
-                                            stderr
-                                        );
-                                    }
-                                    _ => {
-                                        warn!(
-                                            "Post-install command failed: {}",
-                                            stderr
-                                        );
-                                    }
-                                }
-                            }
-                        }
-                        Err(e) => match on_failure {
-                            "error" => {
-                                return Err(anyhow::anyhow!(
-                                    "Failed to run post-install command '{}': {}",
-                                    executable,
-                                    e
-                                ));
-                            }
-                            "ignore" => {
-                                debug!(
-                                    "Failed to run post-install command (ignored): {}",
-                                    e
-                                );
-                            }
-                            _ => {
-                                warn!(
-                                    "Failed to run post-install command '{}': {}",
-                                    executable, e
-                                );
-                            }
-                        },
-                    }
-                }
-                other => {
-                    debug!("Unknown post-install action type: {}", other);
-                }
-            }
-        }
-
-        Ok(())
-    }
-
     async fn prepare_execution(
         &self,
         version: &str,
@@ -939,7 +755,8 @@ impl Runtime for ManifestDrivenRuntime {
             for parent_version in &candidate_versions {
                 let version_dir = paths.version_store_dir(store_name, parent_version);
                 let platform_dir = version_dir.join(platform.as_str());
-                let search_dirs = [&platform_dir, &version_dir];
+                // New layout: version_dir first, then platform_dir fallback for old installs
+                let search_dirs = [&version_dir, &platform_dir];
 
                 for dir in &search_dirs {
                     // Build candidates from all possible executable names × locations
@@ -952,6 +769,9 @@ impl Runtime for ManifestDrivenRuntime {
                     }
 
                     for path in &candidates {
+                        // Only accept files (not directories).  The install directory can contain
+                        // subdirectories with the same name as the executable (e.g. rust stores
+                        // cargo as a directory `cargo/` alongside the actual `cargo/bin/cargo.exe`).
                         if path.is_file() {
                             let resolved = prefer_windows_executable(path.clone());
                             debug!(
@@ -962,6 +782,7 @@ impl Runtime for ManifestDrivenRuntime {
                             );
                             return Ok(crate::ExecutionPrep {
                                 executable_override: Some(resolved),
+                                command_prefix: self.command_prefix.clone(),
                                 proxy_ready: true,
                                 message: Some(format!(
                                     "Using {} from {} {} installation",
@@ -989,6 +810,7 @@ impl Runtime for ManifestDrivenRuntime {
                         );
                         return Ok(crate::ExecutionPrep {
                             executable_override: Some(resolved),
+                            command_prefix: self.command_prefix.clone(),
                             proxy_ready: true,
                             message: Some(format!(
                                 "Using {} from {} {} installation",
@@ -1018,6 +840,7 @@ impl Runtime for ManifestDrivenRuntime {
                 );
                 return Ok(crate::ExecutionPrep {
                     executable_override: Some(found),
+                    command_prefix: self.command_prefix.clone(),
                     proxy_ready: true,
                     message: Some(format!(
                         "Using {} from system installation (via system_paths)",
@@ -1029,6 +852,7 @@ impl Runtime for ManifestDrivenRuntime {
 
             return Ok(crate::ExecutionPrep {
                 use_system_path: true,
+                command_prefix: self.command_prefix.clone(),
                 message: Some(format!(
                     "{} not found in {} installation, trying system PATH",
                     self.name, parent
@@ -1050,6 +874,7 @@ impl Runtime for ManifestDrivenRuntime {
             );
             return Ok(crate::ExecutionPrep {
                 executable_override: Some(found),
+                command_prefix: self.command_prefix.clone(),
                 proxy_ready: true,
                 message: Some(format!(
                     "Using {} from system installation (via system_paths)",
@@ -1059,7 +884,10 @@ impl Runtime for ManifestDrivenRuntime {
             });
         }
 
-        Ok(crate::ExecutionPrep::default())
+        Ok(crate::ExecutionPrep {
+            command_prefix: self.command_prefix.clone(),
+            ..Default::default()
+        })
     }
 
     async fn fetch_versions(&self, ctx: &RuntimeContext) -> Result<Vec<VersionInfo>> {
@@ -1104,14 +932,31 @@ impl Runtime for ManifestDrivenRuntime {
             }
         }
 
-        // 2. Fall back to PATH lookup (system-installed tools, e.g. installed by brew/choco).
-        if which::which(&self.executable).is_ok() {
-            return Ok(true);
-        }
-
-        // 3. Fall back to system_paths glob search (for tools like MSVC cl.exe not on PATH).
+        // 2. Fall back to system_paths glob search (for tools like MSVC cl.exe not on PATH).
+        //    This is the primary mechanism by which providers declare "this tool lives at
+        //    a known system path" — it is an explicit opt-in in provider.star.
         if !self.system_paths.is_empty() {
             return Ok(find_first_glob_match(&self.system_paths).is_some());
+        }
+
+        // 3. Fall back to PATH lookup only for tools that vx cannot install itself.
+        //    A tool "cannot be installed by vx" when:
+        //    - it has no download_url (download_url_fn returns None) AND
+        //    - it has system install strategies (brew/apt/choco) rather than a direct download.
+        //
+        //    For tools that vx CAN install (like rust, node, go), skipping this step ensures
+        //    that a system-installed version never masks a missing vx-managed installation,
+        //    preventing the "is_installed=true but find_executable=None → reinstall loop" bug.
+        //
+        //    The heuristic: if the provider has install_strategies (system package manager),
+        //    it's a system-managed tool and we should check system PATH.
+        //    If it has a direct download path (download_url_fn), vx manages it exclusively.
+        let is_vx_managed = self.download_url_fn.is_some()
+            || self.install_layout_fn.is_some()
+            || self.pip_package.is_some();
+
+        if !is_vx_managed && which::which(&self.executable).is_ok() {
+            return Ok(true);
         }
 
         Ok(false)
@@ -1170,7 +1015,13 @@ impl Runtime for ManifestDrivenRuntime {
     ) -> Result<Option<std::path::PathBuf>> {
         let platform = Platform::current();
         let base_path = ctx.paths.version_store_dir(self.store_name(), version);
-        let install_path = base_path.join(platform.as_str());
+        // New layout: install directly to version dir; fallback to platform dir for old installs.
+        let platform_dir = base_path.join(platform.as_str());
+        let install_path = if base_path.exists() {
+            base_path
+        } else {
+            platform_dir
+        };
         if !ctx.fs.exists(&install_path) {
             return Ok(None);
         }
@@ -1213,6 +1064,154 @@ impl Runtime for ManifestDrivenRuntime {
 
     async fn install(&self, version: &str, ctx: &RuntimeContext) -> Result<InstallResult> {
         self.install_impl(version, ctx).await
+    }
+
+    /// Run the Starlark `post_extract` hook after a successful installation.
+    ///
+    /// The hook is wired up from `provider.star::post_extract(ctx, version, install_dir)`.
+    /// For providers like Rust, this runs `rustup-init -y ...` so that `cargo`/`rustc`
+    /// are fully installed into the vx store directory before the tool is used.
+    async fn post_install(&self, version: &str, ctx: &RuntimeContext) -> Result<()> {
+        let Some(ref post_extract_fn) = self.post_extract_fn else {
+            return Ok(());
+        };
+
+        let platform = crate::platform::Platform::current();
+        let store_name = self.bundled_with.as_deref().unwrap_or(&self.name);
+        // New layout: install_dir = ~/.vx/store/<store_name>/<version>/
+        // (no platform subdirectory). Fall back to platform dir for old installs.
+        let version_dir = ctx.paths.version_store_dir(store_name, version);
+        let platform_dir = version_dir.join(platform.as_str());
+        let install_dir = if version_dir.exists() {
+            version_dir
+        } else {
+            platform_dir
+        };
+
+        tracing::debug!(
+            "post_install: running post_extract hook for {}@{} in {}",
+            self.name,
+            version,
+            install_dir.display()
+        );
+
+        let actions = post_extract_fn(
+            version.to_string(),
+            install_dir.to_string_lossy().to_string(),
+        )
+        .await?;
+
+        if actions.is_empty() {
+            return Ok(());
+        }
+
+        // Execute each post-extract action.
+        // We re-use the same JSON format that the Starlark engine produces so we
+        // don't need to import vx-starlark types here (that would create a cycle).
+        for action in &actions {
+            let action_type = action
+                .get("type")
+                .and_then(|t| t.as_str())
+                .unwrap_or("unknown");
+
+            match action_type {
+                "set_permissions" => {
+                    // Only meaningful on Unix; skip on Windows.
+                    #[cfg(unix)]
+                    {
+                        use std::os::unix::fs::PermissionsExt;
+                        if let Some(path_str) = action.get("path").and_then(|p| p.as_str()) {
+                            let full = install_dir.join(path_str);
+                            if let Some(mode_str) = action.get("mode").and_then(|m| m.as_str()) {
+                                let mode = u32::from_str_radix(mode_str, 8).unwrap_or(0o755);
+                                if let Err(e) = std::fs::set_permissions(
+                                    &full,
+                                    std::fs::Permissions::from_mode(mode),
+                                ) {
+                                    tracing::warn!(
+                                        "post_install: set_permissions failed for {}: {}",
+                                        full.display(),
+                                        e
+                                    );
+                                }
+                            }
+                        }
+                    }
+                }
+                "run_command" => {
+                    if let Some(cmd_str) = action.get("command").and_then(|c| c.as_str()) {
+                        let args: Vec<String> = action
+                            .get("args")
+                            .and_then(|a| a.as_array())
+                            .map(|arr| {
+                                arr.iter()
+                                    .filter_map(|v| v.as_str().map(|s| s.to_string()))
+                                    .collect()
+                            })
+                            .unwrap_or_default();
+
+                        let env_map: std::collections::HashMap<String, String> = action
+                            .get("env")
+                            .and_then(|e| e.as_object())
+                            .map(|obj| {
+                                obj.iter()
+                                    .filter_map(|(k, v)| {
+                                        v.as_str().map(|s| (k.clone(), s.to_string()))
+                                    })
+                                    .collect()
+                            })
+                            .unwrap_or_default();
+
+                        let on_failure = action
+                            .get("on_failure")
+                            .and_then(|f| f.as_str())
+                            .unwrap_or("ignore");
+
+                        tracing::debug!(
+                            "post_install: run_command {} {:?} (on_failure={})",
+                            cmd_str,
+                            args,
+                            on_failure
+                        );
+
+                        let mut cmd = std::process::Command::new(cmd_str);
+                        cmd.args(&args);
+                        for (k, v) in &env_map {
+                            cmd.env(k, v);
+                        }
+
+                        match cmd.status() {
+                            Ok(status) if status.success() => {}
+                            Ok(status) => {
+                                let msg = format!(
+                                    "post_install: command '{}' exited with {}",
+                                    cmd_str, status
+                                );
+                                if on_failure == "error" {
+                                    return Err(anyhow::anyhow!("{}", msg));
+                                } else {
+                                    tracing::warn!("{}", msg);
+                                }
+                            }
+                            Err(e) => {
+                                let msg =
+                                    format!("post_install: failed to run '{}': {}", cmd_str, e);
+                                if on_failure == "error" {
+                                    return Err(anyhow::anyhow!("{}", msg));
+                                } else {
+                                    tracing::warn!("{}", msg);
+                                }
+                            }
+                        }
+                    }
+                }
+                other => {
+                    tracing::debug!("post_install: unknown action type '{}', skipping", other);
+                }
+            }
+        }
+
+        Ok(())
     }
 
     fn normalize_config(&self) -> Option<&NormalizeConfig> {

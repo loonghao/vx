@@ -123,6 +123,21 @@ url != None and "rustup-init" in url
 }
 
 #[test]
+fn test_download_url_linux_x64_uses_gnu_triple() {
+    let mut a = Assert::new();
+    a.dialect(&Dialect::Standard);
+    a.is_true(&format!(
+        r#"
+{}
+ctx = struct(platform = struct(os = "linux", arch = "x64", target = ""))
+url = download_url(ctx, "1.76.0")
+"unknown-linux-gnu/rustup-init" in url
+"#,
+        provider_star_prefix()
+    ));
+}
+
+#[test]
 fn test_download_url_windows_x64_returns_exe() {
     let mut a = Assert::new();
     a.dialect(&Dialect::Standard);
@@ -193,7 +208,7 @@ fn test_environment_sets_rustup_home() {
     a.is_true(&format!(
         r#"
 {}
-ctx = struct(platform = struct(os = "linux", arch = "x64", target = ""), install_dir = "/opt/rust", vx_home = "/home/user/.vx")
+ctx = struct(platform = struct(os = "linux", arch = "x64", target = ""), install_dir = "/opt/rust/linux-x64", platform_install_dir = "/opt/rust/linux-x64", vx_home = "/home/user/.vx")
 env = environment(ctx, "1.76.0")
 rustup_ops = [op for op in env if op.get("key") == "RUSTUP_HOME"]
 len(rustup_ops) > 0
@@ -209,7 +224,7 @@ fn test_environment_sets_cargo_home() {
     a.is_true(&format!(
         r#"
 {}
-ctx = struct(platform = struct(os = "linux", arch = "x64", target = ""), install_dir = "/opt/rust", vx_home = "/home/user/.vx")
+ctx = struct(platform = struct(os = "linux", arch = "x64", target = ""), install_dir = "/opt/rust/linux-x64", platform_install_dir = "/opt/rust/linux-x64", vx_home = "/home/user/.vx")
 env = environment(ctx, "1.76.0")
 cargo_ops = [op for op in env if op.get("key") == "CARGO_HOME"]
 len(cargo_ops) > 0
@@ -225,7 +240,7 @@ fn test_environment_prepends_cargo_bin_to_path() {
     a.is_true(&format!(
         r#"
 {}
-ctx = struct(platform = struct(os = "linux", arch = "x64", target = ""), install_dir = "/opt/rust", vx_home = "/home/user/.vx")
+ctx = struct(platform = struct(os = "linux", arch = "x64", target = ""), install_dir = "/opt/rust/linux-x64", platform_install_dir = "/opt/rust/linux-x64", vx_home = "/home/user/.vx")
 env = environment(ctx, "1.76.0")
 path_ops = [op for op in env if op.get("key") == "PATH"]
 len(path_ops) > 0 and "cargo/bin" in path_ops[0].get("value", "")

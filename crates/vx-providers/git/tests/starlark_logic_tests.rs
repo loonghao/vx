@@ -233,6 +233,85 @@ url != None and "arm64.7z.exe" in url
     ));
 }
 
+// ── install_layout logic ──────────────────────────────────────────────────────
+
+#[test]
+fn test_install_layout_windows_is_archive_with_cmd_path() {
+    let mut a = Assert::new();
+    a.dialect(&Dialect::Standard);
+    a.is_true(&format!(
+        r#"
+{}
+ctx = struct(platform = struct(os = "windows", arch = "x64", target = ""))
+layout = install_layout(ctx, "2.44.0")
+layout["type"] == "archive" and "cmd/git.exe" in layout["executable_paths"]
+"#,
+        provider_star_prefix()
+    ));
+}
+
+#[test]
+fn test_install_layout_windows_includes_mingw_path() {
+    let mut a = Assert::new();
+    a.dialect(&Dialect::Standard);
+    a.is_true(&format!(
+        r#"
+{}
+ctx = struct(platform = struct(os = "windows", arch = "x64", target = ""))
+layout = install_layout(ctx, "2.44.0")
+"mingw64/bin/git.exe" in layout["executable_paths"]
+"#,
+        provider_star_prefix()
+    ));
+}
+
+#[test]
+fn test_install_layout_linux_has_bin_git() {
+    let mut a = Assert::new();
+    a.dialect(&Dialect::Standard);
+    a.is_true(&format!(
+        r#"
+{}
+ctx = struct(platform = struct(os = "linux", arch = "x64", target = ""))
+layout = install_layout(ctx, "2.44.0")
+"bin/git" in layout["executable_paths"]
+"#,
+        provider_star_prefix()
+    ));
+}
+
+// ── get_execute_path logic ────────────────────────────────────────────────────
+
+#[test]
+fn test_get_execute_path_windows_returns_cmd_git_exe() {
+    let mut a = Assert::new();
+    a.dialect(&Dialect::Standard);
+    a.is_true(&format!(
+        r#"
+{}
+ctx = struct(platform = struct(os = "windows", arch = "x64", target = ""), install_dir = "C:\\vx\\git\\2.44.0")
+path = get_execute_path(ctx, "2.44.0")
+path.endswith("cmd/git.exe")
+"#,
+        provider_star_prefix()
+    ));
+}
+
+#[test]
+fn test_get_execute_path_linux_returns_bin_git() {
+    let mut a = Assert::new();
+    a.dialect(&Dialect::Standard);
+    a.is_true(&format!(
+        r#"
+{}
+ctx = struct(platform = struct(os = "linux", arch = "x64", target = ""), install_dir = "/home/user/.vx/store/git/2.44.0")
+path = get_execute_path(ctx, "2.44.0")
+path.endswith("bin/git")
+"#,
+        provider_star_prefix()
+    ));
+}
+
 // ── lint check ────────────────────────────────────────────────────────────────
 
 #[test]

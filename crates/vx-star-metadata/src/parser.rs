@@ -54,6 +54,8 @@ pub struct StarRuntimeMeta {
     pub auto_installable: Option<bool>,
     /// Parent runtime name (for bundled tools like ctest/cpack bundled with cmake)
     pub bundled_with: Option<String>,
+    /// Arguments prepended before user args when executing this runtime.
+    pub command_prefix: Vec<String>,
     /// Shells provided by this runtime (RFC 0038)
     /// Each shell is (name, relative_path)
     pub shells: Vec<(String, String)>,
@@ -404,6 +406,7 @@ fn parse_runtime_def_call(args_body: &str, source: &str) -> StarRuntimeMeta {
     let platform_os = extract_kwarg_platform_os(args_body);
     let auto_installable = extract_kwarg_bool(args_body, "auto_installable");
     let bundled_with = extract_kwarg_string(args_body, "bundled_with");
+    let command_prefix = extract_kwarg_string_list(args_body, "command_prefix");
     let priority = extract_kwarg_u32(args_body, "priority");
 
     // system_paths may be a direct list `[...]` or a variable reference like `_MSVC_PATHS`.
@@ -418,6 +421,7 @@ fn parse_runtime_def_call(args_body: &str, source: &str) -> StarRuntimeMeta {
         platform_os,
         auto_installable,
         bundled_with,
+        command_prefix,
         shells: Vec::new(),
         install_deps: Vec::new(),
         system_paths,
@@ -441,6 +445,7 @@ fn parse_bundled_runtime_def_call(args_body: &str) -> StarRuntimeMeta {
     let aliases = extract_kwarg_string_list(args_body, "aliases");
     let platform_os = extract_kwarg_platform_os(args_body);
     let auto_installable = extract_kwarg_bool(args_body, "auto_installable");
+    let command_prefix = extract_kwarg_string_list(args_body, "command_prefix");
     let priority = extract_kwarg_u32(args_body, "priority");
 
     StarRuntimeMeta {
@@ -451,6 +456,7 @@ fn parse_bundled_runtime_def_call(args_body: &str) -> StarRuntimeMeta {
         platform_os,
         auto_installable,
         bundled_with,
+        command_prefix,
         shells: Vec::new(),
         install_deps: Vec::new(),
         system_paths: Vec::new(),
@@ -795,6 +801,7 @@ fn parse_runtime_dict(body: &str) -> StarRuntimeMeta {
         platform_os: extract_dict_platform_os(body),
         auto_installable: extract_dict_bool_value(body, "auto_installable"),
         bundled_with: extract_dict_string_value(body, "bundled_with"),
+        command_prefix: extract_dict_string_list(body, "command_prefix"),
         shells: extract_dict_shells(body),
         install_deps: extract_dict_string_list(body, "install_deps"),
         system_paths: extract_dict_string_list(body, "system_paths"),
