@@ -154,7 +154,8 @@ def runtime_def(name, executable = None, aliases = None, description = None,
 
 def bundled_runtime_def(name, bundled_with, executable = None, aliases = None,
                         description = None, version_pattern = None,
-                        auto_installable = None, platform_constraint = None, **kwargs):
+                        auto_installable = None, platform_constraint = None,
+                        command_prefix = None, **kwargs):
     result = {"name": name, "executable": executable or name, "bundled_with": bundled_with}
     if aliases != None:
         result["aliases"] = aliases
@@ -166,6 +167,8 @@ def bundled_runtime_def(name, bundled_with, executable = None, aliases = None,
         result["auto_installable"] = auto_installable
     if platform_constraint != None:
         result["platform_constraint"] = platform_constraint
+    if command_prefix != None:
+        result["command_prefix"] = command_prefix
     return result
 
 def dep_def(runtime, version = "*", optional = False, reason = None,
@@ -936,7 +939,8 @@ def runtime_def(name, executable = None, aliases = None, description = None,
 
 def bundled_runtime_def(name, bundled_with, executable = None, aliases = None,
                         description = None, version_pattern = None,
-                        auto_installable = None, platform_constraint = None, **kwargs):
+                        auto_installable = None, platform_constraint = None,
+                        command_prefix = None, **kwargs):
     result = {{"name": name, "executable": executable or name, "bundled_with": bundled_with}}
     if aliases != None:
         result["aliases"] = aliases
@@ -948,6 +952,8 @@ def bundled_runtime_def(name, bundled_with, executable = None, aliases = None,
         result["auto_installable"] = auto_installable
     if platform_constraint != None:
         result["platform_constraint"] = platform_constraint
+    if command_prefix != None:
+        result["command_prefix"] = command_prefix
     return result
 
 def dep_def(runtime, version = "*", optional = False, reason = None,
