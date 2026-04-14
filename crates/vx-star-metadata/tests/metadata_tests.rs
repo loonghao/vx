@@ -75,6 +75,20 @@ runtimes = [
 ]
 "#;
 
+const SAMPLE_STAR_COMMAND_PREFIX: &str = r#"
+name = "uv"
+ecosystem = "python"
+
+runtimes = [
+    runtime_def("uv"),
+    bundled_runtime_def("uvx",
+        bundled_with = "uv",
+        executable = "uv",
+        command_prefix = ["tool", "run"],
+    ),
+]
+"#;
+
 const SAMPLE_STAR_SUPPORTED_PLATFORMS: &str = r#"
 name = "winget"
 
@@ -297,6 +311,13 @@ fn test_parse_bundled_runtime_def_bundled_with() {
     let meta = StarMetadata::parse(SAMPLE_STAR_FUNC_CALLS);
     assert_eq!(meta.runtimes[1].bundled_with, Some("node".to_string()));
     assert_eq!(meta.runtimes[2].bundled_with, Some("node".to_string()));
+}
+
+#[test]
+fn test_parse_runtime_command_prefix() {
+    let meta = StarMetadata::parse(SAMPLE_STAR_COMMAND_PREFIX);
+    assert_eq!(meta.runtimes[1].executable, Some("uv".to_string()));
+    assert_eq!(meta.runtimes[1].command_prefix, vec!["tool", "run"]);
 }
 
 #[test]

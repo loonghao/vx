@@ -181,6 +181,7 @@ pub struct ManifestDrivenRuntime {
     pub description: String,
     pub executable: String,
     pub aliases: Vec<String>,
+    pub command_prefix: Vec<String>,
     pub ecosystem_override: Option<Ecosystem>,
     pub bundled_with: Option<String>,
     pub provider_name: String,
@@ -255,6 +256,7 @@ impl ManifestDrivenRuntime {
             name,
             description: String::new(),
             aliases: Vec::new(),
+            command_prefix: Vec::new(),
             ecosystem_override: None,
             bundled_with: None,
             provider_name: provider_name.into(),
@@ -328,6 +330,11 @@ impl ManifestDrivenRuntime {
 
     pub fn with_aliases(mut self, aliases: Vec<String>) -> Self {
         self.aliases.extend(aliases);
+        self
+    }
+
+    pub fn with_command_prefix(mut self, command_prefix: Vec<String>) -> Self {
+        self.command_prefix = command_prefix;
         self
     }
 
@@ -777,6 +784,7 @@ impl Runtime for ManifestDrivenRuntime {
                             );
                             return Ok(crate::ExecutionPrep {
                                 executable_override: Some(resolved),
+                                command_prefix: self.command_prefix.clone(),
                                 proxy_ready: true,
                                 message: Some(format!(
                                     "Using {} from {} {} installation",
@@ -804,6 +812,7 @@ impl Runtime for ManifestDrivenRuntime {
                         );
                         return Ok(crate::ExecutionPrep {
                             executable_override: Some(resolved),
+                            command_prefix: self.command_prefix.clone(),
                             proxy_ready: true,
                             message: Some(format!(
                                 "Using {} from {} {} installation",
@@ -833,6 +842,7 @@ impl Runtime for ManifestDrivenRuntime {
                 );
                 return Ok(crate::ExecutionPrep {
                     executable_override: Some(found),
+                    command_prefix: self.command_prefix.clone(),
                     proxy_ready: true,
                     message: Some(format!(
                         "Using {} from system installation (via system_paths)",
@@ -844,6 +854,7 @@ impl Runtime for ManifestDrivenRuntime {
 
             return Ok(crate::ExecutionPrep {
                 use_system_path: true,
+                command_prefix: self.command_prefix.clone(),
                 message: Some(format!(
                     "{} not found in {} installation, trying system PATH",
                     self.name, parent
@@ -865,6 +876,7 @@ impl Runtime for ManifestDrivenRuntime {
             );
             return Ok(crate::ExecutionPrep {
                 executable_override: Some(found),
+                command_prefix: self.command_prefix.clone(),
                 proxy_ready: true,
                 message: Some(format!(
                     "Using {} from system installation (via system_paths)",
@@ -874,7 +886,10 @@ impl Runtime for ManifestDrivenRuntime {
             });
         }
 
-        Ok(crate::ExecutionPrep::default())
+        Ok(crate::ExecutionPrep {
+            command_prefix: self.command_prefix.clone(),
+            ..Default::default()
+        })
     }
 
     async fn fetch_versions(&self, ctx: &RuntimeContext) -> Result<Vec<VersionInfo>> {
