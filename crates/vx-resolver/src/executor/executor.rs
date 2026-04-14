@@ -38,6 +38,10 @@ pub struct Executor<'a> {
 
     /// Project configuration (loaded from vx.toml if present)
     project_config: Option<ProjectToolsConfig>,
+
+    /// When `true`, subprocess output is piped through the compact output filter.
+    /// Only takes effect when stdout is **not** a TTY.
+    compact_mode: bool,
 }
 
 impl<'a> Executor<'a> {
@@ -72,7 +76,18 @@ impl<'a> Executor<'a> {
             registry: Some(registry),
             context: Some(context),
             project_config,
+            compact_mode: false,
         })
+    }
+
+    /// Enable or disable compact output filtering.
+    ///
+    /// When `true` **and** stdout is not a TTY, subprocess stdout/stderr are
+    /// piped through [`vx_output_filter`] to reduce token noise in AI-agent /
+    /// CI contexts. Default: `false`.
+    pub fn with_compact_mode(mut self, value: bool) -> Self {
+        self.compact_mode = value;
+        self
     }
 
     /// Set the runtime context
@@ -228,7 +243,7 @@ impl<'a> Executor<'a> {
         };
 
         // Stage 1: Resolve
-        let plan = {
+        let mut plan = {
             let _span = tracing::info_span!("resolve", runtime = %runtime_name).entered();
             debug!("[Pipeline] Resolve");
             resolve_stage
@@ -236,6 +251,16 @@ impl<'a> Executor<'a> {
                 .await
                 .map_err(PipelineError::from)?
         };
+
+        // Inject compact output filter when enabled (and stdout is not a TTY)
+        if self.compact_mode {
+            use std::io::IsTerminal;
+            if !std::io::stdout().is_terminal() {
+                debug!("[Pipeline] compact mode active: enabling output filter");
+                plan.config.output_filter =
+                    Some(vx_output_filter::OutputFilterConfig::compact_defaults());
+            }
+        }
 
         // Stage 2: Ensure installed
 

@@ -10,7 +10,7 @@ use async_trait::async_trait;
 use tracing::debug;
 
 use crate::ResolutionResult;
-use crate::executor::command::{build_command, run_command};
+use crate::executor::command::{build_command, build_command_with_filter, run_command};
 use crate::executor::pipeline::error::ExecuteError;
 use crate::executor::pipeline::stage::Stage;
 use vx_core::exit_code_from_status;
@@ -82,6 +82,40 @@ impl Stage<PreparedExecution, i32> for ExecuteStage {
             unsupported_platform_runtimes: vec![],
         };
 
+        // Compact mode: pipe stdout/stderr through the output filter
+        if let Some(filter_config) = prepared.output_filter {
+            debug!("[ExecuteStage] compact mode: using piped+filtered output");
+            let mut cmd = build_command_with_filter(
+                &resolution,
+                &prepared.args,
+                &prepared.env,
+                prepared.inherit_vx_path,
+                prepared.vx_tools_path.clone(),
+                true,
+            )
+            .map_err(|e| ExecuteError::SpawnFailed {
+                executable: prepared.executable.clone(),
+                reason: e.to_string(),
+            })?;
+
+            let child = cmd.spawn().map_err(|e| ExecuteError::SpawnFailed {
+                executable: prepared.executable.clone(),
+                reason: e.to_string(),
+            })?;
+
+            let status = vx_output_filter::stream::run_filtered_child(child, filter_config)
+                .await
+                .map_err(|e| ExecuteError::SpawnFailed {
+                    executable: prepared.executable.clone(),
+                    reason: e.to_string(),
+                })?;
+
+            let code = exit_code_from_status(&status);
+            debug!("[ExecuteStage] exit={} (filtered)", code);
+            return Ok(code);
+        }
+
+        // Default: inherit stdio, use run_command (with optional timeout)
         let mut cmd = build_command(
             &resolution,
             &prepared.args,

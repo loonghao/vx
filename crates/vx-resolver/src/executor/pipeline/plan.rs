@@ -339,6 +339,11 @@ pub struct ExecutionConfig {
 
     /// Whether to show progress during installation
     pub show_progress: bool,
+
+    /// Optional output filter config (compact mode).
+    /// When `Some`, subprocess stdout/stderr are piped and filtered.
+    /// When `None` (default), stdout/stderr are inherited directly.
+    pub output_filter: Option<vx_output_filter::OutputFilterConfig>,
 }
 
 impl Default for ExecutionConfig {
@@ -351,6 +356,7 @@ impl Default for ExecutionConfig {
             inherit_parent_env: false,
             auto_install: true,
             show_progress: true,
+            output_filter: None,
         }
     }
 }
