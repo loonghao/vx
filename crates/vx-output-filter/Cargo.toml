@@ -12,6 +12,7 @@ anyhow = { workspace = true }
 tokio = { workspace = true, features = ["process", "io-util"] }
 tracing = { workspace = true }
 regex = { workspace = true }
+workspace-hack = { version = "0.1", path = "../workspace-hack" }
 
 [dev-dependencies]
 rstest = { workspace = true }
