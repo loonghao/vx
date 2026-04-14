@@ -4916,6 +4916,7 @@ dependencies = [
  "tokio",
  "tracing",
  "vx-core",
+ "workspace-hack",
 ]
 
 [[package]]
