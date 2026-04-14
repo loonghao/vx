@@ -237,8 +237,9 @@ impl PathManager {
 
     /// List all installed versions of a runtime in the store
     ///
-    /// This checks the new directory structure:
-    /// - New: <runtime>/<version>/<platform>/
+    /// This supports both store layouts:
+    /// - Unified layout: <runtime>/<version>/
+    /// - Legacy platform layout: <runtime>/<version>/<platform>/
     ///
     /// Returns: List of version strings, sorted by semantic version (highest first)
     pub fn list_store_versions(&self, runtime_name: &str) -> Result<Vec<String>> {
@@ -275,9 +276,10 @@ impl PathManager {
                 continue;
             }
 
-            // Check new structure: <version>/<platform>/
+            // Support both unified version directories and legacy
+            // platform-specific subdirectories.
             let platform_dir = path.join(&current_platform);
-            if platform_dir.exists() {
+            if platform_dir.exists() || path.exists() {
                 versions.push(version_str);
             }
         }
