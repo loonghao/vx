@@ -264,8 +264,8 @@ pub async fn execute_runtime_with_options(
     // Create the executor with runtime map from provider.star handles (RFC-0037)
     crate::registry::ensure_provider_metadata_initialized().await;
     let runtime_map = crate::registry::build_runtime_map();
-    let executor = Executor::new(config, registry, context, runtime_map)?
-        .with_compact_mode(compact_active);
+    let executor =
+        Executor::new(config, registry, context, runtime_map)?.with_compact_mode(compact_active);
 
     executor
         .execute_with_with_deps(

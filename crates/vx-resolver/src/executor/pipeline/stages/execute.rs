@@ -103,13 +103,12 @@ impl Stage<PreparedExecution, i32> for ExecuteStage {
                 reason: e.to_string(),
             })?;
 
-            let status =
-                vx_output_filter::stream::run_filtered_child(child, filter_config)
-                    .await
-                    .map_err(|e| ExecuteError::SpawnFailed {
-                        executable: prepared.executable.clone(),
-                        reason: e.to_string(),
-                    })?;
+            let status = vx_output_filter::stream::run_filtered_child(child, filter_config)
+                .await
+                .map_err(|e| ExecuteError::SpawnFailed {
+                    executable: prepared.executable.clone(),
+                    reason: e.to_string(),
+                })?;
 
             let code = exit_code_from_status(&status);
             debug!("[ExecuteStage] exit={} (filtered)", code);

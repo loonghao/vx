@@ -12,17 +12,14 @@ static ANSI_PATTERN: OnceLock<Regex> = OnceLock::new();
 ///
 /// Error lines are always emitted by the filter regardless of dedup settings.
 pub fn is_error_line(line: &str) -> bool {
-    let re = ERROR_PATTERN.get_or_init(|| {
-        Regex::new(r"(?i)(error|fatal|panic|FAILED|Error:)").unwrap()
-    });
+    let re =
+        ERROR_PATTERN.get_or_init(|| Regex::new(r"(?i)(error|fatal|panic|FAILED|Error:)").unwrap());
     re.is_match(line)
 }
 
 /// Strip ANSI escape sequences from a string.
 pub fn strip_ansi(s: &str) -> String {
-    let re = ANSI_PATTERN.get_or_init(|| {
-        Regex::new(r"\x1b\[[0-9;]*[mGKHF]").unwrap()
-    });
+    let re = ANSI_PATTERN.get_or_init(|| Regex::new(r"\x1b\[[0-9;]*[mGKHF]").unwrap());
     re.replace_all(s, "").to_string()
 }
 

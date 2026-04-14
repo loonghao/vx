@@ -26,7 +26,14 @@ pub fn build_command(
     inherit_vx_path: bool,
     vx_tools_path: Option<String>,
 ) -> Result<Command> {
-    build_command_inner(resolution, args, runtime_env, inherit_vx_path, vx_tools_path, false)
+    build_command_inner(
+        resolution,
+        args,
+        runtime_env,
+        inherit_vx_path,
+        vx_tools_path,
+        false,
+    )
 }
 
 /// Build a command for execution with an explicit `use_filter` flag.
@@ -38,7 +45,14 @@ pub fn build_command_with_filter(
     vx_tools_path: Option<String>,
     use_filter: bool,
 ) -> Result<Command> {
-    build_command_inner(resolution, args, runtime_env, inherit_vx_path, vx_tools_path, use_filter)
+    build_command_inner(
+        resolution,
+        args,
+        runtime_env,
+        inherit_vx_path,
+        vx_tools_path,
+        use_filter,
+    )
 }
 
 fn build_command_inner(
@@ -90,7 +104,14 @@ fn build_command_inner(
             c.raw_arg(cmd_string);
 
             // Return early since we've already added all arguments via raw_arg
-            return finalize_command(c, runtime_env, inherit_vx_path, vx_tools_path, resolution, use_filter);
+            return finalize_command(
+                c,
+                runtime_env,
+                inherit_vx_path,
+                vx_tools_path,
+                resolution,
+                use_filter,
+            );
         } else {
             Command::new(resolved_ref)
         }
@@ -107,7 +128,14 @@ fn build_command_inner(
     // Add user arguments
     cmd.args(args);
 
-    finalize_command(cmd, runtime_env, inherit_vx_path, vx_tools_path, resolution, use_filter)
+    finalize_command(
+        cmd,
+        runtime_env,
+        inherit_vx_path,
+        vx_tools_path,
+        resolution,
+        use_filter,
+    )
 }
 
 /// Resolve a Windows executable path, handling bare Unix scripts.

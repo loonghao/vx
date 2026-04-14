@@ -64,7 +64,11 @@ fn test_empty_run_stripped() {
 
     // Consecutive blank is dropped
     let second = f.filter_line("");
-    assert_eq!(second.len(), 0, "second consecutive blank should be dropped");
+    assert_eq!(
+        second.len(),
+        0,
+        "second consecutive blank should be dropped"
+    );
 
     // Non-blank resets the run
     let text = f.filter_line("hello");
