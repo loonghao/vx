@@ -309,29 +309,30 @@ pub trait Installer: Send + Sync {
                 None
             };
 
-            if let Some(source_path) = source_path {
-                if source_path.exists() && source_path != target_path {
-                    // On Windows, rename might fail if target exists, so remove target first
-                    if target_path.exists() {
-                        let _ = std::fs::remove_file(&target_path);
-                    }
+            if let Some(source_path) = source_path
+                && source_path.exists()
+                && source_path != target_path
+            {
+                // On Windows, rename might fail if target exists, so remove target first
+                if target_path.exists() {
+                    let _ = std::fs::remove_file(&target_path);
+                }
 
-                    // Try rename first (atomic on same filesystem)
-                    if std::fs::rename(&source_path, &target_path).is_err() {
-                        // Fallback to copy + delete
-                        std::fs::copy(&source_path, &target_path)?;
-                        let _ = std::fs::remove_file(&source_path);
-                    }
+                // Try rename first (atomic on same filesystem)
+                if std::fs::rename(&source_path, &target_path).is_err() {
+                    // Fallback to copy + delete
+                    std::fs::copy(&source_path, &target_path)?;
+                    let _ = std::fs::remove_file(&source_path);
+                }
 
-                    // Set permissions if specified
-                    #[cfg(unix)]
-                    if let Some(perm_str) = metadata.get("target_permissions") {
-                        use std::os::unix::fs::PermissionsExt;
-                        if let Ok(mode) = u32::from_str_radix(perm_str, 8) {
-                            let mut perms = std::fs::metadata(&target_path)?.permissions();
-                            perms.set_mode(mode);
-                            std::fs::set_permissions(&target_path, perms)?;
-                        }
+                // Set permissions if specified
+                #[cfg(unix)]
+                if let Some(perm_str) = metadata.get("target_permissions") {
+                    use std::os::unix::fs::PermissionsExt;
+                    if let Ok(mode) = u32::from_str_radix(perm_str, 8) {
+                        let mut perms = std::fs::metadata(&target_path)?.permissions();
+                        perms.set_mode(mode);
+                        std::fs::set_permissions(&target_path, perms)?;
                     }
                 }
             }
