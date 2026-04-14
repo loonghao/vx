@@ -1,0 +1,18 @@
+[package]
+name = "vx-output-filter"
+version = { workspace = true }
+edition = { workspace = true }
+description = "rtk-style output filtering for vx subprocess output"
+license = { workspace = true }
+repository = { workspace = true }
+
+[dependencies]
+vx-core = { workspace = true }
+anyhow = { workspace = true }
+tokio = { workspace = true, features = ["process", "io-util"] }
+tracing = { workspace = true }
+regex = { workspace = true }
+
+[dev-dependencies]
+rstest = { workspace = true }
+tokio = { workspace = true, features = ["rt", "macros"] }
