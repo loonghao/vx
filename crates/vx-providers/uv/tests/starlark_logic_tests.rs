@@ -61,6 +61,28 @@ uvx["bundled_with"] == "uv"
     );
 }
 
+#[test]
+fn test_uvx_reuses_uv_executable() {
+    make_assert().is_true(
+        r#"
+load("provider.star", "runtimes")
+uvx = [r for r in runtimes if r["name"] == "uvx"][0]
+uvx["executable"] == "uv"
+"#,
+    );
+}
+
+#[test]
+fn test_uvx_routes_through_tool_run_prefix() {
+    make_assert().is_true(
+        r#"
+load("provider.star", "runtimes")
+uvx = [r for r in runtimes if r["name"] == "uvx"][0]
+uvx["command_prefix"] == ["tool", "run"]
+"#,
+    );
+}
+
 // ── download_url logic ────────────────────────────────────────────────────────
 
 #[test]
