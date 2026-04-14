@@ -26,8 +26,7 @@ fn test_provider_name_is_lima() {
 
 #[test]
 fn test_provider_has_homepage() {
-    make_assert()
-        .is_true(r#"load("provider.star", "homepage"); homepage.startswith("https://")"#);
+    make_assert().is_true(r#"load("provider.star", "homepage"); homepage.startswith("https://")"#);
 }
 
 // ── runtimes metadata ─────────────────────────────────────────────────────────

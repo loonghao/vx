@@ -137,10 +137,7 @@ mod tests {
         // Use a tool that is guaranteed not to be on the system PATH under this name.
         // "node" might be installed on the test machine, so we use a unique dummy name
         // to ensure the test is deterministic.
-        let request = ResolveRequest::new(
-            "vx-test-nonexistent-tool-xyz",
-            vec!["--version".into()],
-        );
+        let request = ResolveRequest::new("vx-test-nonexistent-tool-xyz", vec!["--version".into()]);
 
         // Without a registry the runtime can't be installed, and without a system binary
         // the pipeline should fail with an error.

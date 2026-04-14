@@ -161,12 +161,10 @@ pub type VersionInfoFn = Arc<
 /// An empty `Vec` means "no actions".
 pub type PostExtractFn = Arc<
     dyn Fn(
-            String,  // version
-            String,  // install_dir as string
+            String, // version
+            String, // install_dir as string
         ) -> std::pin::Pin<
-            Box<
-                dyn std::future::Future<Output = Result<Vec<serde_json::Value>>> + Send,
-            >,
+            Box<dyn std::future::Future<Output = Result<Vec<serde_json::Value>>> + Send>,
         > + Send
         + Sync,
 >;
@@ -1082,9 +1080,7 @@ impl Runtime for ManifestDrivenRuntime {
         let store_name = self.bundled_with.as_deref().unwrap_or(&self.name);
         // New layout: install_dir = ~/.vx/store/<store_name>/<version>/
         // (no platform subdirectory). Fall back to platform dir for old installs.
-        let version_dir = ctx
-            .paths
-            .version_store_dir(store_name, version);
+        let version_dir = ctx.paths.version_store_dir(store_name, version);
         let platform_dir = version_dir.join(platform.as_str());
         let install_dir = if version_dir.exists() {
             version_dir
@@ -1099,7 +1095,11 @@ impl Runtime for ManifestDrivenRuntime {
             install_dir.display()
         );
 
-        let actions = post_extract_fn(version.to_string(), install_dir.to_string_lossy().to_string()).await?;
+        let actions = post_extract_fn(
+            version.to_string(),
+            install_dir.to_string_lossy().to_string(),
+        )
+        .await?;
 
         if actions.is_empty() {
             return Ok(());
@@ -1124,10 +1124,15 @@ impl Runtime for ManifestDrivenRuntime {
                             let full = install_dir.join(path_str);
                             if let Some(mode_str) = action.get("mode").and_then(|m| m.as_str()) {
                                 let mode = u32::from_str_radix(mode_str, 8).unwrap_or(0o755);
-                                if let Err(e) =
-                                    std::fs::set_permissions(&full, std::fs::Permissions::from_mode(mode))
-                                {
-                                    tracing::warn!("post_install: set_permissions failed for {}: {}", full.display(), e);
+                                if let Err(e) = std::fs::set_permissions(
+                                    &full,
+                                    std::fs::Permissions::from_mode(mode),
+                                ) {
+                                    tracing::warn!(
+                                        "post_install: set_permissions failed for {}: {}",
+                                        full.display(),
+                                        e
+                                    );
                                 }
                             }
                         }
@@ -1150,7 +1155,9 @@ impl Runtime for ManifestDrivenRuntime {
                             .and_then(|e| e.as_object())
                             .map(|obj| {
                                 obj.iter()
-                                    .filter_map(|(k, v)| v.as_str().map(|s| (k.clone(), s.to_string())))
+                                    .filter_map(|(k, v)| {
+                                        v.as_str().map(|s| (k.clone(), s.to_string()))
+                                    })
                                     .collect()
                             })
                             .unwrap_or_default();
@@ -1162,7 +1169,9 @@ impl Runtime for ManifestDrivenRuntime {
 
                         tracing::debug!(
                             "post_install: run_command {} {:?} (on_failure={})",
-                            cmd_str, args, on_failure
+                            cmd_str,
+                            args,
+                            on_failure
                         );
 
                         let mut cmd = std::process::Command::new(cmd_str);
@@ -1185,10 +1194,8 @@ impl Runtime for ManifestDrivenRuntime {
                                 }
                             }
                             Err(e) => {
-                                let msg = format!(
-                                    "post_install: failed to run '{}': {}",
-                                    cmd_str, e
-                                );
+                                let msg =
+                                    format!("post_install: failed to run '{}': {}", cmd_str, e);
                                 if on_failure == "error" {
                                     return Err(anyhow::anyhow!("{}", msg));
                                 } else {
