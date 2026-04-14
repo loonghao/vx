@@ -6,6 +6,40 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [0.8.26](https://github.com/loonghao/vx/compare/v0.8.25...v0.8.26) (2026-04-14)
+
+
+### Features
+
+* **auto-improve:** squash merge auto-improve branch ([2797ede](https://github.com/loonghao/vx/commit/2797ede7ae83210a15606321ceab7e8775389b8c))
+
+
+### Bug Fixes
+
+* correct cmake macOS download URL and jq environment key ([e47d36b](https://github.com/loonghao/vx/commit/e47d36b39a3846a5585aefa16c173975b9e89b46))
+* correct download URLs for grpcurl, k3d, kind, and duckdb providers ([108e290](https://github.com/loonghao/vx/commit/108e290654d06867bae9f837301d5a8c96cf09a0))
+* **deps:** update rust crate hashbrown-986da7b5efc2b80e to 0.17 - abandoned ([d934ad1](https://github.com/loonghao/vx/commit/d934ad179813669f0c343585019676eb32a82913))
+* **engine:** ctx.install_dir now points to actual install location ([19237c4](https://github.com/loonghao/vx/commit/19237c415bbb75c195f9300f6ed91e6202c46e2f))
+* **installer:** apply binary rename fix to RealInstaller.download_with_layout ([925d6d5](https://github.com/loonghao/vx/commit/925d6d54f963dcd1ee4bb96209eef984a356827c))
+* **installer:** fix PortableGit .7z.exe not recognized as archive + stop version fallback on layout errors ([d62adba](https://github.com/loonghao/vx/commit/d62adba7b119807c5f35d70a93403f1b8ece2272))
+* **paths:** detect unified runtime store versions ([574c8ff](https://github.com/loonghao/vx/commit/574c8ff581b5d9e7f2b844d1cb1c35e175281a59))
+* **provider:** correct grpcurl version check ([7c917ef](https://github.com/loonghao/vx/commit/7c917ef4e660127a5c8fa343fc421dba8eb38093))
+* **providers:** fix 5 more provider bugs (round 2) + add tar.bz2 support ([88874cd](https://github.com/loonghao/vx/commit/88874cdf2884f62cfc8dce9f3a56623842c9559a))
+* **providers:** fix 5 provider bugs from auto-improve branch ([c6938cf](https://github.com/loonghao/vx/commit/c6938cf760762d1c874280dc8f8f66086fdfa1c3))
+* **providers:** fix binary rename, grpcurl macOS, duckdb macOS, nerdctl platform ([4a07643](https://github.com/loonghao/vx/commit/4a076431b43b45e00e2e1e38862008f8700fce66))
+* **provider:** use gnu rustup triples on linux ([a1984e2](https://github.com/loonghao/vx/commit/a1984e21a8de4fcc4eca1ef1dd573467915399ac))
+* remove platform subdir from install path, fix providers ([c80f726](https://github.com/loonghao/vx/commit/c80f726c6b9a5b54ea573bbbde0d2ec83528036a))
+* resolve CI failures for lefthook, grpcurl, and kustomize providers ([3bcc0ec](https://github.com/loonghao/vx/commit/3bcc0ecd4c1eaf0cabb76bd83b0eb95801b6033f))
+* resolve merge conflict in release manifest ([deab703](https://github.com/loonghao/vx/commit/deab7036e02c58b42e68a99b0d62f5db013fc70f))
+* **resolver:** resolve bundled runtime fallback executable ([099ff92](https://github.com/loonghao/vx/commit/099ff92fc7d1f87f3b9d7857d6f7d4bd9811b25c))
+* **resolver:** stop re-installing system-managed runtimes on every vx invocation ([83d239b](https://github.com/loonghao/vx/commit/83d239b29af6304e7dfee21ae6b48a8575200220))
+* **runtime:** preserve bundled command prefixes ([821e779](https://github.com/loonghao/vx/commit/821e779c2f1f96d9dfa6a7c5fa43a393aaf90d85))
+* **runtime:** satisfy clippy collapsible-if lint ([51dc8f4](https://github.com/loonghao/vx/commit/51dc8f4d2eb6f79b011bd1d18f9f486b35701973))
+* **rust:** stop re-installing rust on every vx cargo invocation ([988858c](https://github.com/loonghao/vx/commit/988858c665d1faebe267bfba8d2b1a76c26e468a))
+* **tests:** resolve latest unit test failures ([5c9684f](https://github.com/loonghao/vx/commit/5c9684fbc7c4102a596ea0b69cc5f25044e93586))
+* **uv:** route uvx through uv tool run ([7b65a63](https://github.com/loonghao/vx/commit/7b65a63ed28d15b158b7c500a56dcf567e97dff7))
+* wire Starlark post_extract hooks into ManifestDrivenRuntime and fix bundled runtime detection ([0cab93c](https://github.com/loonghao/vx/commit/0cab93c60355e1ea12fc9b332a41e1fbf18d46d8))
+
 ## [0.8.25](https://github.com/loonghao/vx/compare/v0.8.24...v0.8.25) (2026-04-10)
 
 
