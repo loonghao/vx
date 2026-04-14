@@ -268,6 +268,21 @@ fn test_uvx_ruff_version() {
     }
 }
 
+/// Test: uv runtime map preserves uvx command prefix for bundled execution
+#[rstest]
+#[test]
+fn test_uvx_runtime_map_command_prefix() {
+    skip_if_no_vx!();
+
+    let runtime = tokio::runtime::Runtime::new().expect("tokio runtime should initialize");
+    runtime.block_on(vx_cli::registry::ensure_provider_metadata_initialized());
+    let runtime_map = vx_cli::registry::build_runtime_map();
+    let uvx = runtime_map.get("uvx").expect("uvx spec should exist");
+
+    assert_eq!(uvx.get_executable(), "uv");
+    assert_eq!(uvx.command_prefix, vec!["tool", "run"]);
+}
+
 /// Test: vx uvx ruff check
 #[rstest]
 #[test]

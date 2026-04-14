@@ -177,6 +177,10 @@ pub fn build_runtimes(
                     .with_aliases(rt.aliases.clone())
                     .with_ecosystem(ecosystem);
 
+            if !rt.command_prefix.is_empty() {
+                runtime = runtime.with_command_prefix(rt.command_prefix.clone());
+            }
+
             if let Some(ref bundled) = rt.bundled_with {
                 runtime = runtime.with_bundled_with(bundled.clone());
             }
