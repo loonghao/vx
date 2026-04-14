@@ -91,3 +91,15 @@ fn test_store_version_check() {
     assert_eq!(manager.list_store_versions("node").unwrap(), vec!["20.0.0"]);
     assert_eq!(manager.list_store_runtimes().unwrap(), vec!["node"]);
 }
+
+#[test]
+fn test_list_store_versions_supports_unified_version_dirs() {
+    let temp_dir = TempDir::new().unwrap();
+    let base_dir = temp_dir.path().join(".vx");
+    let manager = PathManager::with_base_dir(&base_dir).unwrap();
+
+    let version_dir = manager.version_store_dir("uv", "0.11.6");
+    std::fs::create_dir_all(&version_dir).unwrap();
+
+    assert_eq!(manager.list_store_versions("uv").unwrap(), vec!["0.11.6"]);
+}
