@@ -48,7 +48,7 @@ pub fn stdout_is_tty() -> bool {
 
 /// Trait for command output that supports multiple render formats.
 ///
-/// Commands implement this trait to enable `--json` and `--format` support.
+/// Commands implement this trait to enable `--json`, `--toon`, and `--compact` support.
 /// The command only needs to define "what data to return" — the rendering
 /// format is controlled by global CLI arguments.
 ///
@@ -76,13 +76,32 @@ pub trait CommandOutput: Serialize {
     /// This is called when `--format text` (default) is used.
     /// Output should include colors, emoji, and formatting for human consumption.
     fn render_text(&self, writer: &mut dyn std::io::Write) -> Result<()>;
+
+    /// Render compact one-liner output for AI agents / non-TTY consumers.
+    ///
+    /// Inspired by rtk (rtk-ai/rtk) ultra-compact mode. Uses ASCII icons,
+    /// no emoji, minimal whitespace. Reduces token consumption 60-80%.
+    ///
+    /// Default implementation delegates to `render_text`.
+    /// Override to provide a token-optimised summary.
+    ///
+    /// Format conventions (from rtk design):
+    /// - Success prefix: `ok`
+    /// - Skip prefix: `skip`
+    /// - Error prefix: `err`
+    /// - Use `name@version` notation
+    /// - One line per logical result; combine counts when possible
+    fn render_compact(&self, writer: &mut dyn std::io::Write) -> Result<()> {
+        self.render_text(writer)
+    }
 }
 
 /// Renders command output in the requested format.
 ///
-/// Selects between text, JSON, and TOON output based on:
-/// 1. Explicit `--output-format` / `--json` flags
-/// 2. Auto-detection: if stdout is NOT a TTY, defaults to NDJSON
+/// Selects between text, JSON, TOON, and compact output based on:
+/// 1. Explicit `--output-format` / `--json` / `--compact` flags
+/// 2. `VX_OUTPUT` environment variable (`json`, `toon`, `compact`)
+/// 3. Auto-detection: if stdout is NOT a TTY, defaults to NDJSON
 ///    (unless `VX_OUTPUT=text` env var is set)
 ///
 /// This implements the "Agent DX" principle from Google Cloud best practices:
@@ -124,6 +143,11 @@ impl OutputRenderer {
         Self::new_exact(OutputFormat::Text)
     }
 
+    /// Create a renderer for compact output.
+    pub fn compact() -> Self {
+        Self::new_exact(OutputFormat::Compact)
+    }
+
     /// Get the current (effective) output format.
     pub fn format(&self) -> OutputFormat {
         self.format
@@ -139,11 +163,17 @@ impl OutputRenderer {
         self.format == OutputFormat::Text
     }
 
+    /// Check if compact output is active.
+    pub fn is_compact(&self) -> bool {
+        self.format == OutputFormat::Compact
+    }
+
     /// Render the output in the selected format.
     ///
     /// - Text: calls `output.render_text()` writing to stdout
     /// - Json: compact single-line JSON (NDJSON-compatible for streaming)
     /// - Toon: serializes to token-optimized format for LLM prompts
+    /// - Compact: ultra-compact one-liners with ASCII icons (60-80% fewer tokens)
     pub fn render<T: CommandOutput>(&self, output: &T) -> Result<()> {
         match self.format {
             OutputFormat::Text => {
@@ -167,6 +197,11 @@ impl OutputRenderer {
                 println!("{toon}");
                 Ok(())
             }
+            OutputFormat::Compact => {
+                let mut stdout = std::io::stdout().lock();
+                output.render_compact(&mut stdout)?;
+                Ok(())
+            }
         }
     }
 
@@ -180,6 +215,11 @@ impl OutputRenderer {
             }
             OutputFormat::Json => Ok(serde_json::to_string_pretty(output)?),
             OutputFormat::Toon => to_toon(output),
+            OutputFormat::Compact => {
+                let mut buf = Vec::new();
+                output.render_compact(&mut buf)?;
+                Ok(String::from_utf8(buf)?)
+            }
         }
     }
 }
@@ -263,6 +303,40 @@ impl CommandOutput for ListOutput {
             self.installed_count, self.total
         )?;
 
+        Ok(())
+    }
+
+    /// Compact: one summary line + installed tools inline.
+    ///
+    /// Example:
+    /// ```text
+    /// tools 3/122 [node@22.0.0 python@3.11.0 uv@0.5.0]
+    /// ```
+    fn render_compact(&self, writer: &mut dyn std::io::Write) -> Result<()> {
+        let installed: Vec<String> = self
+            .runtimes
+            .iter()
+            .filter(|rt| rt.installed)
+            .map(|rt| {
+                if let Some(ver) = rt.versions.first() {
+                    format!("{}@{}", rt.name, ver)
+                } else {
+                    rt.name.clone()
+                }
+            })
+            .collect();
+
+        if installed.is_empty() {
+            writeln!(writer, "tools 0/{} none installed", self.total)?;
+        } else {
+            writeln!(
+                writer,
+                "tools {}/{} [{}]",
+                self.installed_count,
+                self.total,
+                installed.join(" ")
+            )?;
+        }
         Ok(())
     }
 }
@@ -360,6 +434,44 @@ impl CommandOutput for VersionsOutput {
 
         Ok(())
     }
+
+    /// Compact: `versions node 5 [22.0.0* 21.7.1 20.12.0 ... +N more]`
+    /// Installed versions are marked with `*`. LTS marked with `~`.
+    fn render_compact(&self, writer: &mut dyn std::io::Write) -> Result<()> {
+        // Show up to 5 versions inline
+        const MAX_COMPACT: usize = 5;
+        let shown: Vec<String> = self
+            .versions
+            .iter()
+            .take(MAX_COMPACT)
+            .map(|v| {
+                let mut s = v.version.clone();
+                if v.installed {
+                    s.push('*');
+                }
+                if v.lts {
+                    s.push('~');
+                }
+                s
+            })
+            .collect();
+
+        let tail = if self.total > MAX_COMPACT {
+            format!(" +{} more", self.total - MAX_COMPACT)
+        } else {
+            String::new()
+        };
+
+        writeln!(
+            writer,
+            "versions {} {} [{}{}]",
+            self.tool,
+            self.total,
+            shown.join(" "),
+            tail
+        )?;
+        Ok(())
+    }
 }
 
 // ============================================================================
@@ -434,6 +546,20 @@ impl CommandOutput for WhichOutput {
             writeln!(writer, "{}{}", path, source_label)?;
         } else {
             writeln!(writer, "Tool '{}' not found", self.tool)?;
+        }
+        Ok(())
+    }
+
+    /// Compact: just the path, or `err not found: <tool>`
+    fn render_compact(&self, writer: &mut dyn std::io::Write) -> Result<()> {
+        if let Some(ref path) = self.path {
+            writeln!(writer, "{}", path)?;
+        } else if !self.all_paths.is_empty() {
+            for entry in &self.all_paths {
+                writeln!(writer, "{}", entry.path)?;
+            }
+        } else {
+            writeln!(writer, "err not found: {}", self.tool)?;
         }
         Ok(())
     }
@@ -556,6 +682,33 @@ impl CommandOutput for CheckOutput {
 
         Ok(())
     }
+
+    /// Compact: `ok 3/3` or `err 1/3 missing:[rust@1.75]`
+    fn render_compact(&self, writer: &mut dyn std::io::Write) -> Result<()> {
+        let total = self.requirements.len();
+        let ok = self.requirements.iter().filter(|r| r.satisfied).count();
+
+        if self.all_satisfied && self.warnings.is_empty() {
+            writeln!(writer, "ok {}/{}", ok, total)?;
+        } else if self.all_satisfied {
+            writeln!(writer, "ok {}/{} warn:{}", ok, total, self.warnings.len())?;
+        } else {
+            let missing: Vec<String> = self
+                .requirements
+                .iter()
+                .filter(|r| !r.satisfied)
+                .map(|r| format!("{}@{}", r.runtime, r.required))
+                .collect();
+            writeln!(
+                writer,
+                "err {}/{} missing:[{}]",
+                ok,
+                total,
+                missing.join(" ")
+            )?;
+        }
+        Ok(())
+    }
 }
 
 // ============================================================================
@@ -660,6 +813,40 @@ impl CommandOutput for SyncOutput {
 
         Ok(())
     }
+
+    /// Compact: `ok 3 skip:1 [node@22 python@3.11 uv@0.5]` or `err 1 [rust: msg]`
+    fn render_compact(&self, writer: &mut dyn std::io::Write) -> Result<()> {
+        let installed: Vec<String> = self
+            .installed
+            .iter()
+            .map(|r| format!("{}@{}", r.runtime, r.version))
+            .collect();
+
+        if self.success {
+            let mut parts = Vec::new();
+            if !installed.is_empty() {
+                parts.push(format!("ok {} [{}]", installed.len(), installed.join(" ")));
+            }
+            if !self.skipped.is_empty() {
+                parts.push(format!("skip:{}", self.skipped.len()));
+            }
+            writeln!(writer, "{}", parts.join(" "))?;
+        } else {
+            let errors: Vec<String> = self
+                .failed
+                .iter()
+                .map(|r| format!("{}:{}", r.runtime, r.error))
+                .collect();
+            writeln!(
+                writer,
+                "err {} ok:{} [{}]",
+                self.failed.len(),
+                installed.len(),
+                errors.join(" ")
+            )?;
+        }
+        Ok(())
+    }
 }
 
 // ============================================================================
@@ -721,6 +908,31 @@ impl CommandOutput for InstallOutput {
 
         Ok(())
     }
+
+    /// Compact: `ok node@22` or `skip node@22 already installed`
+    /// Inspired by rtk: `ok main` for git push.
+    fn render_compact(&self, writer: &mut dyn std::io::Write) -> Result<()> {
+        if self.already_installed {
+            writeln!(writer, "skip {}@{}", self.runtime, self.version)?;
+        } else {
+            let deps_suffix = if !self.dependencies_installed.is_empty() {
+                let dep_names: Vec<String> = self
+                    .dependencies_installed
+                    .iter()
+                    .map(|d| format!("{}@{}", d.runtime, d.version))
+                    .collect();
+                format!(" +deps:[{}]", dep_names.join(" "))
+            } else {
+                String::new()
+            };
+            writeln!(
+                writer,
+                "ok {}@{}{}",
+                self.runtime, self.version, deps_suffix
+            )?;
+        }
+        Ok(())
+    }
 }
 
 // ============================================================================
@@ -776,6 +988,31 @@ impl CommandOutput for EnvOutput {
             }
         }
 
+        Ok(())
+    }
+
+    /// Compact: active runtimes inline + var count
+    /// Example: `env runtimes:[node@22 python@3.11] vars:5`
+    fn render_compact(&self, writer: &mut dyn std::io::Write) -> Result<()> {
+        let runtimes: Vec<String> = self
+            .active_runtimes
+            .iter()
+            .map(|rt| format!("{}@{}", rt.name, rt.version))
+            .collect();
+
+        let runtimes_part = if runtimes.is_empty() {
+            "runtimes:[]".to_string()
+        } else {
+            format!("runtimes:[{}]", runtimes.join(" "))
+        };
+
+        writeln!(
+            writer,
+            "env {} vars:{} path:{}",
+            runtimes_part,
+            self.variables.len(),
+            self.path_prepend.len()
+        )?;
         Ok(())
     }
 }
@@ -961,6 +1198,41 @@ impl CommandOutput for AnalyzeOutput {
 
         Ok(())
     }
+
+    /// Compact: `analyze root [ecosystems] tools:N/N scripts:N actions:N`
+    fn render_compact(&self, writer: &mut dyn std::io::Write) -> Result<()> {
+        let ecosystems: Vec<&str> = self.ecosystems.iter().map(|e| e.name.as_str()).collect();
+        let available_tools = self
+            .required_tools
+            .iter()
+            .filter(|t| t.is_available)
+            .count();
+        let total_tools = self.required_tools.len();
+        let missing: Vec<String> = self
+            .required_tools
+            .iter()
+            .filter(|t| !t.is_available)
+            .map(|t| t.name.clone())
+            .collect();
+
+        let missing_part = if missing.is_empty() {
+            String::new()
+        } else {
+            format!(" missing:[{}]", missing.join(" "))
+        };
+
+        writeln!(
+            writer,
+            "analyze [{}] tools:{}/{} scripts:{} actions:{}{}",
+            ecosystems.join(","),
+            available_tools,
+            total_tools,
+            self.scripts.len(),
+            self.sync_actions.len(),
+            missing_part
+        )?;
+        Ok(())
+    }
 }
 
 // ============================================================================
@@ -1138,6 +1410,34 @@ impl CommandOutput for AiContextOutput {
             }
         }
 
+        Ok(())
+    }
+
+    /// Compact: `ctx project tools:[node@22 python@3.11] scripts:[test build] constraints:ok`
+    fn render_compact(&self, writer: &mut dyn std::io::Write) -> Result<()> {
+        let tools: Vec<String> = self
+            .tools
+            .iter()
+            .map(|t| format!("{}@{}", t.name, t.version))
+            .collect();
+
+        let scripts: Vec<&str> = self.scripts.iter().map(|s| s.name.as_str()).collect();
+
+        let unsatisfied = self.constraints.iter().filter(|c| !c.satisfied).count();
+        let constraints_part = if unsatisfied == 0 {
+            "constraints:ok".to_string()
+        } else {
+            format!("constraints:err/{}", unsatisfied)
+        };
+
+        writeln!(
+            writer,
+            "ctx {} tools:[{}] scripts:[{}] {}",
+            self.project.name,
+            tools.join(" "),
+            scripts.join(" "),
+            constraints_part
+        )?;
         Ok(())
     }
 }

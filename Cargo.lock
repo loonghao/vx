@@ -4907,6 +4907,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "vx-output-filter"
+version = "0.8.26"
+dependencies = [
+ "anyhow",
+ "regex",
+ "rstest",
+ "tokio",
+ "tracing",
+ "vx-core",
+ "workspace-hack",
+]
+
+[[package]]
 name = "vx-paths"
 version = "0.8.26"
 dependencies = [
@@ -6350,6 +6363,7 @@ dependencies = [
  "vx-console",
  "vx-core",
  "vx-manifest",
+ "vx-output-filter",
  "vx-paths",
  "vx-runtime",
  "vx-versions",

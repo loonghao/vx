@@ -436,6 +436,7 @@ impl<'a> ResolveStage<'a> {
             inherit_parent_env: request.inherit_env,
             auto_install: request.auto_install,
             show_progress: true,
+            output_filter: None,
         };
 
         let mut plan = ExecutionPlan::new(primary, config);

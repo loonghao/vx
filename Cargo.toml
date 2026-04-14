@@ -21,6 +21,7 @@ members = [
   "crates/vx-args",
   "crates/vx-project-analyzer",
   "crates/vx-console",
+  "crates/vx-output-filter",
   "crates/vx-system-pm",
   "crates/vx-ecosystem-pm",
   "crates/vx-shim",
@@ -445,6 +446,7 @@ vx-provider-winget = { path = "crates/vx-providers/winget" }
 # Data tools
 vx-provider-usql = { path = "crates/vx-providers/usql" }
 vx-console = { path = "crates/vx-console" }
+vx-output-filter = { path = "crates/vx-output-filter" }
 vx-manifest = { path = "crates/vx-manifest" }
 vx-bridge = { path = "crates/vx-bridge" }
 workspace-hack = { path = "crates/workspace-hack" }

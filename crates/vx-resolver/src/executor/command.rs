@@ -13,13 +13,55 @@ use tracing::trace;
 
 use super::pipeline::error::ExecuteError;
 
-/// Build a command for execution
+/// Build a command for execution.
+///
+/// When `use_filter` is `true`, stdout and stderr are set to `Stdio::piped()`
+/// so the caller can drive [`vx_output_filter::stream::run_filtered_child`].
+/// stdin is **always** inherited so interactive tools keep working.
+/// When `use_filter` is `false` (default), all three streams are inherited.
 pub fn build_command(
     resolution: &crate::resolver::ResolutionResult,
     args: &[String],
     runtime_env: &HashMap<String, String>,
     inherit_vx_path: bool,
     vx_tools_path: Option<String>,
+) -> Result<Command> {
+    build_command_inner(
+        resolution,
+        args,
+        runtime_env,
+        inherit_vx_path,
+        vx_tools_path,
+        false,
+    )
+}
+
+/// Build a command for execution with an explicit `use_filter` flag.
+pub fn build_command_with_filter(
+    resolution: &crate::resolver::ResolutionResult,
+    args: &[String],
+    runtime_env: &HashMap<String, String>,
+    inherit_vx_path: bool,
+    vx_tools_path: Option<String>,
+    use_filter: bool,
+) -> Result<Command> {
+    build_command_inner(
+        resolution,
+        args,
+        runtime_env,
+        inherit_vx_path,
+        vx_tools_path,
+        use_filter,
+    )
+}
+
+fn build_command_inner(
+    resolution: &crate::resolver::ResolutionResult,
+    args: &[String],
+    runtime_env: &HashMap<String, String>,
+    inherit_vx_path: bool,
+    vx_tools_path: Option<String>,
+    use_filter: bool,
 ) -> Result<Command> {
     let executable = &resolution.executable;
 
@@ -62,7 +104,14 @@ pub fn build_command(
             c.raw_arg(cmd_string);
 
             // Return early since we've already added all arguments via raw_arg
-            return finalize_command(c, runtime_env, inherit_vx_path, vx_tools_path, resolution);
+            return finalize_command(
+                c,
+                runtime_env,
+                inherit_vx_path,
+                vx_tools_path,
+                resolution,
+                use_filter,
+            );
         } else {
             Command::new(resolved_ref)
         }
@@ -79,7 +128,14 @@ pub fn build_command(
     // Add user arguments
     cmd.args(args);
 
-    finalize_command(cmd, runtime_env, inherit_vx_path, vx_tools_path, resolution)
+    finalize_command(
+        cmd,
+        runtime_env,
+        inherit_vx_path,
+        vx_tools_path,
+        resolution,
+        use_filter,
+    )
 }
 
 /// Resolve a Windows executable path, handling bare Unix scripts.
@@ -186,6 +242,7 @@ fn finalize_command(
     inherit_vx_path: bool,
     vx_tools_path: Option<String>,
     resolution: &crate::resolver::ResolutionResult,
+    use_filter: bool,
 ) -> Result<Command> {
     // Build the final environment
     let mut final_env = runtime_env.clone();
@@ -298,10 +355,16 @@ fn finalize_command(
         }
     }
 
-    // Inherit stdio
+    // stdio: stdin is always inherited (keyboards must work even in compact mode).
+    // When use_filter is true, pipe stdout/stderr so the caller can apply filtering.
     cmd.stdin(Stdio::inherit());
-    cmd.stdout(Stdio::inherit());
-    cmd.stderr(Stdio::inherit());
+    if use_filter {
+        cmd.stdout(Stdio::piped());
+        cmd.stderr(Stdio::piped());
+    } else {
+        cmd.stdout(Stdio::inherit());
+        cmd.stderr(Stdio::inherit());
+    }
 
     Ok(cmd)
 }
