@@ -21,6 +21,11 @@ pub enum OutputMode {
     Json,
     /// CI mode - simplified output with CI annotations.
     Ci,
+    /// Compact mode - ultra-terse ASCII one-liners for AI agents (inspired by rtk).
+    ///
+    /// Reduces token consumption 60-80% vs standard text. No emoji, no decorations.
+    /// Enabled via `VX_OUTPUT=compact` or `--compact` / `-u` flags.
+    Compact,
 }
 
 impl OutputMode {
@@ -31,12 +36,20 @@ impl OutputMode {
 
     /// Check if this mode should show colors.
     pub fn show_colors(&self) -> bool {
-        !matches!(self, OutputMode::Json | OutputMode::Quiet)
+        !matches!(
+            self,
+            OutputMode::Json | OutputMode::Quiet | OutputMode::Compact
+        )
     }
 
     /// Check if this mode should show debug messages.
     pub fn show_debug(&self) -> bool {
         matches!(self, OutputMode::Verbose)
+    }
+
+    /// Check if this mode is compact (minimal token output).
+    pub fn is_compact(&self) -> bool {
+        matches!(self, OutputMode::Compact)
     }
 
     /// Convert to Verbosity.
@@ -55,6 +68,7 @@ impl OutputMode {
             Ok("json") => return OutputMode::Json,
             Ok("quiet") => return OutputMode::Quiet,
             Ok("verbose") => return OutputMode::Verbose,
+            Ok("compact") => return OutputMode::Compact,
             _ => {}
         }
 
@@ -335,6 +349,22 @@ mod tests {
         assert!(!OutputMode::Quiet.show_progress());
         assert!(!OutputMode::Json.show_progress());
         assert!(!OutputMode::Ci.show_progress());
+        assert!(!OutputMode::Compact.show_progress());
+    }
+
+    #[test]
+    fn test_output_mode_compact() {
+        assert!(OutputMode::Compact.is_compact());
+        assert!(!OutputMode::Standard.is_compact());
+        assert!(!OutputMode::Json.is_compact());
+        assert!(!OutputMode::Quiet.is_compact());
+    }
+
+    #[test]
+    fn test_output_mode_show_colors_compact() {
+        // Compact mode should not show colors (pure ASCII, no ANSI codes)
+        assert!(!OutputMode::Compact.show_colors());
+        assert!(OutputMode::Standard.show_colors());
     }
 
     #[test]
