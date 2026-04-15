@@ -256,9 +256,13 @@ impl<'a> Executor<'a> {
         if self.compact_mode {
             use std::io::IsTerminal;
             if !std::io::stdout().is_terminal() {
-                debug!("[Pipeline] compact mode active: enabling output filter");
+                let level = vx_output_filter::FilterLevel::from_env();
+                debug!(
+                    "[Pipeline] compact mode active: enabling output filter (level={:?})",
+                    level
+                );
                 plan.config.output_filter =
-                    Some(vx_output_filter::OutputFilterConfig::compact_defaults());
+                    Some(vx_output_filter::OutputFilterConfig::for_level(level));
             }
         }
 

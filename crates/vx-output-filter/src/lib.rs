@@ -7,5 +7,5 @@ pub mod filter;
 pub mod rules;
 pub mod stream;
 
-pub use filter::{OutputFilter, OutputFilterConfig};
+pub use filter::{FilterLevel, OutputFilter, OutputFilterConfig};
 pub use rules::FilterRules;
