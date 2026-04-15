@@ -6,6 +6,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [0.8.28](https://github.com/loonghao/vx/compare/v0.8.27...v0.8.28) (2026-04-15)
+
+
+### Features
+
+* add FilterLevel enum (Light/Normal/Aggressive) for compact output ([#804](https://github.com/loonghao/vx/issues/804)) ([876731f](https://github.com/loonghao/vx/commit/876731f8cb495f403d66e1aeeb9a3ab4c3ea94bb))
+
 ## [0.8.27](https://github.com/loonghao/vx/compare/v0.8.26...v0.8.27) (2026-04-14)
 
 
