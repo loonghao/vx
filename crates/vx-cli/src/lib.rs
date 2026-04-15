@@ -54,6 +54,33 @@ pub async fn main() -> anyhow::Result<()> {
         ui::UI::set_verbose(true);
     }
 
+    // Normalize compact + filter-level CLI flags to env vars so that the executor
+    // (which reads VX_OUTPUT / VX_FILTER_LEVEL) picks them up without needing an
+    // extra parameter chain.  We only set them when not already set by the caller.
+    if cli.compact && std::env::var("VX_OUTPUT").is_err() {
+        // Safety: called before any threads are spawned by this process.
+        #[allow(clippy::disallowed_methods)]
+        unsafe {
+            std::env::set_var("VX_OUTPUT", "compact");
+        }
+    }
+    {
+        use crate::cli::FilterLevelArg;
+        let level_str = match cli.filter_level {
+            FilterLevelArg::Light => Some("light"),
+            FilterLevelArg::Aggressive => Some("aggressive"),
+            FilterLevelArg::Normal => None, // Normal is the default; no need to set
+        };
+        if let Some(level) = level_str
+            && std::env::var("VX_FILTER_LEVEL").is_err()
+        {
+            #[allow(clippy::disallowed_methods)]
+            unsafe {
+                std::env::set_var("VX_FILTER_LEVEL", level);
+            }
+        }
+    }
+
     // Fast-path for lightweight commands that do not require provider registry
     // or runtime context initialization. This significantly reduces fixed startup
     // overhead for config/script read-only operations used in benchmarks.

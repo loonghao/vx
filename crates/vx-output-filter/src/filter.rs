@@ -5,10 +5,46 @@
 
 use crate::rules::{is_error_line, strip_ansi};
 
+/// Filter aggressiveness level — controls how much output is suppressed.
+///
+/// Select a level based on how noisy the tool output typically is:
+///
+/// | Level       | Dedup threshold | Max lines | Use case                              |
+/// |-------------|-----------------|-----------|---------------------------------------|
+/// | Light       | disabled        | unlimited | Verbose tools where every line counts |
+/// | Normal      | ≥3 identical    | 500       | Default for most tools                |
+/// | Aggressive  | ≥2 identical    | 100       | Very noisy tools (e.g. `cargo build`) |
+///
+/// Set via `VX_FILTER_LEVEL=light|normal|aggressive` or `--filter-level` CLI flag.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum FilterLevel {
+    /// Light: ANSI stripping and blank-run collapsing only. No dedup, no truncation.
+    Light,
+    /// Normal: dedup (≥3 identical lines) + 500-line budget. **Default.**
+    #[default]
+    Normal,
+    /// Aggressive: dedup (≥2 identical lines) + 100-line budget.
+    Aggressive,
+}
+
+impl FilterLevel {
+    /// Parse the filter level from the `VX_FILTER_LEVEL` environment variable.
+    ///
+    /// Falls back to `Normal` if the variable is absent or unrecognised.
+    pub fn from_env() -> Self {
+        match std::env::var("VX_FILTER_LEVEL").as_deref() {
+            Ok("light") | Ok("Light") | Ok("LIGHT") => FilterLevel::Light,
+            Ok("aggressive") | Ok("Aggressive") | Ok("AGGRESSIVE") => FilterLevel::Aggressive,
+            _ => FilterLevel::Normal,
+        }
+    }
+}
+
 /// Configuration for the output filter.
 #[derive(Debug, Clone, Default)]
 pub struct OutputFilterConfig {
     /// Collapse ≥N consecutive identical lines into one summary.
+    /// Set to `usize::MAX` to disable deduplication (Light level).
     pub dedup_threshold: usize,
 
     /// Truncate after this many total emitted lines (None = unlimited).
@@ -19,17 +55,42 @@ pub struct OutputFilterConfig {
 }
 
 impl OutputFilterConfig {
-    /// Sensible compact defaults used in AI-agent / CI mode.
-    pub fn compact_defaults() -> Self {
-        Self {
-            dedup_threshold: 3,
-            max_lines: Some(200),
-            strip_empty_runs: true,
+    /// Build config for the given aggressiveness level.
+    ///
+    /// # Examples
+    /// ```
+    /// use vx_output_filter::{FilterLevel, OutputFilterConfig};
+    /// let cfg = OutputFilterConfig::for_level(FilterLevel::Aggressive);
+    /// assert_eq!(cfg.dedup_threshold, 2);
+    /// assert_eq!(cfg.max_lines, Some(100));
+    /// ```
+    pub fn for_level(level: FilterLevel) -> Self {
+        match level {
+            FilterLevel::Light => Self {
+                dedup_threshold: usize::MAX, // disabled
+                max_lines: None,             // unlimited
+                strip_empty_runs: true,
+            },
+            FilterLevel::Normal => Self {
+                dedup_threshold: 3,
+                max_lines: Some(500),
+                strip_empty_runs: true,
+            },
+            FilterLevel::Aggressive => Self {
+                dedup_threshold: 2,
+                max_lines: Some(100),
+                strip_empty_runs: true,
+            },
         }
     }
 
-    /// Return `Some(compact_defaults())` when `VX_OUTPUT=compact` and stdout
-    /// is **not** a TTY, otherwise `None`.
+    /// Sensible compact defaults (Normal level). Alias for `for_level(Normal)`.
+    pub fn compact_defaults() -> Self {
+        Self::for_level(FilterLevel::Normal)
+    }
+
+    /// Return `Some(config)` when `VX_OUTPUT=compact` and stdout is **not** a TTY,
+    /// otherwise `None`. The level is read from `VX_FILTER_LEVEL` (default: Normal).
     pub fn from_env() -> Option<Self> {
         use std::io::IsTerminal;
         let is_compact = matches!(
@@ -37,7 +98,7 @@ impl OutputFilterConfig {
             Ok("compact") | Ok("Compact") | Ok("COMPACT")
         );
         if is_compact && !std::io::stdout().is_terminal() {
-            Some(Self::compact_defaults())
+            Some(Self::for_level(FilterLevel::from_env()))
         } else {
             None
         }
