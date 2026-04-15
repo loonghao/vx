@@ -17,6 +17,23 @@ use clap::{Parser, Subcommand, ValueEnum};
 use std::path::PathBuf;
 use vx_runtime::CacheMode;
 
+/// Filter aggressiveness for compact output mode.
+///
+/// Only applies when compact output is active (`--compact` / `VX_OUTPUT=compact`).
+/// Controls how aggressively subprocess stdout/stderr is deduplicated and truncated.
+///
+/// Can also be set via the `VX_FILTER_LEVEL` environment variable.
+#[derive(ValueEnum, Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum FilterLevelArg {
+    /// Light: ANSI stripping and blank-run collapsing only. No dedup, no line limit.
+    Light,
+    /// Normal: dedup ≥3 identical lines + 500-line budget. **Default.**
+    #[default]
+    Normal,
+    /// Aggressive: dedup ≥2 identical lines + 100-line budget.
+    Aggressive,
+}
+
 /// Unified output format for all commands (RFC 0031)
 ///
 /// Replaces the previous fragmented OutputFormat enums.
@@ -180,6 +197,22 @@ pub struct Cli {
     /// Inspired by rtk (rtk-ai/rtk) ultra-compact mode.
     #[arg(long, short = 'u', global = true)]
     pub compact: bool,
+
+    /// Filter aggressiveness for compact subprocess output (light, normal, aggressive).
+    ///
+    /// Only takes effect when compact output is active (`--compact` or `VX_OUTPUT=compact`).
+    /// Can also be set via `VX_FILTER_LEVEL` environment variable.
+    ///
+    ///   light      = ANSI strip + blank-run collapse only (no dedup, no line limit)
+    ///   normal     = + dedup ≥3 identical lines, 500-line budget  [default]
+    ///   aggressive = + dedup ≥2 identical lines, 100-line budget
+    #[arg(
+        long = "filter-level",
+        global = true,
+        value_enum,
+        default_value = "normal"
+    )]
+    pub filter_level: FilterLevelArg,
 
     /// Additional runtime dependencies to inject into the environment (can be specified multiple times)
     ///
