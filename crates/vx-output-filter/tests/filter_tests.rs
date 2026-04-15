@@ -1,5 +1,5 @@
 use rstest::rstest;
-use vx_output_filter::filter::{OutputFilter, OutputFilterConfig};
+use vx_output_filter::filter::{FilterLevel, OutputFilter, OutputFilterConfig};
 use vx_output_filter::rules::{is_error_line, strip_ansi};
 
 fn compact_config() -> OutputFilterConfig {
@@ -133,4 +133,89 @@ fn test_from_env_none_by_default() {
     let result = OutputFilterConfig::from_env();
     // We only assert it doesn't panic; value depends on env
     let _ = result;
+}
+
+// ── FilterLevel ───────────────────────────────────────────────────────────────
+
+#[test]
+fn test_filter_level_light_config() {
+    let cfg = OutputFilterConfig::for_level(FilterLevel::Light);
+    assert_eq!(cfg.dedup_threshold, usize::MAX, "Light disables dedup");
+    assert_eq!(cfg.max_lines, None, "Light has no line limit");
+    assert!(cfg.strip_empty_runs, "Light still collapses blank runs");
+}
+
+#[test]
+fn test_filter_level_normal_config() {
+    let cfg = OutputFilterConfig::for_level(FilterLevel::Normal);
+    assert_eq!(cfg.dedup_threshold, 3, "Normal dedup threshold is 3");
+    assert_eq!(cfg.max_lines, Some(500), "Normal line budget is 500");
+    assert!(cfg.strip_empty_runs);
+}
+
+#[test]
+fn test_filter_level_aggressive_config() {
+    let cfg = OutputFilterConfig::for_level(FilterLevel::Aggressive);
+    assert_eq!(cfg.dedup_threshold, 2, "Aggressive dedup threshold is 2");
+    assert_eq!(cfg.max_lines, Some(100), "Aggressive line budget is 100");
+    assert!(cfg.strip_empty_runs);
+}
+
+#[test]
+fn test_filter_level_from_env_default_is_normal() {
+    unsafe { std::env::remove_var("VX_FILTER_LEVEL") };
+    assert_eq!(FilterLevel::from_env(), FilterLevel::Normal);
+}
+
+#[test]
+fn test_filter_level_from_env_recognises_light() {
+    unsafe { std::env::set_var("VX_FILTER_LEVEL", "light") };
+    assert_eq!(FilterLevel::from_env(), FilterLevel::Light);
+    unsafe { std::env::remove_var("VX_FILTER_LEVEL") };
+}
+
+#[test]
+fn test_filter_level_from_env_recognises_aggressive() {
+    unsafe { std::env::set_var("VX_FILTER_LEVEL", "aggressive") };
+    assert_eq!(FilterLevel::from_env(), FilterLevel::Aggressive);
+    unsafe { std::env::remove_var("VX_FILTER_LEVEL") };
+}
+
+#[test]
+fn test_compact_defaults_equals_normal_level() {
+    let defaults = OutputFilterConfig::compact_defaults();
+    let normal = OutputFilterConfig::for_level(FilterLevel::Normal);
+    assert_eq!(defaults.dedup_threshold, normal.dedup_threshold);
+    assert_eq!(defaults.max_lines, normal.max_lines);
+    assert_eq!(defaults.strip_empty_runs, normal.strip_empty_runs);
+}
+
+#[test]
+fn test_aggressive_level_dedup_collapses_at_2() {
+    let cfg = OutputFilterConfig::for_level(FilterLevel::Aggressive);
+    let mut f = OutputFilter::new(cfg); // threshold = 2
+
+    // First line passes (repeat_count becomes 1, which is < threshold 2)
+    assert_eq!(f.filter_line("building...").len(), 1);
+    // Second identical line: repeat_count reaches threshold (2 >= 2) → collapsed
+    assert_eq!(f.filter_line("building...").len(), 0);
+    // Third is also collapsed
+    assert_eq!(f.filter_line("building...").len(), 0);
+}
+
+#[test]
+fn test_light_level_no_dedup() {
+    let cfg = OutputFilterConfig::for_level(FilterLevel::Light);
+    let mut f = OutputFilter::new(cfg); // threshold = usize::MAX (disabled)
+
+    // All identical lines should pass through with Light level
+    for _ in 0..10 {
+        assert_eq!(f.filter_line("building...").len(), 1);
+    }
+    // finalize should not report any omissions
+    let summary = f.finalize();
+    assert!(
+        !summary.iter().any(|l| l.contains("omitted")),
+        "Light level should not suppress any lines"
+    );
 }
