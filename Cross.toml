@@ -6,17 +6,34 @@ passthrough = ["GITHUB_TOKEN", "RUSTC_WRAPPER", "AWS_LC_SYS_CMAKE_BUILDER"]
 # 1. Has no lld package available
 # 2. Has binutils too old for armv8.4-a assembly instructions (aws-lc-sys)
 # The edge images are based on Ubuntu 22.04+ and have modern toolchains.
+#
+# APT mirror note: GitHub Actions runs on Azure infrastructure. The default
+# archive.ubuntu.com mirror is geographically distant and can time out.
+# We switch to azure.archive.ubuntu.com (a Microsoft-maintained mirror that
+# is co-located with the Azure runners) for reliable package downloads.
+# The `|| true` fallback means the sed never blocks the build even when
+# running on non-Ubuntu base images or images with no sources.list.
+
 [target.aarch64-unknown-linux-gnu]
 image = "ghcr.io/cross-rs/aarch64-unknown-linux-gnu:edge"
-pre-build = ["apt-get update && apt-get install -y cmake g++ pkg-config"]
+pre-build = [
+    "sed -i 's|http://archive.ubuntu.com|http://azure.archive.ubuntu.com|g; s|http://security.ubuntu.com|http://azure.archive.ubuntu.com|g' /etc/apt/sources.list 2>/dev/null || true",
+    "apt-get update -y && apt-get install -y --no-install-recommends cmake g++ pkg-config",
+]
 
 [target.x86_64-unknown-linux-musl]
 image = "ghcr.io/cross-rs/x86_64-unknown-linux-musl:edge"
-pre-build = ["apt-get update && apt-get install -y cmake g++ pkg-config"]
+pre-build = [
+    "sed -i 's|http://archive.ubuntu.com|http://azure.archive.ubuntu.com|g; s|http://security.ubuntu.com|http://azure.archive.ubuntu.com|g' /etc/apt/sources.list 2>/dev/null || true",
+    "apt-get update -y && apt-get install -y --no-install-recommends cmake g++ pkg-config",
+]
 
 [target.aarch64-unknown-linux-musl]
 image = "ghcr.io/cross-rs/aarch64-unknown-linux-musl:edge"
-pre-build = ["apt-get update && apt-get install -y cmake g++ pkg-config"]
+pre-build = [
+    "sed -i 's|http://archive.ubuntu.com|http://azure.archive.ubuntu.com|g; s|http://security.ubuntu.com|http://azure.archive.ubuntu.com|g' /etc/apt/sources.list 2>/dev/null || true",
+    "apt-get update -y && apt-get install -y --no-install-recommends cmake g++ pkg-config",
+]
 
 # workaround for https://github.com/cross-rs/cross/issues/1345
 [target.x86_64-unknown-netbsd]
