@@ -20,7 +20,16 @@ LABEL org.opencontainers.image.licenses="MIT"
 # Install runtime dependencies
 # Using apt-get with proper cleanup for smaller image size
 # libatomic1 is required by Node.js and other tools
-RUN apt-get update && apt-get install -y --no-install-recommends \
+#
+# Switch to azure.archive.ubuntu.com first — GitHub Actions runs on Azure
+# infrastructure so this mirror is co-located and far more reliable than
+# the default archive.ubuntu.com (which is in the UK and frequently times out
+# from Azure US-East runners). Ubuntu 24.04 uses DEB822 format.
+RUN sed -i \
+        's|http://archive.ubuntu.com|http://azure.archive.ubuntu.com|g; \
+         s|http://security.ubuntu.com|http://azure.archive.ubuntu.com|g' \
+        /etc/apt/sources.list.d/ubuntu.sources 2>/dev/null || true \
+    && apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
     git \
     curl \
