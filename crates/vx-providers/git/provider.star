@@ -47,7 +47,7 @@ permissions = github_permissions()
 fetch_versions = make_fetch_versions("git-for-windows", "git")
 
 # ---------------------------------------------------------------------------
-# download_url — Windows-only portable Git (7z.exe self-extracting)
+# download_url — Windows-only portable Git (MinGit ZIP)
 # macOS/Linux use system package manager
 #
 # Version format: "{base}.windows.{N}" (e.g. "2.53.0.windows.2")
@@ -55,6 +55,14 @@ fetch_versions = make_fetch_versions("git-for-windows", "git")
 # Asset version:
 #   N=1 → "{base}"       (e.g. "2.53.0")
 #   N>1 → "{base}.{N}"   (e.g. "2.53.0.2")
+#
+# We use MinGit (minimal portable git) rather than PortableGit because:
+# - MinGit ships as a plain ZIP archive (reliable extraction, no 7z/SFX needed)
+# - PortableGit ships as a .7z.exe self-extracting archive (7z SFX extraction
+#   is fragile: `sevenz_rust` may fail to find the 7z archive inside the PE stub)
+# - MinGit contains cmd/git.exe + mingw64/bin/git.exe — identical layout to
+#   PortableGit, just without GUI tools (git-gui, gitk) and bash interactivity
+# - For vx use-cases (scripted git execution), MinGit is fully sufficient
 # ---------------------------------------------------------------------------
 
 def _parse_git_version(version):
@@ -90,12 +98,14 @@ def download_url(ctx, version):
     # Asset filename uses "{base}" for .windows.1, "{base}.{N}" for .windows.N>1
     asset_ver = "{}.{}".format(base, n) if n > 1 else base
 
+    # Use MinGit ZIP (standard ZIP, reliably extractable) instead of PortableGit
+    # .7z.exe (self-extracting archive requiring 7z SFX support).
     if ctx.platform.arch == "x64":
-        asset = "PortableGit-{}-64-bit.7z.exe".format(asset_ver)
+        asset = "MinGit-{}-64-bit.zip".format(asset_ver)
     elif ctx.platform.arch == "arm64":
-        asset = "PortableGit-{}-arm64.7z.exe".format(asset_ver)
+        asset = "MinGit-{}-arm64.zip".format(asset_ver)
     elif ctx.platform.arch == "x86":
-        asset = "PortableGit-{}-32-bit.7z.exe".format(asset_ver)
+        asset = "MinGit-{}-32-bit.zip".format(asset_ver)
     else:
         return None
 
@@ -105,14 +115,15 @@ def download_url(ctx, version):
 # install_layout
 # ---------------------------------------------------------------------------
 
-# PortableGit is a self-extracting 7z archive. The extracted layout is:
+# MinGit ZIP extracted layout:
 #   <install_dir>/
-#     cmd/git.exe          ← cmd-style wrapper
+#     cmd/git.exe          ← cmd-style wrapper (primary entry point)
 #     mingw64/bin/git.exe  ← real MinGW git binary
-#     bin/sh.exe           ← shell
-#     usr/bin/...
+#     mingw64/bin/...      ← other git tools
 #
-# We list the candidate paths so the installer can verify the right one.
+# The ZIP is extracted directly into install_dir with no top-level directory,
+# so strip_prefix="" (auto-detect) will NOT attempt to strip any prefix.
+# We list candidate paths so the installer can verify the correct one.
 def install_layout(ctx, _version):
     if ctx.platform.os == "windows":
         return {
@@ -167,10 +178,15 @@ def post_install(_ctx, _version):
 
 def environment(ctx, _version):
     if ctx.platform.os == "windows":
+        # Prepend each directory separately so env_prepend uses the correct
+        # OS-specific PATH separator (';' on Windows, ':' on Unix).
+        # Order matters: later prepends appear earlier in PATH, so list the
+        # most specific path last (it ends up first in PATH).
         return [
-            env_prepend("PATH", "{}/bin:{}/mingw64/bin:{}/usr/bin".format(
-                ctx.install_dir, ctx.install_dir, ctx.install_dir,
-            )),
+            env_prepend("PATH", ctx.install_dir + "/usr/bin"),
+            env_prepend("PATH", ctx.install_dir + "/bin"),
+            env_prepend("PATH", ctx.install_dir + "/mingw64/bin"),
+            env_prepend("PATH", ctx.install_dir + "/cmd"),
         ]
     return []
 
