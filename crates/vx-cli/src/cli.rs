@@ -38,16 +38,25 @@ pub enum FilterLevelArg {
 ///
 /// Replaces the previous fragmented OutputFormat enums.
 /// Commands use this to determine how to render their output.
+///
+/// **TTY auto-selection:** when stdout is a TTY the renderer defaults to `text`.
+/// When stdout is NOT a TTY (pipe, script, AI agent) the renderer defaults to
+/// `toon` — token-optimised output that saves 40-60% tokens vs JSON.
+/// Override with `VX_OUTPUT=json` to get JSON, or `VX_OUTPUT=compact` for RTK-style.
 #[derive(ValueEnum, Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum OutputFormat {
-    /// Human-readable colored text output (default)
+    /// Human-readable colored text output (default for interactive TTY)
     #[default]
     Text,
     /// JSON structured output (for scripts/CI/AI parsing)
     Json,
-    /// TOON format output (for LLM prompts, saves tokens)
+    /// TOON format output — token-optimised for LLM prompts, saves 40-60% tokens.
+    ///
+    /// **Automatic default for non-TTY** (pipes, scripts, AI agents).
+    /// Prefer over JSON for AI agent consumption; use `VX_OUTPUT=json` when
+    /// JSON parsing is strictly required.
     Toon,
-    /// Compact one-liner output (ASCII icons, minimal tokens, ideal for AI agents)
+    /// Compact RTK-style one-liner output (ASCII icons, minimal tokens)
     ///
     /// Inspired by rtk (rtk-ai/rtk). Reduces token usage 60-80% vs text format.
     /// Use with `VX_OUTPUT=compact` or `--format compact` / `-u`.
@@ -178,7 +187,11 @@ pub struct Cli {
     #[arg(long, global = true)]
     pub debug: bool,
 
-    /// Output format: text, json, toon, compact (RFC 0031)
+    /// Output format: text, json, toon, compact (RFC 0031).
+    ///
+    /// In an interactive TTY the default is `text`. When stdout is piped/redirected
+    /// the renderer automatically uses `toon` (token-optimised, saves 40-60% tokens).
+    /// Set `VX_OUTPUT=json` to force JSON, or `VX_OUTPUT=compact` for RTK-style.
     #[arg(long = "output-format", global = true, value_enum, default_value_t = OutputFormat::Text)]
     pub output_format: OutputFormat,
 
