@@ -165,11 +165,11 @@ fn test_multi_step_progress() {
 #[rstest]
 fn test_install_progress() {
     let mut progress = InstallProgress::new(3, "Installing tools");
-    progress.start_tool("node@20");
-    progress.complete_tool(true);
-    progress.start_tool("npm@10");
-    progress.complete_tool(true);
-    progress.start_tool("yarn@4");
-    progress.complete_tool(false);
+    progress.start_tool("node", "20");
+    progress.complete_tool(true, "node", "20");
+    progress.start_tool("npm", "10");
+    progress.complete_tool(true, "npm", "10");
+    progress.start_tool("yarn", "4");
+    progress.complete_tool(false, "yarn", "4");
     progress.finish("Installed 2/3 tools");
 }
