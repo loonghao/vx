@@ -257,7 +257,11 @@ jobs:
       image: ubuntu:24.04
     steps:
       - name: Install dependencies
-        run: apt-get update && apt-get install -y --no-install-recommends ca-certificates
+        run: |
+          # Switch to Azure mirror for reliable downloads on GitHub Actions (Azure infra)
+          sed -i 's|http://archive.ubuntu.com|http://azure.archive.ubuntu.com|g; s|http://security.ubuntu.com|http://azure.archive.ubuntu.com|g' \
+            /etc/apt/sources.list.d/ubuntu.sources 2>/dev/null || true
+          apt-get update && apt-get install -y --no-install-recommends ca-certificates
 
       - name: Download built binary
         uses: actions/download-artifact@v8
