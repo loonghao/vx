@@ -6,7 +6,6 @@ use backon::{ExponentialBuilder, Retryable};
 use std::path::Path;
 use std::time::Duration;
 use vx_runtime::HttpClient;
-use vx_runtime::region;
 
 /// Determine whether CDN acceleration should be enabled.
 ///
@@ -14,15 +13,28 @@ use vx_runtime::region;
 /// access is slow or unreliable. Outside China (e.g. GitHub CI), these proxies
 /// can be unstable and cause download failures (HTTP 404).
 ///
+/// **CDN is DISABLED by default.** Enable it explicitly via environment variable:
+///
 /// Decision logic (in order):
-/// 1. `VX_CDN=1` / `VX_CDN=true`  → force enable
-/// 2. `VX_CDN=0` / `VX_CDN=false` → force disable
-/// 3. `CI=true` or `GITHUB_ACTIONS=true` → disable (CI environments have direct GitHub access)
-/// 4. Check system locale / timezone for China indicators → enable if detected
-/// 5. Default → disable (safer default for international users)
+/// 1. `VX_CDN=1` / `VX_CDN=true`  → enable CDN acceleration
+/// 2. `VX_CDN=0` / `VX_CDN=false` → disable CDN acceleration
+/// 3. Default → **disabled** (safe for all environments, no region auto-detection)
+///
+/// To enable CDN for China mirrors:
+/// ```bash
+/// VX_CDN=1 vx install node
+/// # or permanently:
+/// export VX_CDN=1
+/// ```
 fn should_enable_cdn() -> bool {
-    // Use the shared region detection — CDN is enabled when in China
-    region::detect_region() == region::Region::China
+    // CDN is opt-in only — check VX_CDN explicitly, no region auto-detection.
+    // This avoids false positives from locale/timezone heuristics and ensures
+    // predictable behaviour across all environments.
+    if let Ok(val) = std::env::var("VX_CDN") {
+        return matches!(val.to_lowercase().as_str(), "1" | "true" | "yes" | "on");
+    }
+    // Default: disabled
+    false
 }
 
 /// Real HTTP client using reqwest with optional CDN acceleration

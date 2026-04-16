@@ -9,9 +9,19 @@
 # With custom install directory:
 #   $env:VX_INSTALL_DIR="C:\tools\bin"; irm https://raw.githubusercontent.com/loonghao/vx/main/install.ps1 | iex
 #
+# CDN acceleration (disabled by default, opt-in for slow GitHub access):
+#   $env:VX_CDN="1"; irm https://raw.githubusercontent.com/loonghao/vx/main/install.ps1 | iex
+#
 # Alternative package managers:
 #   winget install loonghao.vx
 #   scoop install vx
+#
+# Environment variables:
+#   VX_VERSION          - Version to install (default: latest stable)
+#   VX_INSTALL_DIR      - Installation directory (default: $env:USERPROFILE\.local\bin)
+#   VX_RELEASE_BASE_URLS- Comma-separated release mirror URLs
+#   GITHUB_TOKEN        - GitHub API token to avoid rate limits
+#   VX_CDN              - Set to "1" to enable CDN acceleration (disabled by default)
 
 param(
     [string]$Version         = $env:VX_VERSION,

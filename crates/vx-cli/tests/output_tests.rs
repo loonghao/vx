@@ -78,12 +78,13 @@ fn test_renderer_format() {
 
 #[test]
 fn test_renderer_new_auto_upgrades_in_non_tty() {
-    // OutputRenderer::new(Text) should auto-upgrade to Json outside a TTY
+    // OutputRenderer::new(Text) should auto-upgrade to Toon outside a TTY
     // (unless VX_OUTPUT=text is set). We can't control whether CI is a TTY,
-    // so just verify that the result is either Text or Json — never Toon.
+    // so just verify that the result is either Text or Toon — never Json.
     let renderer = OutputRenderer::new(OutputFormat::Text);
     assert!(
-        renderer.format() == OutputFormat::Text || renderer.format() == OutputFormat::Json,
-        "new(Text) should produce Text or Json, never Toon"
+        renderer.format() == OutputFormat::Text || renderer.format() == OutputFormat::Toon,
+        "new(Text) should produce Text or Toon (not Json): got {:?}",
+        renderer.format()
     );
 }
