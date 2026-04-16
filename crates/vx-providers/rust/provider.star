@@ -92,24 +92,65 @@ def _rustup_triple(ctx):
 # ---------------------------------------------------------------------------
 
 def version_info(_ctx, user_version):
-    """Map user-facing rustc version to store layout and install parameters.
+    """Map user-facing version to store layout and Rust toolchain install parameters.
 
     Key insight: ANY rustup version can install ANY rustc version.
-    So we always download the latest rustup installer and use it to install
+    So we always download the latest rustup-init and use it to install
     the specific rustc toolchain the user requested.
 
+    ## Version disambiguation
+
+    `fetch_versions()` queries GitHub releases of the *rustup* installer tool,
+    returning versions like "1.27.0", "1.28.0", "1.29.0". These are the rustup
+    installer version numbers — NOT Rust toolchain versions.
+
+    Rust toolchain versions currently start at 1.50+ (stable), while rustup
+    installer versions are in the 1.x range with x < 30. If vx picks the
+    latest rustup installer version (e.g. "1.29.0") as the "version" to install
+    (because no explicit version is in vx.toml), passing it as
+    `--default-toolchain 1.29.0` to rustup-init would try to install a very
+    ancient Rust toolchain from 2018, which is wrong.
+
+    Rule:
+    - "stable", "beta", "nightly"   → use as-is (valid channel names)
+    - version with minor ≥ 30       → treat as explicit Rust toolchain version
+    - version with minor < 30       → likely a rustup installer version;
+                                      install the "stable" toolchain instead
+
+    Users who want a specific Rust version must write it in vx.toml:
+        [tools]
+        rust = "1.93.1"   # installs rustc 1.93.1
+
     Args:
-        ctx: Provider context
-        user_version: Version from vx.toml (e.g., "1.93.1", "stable", "1.85")
+        user_version: Version string from vx.toml or latest from fetch_versions()
+                      e.g. "1.93.1", "stable", "1.29.0" (rustup installer ver)
 
     Returns:
         dict with store_as, download_version, install_params
     """
+    # Determine the actual Rust toolchain to install.
+    if user_version in ("stable", "beta", "nightly"):
+        toolchain = user_version
+    else:
+        parts = user_version.split(".")
+        minor = 0
+        if len(parts) >= 2 and parts[1].isdigit():
+            minor = int(parts[1])
+
+        if minor < 30:
+            # Version minor < 30 looks like a rustup installer version (e.g. 1.29.0).
+            # Install the "stable" Rust toolchain — the user almost certainly
+            # did not intend to pin an ancient Rust release from 2018.
+            toolchain = "stable"
+        else:
+            # Version minor ≥ 30 is an explicit Rust toolchain version (1.50+).
+            toolchain = user_version
+
     return {
-        "store_as": user_version,      # ~/.vx/store/rust/1.93.1/
-        "download_version": None,       # None = use latest rustup from fetch_versions()
+        "store_as": user_version,   # ~/.vx/store/rust/{user_version}/
+        "download_version": None,   # always download latest rustup-init
         "install_params": {
-            "toolchain": user_version,  # passed to post_extract as ctx.install_params
+            "toolchain": toolchain, # passed to post_extract via ctx.install_params
         },
     }
 
