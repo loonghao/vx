@@ -15,6 +15,26 @@ use vx_console::global_progress_manager;
 
 static VERBOSE: AtomicBool = AtomicBool::new(false);
 
+fn spinner_style(template: &str, ticks: &[&str]) -> ProgressStyle {
+    match ProgressStyle::with_template(template) {
+        Ok(style) => style.tick_strings(ticks),
+        Err(err) => {
+            tracing::warn!("invalid spinner template '{}': {}", template, err);
+            ProgressStyle::default_spinner().tick_strings(ticks)
+        }
+    }
+}
+
+fn bar_style(template: &str, progress_chars: &str) -> ProgressStyle {
+    match ProgressStyle::with_template(template) {
+        Ok(style) => style.progress_chars(progress_chars),
+        Err(err) => {
+            tracing::warn!("invalid progress template '{}': {}", template, err);
+            ProgressStyle::default_bar().progress_chars(progress_chars)
+        }
+    }
+}
+
 /// Get the global progress manager (re-export from vx-console)
 ///
 /// This ensures all progress bars and messages use the same MultiProgress instance.
@@ -260,11 +280,10 @@ impl ProgressSpinner {
     pub fn new(message: &str) -> Self {
         let pm = global_progress_manager();
         let bar = pm.multi().add(ProgressBar::new_spinner());
-        bar.set_style(
-            ProgressStyle::with_template("{spinner:.cyan} {msg}")
-                .expect("static progress template")
-                .tick_strings(&["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"]),
-        );
+        bar.set_style(spinner_style(
+            "{spinner:.cyan} {msg}",
+            &["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"],
+        ));
         bar.set_message(message.to_string());
         bar.enable_steady_tick(Duration::from_millis(80));
         Self { bar }
@@ -274,11 +293,10 @@ impl ProgressSpinner {
     pub fn new_download(message: &str) -> Self {
         let pm = global_progress_manager();
         let bar = pm.multi().add(ProgressBar::new_spinner());
-        bar.set_style(
-            ProgressStyle::with_template("{spinner:.green} {msg}")
-                .expect("static progress template")
-                .tick_strings(&["◜", "◠", "◝", "◞", "◡", "◟"]),
-        );
+        bar.set_style(spinner_style(
+            "{spinner:.green} {msg}",
+            &["◜", "◠", "◝", "◞", "◡", "◟"],
+        ));
         bar.set_message(message.to_string());
         bar.enable_steady_tick(Duration::from_millis(100));
         Self { bar }
@@ -288,11 +306,10 @@ impl ProgressSpinner {
     pub fn new_install(message: &str) -> Self {
         let pm = global_progress_manager();
         let bar = pm.multi().add(ProgressBar::new_spinner());
-        bar.set_style(
-            ProgressStyle::with_template("{spinner:.blue} {msg}")
-                .expect("static progress template")
-                .tick_strings(&["⣾", "⣽", "⣻", "⢿", "⡿", "⣟", "⣯", "⣷"]),
-        );
+        bar.set_style(spinner_style(
+            "{spinner:.blue} {msg}",
+            &["⣾", "⣽", "⣻", "⢿", "⡿", "⣟", "⣯", "⣷"],
+        ));
         bar.set_message(message.to_string());
         bar.enable_steady_tick(Duration::from_millis(80));
         Self { bar }
@@ -338,13 +355,10 @@ impl DownloadProgress {
     pub fn new(total_size: u64, message: &str) -> Self {
         let pm = global_progress_manager();
         let bar = pm.multi().add(ProgressBar::new(total_size));
-        bar.set_style(
-            ProgressStyle::with_template(
-                "{spinner:.green} {msg} {wide_bar:.cyan/blue} {bytes}/{total_bytes} ({bytes_per_sec}, {eta})"
-            )
-            .expect("static progress template")
-            .progress_chars("━━╺"),
-        );
+        bar.set_style(bar_style(
+            "{spinner:.green} {msg} {wide_bar:.cyan/blue} {bytes}/{total_bytes} ({bytes_per_sec}, {eta})",
+            "━━╺",
+        ));
         bar.set_message(message.to_string());
         bar.enable_steady_tick(Duration::from_millis(100));
         Self { bar }
@@ -354,11 +368,10 @@ impl DownloadProgress {
     pub fn new_unknown(message: &str) -> Self {
         let pm = global_progress_manager();
         let bar = pm.multi().add(ProgressBar::new_spinner());
-        bar.set_style(
-            ProgressStyle::with_template("{spinner:.green} {msg} {bytes} ({bytes_per_sec})")
-                .expect("static progress template")
-                .tick_strings(&["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"]),
-        );
+        bar.set_style(spinner_style(
+            "{spinner:.green} {msg} {bytes} ({bytes_per_sec})",
+            &["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"],
+        ));
         bar.set_message(message.to_string());
         bar.enable_steady_tick(Duration::from_millis(80));
         Self { bar }
@@ -416,11 +429,10 @@ impl MultiProgress {
         let total = steps.len() as u64;
         let pm = global_progress_manager();
         let bar = pm.multi().add(ProgressBar::new(total));
-        bar.set_style(
-            ProgressStyle::with_template("{spinner:.cyan} [{pos}/{len}] {msg}")
-                .expect("static progress template")
-                .tick_strings(&["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"]),
-        );
+        bar.set_style(spinner_style(
+            "{spinner:.cyan} [{pos}/{len}] {msg}",
+            &["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"],
+        ));
 
         if let Some(first) = steps.first() {
             bar.set_message(first.clone());
@@ -470,11 +482,10 @@ impl InstallProgress {
 
         // Main progress bar showing overall progress
         let main_bar = pm.multi().add(ProgressBar::new(total_tools as u64));
-        main_bar.set_style(
-            ProgressStyle::with_template("{msg} [{bar:40.green/dim}] {pos}/{len} tools")
-                .expect("static progress template")
-                .progress_chars("━━╺"),
-        );
+        main_bar.set_style(bar_style(
+            "{msg} [{bar:40.green/dim}] {pos}/{len} tools",
+            "━━╺",
+        ));
         main_bar.set_message(title.to_string());
         main_bar.enable_steady_tick(Duration::from_millis(100));
 
@@ -494,11 +505,10 @@ impl InstallProgress {
         // Create new spinner for current tool
         let pm = global_progress_manager();
         let bar = pm.multi().add(ProgressBar::new_spinner());
-        bar.set_style(
-            ProgressStyle::with_template("  {spinner:.blue} Installing {msg}")
-                .expect("static progress template")
-                .tick_strings(&["⣾", "⣽", "⣻", "⢿", "⡿", "⣟", "⣯", "⣷"]),
-        );
+        bar.set_style(spinner_style(
+            "  {spinner:.blue} Installing {msg}",
+            &["⣾", "⣽", "⣻", "⢿", "⡿", "⣟", "⣯", "⣷"],
+        ));
         bar.set_message(format!("{}@{}", tool_name, version));
         bar.enable_steady_tick(Duration::from_millis(80));
         self.current_bar = Some(bar);

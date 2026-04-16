@@ -217,10 +217,19 @@ impl<'a> InstallationManager<'a> {
         version: &str,
         context: &RuntimeContext,
     ) -> Result<InstallResult> {
-        let registry = self.registry.expect("registry must be set");
-        let runtime = registry
-            .get_runtime(runtime_name)
-            .expect("runtime must exist");
+        let registry = self.registry.ok_or_else(|| {
+            EnsureError::Other(anyhow::anyhow!(
+                "provider registry is required to install {}@{}",
+                runtime_name,
+                version
+            ))
+        })?;
+        let runtime = registry.get_runtime(runtime_name).ok_or_else(|| {
+            EnsureError::Other(anyhow::anyhow!(
+                "runtime '{}' disappeared from provider registry during installation",
+                runtime_name
+            ))
+        })?;
 
         // Build context with install_options from project config if available
         let ctx_with_options;

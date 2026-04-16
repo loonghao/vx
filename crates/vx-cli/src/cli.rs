@@ -1640,7 +1640,9 @@ impl CommandHandler for Commands {
             }
 
             Commands::Config { command } => match command {
-                Some(ConfigCommand::Show) | None => commands::config::handle().await,
+                Some(ConfigCommand::Show) | None => {
+                    commands::config::handle(ctx.output_format()).await
+                }
                 Some(ConfigCommand::Set { key, value }) => {
                     commands::config::handle_set(key, value).await
                 }

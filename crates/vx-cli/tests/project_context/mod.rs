@@ -108,8 +108,11 @@ node = "20"
     let output = run_vx_in_dir(temp_dir.path(), &["sync", "--dry-run"])
         .expect("Failed to run vx sync --dry-run");
 
-    // Should succeed without actually installing
-    let _ = combined_output(&output);
+    assert_failure_or_contains(
+        &output,
+        "All tools are synchronized",
+        "vx sync --dry-run should either report synchronized state or fail meaningfully",
+    );
 }
 
 // ============================================================================
@@ -127,13 +130,12 @@ fn test_init_creates_vx_toml() {
     let output = run_vx_in_dir(temp_dir.path(), &["init", "--tools", "node"])
         .expect("Failed to run vx init");
 
-    if is_success(&output) {
-        // Check for either vx.toml (new) or vx.toml (legacy)
-        assert!(
-            temp_dir.path().join("vx.toml").exists() || temp_dir.path().join("vx.toml").exists(),
-            "vx init should create vx.toml or vx.toml"
-        );
-    }
+    assert_success(&output, "vx init");
+    assert!(
+        temp_dir.path().join("vx.toml").exists(),
+        "vx init should create vx.toml: {}",
+        combined_output(&output)
+    );
 }
 
 /// Test: vx init --dry-run doesn't create files
@@ -389,10 +391,10 @@ fn test_invalid_vx_toml_syntax() {
     )
     .expect("Failed to write invalid vx.toml");
 
-    let output = run_vx_in_dir(temp_dir.path(), &["list"]).expect("Failed to run vx list");
+    let output =
+        run_vx_in_dir(temp_dir.path(), &["config", "show"]).expect("Failed to run vx config show");
 
-    // Should handle gracefully (may fail or warn)
-    let _ = combined_output(&output);
+    assert_failure(&output, "vx config show should fail for invalid vx.toml");
 }
 
 /// Test: vx.toml with unknown tool
@@ -411,10 +413,14 @@ unknown-tool-xyz = "1.0"
     )
     .expect("Failed to write vx.toml");
 
-    let output = run_vx_in_dir(temp_dir.path(), &["list"]).expect("Failed to run vx list");
+    let output = run_vx_in_dir(temp_dir.path(), &["check"]).expect("Failed to run vx check");
 
-    // Should handle gracefully
-    let _ = combined_output(&output);
+    assert_failure(&output, "vx check should fail for unknown tool in config");
+    assert_output_contains(
+        &output,
+        "unknown-tool-xyz",
+        "vx check should mention the unknown tool",
+    );
 }
 
 // ============================================================================

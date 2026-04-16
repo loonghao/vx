@@ -35,7 +35,7 @@ use crate::commands::common::{ToolStatus, check_tools_status};
 use crate::commands::setup::{find_vx_config, parse_vx_config};
 use crate::output::{CheckOutput, OutputRenderer, RequirementStatus, RequirementStatusType};
 use crate::ui::UI;
-use anyhow::{Context, Result};
+use anyhow::{Context, Result, anyhow};
 use std::collections::HashMap;
 use std::env;
 use vx_paths::project::LOCK_FILE_NAME;
@@ -58,47 +58,20 @@ pub async fn handle(
     let config_path = match find_vx_config(&current_dir) {
         Ok(p) => p,
         Err(_) => {
-            let output = CheckOutput {
-                project_file: None,
-                requirements: vec![],
-                all_satisfied: false,
-                missing_tools: vec![],
-                warnings: vec!["No vx.toml found".to_string()],
-                errors: vec!["No vx.toml found in current directory or parents".to_string()],
-            };
-
+            let output = missing_config_output();
             if !quiet {
-                let renderer = OutputRenderer::new(format);
-                if renderer.is_json() {
-                    renderer.render(&output)?;
-                } else {
-                    UI::warn("No vx.toml found in current directory or parents");
-                    UI::hint("Run 'vx init' to create a project configuration");
-                }
+                render_check_output(&output, detailed, format)?;
             }
-            std::process::exit(1);
+            return Err(anyhow!(output.errors[0].clone()));
         }
     };
 
     let config = parse_vx_config(&config_path)?;
 
     if config.tools.is_empty() {
-        let output = CheckOutput {
-            project_file: Some(config_path.display().to_string()),
-            requirements: vec![],
-            all_satisfied: true,
-            missing_tools: vec![],
-            warnings: vec!["No tools configured in vx.toml".to_string()],
-            errors: vec![],
-        };
-
+        let output = no_tools_output(&config_path);
         if !quiet {
-            let renderer = OutputRenderer::new(format);
-            if renderer.is_json() {
-                renderer.render(&output)?;
-            } else {
-                UI::info("No tools configured in vx.toml");
-            }
+            render_check_output(&output, detailed, format)?;
         }
         return Ok(());
     }
@@ -110,10 +83,11 @@ pub async fn handle(
             map.insert(name.clone(), version.clone());
             map
         } else {
+            let message = format!("Tool '{}' not found in vx.toml", name);
             if !quiet {
-                UI::error(&format!("Tool '{}' not found in vx.toml", name));
+                UI::error(&message);
             }
-            std::process::exit(1);
+            return Err(anyhow!(message));
         }
     } else {
         config.tools.clone()
@@ -251,21 +225,61 @@ pub async fn handle(
 
     // Render output
     if !quiet {
-        let renderer = OutputRenderer::new(format);
-        if renderer.is_json() {
-            renderer.render(&output)?;
-        } else {
-            // Text mode with optional details
-            render_text_output(&output, detailed)?;
-        }
+        render_check_output(&output, detailed, format)?;
     }
 
-    // Exit with appropriate code
     if !all_ok {
-        std::process::exit(1);
+        let message = output
+            .errors
+            .first()
+            .cloned()
+            .unwrap_or_else(|| "Project requirements are not satisfied".to_string());
+        return Err(anyhow!(message));
     }
 
     Ok(())
+}
+
+fn missing_config_output() -> CheckOutput {
+    CheckOutput {
+        project_file: None,
+        requirements: vec![],
+        all_satisfied: false,
+        missing_tools: vec![],
+        warnings: vec!["No vx.toml found".to_string()],
+        errors: vec!["No vx.toml found in current directory or parents".to_string()],
+    }
+}
+
+fn no_tools_output(config_path: &std::path::Path) -> CheckOutput {
+    CheckOutput {
+        project_file: Some(config_path.display().to_string()),
+        requirements: vec![],
+        all_satisfied: true,
+        missing_tools: vec![],
+        warnings: vec!["No tools configured in vx.toml".to_string()],
+        errors: vec![],
+    }
+}
+
+fn render_check_output(output: &CheckOutput, detailed: bool, format: OutputFormat) -> Result<()> {
+    let renderer = OutputRenderer::new(format);
+    if renderer.is_text() {
+        if output.project_file.is_none() {
+            UI::warn("No vx.toml found in current directory or parents");
+            UI::hint("Run 'vx init' to create a project configuration");
+            return Ok(());
+        }
+
+        if output.requirements.is_empty() && output.all_satisfied {
+            UI::info("No tools configured in vx.toml");
+            return Ok(());
+        }
+
+        render_text_output(output, detailed)
+    } else {
+        renderer.render(output)
+    }
 }
 
 /// Render text output with optional details

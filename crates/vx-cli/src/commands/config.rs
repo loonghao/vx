@@ -1,36 +1,131 @@
 // Config command implementation
 
+use crate::cli::OutputFormat;
+use crate::output::{CommandOutput, OutputRenderer};
 use crate::ui::UI;
 use anyhow::Result;
+use serde::Serialize;
 use std::env;
 use std::path::PathBuf;
 use vx_paths::{CONFIG_FILE_NAME, find_config_file};
 
-pub async fn handle() -> Result<()> {
+#[derive(Serialize)]
+struct ConfigShowOutput {
+    found: bool,
+    file: Option<String>,
+    project: Option<String>,
+    tools: usize,
+    scripts: usize,
+    services: usize,
+    message: Option<String>,
+    hint: Option<String>,
+}
+
+impl CommandOutput for ConfigShowOutput {
+    fn render_text(&self, writer: &mut dyn std::io::Write) -> Result<()> {
+        if !self.found {
+            writeln!(
+                writer,
+                "No vx.toml found in current directory or parent directories"
+            )?;
+            if let Some(hint) = &self.hint {
+                writeln!(writer, "{}", hint)?;
+            }
+            return Ok(());
+        }
+
+        writeln!(writer, "Project Configuration")?;
+        writeln!(writer)?;
+
+        if let Some(file) = &self.file {
+            writeln!(writer, "File: {}", file)?;
+        }
+        if let Some(project) = &self.project {
+            writeln!(writer, "Project: {}", project)?;
+        }
+        writeln!(writer, "Tools: {}", self.tools)?;
+        writeln!(writer, "Scripts: {}", self.scripts)?;
+        writeln!(writer, "Services: {}", self.services)?;
+
+        Ok(())
+    }
+
+    fn render_compact(&self, writer: &mut dyn std::io::Write) -> Result<()> {
+        if !self.found {
+            writeln!(writer, "err config missing")?;
+            return Ok(());
+        }
+
+        let project = self.project.as_deref().unwrap_or("-");
+        writeln!(
+            writer,
+            "config project:{} tools:{} scripts:{} services:{}",
+            project, self.tools, self.scripts, self.services
+        )?;
+        Ok(())
+    }
+}
+
+pub async fn handle(format: OutputFormat) -> Result<()> {
     use vx_config::parse_config;
 
     let current_dir = env::current_dir()?;
+    let renderer = OutputRenderer::new(format);
+
     let Some(config_path) = find_config_file(&current_dir) else {
-        UI::warning("No vx.toml found in current directory or parent directories");
-        UI::hint("Run 'vx init' to create one");
+        let output = ConfigShowOutput {
+            found: false,
+            file: None,
+            project: None,
+            tools: 0,
+            scripts: 0,
+            services: 0,
+            message: Some(
+                "No vx.toml found in current directory or parent directories".to_string(),
+            ),
+            hint: Some("Run 'vx init' to create one".to_string()),
+        };
+
+        if renderer.is_text() {
+            UI::warning("No vx.toml found in current directory or parent directories");
+            UI::hint("Run 'vx init' to create one");
+        } else {
+            renderer.render(&output)?;
+        }
         return Ok(());
     };
 
     let config = parse_config(&config_path)?;
 
-    UI::header("📋 Project Configuration");
-    println!();
-    UI::info(&format!("File: {}", config_path.display()));
+    let output = ConfigShowOutput {
+        found: true,
+        file: Some(config_path.display().to_string()),
+        project: config
+            .project
+            .as_ref()
+            .and_then(|project| project.name.clone()),
+        tools: config.tools_as_hashmap().len(),
+        scripts: config.scripts.len(),
+        services: config.services.len(),
+        message: None,
+        hint: None,
+    };
 
-    if let Some(project) = &config.project
-        && let Some(name) = &project.name
-    {
-        UI::info(&format!("Project: {}", name));
+    if renderer.is_text() {
+        UI::header("📋 Project Configuration");
+        println!();
+        if let Some(file) = &output.file {
+            UI::info(&format!("File: {}", file));
+        }
+        if let Some(project) = &output.project {
+            UI::info(&format!("Project: {}", project));
+        }
+        UI::info(&format!("Tools: {}", output.tools));
+        UI::info(&format!("Scripts: {}", output.scripts));
+        UI::info(&format!("Services: {}", output.services));
+    } else {
+        renderer.render(&output)?;
     }
-
-    UI::info(&format!("Tools: {}", config.tools.len()));
-    UI::info(&format!("Scripts: {}", config.scripts.len()));
-    UI::info(&format!("Services: {}", config.services.len()));
 
     Ok(())
 }

@@ -312,7 +312,7 @@ mod config_tests {
     #[tokio::test]
     async fn test_config_show() {
         init_test_env();
-        let result = config::handle().await;
+        let result = config::handle(vx_cli::OutputFormat::Text).await;
         assert!(result.is_ok(), "Config show should succeed");
         cleanup_test_env();
     }

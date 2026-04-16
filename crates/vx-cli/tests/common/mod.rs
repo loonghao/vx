@@ -172,6 +172,13 @@ pub fn assert_failure(output: &Output, context: &str) {
     );
 }
 
+/// Assert command failed or emitted a marker explaining a non-failure path.
+pub fn assert_failure_or_contains(output: &Output, text: &str, context: &str) {
+    if is_success(output) {
+        assert_output_contains(output, text, context);
+    }
+}
+
 /// Assert stdout contains text
 pub fn assert_stdout_contains(output: &Output, text: &str, context: &str) {
     let stdout = stdout_str(output);

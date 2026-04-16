@@ -144,7 +144,7 @@ async fn try_execute_lightweight_command(cli: &Cli) -> Option<Result<()>> {
         // `vx config show` is used in benchmark parse tests and only needs local config I/O.
         Some(Commands::Config {
             command: Some(ConfigCommand::Show) | None,
-        }) => Some(commands::config::handle().await),
+        }) => Some(commands::config::handle(GlobalOptions::from(cli).output_format).await),
 
         // `vx config validate` is also benchmarked and does not require runtime/provider init.
         Some(Commands::Config {
