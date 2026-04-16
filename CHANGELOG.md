@@ -6,6 +6,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [0.8.29](https://github.com/loonghao/vx/compare/v0.8.28...v0.8.29) (2026-04-16)
+
+
+### Features
+
+* change non-TTY default output from JSON to Toon, disable CDN by default ([cc46de7](https://github.com/loonghao/vx/commit/cc46de76e29412fc4cd9cbc726587ed7ad7c1dba))
+
+
+### Bug Fixes
+
+* **ci:** switch apt mirror to azure.archive.ubuntu.com for cross builds ([344e043](https://github.com/loonghao/vx/commit/344e04310761b34ce16443854c6f06c6c9c9ae91))
+* **docker:** switch apt mirror to azure.archive.ubuntu.com in Dockerfiles and test workflow ([c95f733](https://github.com/loonghao/vx/commit/c95f7335208129fdc988bce102338225d44b0ef9))
+* git uses MinGit ZIP on Windows, rust toolchain defaults to stable ([da6405d](https://github.com/loonghao/vx/commit/da6405d17c38cc39a29a46136ef2fb734d4cc95a))
+
 ## [0.8.28](https://github.com/loonghao/vx/compare/v0.8.27...v0.8.28) (2026-04-15)
 
 
