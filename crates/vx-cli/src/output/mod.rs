@@ -1,15 +1,19 @@
 //! Command output structures (RFC 0031, RFC 0035)
 //!
 //! This module defines structured output types for all CLI commands.
-//! Each output type implements `CommandOutput` for unified `--json` support.
+//! Each output type implements `CommandOutput` for unified output format support.
 //!
-//! ## Agent DX: TTY Detection (Justin Poehnelt / Google Cloud best practices)
+//! ## Agent DX: TTY Detection
 //!
 //! When stdout is NOT a TTY (e.g. piped to a script or AI agent), the renderer
-//! automatically switches to NDJSON (newline-delimited JSON) rather than text.
-//! This makes vx machine-readable by default without any flags.
+//! automatically switches to **TOON** (token-optimised) format rather than text.
+//! TOON saves 40-60% tokens compared to JSON, making it the ideal default for
+//! AI agents and automated pipelines.
 //!
-//! Override with `VX_OUTPUT=text` to force text output even in pipelines.
+//! Override with:
+//! - `VX_OUTPUT=text` to force text output even in pipelines
+//! - `VX_OUTPUT=json` to get JSON (structured, but more verbose)
+//! - `VX_OUTPUT=compact` for RTK-style ultra-compact one-liners (60-80% savings)
 
 use crate::cli::OutputFormat;
 use anyhow::Result;
@@ -99,13 +103,14 @@ pub trait CommandOutput: Serialize {
 /// Renders command output in the requested format.
 ///
 /// Selects between text, JSON, TOON, and compact output based on:
-/// 1. Explicit `--output-format` / `--json` / `--compact` flags
-/// 2. `VX_OUTPUT` environment variable (`json`, `toon`, `compact`)
-/// 3. Auto-detection: if stdout is NOT a TTY, defaults to NDJSON
+/// 1. Explicit `--output-format` / `--json` / `--toon` / `--compact` flags
+/// 2. `VX_OUTPUT` environment variable (`json`, `toon`, `compact`, `text`)
+/// 3. Auto-detection: if stdout is NOT a TTY, defaults to TOON (token-optimised)
 ///    (unless `VX_OUTPUT=text` env var is set)
 ///
-/// This implements the "Agent DX" principle from Google Cloud best practices:
-/// machines get machine-readable output without needing extra flags.
+/// This implements the "Agent DX" principle: machines get token-efficient
+/// TOON output by default without needing extra flags, saving 40-60% tokens
+/// compared to JSON. Use `VX_OUTPUT=json` to opt-in to JSON when needed.
 pub struct OutputRenderer {
     format: OutputFormat,
 }
@@ -114,10 +119,11 @@ impl OutputRenderer {
     /// Create a new renderer with the given format.
     ///
     /// If `format` is `Text` but stdout is not a TTY, automatically upgrades
-    /// to `Json` for machine-readable output (NDJSON-compatible).
+    /// to `Toon` for token-efficient machine-readable output.
+    /// Use `VX_OUTPUT=json` to get JSON output instead.
     pub fn new(format: OutputFormat) -> Self {
         let effective_format = if format == OutputFormat::Text && !stdout_is_tty() {
-            OutputFormat::Json
+            OutputFormat::Toon
         } else {
             format
         };

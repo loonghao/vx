@@ -15,6 +15,16 @@
 #
 # With GitHub token (to avoid rate limits when specifying a version):
 #   GITHUB_TOKEN="your_token" curl -fsSL https://raw.githubusercontent.com/loonghao/vx/main/install.sh | bash
+#
+# CDN acceleration (disabled by default, opt-in for slow GitHub access):
+#   VX_CDN=1 curl -fsSL https://raw.githubusercontent.com/loonghao/vx/main/install.sh | bash
+#
+# Environment variables:
+#   VX_VERSION          - Version to install (default: latest stable)
+#   VX_INSTALL_DIR      - Installation directory (default: $HOME/.local/bin)
+#   VX_RELEASE_BASE_URLS- Comma-separated release mirror URLs
+#   GITHUB_TOKEN        - GitHub API token to avoid rate limits
+#   VX_CDN              - Set to "1" to enable CDN acceleration (disabled by default)
 
 
 set -euo pipefail
