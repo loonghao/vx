@@ -7344,6 +7344,7 @@ dependencies = [
  "futures-executor",
  "futures-sink",
  "futures-util",
+ "getrandom 0.3.4",
  "hashbrown 0.14.5",
  "hyper",
  "hyper-rustls",
