@@ -6,6 +6,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [0.8.30](https://github.com/loonghao/vx/compare/v0.8.29...v0.8.30) (2026-04-17)
+
+
+### Code Refactoring
+
+* unify progress bars and restructure docs progressively ([#812](https://github.com/loonghao/vx/issues/812)) ([1889cf4](https://github.com/loonghao/vx/commit/1889cf44718ac98bff4b07ab2d96d62ab822fcb1))
+
 ## [0.8.29](https://github.com/loonghao/vx/compare/v0.8.28...v0.8.29) (2026-04-16)
 
 
