@@ -490,16 +490,14 @@ pub struct InstallProgress {
     multi: MultiProgress,
     main_bar: ProgressBar,
     current_bar: Option<ProgressBar>,
-    #[allow(dead_code)]
-    total: u64,
     completed: u64,
 }
 
 impl InstallProgress {
     /// Create a new install progress.
-    pub fn new(total_tools: u64, title: &str) -> Self {
+    pub fn new(total_tools: usize, title: &str) -> Self {
         let multi = MultiProgress::new();
-        let main_bar = multi.add(ProgressBar::new(total_tools));
+        let main_bar = multi.add(ProgressBar::new(total_tools as u64));
         main_bar.set_style(
             ProgressStyle::with_template("{msg} [{bar:40.cyan/blue}] {pos}/{len}")
                 .expect("invalid progress template")
@@ -511,13 +509,15 @@ impl InstallProgress {
             multi,
             main_bar,
             current_bar: None,
-            total: total_tools,
             completed: 0,
         }
     }
 
     /// Start installing a tool.
-    pub fn start_tool(&mut self, name: &str) {
+    ///
+    /// Takes the tool name and version separately so the spinner message can
+    /// display them as `name@version`.
+    pub fn start_tool(&mut self, tool_name: &str, version: &str) {
         if let Some(bar) = self.current_bar.take() {
             bar.finish_and_clear();
         }
@@ -528,18 +528,28 @@ impl InstallProgress {
                 .expect("invalid progress template")
                 .tick_strings(&["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏", "✓"]),
         );
-        bar.set_message(name.to_string());
+        bar.set_message(format!("{}@{}", tool_name, version));
         bar.enable_steady_tick(Duration::from_millis(80));
         self.current_bar = Some(bar);
     }
 
-    /// Complete the current tool.
-    pub fn complete_tool(&mut self, success: bool) {
+    /// Complete the current tool installation.
+    ///
+    /// The `tool_name` and `version` are shown in the finished bar message.
+    pub fn complete_tool(&mut self, success: bool, tool_name: &str, version: &str) {
         if let Some(bar) = self.current_bar.take() {
             if success {
-                bar.finish_with_message("✓".to_string());
+                bar.finish_with_message(format!(
+                    "\x1b[32m✓\x1b[0m {}@{}",
+                    tool_name,
+                    version
+                ));
             } else {
-                bar.finish_with_message("✗".to_string());
+                bar.finish_with_message(format!(
+                    "\x1b[31m✗\x1b[0m {}@{}",
+                    tool_name,
+                    version
+                ));
             }
         }
         self.completed += 1;
