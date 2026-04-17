@@ -1,6 +1,6 @@
 # VX — Universal Development Tool Manager
 
-> **For AI agents**: This file is a **map**, not a manual. Start here, then drill into the linked docs as needed.
+> **For AI agents**: This file is an **orientation guide and quick reference** — start here, then follow the links into dedicated docs as needed.
 > If you are working on a project that uses vx, **always prefix commands with `vx`** (e.g., `vx npm install`, `vx cargo build`).
 > Also see: [`CLAUDE.md`](CLAUDE.md) for Claude Code, [`llms.txt`](llms.txt) for a concise LLM-friendly project index, [`llms-full.txt`](llms-full.txt) for detailed LLM documentation.
 >
@@ -215,157 +215,13 @@ vx dev                         # Enter dev environment
 
 ## Starlark Provider System
 
-vx uses a **two-phase execution model** (inspired by Buck2):
+vx uses a **two-phase execution model**: `provider.star` runs as pure Starlark computation (no I/O) returning descriptor dicts, which the Rust runtime then interprets for actual downloads, installs, and process execution. Four high-level templates cover 90% of cases: `github_rust_provider`, `github_go_provider`, `github_binary_provider`, and `system_provider`.
 
-1. **Analysis Phase (Starlark)**: `provider.star` runs as pure computation, returning descriptor dicts. No I/O.
-2. **Execution Phase (Rust)**: The Rust runtime interprets descriptors for actual downloads, installs, and process execution.
+For the complete DSL reference — stdlib modules, context object fields, template placeholders, and real-world examples — see [`docs/guide/provider-star-reference.md`](docs/guide/provider-star-reference.md).
 
-### Starlark Standard Library (14 modules)
+## All Providers
 
-Located in `crates/vx-starlark/stdlib/`:
-
-| Module | Key exports | Purpose |
-|--------|-------------|---------|
-| `provider.star` | *(re-exports all)* | Unified facade — import from here for convenience |
-| `runtime.star` | `runtime_def`, `bundled_runtime_def`, `dep_def` | Runtime definitions |
-| `platform.star` | `platform_map`, `platform_select`, `rust_triple`, `go_os_arch`, `archive_ext`, `exe_suffix` | Platform detection & mapping |
-| `env.star` | `env_set`, `env_prepend`, `env_append`, `env_unset` | Environment variable operations |
-| `layout.star` | `archive_layout`, `binary_layout`, `bin_subdir_layout`, `post_extract_*`, `pre_run_ensure_deps` | Install layout, hooks, path helpers |
-| `permissions.star` | `github_permissions`, `system_permissions` | Permission declarations |
-| `system_install.star` | `winget_install`, `brew_install`, `apt_install`, `cross_platform_install`, etc. | System package manager strategies |
-| `script_install.star` | `curl_bash_install`, `irm_iex_install`, `platform_script_install` | Script-based installation |
-| `provider_templates.star` | `github_rust_provider`, `github_go_provider`, `github_binary_provider`, `system_provider` | High-level templates (cover 90% of cases) |
-| `github.star` | GitHub API helpers | GitHub releases integration |
-| `http.star` | HTTP descriptors | HTTP request building |
-| `install.star` | Install descriptors | Installation helpers |
-| `semver.star` | Version comparison | Semantic version utilities |
-| `test.star` | Testing DSL | Provider test definitions |
-
-### Provider Templates (Fastest Path)
-
-```starlark
-# Rust tool from GitHub releases (most common)
-_p = github_rust_provider("BurntSushi", "ripgrep",
-    asset = "rg-{version}-{triple}.{ext}", executable = "rg")
-
-# Go tool from GitHub releases (goreleaser style)
-_p = github_go_provider("cli", "cli",
-    asset = "gh_{version}_{os}_{arch}.{ext}", executable = "gh")
-
-# Single binary download (no archive)
-_p = github_binary_provider("kubernetes", "kubectl",
-    asset = "kubectl{exe}")
-
-# System package manager only
-_p = system_provider("7zip", executable = "7z")
-```
-
-### Minimal Complete Provider Example
-
-This is the **simplest possible provider** — copy-paste and modify for new tools:
-
-```starlark
-# crates/vx-providers/mytool/provider.star
-load("@vx//stdlib:provider.star", "runtime_def", "github_permissions")
-load("@vx//stdlib:provider_templates.star", "github_rust_provider")
-
-name        = "mytool"
-description = "My awesome tool"
-ecosystem   = "custom"
-
-runtimes    = [runtime_def("mytool", aliases = ["mt"])]
-permissions = github_permissions()
-
-_p = github_rust_provider("owner", "repo",
-    asset = "mytool-{vversion}-{triple}.{ext}")
-
-fetch_versions   = _p["fetch_versions"]
-download_url     = _p["download_url"]
-install_layout   = _p["install_layout"]
-store_root       = _p["store_root"]
-get_execute_path = _p["get_execute_path"]
-environment      = _p["environment"]
-```
-
-### Real-World Provider Examples (for reference)
-
-| Provider | Pattern | File |
-|----------|---------|------|
-| ripgrep | Template (github_rust_provider) | `crates/vx-providers/ripgrep/provider.star` |
-| just | Template (github_rust_provider) | `crates/vx-providers/just/provider.star` |
-| uv | Template (github_rust_provider) | `crates/vx-providers/uv/provider.star` |
-| go | Hand-written (custom download_url) | `crates/vx-providers/go/provider.star` |
-| node | Hand-written (official API) | `crates/vx-providers/node/provider.star` |
-
-### Template Placeholders
-
-| Placeholder | Rust template | Go template | Description |
-|-------------|---------------|-------------|-------------|
-| `{version}` | ✓ | ✓ | Version number (e.g., "1.0.0") |
-| `{vversion}` | ✓ | — | With v-prefix (e.g., "v1.0.0") |
-| `{triple}` | ✓ | — | Rust target triple |
-| `{os}` | — | ✓ | Go GOOS |
-| `{arch}` | — | ✓ | Go GOARCH |
-| `{ext}` | ✓ | ✓ | Archive extension (zip/tar.gz) |
-| `{exe}` | ✓ | ✓ | Executable suffix (.exe/"") |
-
-### Starlark Context Object (`ctx`)
-
-All provider.star functions receive a `ctx` object with these fields:
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `ctx.platform.os` | string | `"windows"`, `"macos"`, `"linux"` |
-| `ctx.platform.arch` | string | `"x64"`, `"arm64"` |
-| `ctx.install_dir` | string | Where the tool will be/is installed |
-| `ctx.store_dir` | string | Global store root (`~/.vx/store`) |
-| `ctx.cache_dir` | string | Cache directory |
-| `ctx.home_dir` | string | User home directory |
-
-**Example usage in provider.star**:
-```starlark
-def download_url(ctx, version):
-    if ctx.platform.os == "windows":
-        return "https://example.com/tool-{}-win.zip".format(version)
-    return "https://example.com/tool-{}-unix.tar.gz".format(version)
-
-def environment(ctx, _version):
-    return [
-        env_prepend("PATH", ctx.install_dir + "/bin"),
-        env_set("TOOL_HOME", ctx.install_dir),
-    ]
-```
-
-## All 126 Providers
-
-Organized by category:
-
-| Category | Providers |
-|----------|-----------|
-| **JavaScript** | node, bun, deno, pnpm, yarn, nx, turbo, vite |
-| **JS Tooling** | oxlint, biome |
-| **Python** | uv, python, pre-commit, maturin, ruff |
-| **Rust** | rust (cargo, rustc, rustup) |
-| **Go** | go, gws, goreleaser, golangci-lint |
-| **System/CLI** | git, bash, curl, pwsh, jq, yq, fd, bat, ripgrep, fzf, starship, jj, sd, eza, dust, duf, xh, atuin, zoxide, tealdeer, gping, delta, hyperfine, watchexec, bottom |
-| **TUI/Terminal** | helix, yazi, zellij, lazygit, lazydocker, k9s |
-| **Build Tools** | just, task, cmake, ninja, make, meson, xmake, protoc, conan, vcpkg, spack |
-| **DevOps** | kubectl, helm, flux, kind, k3d, nerdctl, skaffold, ctlptl, tilt, podman, terraform, hadolint, dagu, actionlint |
-| **Security** | gitleaks, trivy, cosign |
-| **Cloud CLI** | awscli, azcli, gcloud |
-| **.NET** | dotnet, msbuild, nuget |
-| **C/C++** | msvc, llvm, nasm, ccache, buildcache, sccache, rcedit |
-| **Media** | ffmpeg, imagemagick |
-| **Java** | java |
-| **Other Langs** | zig |
-| **Container** | dive |
-| **Config Mgmt** | chezmoi, mise |
-| **Package Managers** | brew, choco, winget |
-| **AI** | ollama, openclaw |
-| **Data/API** | duckdb, grpcurl |
-| **VM** | lima |
-| **Git Tools** | lefthook |
-| **Misc** | gh, prek, actrun, wix, vscode, xcodebuild, systemctl, release-please, rez, 7zip, trippy |
+vx supports 126+ providers across JavaScript, Python, Rust, Go, system tools, DevOps, security, cloud, .NET, C/C++, media, and more. See [`docs/tools/overview.md`](docs/tools/overview.md) for the complete list.
 
 ## Decision Framework for AI Agents
 
@@ -403,14 +259,12 @@ Need to add a new tool to vx?
 
 ### Version Resolution Priority
 
-When determining which tool version to use, vx follows this priority:
-
 ```
-1. Command-line override: vx node@22 app.js  (highest)
+1. Command-line: vx node@22 app.js   (highest)
 2. Project vx.toml: [tools] node = "22"
 3. Parent directory vx.toml (traverses up)
-4. User global config: ~/.config/vx/config.toml
-5. Provider default: latest stable version    (lowest)
+4. User global: ~/.config/vx/config.toml
+5. Provider default: latest stable   (lowest)
 ```
 
 ## Common Tasks Quick Reference
@@ -437,34 +291,26 @@ vx meson                       # Same as: vx uv:meson
 ### For agents developing vx itself
 
 ```bash
-# Prerequisites: Rust toolchain (1.93+), just
+# One-time setup
+vx just setup-hooks            # Install git hooks
 
-# One-time setup after cloning (installs git hooks)
-vx just setup-hooks            # Enables pre-push workspace-hack auto-regen
-
-# Build
+# Build & test
 vx just build                  # Debug build
 vx just build-release          # Release build
-
-# Test
 vx just test                   # All tests (nextest)
-vx just test-fast              # Unit tests only (skip e2e)
+vx just test-fast              # Unit tests only
 vx just test-pkgs "-p vx-cli"  # Test specific crate
 
-# Code Quality
-vx just format                 # Format code
-vx just lint                   # Clippy lints
-vx just check-architecture     # Verify layer dependencies
-vx just check-file-sizes       # Enforce file size limits
-vx just doctor                 # Diagnose dev environment
+# Code quality
+vx just format                 # Format
+vx just lint                   # Clippy
+vx just check-architecture     # Verify layer deps
+vx just quick                  # format → lint → test → build (pre-commit)
 
-# Quick pre-commit cycle
-vx just quick                  # format → lint → test → build
-
-# Scoped commands (faster feedback)
-vx cargo check -p vx-cli              # Type-check one crate
-vx cargo test -p vx-starlark          # Test one crate
-vx cargo clippy -p vx-resolver -- -D warnings  # Lint one crate
+# Scoped (faster)
+vx cargo check -p vx-cli
+vx cargo test -p vx-starlark
+vx cargo clippy -p vx-resolver -- -D warnings
 ```
 
 ## Adding a New Provider
@@ -497,31 +343,24 @@ vx cargo clippy -p vx-resolver -- -D warnings  # Lint one crate
 
 ## CI Pipeline Overview
 
-The CI is **change-aware** — it detects which crates changed and only tests affected code.
+Change-aware CI — only tests affected crates:
 
 ```
 detect-changes → build-vx (multi-platform) → code-quality
                                             → test-targeted / test-full
                                             → security-audit
-                                            → coverage (main only)
-                                            → cross-build (main only)
+                                            → coverage / cross-build (main only)
                                             → docs-build
 ```
 
-**Key CI decisions**:
-- `codecov` is **informational only** (won't block merge)
-- `cancel-in-progress` prevents stale runs
-- `sccache` accelerates Rust compilation
-- `cargo-nextest` for parallel test execution
+`codecov` is informational only; `sccache` accelerates compilation; `cargo-nextest` for parallel tests.
 
 ## File Layout Conventions
 
 ```
 crates/vx-<name>/
-├── src/              # Source code
-│   └── lib.rs        # Must have module-level doc comment
-├── tests/            # Unit tests (NEVER inline #[cfg(test)])
-│   └── *_tests.rs    # Use rstest framework
+├── src/lib.rs        # Must have module-level doc comment
+├── tests/*_tests.rs  # Unit tests (NEVER inline #[cfg(test)]) — use rstest
 └── Cargo.toml
 
 crates/vx-providers/<name>/
@@ -529,130 +368,78 @@ crates/vx-providers/<name>/
 └── src/lib.rs        # Rust glue (required for built-in providers)
 
 crates/vx-starlark/stdlib/
-├── provider.star              # Unified facade (re-exports all)
-├── runtime.star               # runtime_def, bundled_runtime_def
-├── platform.star              # Platform detection
-├── env.star                   # Environment variables
-├── layout.star                # Install layout, hooks, paths
-├── permissions.star           # Permission declarations
-├── system_install.star        # Package manager strategies
-├── script_install.star        # Script-based installation
-├── provider_templates.star    # High-level templates
-├── github.star                # GitHub API helpers
-├── http.star                  # HTTP descriptors
-├── install.star               # Install descriptors
-├── semver.star                # Version comparison
-└── test.star                  # Testing DSL
+├── provider.star              # Unified facade (re-exports all 14 modules)
+├── provider_templates.star    # github_rust/go/binary_provider, system_provider
+├── platform.star, env.star, layout.star, permissions.star
+└── runtime.star, github.star, http.star, install.star, semver.star, test.star, ...
+# Full stdlib reference: docs/guide/provider-star-reference.md
 ```
 
 ## Command Syntax Guardrails
 
-**Single source of truth**: all syntax decisions and evolution rules must follow [`docs/guide/command-syntax-rules.md`](docs/guide/command-syntax-rules.md).
+**Single source of truth**: [`docs/guide/command-syntax-rules.md`](docs/guide/command-syntax-rules.md). Canonical forms:
 
-Use these canonical forms consistently in docs and examples:
-
-- Runtime execution: `vx <runtime>[@version] [args...]`
-- Runtime executable override: `vx <runtime>[@version]::<executable> [args...]`
-  - Example: `vx msvc@14.42::cl main.cpp`
-- Package execution: `vx <ecosystem>[@runtime_version]:<package>[@version][::executable] [args...]`
-  - Example: `vx uvx:pyinstaller::pyinstaller --version`
-- Multi-runtime composition: `vx --with <runtime>[@version] [--with ...] <target_command>`
-  - Example: `vx --with bun@1.1.0 --with deno node app.js`
-- Runtime shell launch (canonical): `vx shell launch <runtime>[@version] [shell]`
-  - Example: `vx shell launch node@22 powershell`
-  - Compatibility alias: `vx <runtime>::<shell>` (e.g., `vx node::powershell`)
-- Global package management (canonical): `vx pkg <install|uninstall|list|info|update> ...`
-  - Example: `vx pkg install npm:typescript`
-  - Compatibility alias: `vx global ...`
-- Project-aware execution and synchronization: `vx run`, `vx sync`, `vx lock`, `vx check`
-
-## Key Files for Context
-
-| File | Purpose |
-|------|---------|
-| `Cargo.toml` | Workspace members, shared deps, build profiles |
-| `justfile` | All development commands |
-| `clippy.toml` | Clippy configuration |
-| `codecov.yml` | Coverage thresholds |
-| `Cross.toml` | Cross-compilation config |
-| `action.yml` | GitHub Action for external users |
-| `.github/workflows/ci.yml` | Main CI pipeline |
-| `.github/workflows/maintenance.yml` | Automated tech debt scanning |
-| `vx.toml` | Project-level tool versions |
-| `llms.txt` | LLM-friendly project index (summary) |
-| `llms-full.txt` | Detailed LLM documentation (complete) |
+| Pattern | Example |
+|---------|---------|
+| `vx <runtime>[@version] [args...]` | `vx node@22 app.js` |
+| `vx <runtime>[@version]::<executable> [args...]` | `vx msvc@14.42::cl main.cpp` |
+| `vx <ecosystem>:<package>[@version] [args...]` | `vx uvx:pyinstaller --version` |
+| `vx --with <runtime> <target_command>` | `vx --with bun@1.1.0 node app.js` |
+| `vx shell launch <runtime>[@version] [shell]` | `vx shell launch node@22 powershell` |
+| `vx pkg <install\|uninstall\|list\|info\|update> ...` | `vx pkg install npm:typescript` |
+| `vx run`, `vx sync`, `vx lock`, `vx check` | Project-aware execution |
 
 ## Security Considerations
 
-- All tool downloads are from official sources (GitHub Releases, official APIs)
-- Checksums are verified automatically when available
-- `permissions` in `provider.star` declare exactly which network hosts a provider may access
+- Downloads are from official sources (GitHub Releases, official APIs); checksums verified automatically
+- `permissions` in `provider.star` declare which network hosts a provider may access
 - Never run `sudo vx install` — vx manages user-level installations under `~/.vx/`
-- `GITHUB_TOKEN` should be provided for GitHub API rate limit avoidance
+- Set `GITHUB_TOKEN` to avoid GitHub API rate limits
 
 ## PR and Commit Guidelines
 
-- **Commit messages**: Use [Conventional Commits](https://www.conventionalcommits.org/) format: `feat:`, `fix:`, `docs:`, `chore:`, `refactor:`, `test:`
-- **Branch naming**: `<type>/<short-description>` (e.g., `feat/add-zig-provider`, `fix/node-install-windows`)
-- **Before creating a PR**: Run `vx just quick` (format → lint → test → build) to ensure CI will pass
-- **Pre-commit hooks**: Run `vx prek install` once after cloning, then hooks run automatically
-- **PR scope**: Keep PRs focused — one feature or fix per PR. Split large changes into smaller PRs
-- **New providers**: Each new provider should be a separate PR with its `provider.star` file
-- **Test coverage**: Include tests for any new functionality. Tests go in `crates/<name>/tests/`
-- **Documentation**: Update relevant docs when changing user-facing behavior
+- **Commit messages**: [Conventional Commits](https://www.conventionalcommits.org/): `feat:`, `fix:`, `docs:`, `chore:`, `refactor:`, `test:`
+- **Branch naming**: `<type>/<short-description>` (e.g., `feat/add-zig-provider`)
+- **Before PR**: Run `vx just quick` (format → lint → test → build)
+- **Pre-commit hooks**: Run `vx prek install` once after cloning
+- **PR scope**: One feature or fix per PR; each new provider in its own PR
+- **Tests**: New functionality needs tests in `crates/<name>/tests/`
+- **Docs**: Update relevant docs when changing user-facing behavior
 
 ## Code Style
 
 - **Language**: Rust (edition 2024, MSRV 1.93+)
-- **Formatting**: `rustfmt` via `vx cargo fmt` — always run before committing
-- **Linting**: `clippy` with warnings as errors — `vx cargo clippy -- -D warnings`
-- **Imports**: Group by stdlib → external crates → internal crates, separated by blank lines
-- **Error handling**: Use `anyhow::Result` for application code, `thiserror` for library error types
-- **Async**: Tokio-based async/await for all I/O operations
-- **Logging**: Always use `tracing` macros (`tracing::info!`, `tracing::debug!`), never `println!` or `eprintln!`
-- **Naming**: `PascalCase` for types, `snake_case` for functions/modules, `SCREAMING_SNAKE_CASE` for constants
-- **Documentation**: All `pub` items must have doc comments; every `lib.rs` needs a module-level description
-- **File size**: Keep source files under 500 lines; split large files into modules
+- **Formatting/Linting**: `vx cargo fmt` before committing; `clippy` with `-D warnings`
+- **Imports**: stdlib → external → internal, separated by blank lines
+- **Error handling**: `anyhow::Result` for app code, `thiserror` for library error types
+- **Async**: Tokio-based async/await for all I/O
+- **Logging**: `tracing::info!`, `tracing::debug!` — never `println!` or `eprintln!`
+- **Naming**: `PascalCase` types, `snake_case` functions/modules, `SCREAMING_SNAKE_CASE` constants
+- **Docs**: All `pub` items need doc comments; every `lib.rs` needs a module-level description
+- **File size**: Keep source files under 500 lines
 
 ## Testing Conventions
 
-- Tests go in `crates/<name>/tests/` directories — **never** inline `#[cfg(test)]` modules
-- Use `rstest` for parameterized tests
-- Test file naming: `<feature>_tests.rs` (e.g., `resolver_tests.rs`, `executor_tests.rs`)
-- Run all tests: `vx just test`
-- Run single crate: `vx just test-pkgs "-p vx-starlark"`
-- E2E tests use `trycmd` for CLI snapshot testing
-- Provider static checks: `vx just test-providers-static`
-- Mock network calls in unit tests — never use real HTTP in unit tests
-- Each test should be independent — no shared mutable state between tests
+- Tests go in `crates/<name>/tests/` — **never** inline `#[cfg(test)]` modules
+- Use `rstest` for parameterized tests; name files `<feature>_tests.rs`
+- `vx just test` (all), `vx just test-pkgs "-p vx-starlark"` (single crate)
+- E2E tests use `trycmd`; provider static checks: `vx just test-providers-static`
+- Mock all network calls in unit tests; keep tests independent (no shared mutable state)
 
 ## Allowed vs. Needs-Approval Actions
 
-This section helps AI agents understand their operational boundaries:
-
 ### ✅ Allowed Without Asking
-- Read any file in the repository
-- Run `vx just quick`, `vx just test`, `vx just lint`, `vx just format`
-- Run `vx cargo check -p <crate>` or `vx cargo test -p <crate>`
-- Create or modify files under `crates/vx-providers/` (new providers)
-- Create or modify test files under `crates/*/tests/`
-- Run `vx <tool> --version` to check tool availability
+- Read any file; run `vx just quick/test/lint/format`; `vx cargo check/test -p <crate>`
+- Create or modify `crates/vx-providers/` (new providers) or `crates/*/tests/`
+- Run `vx <tool> --version`
 
 ### ⚠️ Ask First
-- Deleting any file
-- Modifying `Cargo.toml` workspace dependencies
-- Running `git push` or `git push --force`
-- Modifying CI workflows (`.github/workflows/`)
-- Installing new system-level packages
-- Running full E2E test suite (can be slow)
-- Changing architecture layer boundaries
+- Delete files; modify `Cargo.toml` workspace deps; `git push`
+- Modify CI workflows; install system packages; run full E2E suite; change layer boundaries
 
 ## GitHub Actions Integration
 
-vx provides a GitHub Action for CI/CD. See [`docs/guides/github-action.md`](docs/guides/github-action.md) for the full guide.
-
 ```yaml
-# Minimal CI usage
 - uses: loonghao/vx@main
   with:
     tools: 'node@22 uv'
@@ -663,241 +450,42 @@ vx provides a GitHub Action for CI/CD. See [`docs/guides/github-action.md`](docs
 - run: vx npm test
 ```
 
-> **Tip**: Use `@main` for latest, or pin to a release tag (e.g., `@vx-v0.8.20`).
-> Check [releases](https://github.com/loonghao/vx/releases) for available versions.
-
-### GitHub Copilot File-Scoped Instructions
-
-In addition to the repository-wide `.github/copilot-instructions.md`, vx provides **file-scoped instructions** in `.github/instructions/`:
-
-| File | Scope | Purpose |
-|------|-------|---------|
-| `rust-code.instructions.md` | `**/*.rs` | Rust coding standards, vx-specific rules, architecture layers |
-| `starlark-providers.instructions.md` | `crates/vx-providers/*/provider.star` | Provider development templates, platform constraints |
-| `testing.instructions.md` | `crates/*/tests/**/*.rs`, `tests/**/*.rs` | Test conventions, rstest patterns, mock usage |
-
-These use the `applyTo` frontmatter format and are automatically loaded by GitHub Copilot when editing matching files.
+Use `@main` for latest, or pin to a release tag. Full guide: [`docs/guides/github-action.md`](docs/guides/github-action.md).
 
 ## AI Agent Ecosystem
 
-vx is designed to be **AI-agent-first**. It provides configuration files for 17+ AI coding assistants, ensuring that any AI agent working with vx-managed projects automatically understands how to use `vx` correctly.
-
-### Why vx Matters for AI Agents
-
-Traditional tool management creates friction for AI agents:
-- **Without vx**: AI must guess if Node.js is installed, check `nvm` vs `fnm` vs system install, handle version mismatches — all before running a single `npm install`.
-- **With vx**: AI just prefixes `vx` → tool auto-installs → command runs. Zero ambiguity, zero setup.
-
-**Key insight (from ETH Zurich research)**: AI agents perform best when given non-inferable details — information they cannot discover by reading code alone. vx's `AGENTS.md` focuses on exactly this: the `vx` prefix requirement, correct terminology, and architecture layer rules that no AI could guess from code inspection.
+vx is designed to be **AI-agent-first**, providing configuration files for 17+ AI coding assistants. Traditional tool management creates friction for AI agents: without vx, an AI must guess if Node.js is installed, check `nvm` vs `fnm` vs system install, and handle version mismatches — all before running a single `npm install`. With vx, the AI just prefixes `vx` → tool auto-installs → command runs. Zero ambiguity, zero setup.
 
 ### How AI Agents Should Use vx
 
 1. **Check for `vx.toml`** in the project root → if present, always use `vx` prefix
 2. **Never suggest manual installation** of any tool — `vx` handles it
 3. **Use structured output** for parsing: `vx list --json` or `vx list --format toon` (saves 40-60% tokens)
-4. **For MCP servers**, replace `npx`/`uvx` with `vx` in the config
+4. **For MCP servers**, replace `npx`/`uvx` with `vx` in the config:
+   ```json
+   {
+     "mcpServers": {
+       "server": {
+         "command": "vx",
+         "args": ["npx", "-y", "@example/mcp-server@latest"]
+       }
+     }
+   }
+   ```
 5. **For CI/CD**, use `loonghao/vx@main` GitHub Action with `cache: 'true'`
-
-### Supported AI Agents
-
-| Agent | Config File(s) | Format |
-|-------|---------------|--------|
-| **OpenAI Codex** | `AGENTS.md` | Markdown |
-| **Claude Code** | `CLAUDE.md` | Markdown with @imports |
-| **GitHub Copilot** | `.github/copilot-instructions.md`, `.github/instructions/*.instructions.md` | Markdown with YAML frontmatter |
-| **Cursor** | `.cursor/rules/*.mdc`, `.cursorrules` | MDC (YAML frontmatter + Markdown) |
-| **Cline / Roo** | `.clinerules` | Markdown |
-| **Windsurf** | `.windsurfrules` | Markdown |
-| **Kiro** | `.kiro/steering/*.md` | Markdown |
-| **Trae** | `.trae/rules/*.md` | Markdown |
-| **Google Jules** | `AGENTS.md` | Markdown |
-| **Amp** | `AGENTS.md` | Markdown |
-| **Augment** | `AGENTS.md` | Markdown |
-| **Devin** | `AGENTS.md` | Markdown |
-| **Aider** | `AGENTS.md` | Markdown |
-| **Zed** | `AGENTS.md` | Markdown |
-| **OpenCode** | `AGENTS.md` | Markdown |
-| **JetBrains Junie** | `AGENTS.md` | Markdown |
-| **CodeBuddy** | `.codebuddy/skills/` | SKILL.md |
-
-### AI Agent Skills (distributed via `vx ai setup`)
-
-vx ships 5 AI agent skills that are distributed to all supported agents:
-
-| Skill | Size | When to use |
-|-------|------|-------------|
-| `vx-usage` | ~15 KB | General usage, commands, MCP integration |
-| `vx-commands` | ~6 KB | CLI command reference, specific flags |
-| `vx-project` | ~6 KB | Project setup, vx.toml, monorepo config |
-| `vx-best-practices` | ~11 KB | Team workflows, provider development |
-| `vx-troubleshooting` | ~8 KB | Error diagnosis, recovery procedures |
-
-### MCP Integration (Model Context Protocol)
-
-vx is **MCP-ready** — replace `npx`/`uvx` with `vx` in any MCP server config:
-
-```json
-{
-  "mcpServers": {
-    "server": {
-      "command": "vx",
-      "args": ["npx", "-y", "@example/mcp-server@latest"]
-    }
-  }
-}
-```
-
-**Key benefit**: Users don't need to install Node.js or Python separately — vx handles it automatically when the MCP server starts. This is especially valuable in CI/CD environments and fresh developer setups.
-
-| User's current config | Replace with |
-|----------------------|--------------|
-| `"command": "npx"` | `"command": "vx", "args": ["npx", ...]` |
-| `"command": "uvx"` | `"command": "vx", "args": ["uvx", ...]` |
-| `"command": "node"` | `"command": "vx", "args": ["node", ...]` |
-| `"command": "python"` | `"command": "vx", "args": ["python", ...]` |
-
-## Documentation Map
-
-```
-# AI Agent Ecosystem (root files — 17+ agents supported)
-AGENTS.md                 # THIS FILE — primary AI agent entry point (cross-tool standard)
-CLAUDE.md                 # Claude Code instructions (@import supported)
-llms.txt                  # LLM-friendly project index (llmstxt.org protocol)
-llms-full.txt             # Detailed LLM documentation
-
-# Agent-specific config files
-.github/copilot-instructions.md  # GitHub Copilot instructions (repo-wide)
-.github/instructions/            # GitHub Copilot file-scoped instructions (3 files)
-.cursorrules              # Cursor IDE agent rules (legacy format)
-.cursor/rules/*.mdc       # Cursor IDE rules (modern .mdc format, 4 files)
-.clinerules               # Cline/Roo agent rules
-.windsurfrules            # Windsurf AI IDE rules
-.kiro/steering/           # Kiro AI IDE steering documents
-.trae/rules/              # Trae AI IDE project rules
-
-# Documentation site
-docs/
-├── architecture/     # System architecture (OVERVIEW.md)
-├── guide/            # User guides (22 files — getting-started, provider-star-reference, etc.)
-├── cli/              # CLI command reference (17 commands)
-├── config/           # Configuration reference (vx-toml, env-vars, etc.)
-├── tools/            # Tool category docs (14 categories)
-├── advanced/         # Contributing, security, extension development
-├── guides/           # Practical guides (GitHub Actions, use cases)
-├── rfcs/             # 50 design decision documents
-├── appendix/         # FAQ, troubleshooting
-└── zh/               # Chinese translations (72+ files)
-
-# AI Agent Skills (distributed via vx ai setup and ClawHub)
-skills/
-├── vx-usage/SKILL.md           # Core usage guide
-├── vx-commands/SKILL.md        # CLI command reference
-├── vx-project/SKILL.md         # Project management
-├── vx-best-practices/SKILL.md  # Best practices & provider development
-└── vx-troubleshooting/SKILL.md # Troubleshooting & recovery
-```
-
-### Crate Responsibilities Quick Reference
-
-When you need to modify specific functionality, here's where to look:
-
-| What you need | Crate | Key files |
-|---------------|-------|-----------|
-| Add CLI subcommand | `vx-cli` | `src/cli.rs`, `src/commands/` |
-| Modify execution logic | `vx-resolver` | `src/executor.rs`, `src/resolver.rs` |
-| Add/modify Starlark stdlib | `vx-starlark` | `stdlib/*.star`, `src/stdlib.rs` |
-| Change provider loading | `vx-starlark` | `src/engine.rs`, `src/handle.rs` |
-| Modify runtime registry | `vx-runtime` | `src/registry/` |
-| Change install behavior | `vx-installer` | `src/lib.rs` |
-| Modify version fetching | `vx-version-fetcher` | `src/lib.rs` |
-| Change path conventions | `vx-paths` | `src/lib.rs` |
-| Modify config loading | `vx-config` | `src/lib.rs` |
-| Add project detection | `vx-project-analyzer` | `src/frameworks/` |
-| Change console output | `vx-console` | `src/lib.rs` |
-| Core trait definitions | `vx-core` | `src/lib.rs` |
-| Add a new provider | `vx-providers/<name>` | `provider.star` |
-
-### Key Configuration Files
-
-| File | Purpose | When to modify |
-|------|---------|----------------|
-| `Cargo.toml` (root) | Workspace deps, build profiles | Adding dependencies, new crates |
-| `justfile` | All dev commands | Adding new dev workflows |
-| `clippy.toml` | Lint configuration | Adjusting lint rules |
-| `codecov.yml` | Coverage thresholds | Changing coverage requirements |
-| `vx.toml` | Project tool versions | Updating project tool requirements |
-| `action.yml` | GitHub Action definition | Modifying CI/CD action inputs/outputs |
 
 ## Quick Diagnostics for AI Agents
 
-If something doesn't work, try these steps in order:
-
 ```bash
-# 1. Check vx health
-vx doctor
-
-# 2. Check what's installed
-vx list --installed
-
-# 3. Verify specific tool
-vx which node
-vx node --version
-
-# 4. Debug with verbose output
-vx --debug node --version
-
-# 5. Clean cache and retry
-vx cache clean
-vx install node --force
-
-# 6. Check project config
-vx check --json
+vx doctor                      # 1. Check vx health
+vx list --installed            # 2. Check installed tools
+vx which node && vx node --version  # 3. Verify a specific tool
+vx --debug node --version      # 4. Verbose debug output
+vx cache clean && vx install node --force  # 5. Clean & retry
+vx check --json                # 6. Check project config
 ```
 
-### Troubleshooting Decision Tree
-
-```
-User reports an issue with vx:
-│
-├─ "command not found: vx"
-│  → vx is not installed
-│  → Linux/macOS: curl -fsSL https://raw.githubusercontent.com/loonghao/vx/main/install.sh | bash
-│  → Windows: powershell -c "irm https://raw.githubusercontent.com/loonghao/vx/main/install.ps1 | iex"
-│
-├─ "Failed to download" / network error (exit code 5)
-│  → vx cache clean && vx install <tool> --verbose
-│  → If in China: vx config set cdn_acceleration true
-│  → Ensure GITHUB_TOKEN is set for API rate limits
-│
-├─ "version not found" (exit code 4)
-│  → vx versions <tool> to list available versions
-│  → Check for typos in version string
-│  → Try: vx install <tool>@latest
-│
-├─ "permission denied" (exit code 6)
-│  → Check permissions: ls -la ~/.vx (Unix) or icacls %USERPROFILE%\.vx (Windows)
-│  → Fix: chmod -R u+rw ~/.vx
-│  → Never use sudo with vx
-│
-├─ Wrong tool version running
-│  → vx which <tool> to see active version
-│  → Check vx.toml for version constraints
-│  → vx switch <tool>@<version>
-│
-├─ vx.toml not being picked up (exit code 7)
-│  → Ensure file is in project root (same dir as .git)
-│  → vx check to validate syntax
-│
-├─ CI failing with vx
-│  → Use GitHub Action: loonghao/vx@main
-│  → Add github-token for rate limit avoidance
-│  → Use cache: 'true' for faster CI
-│
-└─ General error (exit code 1)
-   → vx doctor for full diagnostics
-   → vx --debug <command> for detailed logs
-   → vx cache clean to clear corrupted state
-```
+For a full error-by-error decision tree, see [`docs/appendix/troubleshooting.md`](docs/appendix/troubleshooting.md).
 
 ### Exit Codes
 
@@ -914,31 +502,41 @@ User reports an issue with vx:
 
 ### AI-Optimized Output
 
-vx supports structured output for efficient agent consumption:
-
 ```bash
-vx list --json                    # JSON output
-vx list --format toon             # Token-optimized output (saves 40-60% tokens)
-vx analyze --json                 # Project analysis as JSON
-vx ai context --json              # Full AI-friendly context
-export VX_OUTPUT=json             # Default all commands to JSON
+vx list --json             # JSON output
+vx list --format toon      # Token-optimized (saves 40-60% tokens)
+vx analyze --json          # Project analysis
+vx ai context --json       # Full AI context
+export VX_OUTPUT=json      # Default all commands to JSON
 ```
 
-## Skills Distribution
+## Documentation Map
 
-vx ships AI agent skills in the [`skills/`](skills/) directory. These skills are the **single source of truth** shared across 17+ AI agents:
+```
+# Root files
+AGENTS.md         # THIS FILE — primary AI agent entry point
+CLAUDE.md         # Claude Code instructions
+llms.txt          # LLM-friendly project index
+llms-full.txt     # Detailed LLM documentation
 
-```bash
-# Install skills to all AI agents
-vx ai setup
+# Agent config files: .github/copilot-instructions.md, .github/instructions/,
+#   .cursorrules, .cursor/rules/*.mdc, .clinerules, .windsurfrules,
+#   .kiro/steering/, .trae/rules/
 
-# Skills directory structure
+# Documentation site
+docs/
+├── architecture/     # System architecture (OVERVIEW.md)
+├── guide/            # User guides — getting-started, provider-star-reference, etc.
+├── cli/              # CLI command reference (17 commands)
+├── config/           # vx-toml, env-vars, etc.
+├── tools/            # Tool category docs (14 categories)
+├── advanced/         # Contributing, security, extension development
+├── guides/           # GitHub Actions, use cases
+├── rfcs/             # 50 design decision documents
+├── appendix/         # FAQ, troubleshooting
+└── zh/               # Chinese translations
+
+# AI Agent Skills (vx ai setup)
 skills/
-├── vx-usage/SKILL.md           # Core usage guide
-├── vx-commands/SKILL.md        # CLI command reference
-├── vx-project/SKILL.md         # Project management
-├── vx-best-practices/SKILL.md  # Best practices & provider development
-└── vx-troubleshooting/SKILL.md # Troubleshooting & recovery
+├── vx-usage, vx-commands, vx-project, vx-best-practices, vx-troubleshooting
 ```
-
-These skills trigger automatically when the project contains `vx.toml` or `.vx/`, or when the user mentions `vx`, tool version management, or cross-platform setup.
