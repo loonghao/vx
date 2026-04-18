@@ -6,6 +6,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [0.8.31](https://github.com/loonghao/vx/compare/v0.8.30...v0.8.31) (2026-04-18)
+
+
+### Features
+
+* **cli:** overhaul vx add/remove with format-preserving edits ([c391912](https://github.com/loonghao/vx/commit/c39191214ea7b8782347ae52b1dd7726f5d2c667))
+
 ## [0.8.30](https://github.com/loonghao/vx/compare/v0.8.29...v0.8.30) (2026-04-17)
 
 
