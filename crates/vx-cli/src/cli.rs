@@ -523,20 +523,59 @@ pub enum Commands {
         list_templates: bool,
     },
 
-    /// Add a tool to project configuration (vx.toml)
+    /// Add one or more tools to project configuration (vx.toml + vx.lock)
+    ///
+    /// Inspired by `cargo add` / `uv add` / `pnpm add`. Edits vx.toml preserving
+    /// comments, updates vx.lock, and installs the tools by default.
+    ///
+    /// Examples:
+    ///   vx add node@22 python@3.12      # add multiple tools
+    ///   vx add ripgrep                   # latest version
+    ///   vx add pwsh@7.4 --os windows     # platform-scoped
+    ///   vx add node --no-install         # only edit vx.toml + vx.lock
+    ///   vx add node --dry-run            # preview changes
     Add {
-        /// Tool name (e.g., node, python, uv)
-        tool: String,
-        /// Version to use (default: latest)
+        /// Tools to add (e.g., node, python@3.12, uv@latest)
+        #[arg(required = true, num_args = 1..)]
+        tools: Vec<String>,
+        /// Don't install tools after adding (only edit vx.toml + vx.lock)
         #[arg(long)]
-        version: Option<String>,
+        no_install: bool,
+        /// Don't update vx.lock
+        #[arg(long)]
+        no_lock: bool,
+        /// Fail if resolution would change vx.lock
+        #[arg(long)]
+        frozen: bool,
+        /// Preview changes without writing files
+        #[arg(long)]
+        dry_run: bool,
+        /// Overwrite existing entries even when the version matches
+        #[arg(long)]
+        force: bool,
+        /// Restrict to specific platforms (comma-separated: windows,linux,macos)
+        #[arg(long, value_delimiter = ',')]
+        os: Vec<String>,
+        /// Show verbose output
+        #[arg(short, long)]
+        verbose: bool,
     },
 
-    /// Remove a tool from project configuration (vx.toml)
+    /// Remove one or more tools from project configuration (vx.toml + vx.lock)
+    ///
+    /// Does NOT uninstall already-installed versions from the vx store.
+    /// Use `vx uninstall <tool>` for that.
     #[command(alias = "rm")]
     Remove {
-        /// Tool name to remove
-        tool: String,
+        /// Tools to remove
+        #[arg(required = true, num_args = 1..)]
+        tools: Vec<String>,
+        /// Preview changes without writing files
+        #[arg(long)]
+        dry_run: bool,
+        /// Don't update vx.lock
+        #[arg(long)]
+        no_lock: bool,
     },
 
     /// Sync project tools from vx.toml
@@ -1870,11 +1909,33 @@ impl CommandHandler for Commands {
                 .await
             }
 
-            Commands::Add { tool, version } => {
-                commands::setup::add_tool(tool, version.as_deref()).await
+            Commands::Add {
+                tools,
+                no_install,
+                no_lock,
+                frozen,
+                dry_run,
+                force,
+                os,
+                verbose,
+            } => {
+                let opts = commands::add::AddOptions {
+                    no_install: *no_install,
+                    no_lock: *no_lock,
+                    frozen: *frozen,
+                    dry_run: *dry_run,
+                    force: *force,
+                    os: os.clone(),
+                    verbose: *verbose,
+                };
+                commands::add::handle(ctx.registry(), tools, opts).await
             }
 
-            Commands::Remove { tool } => commands::setup::remove_tool(tool).await,
+            Commands::Remove {
+                tools,
+                dry_run,
+                no_lock,
+            } => commands::setup::remove_tools(tools, *dry_run, *no_lock).await,
 
             Commands::Run {
                 script,
