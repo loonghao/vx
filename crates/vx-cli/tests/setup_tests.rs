@@ -35,8 +35,11 @@ auto_install = true
     )
     .expect("Failed to write vx.toml");
 
-    let output = run_vx_in_dir(temp_dir.path(), &["add", "uv", "--version", "latest"])
-        .expect("Failed to run vx add");
+    let output = run_vx_in_dir(
+        temp_dir.path(),
+        &["add", "uv@latest", "--no-install", "--no-lock"],
+    )
+    .expect("Failed to run vx add");
 
     if is_success(&output) {
         let content =
@@ -75,8 +78,11 @@ parallel_install = false
     )
     .expect("Failed to write vx.toml");
 
-    let output = run_vx_in_dir(temp_dir.path(), &["add", "go", "--version", "latest"])
-        .expect("Failed to run vx add");
+    let output = run_vx_in_dir(
+        temp_dir.path(),
+        &["add", "go@latest", "--no-install", "--no-lock"],
+    )
+    .expect("Failed to run vx add");
 
     if is_success(&output) {
         let content =
@@ -114,8 +120,11 @@ cache_duration = "7d"
     )
     .expect("Failed to write vx.toml");
 
-    let output = run_vx_in_dir(temp_dir.path(), &["add", "node", "--version", "20"])
-        .expect("Failed to run vx add");
+    let output = run_vx_in_dir(
+        temp_dir.path(),
+        &["add", "node@20", "--no-install", "--no-lock"],
+    )
+    .expect("Failed to run vx add");
 
     if is_success(&output) {
         let content =
@@ -151,8 +160,11 @@ cache_duration = "7d"
     .expect("Failed to write vx.toml");
 
     // Add a tool
-    let output = run_vx_in_dir(temp_dir.path(), &["add", "uv", "--version", "latest"])
-        .expect("Failed to run vx add");
+    let output = run_vx_in_dir(
+        temp_dir.path(),
+        &["add", "uv@latest", "--no-install", "--no-lock"],
+    )
+    .expect("Failed to run vx add");
 
     if is_success(&output) {
         // Verify config can still be parsed
@@ -189,10 +201,16 @@ cache_duration = "7d"
     .expect("Failed to write vx.toml");
 
     // Add first tool
-    let _ = run_vx_in_dir(temp_dir.path(), &["add", "uv", "--version", "latest"]);
+    let _ = run_vx_in_dir(
+        temp_dir.path(),
+        &["add", "uv@latest", "--no-install", "--no-lock"],
+    );
 
     // Add second tool
-    let _ = run_vx_in_dir(temp_dir.path(), &["add", "node", "--version", "20"]);
+    let _ = run_vx_in_dir(
+        temp_dir.path(),
+        &["add", "node@20", "--no-install", "--no-lock"],
+    );
 
     // Verify config is still valid
     let output =

@@ -448,6 +448,131 @@ pub async fn remove_tool(tool: &str) -> Result<()> {
     Ok(())
 }
 
+/// Remove one or more tools from the project configuration using a
+/// format-preserving TOML edit. Also prunes `vx.lock` unless `no_lock`.
+///
+/// Unlike `remove_tool`, this:
+/// - accepts multiple tools
+/// - preserves comments and formatting in `vx.toml`
+/// - updates `vx.lock` to drop the removed entries
+pub async fn remove_tools(tools: &[String], dry_run: bool, no_lock: bool) -> Result<()> {
+    use std::collections::HashSet;
+    use toml_edit::{DocumentMut, Item};
+    use vx_paths::project::LOCK_FILE_NAME;
+    use vx_resolver::LockFile;
+
+    if tools.is_empty() {
+        anyhow::bail!("no tools specified; usage: vx remove <tool>...");
+    }
+
+    let current_dir = env::current_dir().context("Failed to get current directory")?;
+    let config_path = find_config_in_current_dir(&current_dir)?;
+    let project_root = config_path.parent().unwrap_or(&current_dir).to_path_buf();
+
+    // Read and parse document (format-preserving).
+    let original = fs::read_to_string(&config_path)
+        .with_context(|| format!("failed to read {}", config_path.display()))?;
+    let mut doc: DocumentMut = original
+        .parse()
+        .with_context(|| format!("failed to parse {}", config_path.display()))?;
+
+    let tools_table = match doc.get_mut("tools").and_then(|i| i.as_table_mut()) {
+        Some(t) => t,
+        None => {
+            UI::warn("vx.toml has no [tools] section");
+            return Ok(());
+        }
+    };
+
+    let mut removed: Vec<String> = Vec::new();
+    let mut missing: Vec<String> = Vec::new();
+
+    for name in tools {
+        match tools_table.remove(name) {
+            Some(Item::None) | None => missing.push(name.clone()),
+            Some(_) => removed.push(name.clone()),
+        }
+    }
+
+    if !missing.is_empty() {
+        UI::warn(&format!(
+            "Tool(s) not found in vx.toml: {}",
+            missing.join(", ")
+        ));
+    }
+
+    if removed.is_empty() {
+        return Ok(());
+    }
+
+    if dry_run {
+        UI::section("Planned changes to vx.toml");
+        for name in &removed {
+            println!("  - {}", name);
+        }
+        println!("\n--- vx.toml (proposed) ---");
+        println!("{}", doc);
+        return Ok(());
+    }
+
+    fs::write(&config_path, doc.to_string())
+        .with_context(|| format!("failed to write {}", config_path.display()))?;
+
+    UI::success(&format!(
+        "Removed {} tool(s) from {}",
+        removed.len(),
+        config_path
+            .file_name()
+            .unwrap_or_default()
+            .to_string_lossy()
+    ));
+    for name in &removed {
+        UI::detail(&format!("  - {}", name));
+    }
+
+    // Prune vx.lock unless disabled.
+    if !no_lock {
+        let lock_path = project_root.join(LOCK_FILE_NAME);
+        if lock_path.exists() {
+            match LockFile::load(&lock_path) {
+                Ok(mut lock) => {
+                    // Build the set of tools to keep (everything currently locked
+                    // minus the removed tools).
+                    let removed_set: HashSet<String> = removed.iter().cloned().collect();
+                    // `tool_names()` returns `Vec<&str>`; `HashSet<String>::contains`
+                    // can take `&str` via deref coercion without allocating.
+                    let keep: HashSet<String> = lock
+                        .tool_names()
+                        .into_iter()
+                        .filter(|name| {
+                            let owned: &str = name;
+                            !removed_set.iter().any(|r| r == owned)
+                        })
+                        .map(|s| s.to_string())
+                        .collect();
+                    let pruned = lock.prune(&keep);
+                    if !pruned.is_empty() {
+                        lock.save(&lock_path)
+                            .with_context(|| format!("failed to save {}", lock_path.display()))?;
+                        UI::detail(&format!(
+                            "Pruned {} entr(y/ies) from {}",
+                            pruned.len(),
+                            LOCK_FILE_NAME
+                        ));
+                    }
+                }
+                Err(e) => {
+                    UI::warn(&format!("Failed to prune {}: {}", LOCK_FILE_NAME, e));
+                }
+            }
+        }
+    }
+
+    UI::hint("Use `vx uninstall <tool>` to also delete installed versions from the vx store.");
+
+    Ok(())
+}
+
 /// Update a tool version in the project configuration
 pub async fn update_tool(tool: &str, version: &str) -> Result<()> {
     let current_dir = env::current_dir().context("Failed to get current directory")?;

@@ -735,14 +735,13 @@ fn test_cli_dev_with_command() {
 // ============================================
 
 #[test]
-fn test_cli_add_command() {
-    let args = vec!["vx", "add", "node", "--version", "18.0.0"];
+fn test_cli_add_command_with_version_spec() {
+    let args = vec!["vx", "add", "node@18.0.0"];
     let cli = Cli::try_parse_from(args).unwrap();
 
     match cli.command {
-        Some(Commands::Add { tool, version }) => {
-            assert_eq!(tool, "node");
-            assert_eq!(version, Some("18.0.0".to_string()));
+        Some(Commands::Add { tools, .. }) => {
+            assert_eq!(tools, vec!["node@18.0.0".to_string()]);
         }
         _ => panic!("Expected Add command"),
     }
@@ -754,9 +753,67 @@ fn test_cli_add_without_version() {
     let cli = Cli::try_parse_from(args).unwrap();
 
     match cli.command {
-        Some(Commands::Add { tool, version }) => {
-            assert_eq!(tool, "python");
-            assert!(version.is_none());
+        Some(Commands::Add {
+            tools, no_install, ..
+        }) => {
+            assert_eq!(tools, vec!["python".to_string()]);
+            assert!(!no_install);
+        }
+        _ => panic!("Expected Add command"),
+    }
+}
+
+#[test]
+fn test_cli_add_multiple_tools() {
+    let args = vec!["vx", "add", "node@22", "python@3.12", "uv"];
+    let cli = Cli::try_parse_from(args).unwrap();
+
+    match cli.command {
+        Some(Commands::Add { tools, .. }) => {
+            assert_eq!(
+                tools,
+                vec![
+                    "node@22".to_string(),
+                    "python@3.12".to_string(),
+                    "uv".to_string()
+                ]
+            );
+        }
+        _ => panic!("Expected Add command"),
+    }
+}
+
+#[test]
+fn test_cli_add_with_flags() {
+    let args = vec![
+        "vx",
+        "add",
+        "node@22",
+        "--no-install",
+        "--no-lock",
+        "--dry-run",
+        "--force",
+        "--os",
+        "windows,linux",
+    ];
+    let cli = Cli::try_parse_from(args).unwrap();
+
+    match cli.command {
+        Some(Commands::Add {
+            tools,
+            no_install,
+            no_lock,
+            dry_run,
+            force,
+            os,
+            ..
+        }) => {
+            assert_eq!(tools, vec!["node@22".to_string()]);
+            assert!(no_install);
+            assert!(no_lock);
+            assert!(dry_run);
+            assert!(force);
+            assert_eq!(os, vec!["windows".to_string(), "linux".to_string()]);
         }
         _ => panic!("Expected Add command"),
     }
@@ -768,8 +825,24 @@ fn test_cli_remove_command() {
     let cli = Cli::try_parse_from(args).unwrap();
 
     match cli.command {
-        Some(Commands::Remove { tool }) => {
-            assert_eq!(tool, "node");
+        Some(Commands::Remove { tools, .. }) => {
+            assert_eq!(tools, vec!["node".to_string()]);
+        }
+        _ => panic!("Expected Remove command"),
+    }
+}
+
+#[test]
+fn test_cli_remove_multiple_tools() {
+    let args = vec!["vx", "remove", "node", "python", "uv"];
+    let cli = Cli::try_parse_from(args).unwrap();
+
+    match cli.command {
+        Some(Commands::Remove { tools, .. }) => {
+            assert_eq!(
+                tools,
+                vec!["node".to_string(), "python".to_string(), "uv".to_string()]
+            );
         }
         _ => panic!("Expected Remove command"),
     }
@@ -781,8 +854,8 @@ fn test_cli_remove_alias_rm() {
     let cli = Cli::try_parse_from(args).unwrap();
 
     match cli.command {
-        Some(Commands::Remove { tool }) => {
-            assert_eq!(tool, "python");
+        Some(Commands::Remove { tools, .. }) => {
+            assert_eq!(tools, vec!["python".to_string()]);
         }
         _ => panic!("Expected Remove command (via rm alias)"),
     }
