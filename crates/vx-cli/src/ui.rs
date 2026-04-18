@@ -249,9 +249,9 @@ impl SimpleSpinner {
 
 // Re-export progress types from vx-console for unified progress management.
 // All progress bars use the same style and global ProgressManager instance.
+/// Alias kept for backward compatibility.
+pub use vx_console::MultiStepProgress as MultiProgress;
 pub use vx_console::{
     DownloadProgress, InstallProgress, ManagedDownload, ManagedSpinner, ManagedTask,
     MultiStepProgress, ProgressSpinner,
 };
-/// Alias kept for backward compatibility.
-pub use vx_console::MultiStepProgress as MultiProgress;
