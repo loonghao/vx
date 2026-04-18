@@ -791,8 +791,8 @@ uv = "latest"
     )
     .expect("Failed to write vx.toml");
 
-    let output = run_vx_in_dir(temp_dir.path(), &["rm", "uv", "--no-lock"])
-        .expect("Failed to run vx rm");
+    let output =
+        run_vx_in_dir(temp_dir.path(), &["rm", "uv", "--no-lock"]).expect("Failed to run vx rm");
 
     if is_success(&output) {
         // Verify tool was removed
