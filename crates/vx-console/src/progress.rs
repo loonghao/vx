@@ -539,17 +539,9 @@ impl InstallProgress {
     pub fn complete_tool(&mut self, success: bool, tool_name: &str, version: &str) {
         if let Some(bar) = self.current_bar.take() {
             if success {
-                bar.finish_with_message(format!(
-                    "\x1b[32m✓\x1b[0m {}@{}",
-                    tool_name,
-                    version
-                ));
+                bar.finish_with_message(format!("\x1b[32m✓\x1b[0m {}@{}", tool_name, version));
             } else {
-                bar.finish_with_message(format!(
-                    "\x1b[31m✗\x1b[0m {}@{}",
-                    tool_name,
-                    version
-                ));
+                bar.finish_with_message(format!("\x1b[31m✗\x1b[0m {}@{}", tool_name, version));
             }
         }
         self.completed += 1;
