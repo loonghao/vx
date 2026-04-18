@@ -737,8 +737,11 @@ node = "20"
     )
     .expect("Failed to write vx.toml");
 
-    let output = run_vx_in_dir(temp_dir.path(), &["add", "uv", "--version", "latest"])
-        .expect("Failed to run vx add");
+    let output = run_vx_in_dir(
+        temp_dir.path(),
+        &["add", "uv@latest", "--no-install", "--no-lock"],
+    )
+    .expect("Failed to run vx add");
 
     if is_success(&output) {
         // Verify tool was added
@@ -788,8 +791,8 @@ uv = "latest"
     )
     .expect("Failed to write vx.toml");
 
-    let output =
-        run_vx_in_dir(temp_dir.path(), &["rm-tool", "uv"]).expect("Failed to run vx rm-tool");
+    let output = run_vx_in_dir(temp_dir.path(), &["rm", "uv", "--no-lock"])
+        .expect("Failed to run vx rm");
 
     if is_success(&output) {
         // Verify tool was removed
@@ -827,8 +830,11 @@ cache_duration = "7d"
     )
     .expect("Failed to write vx.toml");
 
-    let output = run_vx_in_dir(temp_dir.path(), &["add", "uv", "--version", "latest"])
-        .expect("Failed to run vx add");
+    let output = run_vx_in_dir(
+        temp_dir.path(),
+        &["add", "uv@latest", "--no-install", "--no-lock"],
+    )
+    .expect("Failed to run vx add");
 
     if is_success(&output) {
         // Verify config can still be parsed (boolean values are not quoted)
@@ -880,8 +886,11 @@ cache_duration = "7d"
     )
     .expect("Failed to write vx.toml");
 
-    let output = run_vx_in_dir(temp_dir.path(), &["add", "go", "--version", "latest"])
-        .expect("Failed to run vx add");
+    let output = run_vx_in_dir(
+        temp_dir.path(),
+        &["add", "go@latest", "--no-install", "--no-lock"],
+    )
+    .expect("Failed to run vx add");
 
     if is_success(&output) {
         // Verify both boolean values are preserved correctly
