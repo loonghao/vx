@@ -8,7 +8,7 @@
 #
 # Note: Alpine was rejected (musl incompatible), Debian Bookworm rejected (glibc 2.36 too old)
 
-FROM ubuntu:24.04
+FROM ubuntu:26.04
 
 LABEL org.opencontainers.image.title="vx"
 LABEL org.opencontainers.image.description="Universal version manager for developer tools"

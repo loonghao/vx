@@ -16,7 +16,7 @@
 # - All tools installed by vx use glibc binaries
 # - No "GLIBC_X.XX not found" errors
 
-FROM ubuntu:24.04
+FROM ubuntu:26.04
 
 LABEL org.opencontainers.image.title="vx-tools"
 LABEL org.opencontainers.image.description="Universal version manager with pre-installed common tools"
