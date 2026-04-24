@@ -254,7 +254,7 @@ jobs:
     if: needs.check-changes.outputs.should_run == 'true' || github.event_name == 'workflow_dispatch'
     container:
       # Use Ubuntu 24.04 for testing to match the actual tools image (glibc 2.39)
-      image: ubuntu:24.04
+      image: ubuntu:26.04
     steps:
       - name: Install dependencies
         run: |
