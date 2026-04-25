@@ -14,6 +14,7 @@ pub mod cli;
 pub mod commands;
 pub mod config;
 pub mod error_handler;
+pub mod npm_global_bridge;
 pub mod output;
 pub mod registry;
 pub mod suggestions;
@@ -324,6 +325,19 @@ async fn execute_tool(
 
     // Check if it's a known runtime first
     let is_known_runtime = ctx.registry().get_runtime(&request.name).is_some();
+
+    // Bridge `vx npm install -g ...` to vx global package flow so that
+    // installed executables are tracked and shimmed under ~/.vx/shims.
+    if matches!(
+        request.name.to_ascii_lowercase().as_str(),
+        "npm" | "pnpm" | "yarn" | "pip" | "cargo" | "go" | "gem"
+    ) && request.version.is_none()
+        && request.executable.is_none()
+        && let Some(global_install_req) =
+            npm_global_bridge::parse_global_install_bridge_args(&request.name, &tool_args)
+    {
+        return npm_global_bridge::bridge_npm_global_install(ctx, &global_install_req).await;
+    }
 
     // RFC 0033: If the runtime has a package_alias, route to package execution path
     // This makes `vx vite@5.0` equivalent to `vx npm:vite@5.0`
