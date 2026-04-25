@@ -134,6 +134,7 @@ vx dev                         # Enter dev environment
 |----------|------------|
 | User says "install Node.js" | Run `vx node --version` (auto-installs) or `vx install node@22` |
 | User says "run npm test" | Run `vx npm test` |
+| User says "global install CLI (all languages)" | Prefer ecosystem-native global form (e.g., `vx npm install -g <pkg>`, `vx pip install --user <pkg>`, `vx cargo install <pkg>`, `vx go install <module>@<ver>`, `vx gem install <pkg>`) |
 | User says "set up project" | Check for `vx.toml`, then run `vx setup` |
 | User says "add Python to project" | Run `vx add python@3.12` then `vx sync` |
 | User says "use vite" | Run `vx vite` (package alias, auto-routes to `vx npm:vite`) |
@@ -286,7 +287,28 @@ vx run test                    # Run project scripts
 # Package aliases (shorter commands)
 vx vite                        # Same as: vx npm:vite
 vx meson                       # Same as: vx uv:meson
+
+# Cross-ecosystem global install (auto-register + shim generation)
+vx npm install -g @tencent-ai/codebuddy-code
+vx pnpm add -g eslint
+vx yarn global add typescript
+vx pip install --user ruff
+vx cargo install ripgrep
+vx go install golang.org/x/tools/gopls@latest
+vx gem install bundler
 ```
+
+### Global Install Contract (Agent-Facing)
+
+When a user runs ecosystem-native global install commands through `vx`, vx should
+preserve the familiar command style while ensuring vx-managed behavior:
+
+1. Install into vx-managed package isolation directory (`~/.vx/packages/...`)
+2. Register package metadata in `~/.vx/config/global-packages.json`
+3. Create/update shims under `~/.vx/shims`
+4. Keep executables discoverable by `vx <exe>` and direct shell usage (with shims dir in `PATH`)
+
+This contract avoids ecosystem-specific drift and provides consistent behavior across languages.
 
 ### For agents developing vx itself
 

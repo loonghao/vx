@@ -14,6 +14,7 @@ pub mod cli;
 pub mod commands;
 pub mod config;
 pub mod error_handler;
+pub mod npm_global_bridge;
 pub mod output;
 pub mod registry;
 pub mod suggestions;
@@ -324,6 +325,19 @@ async fn execute_tool(
 
     // Check if it's a known runtime first
     let is_known_runtime = ctx.registry().get_runtime(&request.name).is_some();
+
+    // Bridge `vx npm install -g ...` to vx global package flow so that
+    // installed executables are tracked and shimmed under ~/.vx/shims.
+    if matches!(
+        request.name.to_ascii_lowercase().as_str(),
+        "npm" | "pnpm" | "yarn" | "pip" | "cargo" | "go" | "gem"
+    ) && request.version.is_none()
+        && request.executable.is_none()
+        && let Some(global_install_req) =
+            npm_global_bridge::parse_global_install_bridge_args(&request.name, &tool_args)
+    {
+        return npm_global_bridge::bridge_npm_global_install(ctx, &global_install_req).await;
+    }
 
     // RFC 0033: If the runtime has a package_alias, route to package execution path
     // This makes `vx vite@5.0` equivalent to `vx npm:vite@5.0`
@@ -797,6 +811,15 @@ async fn auto_install_package(ctx: &CommandContext, pkg_request: &PackageRequest
 
     // Create shims for package executables
     let shims_dir = paths.shims_dir();
+    let mut shim_dirs = vec![shims_dir.clone()];
+    if let Ok(vx_exe) = std::env::current_exe()
+        && let Some(vx_bin_dir) = vx_exe.parent()
+    {
+        let vx_bin_dir = vx_bin_dir.to_path_buf();
+        if !shim_dirs.iter().any(|d| d == &vx_bin_dir) {
+            shim_dirs.push(vx_bin_dir);
+        }
+    }
     let bin_dir = result.bin_dir.clone();
 
     for exe in &result.executables {
@@ -813,10 +836,17 @@ async fn auto_install_package(ctx: &CommandContext, pkg_request: &PackageRequest
             bin_dir.join(exe)
         };
 
-        if target_path.exists()
-            && let Err(e) = shims::create_shim(&shims_dir, exe, &target_path)
-        {
-            ui::UI::warn(&format!("Failed to create shim for {}: {}", exe, e));
+        if target_path.exists() {
+            for shim_dir in &shim_dirs {
+                if let Err(e) = shims::create_shim(shim_dir, exe, &target_path) {
+                    ui::UI::warn(&format!(
+                        "Failed to create shim for {} in {}: {}",
+                        exe,
+                        shim_dir.display(),
+                        e
+                    ));
+                }
+            }
         }
     }
 

@@ -9,6 +9,7 @@ use crate::ui::{ProgressSpinner, UI, progress_manager};
 use anyhow::{Context, Result};
 use colored::Colorize;
 use std::io::Write;
+use std::path::{Path, PathBuf};
 use vx_ecosystem_pm::{InstallOptions, get_installer};
 use vx_paths::global_packages::{GlobalPackage, PackageRegistry};
 use vx_paths::package_spec::PackageSpec;
@@ -312,6 +313,7 @@ async fn handle_install(ctx: &CommandContext, args: &InstallGlobalArgs) -> Resul
     }
 
     let shims_dir = paths.shims_dir();
+    let shim_dirs = collect_stacked_shim_dirs(&shims_dir);
     let bin_dir = result.bin_dir.clone();
 
     let mut shim_count = 0;
@@ -329,16 +331,27 @@ async fn handle_install(ctx: &CommandContext, args: &InstallGlobalArgs) -> Resul
         };
 
         if target_path.exists() {
-            match shims::create_shim(&shims_dir, exe, &target_path) {
-                Ok(_) => {
-                    shim_count += 1;
-                    if args.verbose {
-                        UI::detail(&format!("Created shim for: {}", exe));
+            let mut created_any = false;
+            for dir in &shim_dirs {
+                match shims::create_shim(dir, exe, &target_path) {
+                    Ok(_) => {
+                        created_any = true;
+                        if args.verbose {
+                            UI::detail(&format!("Created shim for: {} in {}", exe, dir.display()));
+                        }
+                    }
+                    Err(e) => {
+                        UI::warn(&format!(
+                            "Failed to create shim for {} in {}: {}",
+                            exe,
+                            dir.display(),
+                            e
+                        ));
                     }
                 }
-                Err(e) => {
-                    UI::warn(&format!("Failed to create shim for {}: {}", exe, e));
-                }
+            }
+            if created_any {
+                shim_count += 1;
             }
         } else if args.verbose {
             UI::warn(&format!(
@@ -359,10 +372,19 @@ async fn handle_install(ctx: &CommandContext, args: &InstallGlobalArgs) -> Resul
 
     if shim_count > 0 {
         UI::success(&format!("Created {} shim(s)", shim_count));
-        UI::hint(&format!(
-            "Add {} to your PATH to use global tools directly",
-            shims_dir.display()
-        ));
+        if let Some(vx_bin_dir) = vx_bin_dir()
+            && shim_dirs.iter().any(|d| d == &vx_bin_dir)
+        {
+            UI::hint(&format!(
+                "Direct command shims are available in {}",
+                vx_bin_dir.display()
+            ));
+        } else {
+            UI::hint(&format!(
+                "Add {} to your PATH to use global tools directly",
+                shims_dir.display()
+            ));
+        }
     }
 
     Ok(())
@@ -507,13 +529,16 @@ async fn handle_uninstall(ctx: &CommandContext, args: &UninstallGlobalArgs) -> R
         package.ecosystem, package.name
     ));
     let shims_dir = paths.shims_dir();
+    let shim_dirs = collect_stacked_shim_dirs(&shims_dir);
     let mut shim_count = 0;
     for exe in &package.executables {
-        if shims::shim_exists(&shims_dir, exe) {
-            shims::remove_shim(&shims_dir, exe)?;
-            shim_count += 1;
-            if args.verbose {
-                UI::detail(&format!("Removed shim: {}", exe));
+        for dir in &shim_dirs {
+            if shims::shim_exists(dir, exe) {
+                shims::remove_shim(dir, exe)?;
+                shim_count += 1;
+                if args.verbose {
+                    UI::detail(&format!("Removed shim: {} from {}", exe, dir.display()));
+                }
             }
         }
     }
@@ -638,24 +663,58 @@ async fn handle_shim_update(ctx: &CommandContext) -> Result<()> {
 
     // Sync shims
     let shims_dir = paths.shims_dir();
-    let result = shims::sync_shims_from_registry(&shims_dir, &packages_with_exes)?;
+    let shim_dirs = collect_stacked_shim_dirs(&shims_dir);
+    let mut total_created = 0;
+    let mut total_removed = 0;
+    let mut all_errors = Vec::new();
+    for dir in &shim_dirs {
+        let result = shims::sync_shims_from_registry(dir, &packages_with_exes)?;
+        total_created += result.created;
+        total_removed += result.removed;
+        all_errors.extend(result.errors);
+    }
 
     UI::success(&format!(
         "Shims updated: {} created, {} removed",
-        result.created, result.removed
+        total_created, total_removed
     ));
 
-    if !result.errors.is_empty() {
+    if !all_errors.is_empty() {
         UI::warn("Errors encountered:");
-        for err in &result.errors {
+        for err in &all_errors {
             UI::error(err);
         }
     }
 
-    UI::hint(&format!(
-        "Add {} to your PATH to use global tools directly",
-        shims_dir.display()
-    ));
+    if let Some(vx_bin_dir) = vx_bin_dir()
+        && shim_dirs.iter().any(|d| d == &vx_bin_dir)
+    {
+        UI::hint(&format!(
+            "Direct command shims are available in {}",
+            vx_bin_dir.display()
+        ));
+    } else {
+        UI::hint(&format!(
+            "Add {} to your PATH to use global tools directly",
+            shims_dir.display()
+        ));
+    }
 
     Ok(())
+}
+
+fn collect_stacked_shim_dirs(primary: &Path) -> Vec<PathBuf> {
+    let mut dirs = vec![primary.to_path_buf()];
+    if let Some(vx_dir) = vx_bin_dir()
+        && !dirs.iter().any(|d| d == &vx_dir)
+    {
+        dirs.push(vx_dir);
+    }
+    dirs
+}
+
+fn vx_bin_dir() -> Option<PathBuf> {
+    std::env::current_exe()
+        .ok()
+        .and_then(|path| path.parent().map(|p| p.to_path_buf()))
 }
