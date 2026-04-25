@@ -185,6 +185,29 @@ vx ai context --minimal --json
 
 ---
 
+## 9. Cross-Language Global Install Contract
+
+vx preserves ecosystem-native global install syntax while keeping installs inside
+vx-managed isolation and shim workflows:
+
+```bash
+vx npm install -g @tencent-ai/codebuddy-code
+vx pnpm add -g eslint
+vx yarn global add typescript
+vx pip install --user ruff
+vx cargo install ripgrep
+vx go install golang.org/x/tools/gopls@latest
+vx gem install bundler
+```
+
+For agents, the contract is:
+- Keep user-native syntax
+- Register package in vx global package registry
+- Generate/update shims in `~/.vx/shims`
+- Ensure resulting executables are invokable consistently
+
+---
+
 ## Quick Reference for Agents
 
 ```bash
@@ -224,5 +247,5 @@ vx ai context --minimal --json
 ## References
 
 - [You Need to Rewrite Your CLI for AI Agents](https://justin.poehnelt.com/posts/rewrite-your-cli-for-ai-agents/) — Justin Poehnelt, Google Cloud (March 2026)
-- [RFC 0031: Unified Output Format](../rfcs/0031-unified-output-format.md)
-- [RFC 0035: AI Context](../rfcs/0035-ai-context.md)
+- [RFC 0031: Unified Output Format](../rfcs/0031-unified-structured-output.md)
+- [RFC 0035: AI Integration Optimization](../rfcs/0035-ai-integration-optimization.md)
