@@ -811,6 +811,15 @@ async fn auto_install_package(ctx: &CommandContext, pkg_request: &PackageRequest
 
     // Create shims for package executables
     let shims_dir = paths.shims_dir();
+    let mut shim_dirs = vec![shims_dir.clone()];
+    if let Ok(vx_exe) = std::env::current_exe()
+        && let Some(vx_bin_dir) = vx_exe.parent()
+    {
+        let vx_bin_dir = vx_bin_dir.to_path_buf();
+        if !shim_dirs.iter().any(|d| d == &vx_bin_dir) {
+            shim_dirs.push(vx_bin_dir);
+        }
+    }
     let bin_dir = result.bin_dir.clone();
 
     for exe in &result.executables {
@@ -827,10 +836,17 @@ async fn auto_install_package(ctx: &CommandContext, pkg_request: &PackageRequest
             bin_dir.join(exe)
         };
 
-        if target_path.exists()
-            && let Err(e) = shims::create_shim(&shims_dir, exe, &target_path)
-        {
-            ui::UI::warn(&format!("Failed to create shim for {}: {}", exe, e));
+        if target_path.exists() {
+            for shim_dir in &shim_dirs {
+                if let Err(e) = shims::create_shim(shim_dir, exe, &target_path) {
+                    ui::UI::warn(&format!(
+                        "Failed to create shim for {} in {}: {}",
+                        exe,
+                        shim_dir.display(),
+                        e
+                    ));
+                }
+            }
         }
     }
 
