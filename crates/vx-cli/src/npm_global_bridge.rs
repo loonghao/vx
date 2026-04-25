@@ -63,7 +63,7 @@ fn parse_npm_like_args(
 
     let install_idx = args
         .iter()
-        .position(|arg| install_verbs.iter().any(|verb| *verb == arg.as_str()))?;
+        .position(|arg| install_verbs.contains(&arg.as_str()))?;
 
     if require_global_flag && !args.iter().any(|arg| is_global_flag(arg)) {
         return None;
