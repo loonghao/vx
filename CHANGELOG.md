@@ -6,6 +6,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [0.8.32](https://github.com/loonghao/vx/compare/v0.8.31...v0.8.32) (2026-04-25)
+
+
+### Features
+
+* bridge global install commands to vx package shim workflow ([0d7ecf2](https://github.com/loonghao/vx/commit/0d7ecf289dbd637c708bfc7c2271cd931aad5571))
+* **cli:** bridge global install commands to vx package shims ([c753951](https://github.com/loonghao/vx/commit/c7539518170f28b62c5f8ec5dc330e741808e60e))
+* **cli:** enable direct global command shims in vx bin dir ([98131e4](https://github.com/loonghao/vx/commit/98131e429a8c9b7be83c7ee12c15975267ff83b2))
+
+
+### Documentation
+
+* **agent:** add cross-language global install contract and fix RFC links ([2d6f0a8](https://github.com/loonghao/vx/commit/2d6f0a80535086f2dee2df6f476b42fb2c9e9cce))
+
 ## [0.8.31](https://github.com/loonghao/vx/compare/v0.8.30...v0.8.31) (2026-04-18)
 
 
