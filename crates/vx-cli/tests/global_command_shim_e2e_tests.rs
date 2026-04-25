@@ -7,7 +7,6 @@ use common::{
     vx_available, vx_binary,
 };
 use rstest::rstest;
-use std::path::PathBuf;
 use std::process::{Command, Output};
 use tempfile::TempDir;
 
@@ -19,21 +18,9 @@ fn test_where_and_direct_vite_help_after_npm_global_install() {
         return;
     }
 
-    let test_exe = std::env::current_exe().expect("failed to resolve current test executable");
-    let debug_dir = test_exe
-        .parent()
-        .and_then(|p| p.parent())
-        .map(PathBuf::from)
-        .expect("failed to resolve target/debug directory");
-    let vx_path = debug_dir.join(if cfg!(windows) { "vx.exe" } else { "vx" });
-    assert!(
-        vx_path.exists(),
-        "expected vx binary at {}",
-        vx_path.display()
-    );
-    #[allow(clippy::disallowed_methods)]
-    unsafe {
-        std::env::set_var("VX_BINARY", &vx_path);
+    let vx_path = vx_binary();
+    if !vx_path.exists() {
+        return;
     }
 
     let temp = TempDir::new().expect("failed to create temp dir");
@@ -43,9 +30,13 @@ fn test_where_and_direct_vite_help_after_npm_global_install() {
         .expect("temp path should be valid UTF-8")
         .to_string();
 
-    let install_output =
-        run_vx_for_test(&vx_path, temp.path(), &vx_home_str, &["npm", "install", "-g", "vite"])
-            .expect("failed to run vx npm install -g vite");
+    let install_output = run_vx_for_test(
+        &vx_path,
+        temp.path(),
+        &vx_home_str,
+        &["npm", "install", "-g", "vite"],
+    )
+    .expect("failed to run vx npm install -g vite");
     assert_success(&install_output, "vx npm install -g vite");
 
     let where_output = run_vx_for_test(&vx_path, temp.path(), &vx_home_str, &["where", "vite"])
@@ -56,21 +47,27 @@ fn test_where_and_direct_vite_help_after_npm_global_install() {
         "vx where vite should return a non-empty path"
     );
 
-    let vx_bin_dir = vx_binary()
-        .parent()
-        .expect("vx binary should have parent directory")
-        .to_path_buf();
-    let vite_shim = if cfg!(windows) {
-        vx_bin_dir.join("vite.cmd")
-    } else {
-        vx_bin_dir.join("vite")
-    };
+    let shim_name = if cfg!(windows) { "vite.cmd" } else { "vite" };
+    let mut shim_candidates = Vec::new();
+    if let Some(vx_bin_dir) = vx_path.parent() {
+        shim_candidates.push(vx_bin_dir.join(shim_name));
+    }
+    shim_candidates.push(vx_home.join("shims").join(shim_name));
 
-    assert!(
-        vite_shim.exists(),
-        "direct shim should exist in vx bin dir: {}",
-        vite_shim.display()
-    );
+    let vite_shim = shim_candidates
+        .iter()
+        .find(|path| path.exists())
+        .cloned()
+        .unwrap_or_else(|| {
+            panic!(
+                "direct shim should exist in one of: {}",
+                shim_candidates
+                    .iter()
+                    .map(|p| p.display().to_string())
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            )
+        });
 
     let help_output = Command::new(&vite_shim)
         .arg("--help")

@@ -56,6 +56,10 @@ fn test_parse_non_global_or_incomplete_install(#[case] raw: &[&str]) {
 #[case("cargo", &["install", "ripgrep", "--version", "14.1.1"], "cargo", &["ripgrep@14.1.1"])]
 #[case("go", &["install", "golang.org/x/tools/gopls@latest"], "go", &["golang.org/x/tools/gopls@latest"])]
 #[case("gem", &["install", "bundler", "--version", "2.5.0"], "gem", &["bundler@2.5.0"])]
+#[case("npm", &["install", "-g", "--tag", "next", "vite"], "npm", &["vite"])]
+#[case("pip", &["install", "--user", "--force-reinstall", "-vv", "ruff"], "pip", &["ruff"])]
+#[case("cargo", &["install", "--locked", "ripgrep"], "cargo", &["ripgrep"])]
+#[case("gem", &["install", "bundler", "--verbose"], "gem", &["bundler"])]
 fn test_parse_cross_ecosystem_global_install(
     #[case] runtime: &str,
     #[case] raw: &[&str],
@@ -79,6 +83,9 @@ fn test_parse_cross_ecosystem_global_install(
 #[case("pip", &["install", "ruff"])]
 #[case("cargo", &["build"])]
 #[case("yarn", &["add", "eslint"])]
+#[case("gem", &["install", "--verbose"])]
+#[case("go", &["install"])]
+#[case("pnpm", &["add", "eslint"])]
 fn test_parse_cross_ecosystem_invalid_patterns(#[case] runtime: &str, #[case] raw: &[&str]) {
     let parsed = parse_global_install_bridge_args(runtime, &to_args(raw));
     assert!(parsed.is_none());
