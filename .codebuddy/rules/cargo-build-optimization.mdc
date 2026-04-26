@@ -1,0 +1,152 @@
+# Cargo Build 优化指南
+
+## 概述
+
+定期使用 `cargo build --timings` 分析编译瓶颈，持续优化 vx 项目的构建性能。
+
+## 执行命令
+
+### 完整分析（推荐用于 CI/定期优化）
+
+```bash
+# 确保使用符合 MSRV 的 Rust 版本
+export PATH="$HOME/.rustup/toolchains/1.93.1-x86_64-pc-windows-msvc/bin:$PATH"
+
+# 完整构建并生成 timings 报告
+cargo build --workspace --all-targets --timings
+```
+
+### 快速分析（日常开发）
+
+```bash
+# 仅分析 lib + bin，跳过测试目标（节省约 40-50% 时间）
+cargo build --workspace --timings
+
+# 仅分析特定 crate
+cargo build -p vx-cli --timings
+```
+
+### 清理后冷构建分析
+
+```bash
+# 模拟 CI 冷构建场景
+cargo clean
+cargo build --workspace --all-targets --timings
+```
+
+## 报告解读
+
+### 关键指标
+
+| 指标 | 说明 | 健康阈值 |
+|------|------|----------|
+| Total units | 编译单元总数 | < 1500 |
+| Dirty units | 需要重新编译的单元 | 越少越好 |
+| Total time | 总编译时间 | < 2min（debug） |
+| Max concurrency | 最大并行度 | 接近 CPU 核心数 |
+
+### 报告位置
+
+```
+target/cargo-timings/cargo-timing-<timestamp>.html
+target/cargo-timings/cargo-timing.html  # 最新报告软链接
+```
+
+用浏览器打开 HTML 文件查看可视化图表：
+- **Gantt 图**：各 crate 编译时间线
+- **关键路径**：找出阻塞整体进度的串行依赖链
+- **并发度图表**：判断 CPU 利用率是否充分
+
+## vx 项目常见瓶颈
+
+### 1. Provider crate 数量多（120+）
+
+每个 provider 都是一个独立 crate，即使代码量少，rustc 的固定开销累积显著。
+
+**优化方向**：
+- 合并简单 provider 到少量 crate（按生态系统分组）
+- 使用 `workspace-hack` 统一依赖版本（已实施）
+- 考虑将 provider 从编译时加载改为运行时 Starlark 解释
+
+### 2. 测试目标过多
+
+`--all-targets` 会为每个 crate 编译 lib + test + bench + example。vx 项目有 1265 个编译单元，其中大量是测试目标。
+
+**优化方向**：
+- CI 分阶段构建：先 `cargo build --workspace`，再 `cargo test --workspace`
+- 对 provider crate 使用统一的集成测试框架，减少每个 crate 的测试目标数
+- 考虑将 `runtime_tests` / `starlark_logic_tests` 合并为单一测试目标
+
+### 3.  heavyweight 依赖重复编译
+
+| 依赖 | 影响 | 建议 |
+|------|------|------|
+| `criterion` | benchmark 专用，但可能触发大量依赖 | 仅在 bench profile 启用 |
+| `plotters` | criterion 的绘图依赖，编译慢 | 关闭默认 features 或替换 |
+| `rayon` | 并行计算库，代码生成多 | 已必要，保持现状 |
+| `tokio` | async runtime，编译较重 | 使用 `full` feature 不可避免 |
+
+### 4. 大 crate 编译时间
+
+根据历史分析，以下 crate 编译耗时较长：
+
+- `vx-cli` - CLI 入口，集成测试多
+- `vx-resolver` - 核心解析逻辑，依赖复杂
+- `vx-config` - 配置解析，feature flags 多
+- `vx-starlark` - Starlark DSL 引擎
+- `vx-runtime` - Runtime 管理核心
+- `vx-project-analyzer` - 项目分析器
+
+**优化方向**：
+- 拆分 `vx-cli` 的集成测试到独立 test crate
+- 评估 `vx-config` 的 feature flags 是否可以精简
+- 对 `vx-starlark` 检查是否可以用更轻量的解释器
+
+## 定期优化流程
+
+建议每月或每季度执行一次：
+
+1. **创建优化分支**
+   ```bash
+   git fetch origin main
+   git checkout -b perf/cargo-build-timings origin/main
+   ```
+
+2. **运行 timings 分析**
+   ```bash
+   cargo build --workspace --all-targets --timings
+   ```
+
+3. **提取关键数据**
+   - Total time
+   - Top 10 最慢 crate
+   - 关键路径长度
+   - 并发度低谷时段
+
+4. **识别退化**
+   - 与上次报告对比，找出新增瓶颈
+   - 关注新引入的重量级依赖
+
+5. **提出优化方案**
+   - 优先处理关键路径上的瓶颈
+   - 考虑依赖去重或 feature 精简
+   - 评估 crate 合并可行性
+
+6. **验证优化效果**
+   ```bash
+   # 修改后重新运行
+   cargo build --workspace --all-targets --timings
+   ```
+
+## 参考数据（基准）
+
+| 场景 | 时间 | 环境 |
+|------|------|------|
+| debug 全量 | ~105s | 32 core, Rust 1.93.1, Windows |
+| release 全量 | ~? | 待补充 |
+| 仅 lib/bin | ~? | 待补充 |
+
+## 相关链接
+
+- [Cargo Timings 官方文档](https://doc.rust-lang.org/cargo/reference/timings.html)
+- [Rust 编译性能优化指南](https://nnethercote.github.io/perf-book/compile-times.html)
