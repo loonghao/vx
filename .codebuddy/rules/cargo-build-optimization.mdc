@@ -79,12 +79,12 @@ target/cargo-timings/cargo-timing.html  # 最新报告软链接
 
 ### 3.  heavyweight 依赖重复编译
 
-| 依赖 | 影响 | 建议 |
-|------|------|------|
-| `criterion` | benchmark 专用，但可能触发大量依赖 | 仅在 bench profile 启用 |
-| `plotters` | criterion 的绘图依赖，编译慢 | 关闭默认 features 或替换 |
-| `rayon` | 并行计算库，代码生成多 | 已必要，保持现状 |
-| `tokio` | async runtime，编译较重 | 使用 `full` feature 不可避免 |
+| 依赖 | 影响 | 建议 | 状态 |
+|------|------|------|------|
+| `criterion` | benchmark 专用，但可能触发大量依赖 | 仅在 bench profile 启用；关闭 default-features | 已实施（PR #832） |
+| `plotters` | criterion 的绘图依赖，编译慢 | 关闭默认 features | 已实施（PR #832） |
+| `rayon` | 并行计算库，代码生成多 | 已必要，保持现状 | — |
+| `tokio` | async runtime，编译较重 | 使用 `full` feature 不可避免 | — |
 
 ### 4. 大 crate 编译时间
 
@@ -140,11 +140,21 @@ target/cargo-timings/cargo-timing.html  # 最新报告软链接
 
 ## 参考数据（基准）
 
-| 场景 | 时间 | 环境 |
-|------|------|------|
-| debug 全量 | ~105s | 32 core, Rust 1.93.1, Windows |
-| release 全量 | ~? | 待补充 |
-| 仅 lib/bin | ~? | 待补充 |
+| 场景 | 时间 | 编译单元 | 环境 |
+|------|------|----------|------|
+| debug 全量（优化前） | ~105s（增量） | 1,265 | 32 core, Rust 1.93.1, Windows |
+| debug 全量（优化后） | ~230s（全 dirty） | 1,257 | 32 core, Rust 1.93.1, Windows |
+| release 全量 | ~? | 待补充 | 待补充 |
+| 仅 lib/bin | ~? | 待补充 | 待补充 |
+
+**说明**：优化后编译单元从 1,265 降至 1,257（移除 8 个 plotters 相关单元），且 dev/test profile 调整可改善日常增量编译速度。
+
+## 已实施优化（PR #832）
+
+- `resolver = "3"`（原 "2"）
+- `[profile.dev]` 增加 `codegen-units = 256`
+- `[profile.test]` 增加 `opt-level = 0`
+- `crates/vx-installer/Cargo.toml`：`criterion` 去掉 `default-features`，仅保留 `async_tokio`
 
 ## 相关链接
 
