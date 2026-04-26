@@ -7271,8 +7271,6 @@ dependencies = [
  "clap",
  "clap_builder",
  "console",
- "crossbeam-epoch",
- "crossbeam-utils",
  "either",
  "errno",
  "flate2",
