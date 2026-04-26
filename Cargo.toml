@@ -204,7 +204,7 @@ members = [
   # MSBuild bridge (used by MSVC provider for node-gyp compatibility)
   "crates/vx-msbuild-bridge",
 ]
-resolver = "2"
+resolver = "3"
 
 # Root package for integration tests
 [package]
@@ -569,6 +569,8 @@ opt-level = 1
 debug = 1
 # Enable incremental compilation for faster rebuilds
 incremental = true
+# Increase codegen units for faster parallel compilation in debug mode
+codegen-units = 256
 
 [profile.test]
 # Inherit from dev but with faster linking
@@ -577,6 +579,8 @@ inherits = "dev"
 debug = 0
 # Faster linking with fewer codegen units
 codegen-units = 16
+# Disable optimizations for faster test compilation (overrides dev profile opt-level = 1)
+opt-level = 0
 
 [profile.release]
 # Full optimizations for release
