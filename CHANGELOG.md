@@ -6,6 +6,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [0.8.33](https://github.com/loonghao/vx/compare/v0.8.32...v0.8.33) (2026-04-27)
+
+
+### Performance Improvements
+
+* add cargo build optimization agent rule ([f042114](https://github.com/loonghao/vx/commit/f042114000e11bd3fc94fc3c585aac1baf8511a8))
+* optimize workspace compilation settings ([af082f7](https://github.com/loonghao/vx/commit/af082f777eaa521534181a924060bcd35e67c48f))
+
+
+### Documentation
+
+* update cargo-build-optimization agent rule with implemented optimizations ([82294c3](https://github.com/loonghao/vx/commit/82294c3e08dfe3642fdef4f8d3dd2d6d622bd665))
+
 ## [0.8.32](https://github.com/loonghao/vx/compare/v0.8.31...v0.8.32) (2026-04-25)
 
 
