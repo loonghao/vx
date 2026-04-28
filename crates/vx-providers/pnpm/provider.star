@@ -52,45 +52,69 @@ fetch_versions = make_fetch_versions("pnpm", "pnpm")
 
 # ---------------------------------------------------------------------------
 # Platform helpers
-# pnpm asset: pnpm-{os}-{arch}[.exe]  (win/macos/linux × x64/arm64)
+# pnpm asset naming changed in v11:
+#   v10 and below: pnpm-{os}-{arch}[.exe]  (single binary)
+#   v11 and above: pnpm-{os}-{arch}.{ext}   (archive: tar.gz / zip)
 # ---------------------------------------------------------------------------
 
-# pnpm asset: pnpm-{os}-{arch}[.exe] (all lowercase)
-# Actual assets: pnpm-linux-x64, pnpm-macos-arm64, pnpm-win-x64.exe, etc.
-_PNPM_PLATFORMS = {
-    "windows/x64":  "win-x64",
-    "windows/arm64": "win-arm64",
-    "macos/x64":    "macos-x64",
-    "macos/arm64":  "macos-arm64",
-    "linux/x64":    "linux-x64",
-    "linux/arm64":  "linux-arm64",
-}
+def _is_v11_plus(version):
+    parts = version.split(".")
+    major = int(parts[0]) if parts else 0
+    return major >= 11
 
-def _pnpm_platform_suffix(ctx):
-    return _PNPM_PLATFORMS.get("{}/{}".format(ctx.platform.os, ctx.platform.arch))
+def _pnpm_platform_suffix(ctx, version):
+    if _is_v11_plus(version):
+        platforms = {
+            "windows/x64":  "win32-x64",
+            "windows/arm64": "win32-arm64",
+            "macos/x64":    "darwin-x64",
+            "macos/arm64":  "darwin-arm64",
+            "linux/x64":    "linux-x64",
+            "linux/arm64":  "linux-arm64",
+        }
+    else:
+        platforms = {
+            "windows/x64":  "win-x64",
+            "windows/arm64": "win-arm64",
+            "macos/x64":    "macos-x64",
+            "macos/arm64":  "macos-arm64",
+            "linux/x64":    "linux-x64",
+            "linux/arm64":  "linux-arm64",
+        }
+    return platforms.get("{}/{}".format(ctx.platform.os, ctx.platform.arch))
 
 # ---------------------------------------------------------------------------
 # download_url — single binary
 # ---------------------------------------------------------------------------
 
 def download_url(ctx, version):
-    platform_suffix = _pnpm_platform_suffix(ctx)
+    platform_suffix = _pnpm_platform_suffix(ctx, version)
     if not platform_suffix:
         return None
-    if ctx.platform.os == "windows":
-        asset = "pnpm-{}.exe".format(platform_suffix)
+    if _is_v11_plus(version):
+        ext = "zip" if ctx.platform.os == "windows" else "tar.gz"
+        asset = "pnpm-{}.{}".format(platform_suffix, ext)
     else:
-        asset = "pnpm-{}".format(platform_suffix)
+        if ctx.platform.os == "windows":
+            asset = "pnpm-{}.exe".format(platform_suffix)
+        else:
+            asset = "pnpm-{}".format(platform_suffix)
     return github_asset_url("pnpm", "pnpm", "v" + version, asset)
 
 # ---------------------------------------------------------------------------
 # install_layout — binary
 # ---------------------------------------------------------------------------
 
-def install_layout(ctx, _version):
-    platform_suffix = _pnpm_platform_suffix(ctx)
+def install_layout(ctx, version):
+    platform_suffix = _pnpm_platform_suffix(ctx, version)
     if not platform_suffix:
         return None
+    if _is_v11_plus(version):
+        return {
+            "__type":           "archive",
+            "strip_prefix":     "",
+            "executable_paths": ["pnpm.exe" if ctx.platform.os == "windows" else "pnpm"],
+        }
     if ctx.platform.os == "windows":
         source = "pnpm-{}.exe".format(platform_suffix)
         target = "pnpm.exe"
@@ -110,8 +134,10 @@ def install_layout(ctx, _version):
 # post_extract — rename platform-specific binary to standard name
 # ---------------------------------------------------------------------------
 
-def post_extract(ctx, _version, _install_dir):
-    platform_suffix = _pnpm_platform_suffix(ctx)
+def post_extract(ctx, version, _install_dir):
+    if _is_v11_plus(version):
+        return []
+    platform_suffix = _pnpm_platform_suffix(ctx, version)
     if not platform_suffix:
         return []
     if ctx.platform.os == "windows":
@@ -159,14 +185,20 @@ def deps(_ctx, version):
 def store_root(ctx):
     return ctx.vx_home + "/store/pnpm"
 
-def get_execute_path(ctx, _version):
+def get_execute_path(ctx, version):
+    if _is_v11_plus(version):
+        return ctx.install_dir + "/pnpm" if ctx.platform.os != "windows" else ctx.install_dir + "/pnpm.exe"
     exe = "pnpm.exe" if ctx.platform.os == "windows" else "pnpm"
     return ctx.install_dir + "/bin/" + exe
 
-def post_install(ctx, _version):
+def post_install(ctx, version):
     if ctx.platform.os == "windows":
         return []
+    if _is_v11_plus(version):
+        return [{"type": "set_permissions", "path": ctx.install_dir + "/pnpm", "mode": "755"}]
     return [{"type": "set_permissions", "path": ctx.install_dir + "/bin/pnpm", "mode": "755"}]
 
-def environment(ctx, _version):
+def environment(ctx, version):
+    if _is_v11_plus(version):
+        return [env_prepend("PATH", ctx.install_dir)]
     return [env_prepend("PATH", ctx.install_dir + "/bin")]
