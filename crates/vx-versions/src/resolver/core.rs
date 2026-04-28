@@ -515,6 +515,7 @@ pub fn resolve_constraint(
         })
         .collect();
 
+    #[allow(clippy::unnecessary_sort_by)]
     all_versions.sort_by(|a, b| b.0.cmp(&a.0));
 
     let stable_versions: Vec<_> = all_versions

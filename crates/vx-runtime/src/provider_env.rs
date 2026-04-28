@@ -234,7 +234,6 @@ impl ProviderEnvironment {
 }
 
 /// Trait for provider-level version resolution and environment building
-
 pub trait ProviderEnvironmentResolver: Send + Sync {
     /// Provider name
     fn provider_name(&self) -> &str;

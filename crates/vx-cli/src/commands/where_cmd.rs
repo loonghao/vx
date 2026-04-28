@@ -473,6 +473,7 @@ async fn find_via_system_paths(runtime_name: &str) -> Result<Option<std::path::P
                         .filter(|p| p.exists())
                         .collect();
                     // Sort descending so newest version wins (e.g. VS 2022 > 2019)
+                    #[allow(clippy::unnecessary_sort_by)]
                     found.sort_by(|a, b| b.cmp(a));
                     if let Some(path) = found.into_iter().next() {
                         UI::debug(&format!(
