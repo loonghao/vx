@@ -4424,7 +4424,7 @@ checksum = "051eb1abcf10076295e815102942cc58f9d5e3b4560e46e53c21e8ff6f3af7b1"
 
 [[package]]
 name = "vx"
-version = "0.8.31"
+version = "0.8.32"
 dependencies = [
  "anyhow",
  "assert_cmd",
@@ -4434,14 +4434,14 @@ dependencies = [
  "tempfile",
  "tokio",
  "vx-cli",
- "vx-core",
+ "vx-runtime-core",
  "walkdir",
  "workspace-hack",
 ]
 
 [[package]]
 name = "vx-args"
-version = "0.8.31"
+version = "0.8.32"
 dependencies = [
  "indexmap",
  "regex",
@@ -4455,7 +4455,7 @@ dependencies = [
 
 [[package]]
 name = "vx-bridge"
-version = "0.8.31"
+version = "0.8.32"
 dependencies = [
  "tempfile",
  "tracing",
@@ -4465,7 +4465,7 @@ dependencies = [
 
 [[package]]
 name = "vx-cache"
-version = "0.8.31"
+version = "0.8.32"
 dependencies = [
  "anyhow",
  "bincode",
@@ -4473,14 +4473,14 @@ dependencies = [
  "rstest",
  "serde",
  "serde_json",
- "sha2 0.10.9",
+ "sha2 0.11.0",
  "tempfile",
  "workspace-hack",
 ]
 
 [[package]]
 name = "vx-cli"
-version = "0.8.31"
+version = "0.8.32"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4521,7 +4521,6 @@ dependencies = [
  "vx-cache",
  "vx-config",
  "vx-console",
- "vx-core",
  "vx-ecosystem-pm",
  "vx-env",
  "vx-extension",
@@ -4529,82 +4528,9 @@ dependencies = [
  "vx-migration",
  "vx-paths",
  "vx-project-analyzer",
- "vx-provider-7zip",
- "vx-provider-actrun",
- "vx-provider-awscli",
- "vx-provider-azcli",
- "vx-provider-bash",
- "vx-provider-bat",
- "vx-provider-brew",
- "vx-provider-buildcache",
- "vx-provider-bun",
- "vx-provider-ccache",
- "vx-provider-choco",
- "vx-provider-cmake",
- "vx-provider-curl",
- "vx-provider-dagu",
- "vx-provider-deno",
- "vx-provider-dotnet",
- "vx-provider-fd",
- "vx-provider-ffmpeg",
- "vx-provider-fzf",
- "vx-provider-gcloud",
- "vx-provider-gh",
- "vx-provider-git",
- "vx-provider-go",
- "vx-provider-grpcurl",
- "vx-provider-hadolint",
- "vx-provider-helm",
- "vx-provider-imagemagick",
- "vx-provider-java",
- "vx-provider-jj",
- "vx-provider-jq",
- "vx-provider-just",
- "vx-provider-k3d",
- "vx-provider-kind",
- "vx-provider-kubectl",
- "vx-provider-lefthook",
- "vx-provider-lima",
- "vx-provider-make",
- "vx-provider-meson",
- "vx-provider-msbuild",
- "vx-provider-msvc",
- "vx-provider-nasm",
- "vx-provider-ninja",
- "vx-provider-node",
- "vx-provider-nuget",
- "vx-provider-nx",
- "vx-provider-ollama",
- "vx-provider-pnpm",
- "vx-provider-podman",
- "vx-provider-pre-commit",
- "vx-provider-prek",
- "vx-provider-protoc",
- "vx-provider-pwsh",
- "vx-provider-python",
- "vx-provider-rcedit",
- "vx-provider-release-please",
- "vx-provider-rez",
- "vx-provider-ripgrep",
- "vx-provider-rust",
- "vx-provider-sccache",
- "vx-provider-spack",
- "vx-provider-starship",
- "vx-provider-systemctl",
- "vx-provider-task",
- "vx-provider-terraform",
- "vx-provider-turbo",
- "vx-provider-uv",
- "vx-provider-vcpkg",
- "vx-provider-vite",
- "vx-provider-vscode",
- "vx-provider-winget",
- "vx-provider-xcodebuild",
- "vx-provider-yarn",
- "vx-provider-yq",
- "vx-provider-zig",
  "vx-resolver",
  "vx-runtime",
+ "vx-runtime-core",
  "vx-runtime-http",
  "vx-setup",
  "vx-shim",
@@ -4620,7 +4546,7 @@ dependencies = [
 
 [[package]]
 name = "vx-config"
-version = "0.8.31"
+version = "0.8.32"
 dependencies = [
  "anyhow",
  "chrono",
@@ -4642,7 +4568,7 @@ dependencies = [
 
 [[package]]
 name = "vx-console"
-version = "0.8.31"
+version = "0.8.32"
 dependencies = [
  "anstream",
  "anstyle",
@@ -4662,25 +4588,8 @@ dependencies = [
 ]
 
 [[package]]
-name = "vx-core"
-version = "0.8.31"
-dependencies = [
- "anyhow",
- "pretty_assertions",
- "rstest",
- "serde",
- "serial_test",
- "tempfile",
- "test-case",
- "thiserror 2.0.18",
- "tokio",
- "tokio-test",
- "workspace-hack",
-]
-
-[[package]]
 name = "vx-ecosystem-pm"
-version = "0.8.31"
+version = "0.8.32"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4698,7 +4607,7 @@ dependencies = [
 
 [[package]]
 name = "vx-env"
-version = "0.8.31"
+version = "0.8.32"
 dependencies = [
  "anyhow",
  "colored",
@@ -4720,7 +4629,7 @@ dependencies = [
 
 [[package]]
 name = "vx-extension"
-version = "0.8.31"
+version = "0.8.32"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4733,16 +4642,16 @@ dependencies = [
  "toml",
  "tracing",
  "vx-args",
- "vx-core",
  "vx-manifest",
  "vx-paths",
+ "vx-runtime-core",
  "walkdir",
  "workspace-hack",
 ]
 
 [[package]]
 name = "vx-installer"
-version = "0.8.31"
+version = "0.8.32"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4775,7 +4684,7 @@ dependencies = [
 
 [[package]]
 name = "vx-manifest"
-version = "0.8.31"
+version = "0.8.32"
 dependencies = [
  "pretty_assertions",
  "rstest",
@@ -4793,7 +4702,7 @@ dependencies = [
 
 [[package]]
 name = "vx-metrics"
-version = "0.8.31"
+version = "0.8.32"
 dependencies = [
  "anyhow",
  "chrono",
@@ -4816,7 +4725,7 @@ dependencies = [
 
 [[package]]
 name = "vx-migration"
-version = "0.8.31"
+version = "0.8.32"
 dependencies = [
  "async-trait",
  "chrono",
@@ -4838,27 +4747,27 @@ dependencies = [
 
 [[package]]
 name = "vx-msbuild-bridge"
-version = "0.8.31"
+version = "0.8.32"
 dependencies = [
  "workspace-hack",
 ]
 
 [[package]]
 name = "vx-output-filter"
-version = "0.8.31"
+version = "0.8.32"
 dependencies = [
  "anyhow",
  "regex",
  "rstest",
  "tokio",
  "tracing",
- "vx-core",
+ "vx-runtime-core",
  "workspace-hack",
 ]
 
 [[package]]
 name = "vx-paths"
-version = "0.8.31"
+version = "0.8.32"
 dependencies = [
  "anyhow",
  "chrono",
@@ -4877,7 +4786,7 @@ dependencies = [
 
 [[package]]
 name = "vx-project-analyzer"
-version = "0.8.31"
+version = "0.8.32"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4893,1391 +4802,16 @@ dependencies = [
  "toml",
  "tracing",
  "vx-config",
- "vx-core",
  "vx-paths",
+ "vx-runtime-core",
  "walkdir",
  "which",
  "workspace-hack",
 ]
 
 [[package]]
-name = "vx-provider-7zip"
-version = "0.8.31"
-dependencies = [
- "rstest",
- "starlark",
- "vx-runtime",
- "vx-starlark",
- "workspace-hack",
-]
-
-[[package]]
-name = "vx-provider-actionlint"
-version = "0.8.31"
-dependencies = [
- "rstest",
- "starlark",
- "vx-runtime",
- "vx-starlark",
- "workspace-hack",
-]
-
-[[package]]
-name = "vx-provider-actrun"
-version = "0.8.31"
-dependencies = [
- "rstest",
- "starlark",
- "vx-runtime",
- "vx-starlark",
- "workspace-hack",
-]
-
-[[package]]
-name = "vx-provider-atuin"
-version = "0.8.31"
-dependencies = [
- "rstest",
- "starlark",
- "vx-runtime",
- "vx-starlark",
- "workspace-hack",
-]
-
-[[package]]
-name = "vx-provider-awscli"
-version = "0.8.31"
-dependencies = [
- "rstest",
- "starlark",
- "vx-runtime",
- "vx-starlark",
- "workspace-hack",
-]
-
-[[package]]
-name = "vx-provider-azcli"
-version = "0.8.31"
-dependencies = [
- "rstest",
- "starlark",
- "vx-runtime",
- "vx-starlark",
- "workspace-hack",
-]
-
-[[package]]
-name = "vx-provider-bash"
-version = "0.8.31"
-dependencies = [
- "rstest",
- "starlark",
- "vx-runtime",
- "vx-starlark",
- "workspace-hack",
-]
-
-[[package]]
-name = "vx-provider-bat"
-version = "0.8.31"
-dependencies = [
- "rstest",
- "starlark",
- "vx-runtime",
- "vx-starlark",
- "workspace-hack",
-]
-
-[[package]]
-name = "vx-provider-biome"
-version = "0.8.31"
-dependencies = [
- "rstest",
- "starlark",
- "vx-runtime",
- "vx-starlark",
- "workspace-hack",
-]
-
-[[package]]
-name = "vx-provider-bottom"
-version = "0.8.31"
-dependencies = [
- "rstest",
- "starlark",
- "vx-runtime",
- "vx-starlark",
- "workspace-hack",
-]
-
-[[package]]
-name = "vx-provider-brew"
-version = "0.8.31"
-dependencies = [
- "rstest",
- "starlark",
- "vx-runtime",
- "vx-starlark",
- "workspace-hack",
-]
-
-[[package]]
-name = "vx-provider-buf"
-version = "0.8.31"
-dependencies = [
- "rstest",
- "starlark",
- "vx-runtime",
- "vx-starlark",
- "workspace-hack",
-]
-
-[[package]]
-name = "vx-provider-buildcache"
-version = "0.8.31"
-dependencies = [
- "rstest",
- "starlark",
- "vx-runtime",
- "vx-starlark",
- "workspace-hack",
-]
-
-[[package]]
-name = "vx-provider-bun"
-version = "0.8.31"
-dependencies = [
- "rstest",
- "starlark",
- "vx-runtime",
- "vx-starlark",
- "workspace-hack",
-]
-
-[[package]]
-name = "vx-provider-cargo-audit"
-version = "0.8.31"
-dependencies = [
- "rstest",
- "starlark",
- "vx-runtime",
- "vx-starlark",
- "workspace-hack",
-]
-
-[[package]]
-name = "vx-provider-cargo-deny"
-version = "0.8.31"
-dependencies = [
- "rstest",
- "starlark",
- "vx-runtime",
- "vx-starlark",
- "workspace-hack",
-]
-
-[[package]]
-name = "vx-provider-cargo-nextest"
-version = "0.8.31"
-dependencies = [
- "rstest",
- "starlark",
- "vx-runtime",
- "vx-starlark",
- "workspace-hack",
-]
-
-[[package]]
-name = "vx-provider-ccache"
-version = "0.8.31"
-dependencies = [
- "rstest",
- "starlark",
- "vx-runtime",
- "vx-starlark",
- "workspace-hack",
-]
-
-[[package]]
-name = "vx-provider-chezmoi"
-version = "0.8.31"
-dependencies = [
- "rstest",
- "starlark",
- "vx-runtime",
- "vx-starlark",
- "workspace-hack",
-]
-
-[[package]]
-name = "vx-provider-choco"
-version = "0.8.31"
-dependencies = [
- "rstest",
- "starlark",
- "vx-runtime",
- "vx-starlark",
- "workspace-hack",
-]
-
-[[package]]
-name = "vx-provider-cmake"
-version = "0.8.31"
-dependencies = [
- "rstest",
- "starlark",
- "vx-runtime",
- "vx-starlark",
- "workspace-hack",
-]
-
-[[package]]
-name = "vx-provider-conan"
-version = "0.8.31"
-dependencies = [
- "rstest",
- "starlark",
- "vx-runtime",
- "vx-starlark",
- "workspace-hack",
-]
-
-[[package]]
-name = "vx-provider-cosign"
-version = "0.8.31"
-dependencies = [
- "rstest",
- "starlark",
- "vx-runtime",
- "vx-starlark",
- "workspace-hack",
-]
-
-[[package]]
-name = "vx-provider-ctlptl"
-version = "0.8.31"
-dependencies = [
- "rstest",
- "starlark",
- "vx-runtime",
- "vx-starlark",
- "workspace-hack",
-]
-
-[[package]]
-name = "vx-provider-curl"
-version = "0.8.31"
-dependencies = [
- "rstest",
- "starlark",
- "vx-runtime",
- "vx-starlark",
- "workspace-hack",
-]
-
-[[package]]
-name = "vx-provider-dagu"
-version = "0.8.31"
-dependencies = [
- "rstest",
- "starlark",
- "vx-runtime",
- "vx-starlark",
- "workspace-hack",
-]
-
-[[package]]
-name = "vx-provider-delta"
-version = "0.8.31"
-dependencies = [
- "rstest",
- "starlark",
- "vx-runtime",
- "vx-starlark",
- "workspace-hack",
-]
-
-[[package]]
-name = "vx-provider-deno"
-version = "0.8.31"
-dependencies = [
- "rstest",
- "starlark",
- "vx-runtime",
- "vx-starlark",
- "workspace-hack",
-]
-
-[[package]]
-name = "vx-provider-dive"
-version = "0.8.31"
-dependencies = [
- "rstest",
- "starlark",
- "vx-runtime",
- "vx-starlark",
- "workspace-hack",
-]
-
-[[package]]
-name = "vx-provider-dotnet"
-version = "0.8.31"
-dependencies = [
- "rstest",
- "starlark",
- "vx-runtime",
- "vx-starlark",
- "workspace-hack",
-]
-
-[[package]]
-name = "vx-provider-duckdb"
-version = "0.8.31"
-dependencies = [
- "rstest",
- "starlark",
- "vx-runtime",
- "vx-starlark",
- "workspace-hack",
-]
-
-[[package]]
-name = "vx-provider-duf"
-version = "0.8.31"
-dependencies = [
- "rstest",
- "starlark",
- "vx-runtime",
- "vx-starlark",
- "workspace-hack",
-]
-
-[[package]]
-name = "vx-provider-dust"
-version = "0.8.31"
-dependencies = [
- "rstest",
- "starlark",
- "vx-runtime",
- "vx-starlark",
- "workspace-hack",
-]
-
-[[package]]
-name = "vx-provider-eza"
-version = "0.8.31"
-dependencies = [
- "rstest",
- "starlark",
- "vx-runtime",
- "vx-starlark",
- "workspace-hack",
-]
-
-[[package]]
-name = "vx-provider-fd"
-version = "0.8.31"
-dependencies = [
- "rstest",
- "starlark",
- "vx-runtime",
- "vx-starlark",
- "workspace-hack",
-]
-
-[[package]]
-name = "vx-provider-ffmpeg"
-version = "0.8.31"
-dependencies = [
- "rstest",
- "starlark",
- "vx-runtime",
- "vx-starlark",
- "workspace-hack",
-]
-
-[[package]]
-name = "vx-provider-flux"
-version = "0.8.31"
-dependencies = [
- "rstest",
- "starlark",
- "vx-runtime",
- "vx-starlark",
- "workspace-hack",
-]
-
-[[package]]
-name = "vx-provider-fzf"
-version = "0.8.31"
-dependencies = [
- "rstest",
- "starlark",
- "vx-runtime",
- "vx-starlark",
- "workspace-hack",
-]
-
-[[package]]
-name = "vx-provider-gcloud"
-version = "0.8.31"
-dependencies = [
- "rstest",
- "starlark",
- "vx-runtime",
- "vx-starlark",
- "workspace-hack",
-]
-
-[[package]]
-name = "vx-provider-gh"
-version = "0.8.31"
-dependencies = [
- "rstest",
- "starlark",
- "vx-runtime",
- "vx-starlark",
- "workspace-hack",
-]
-
-[[package]]
-name = "vx-provider-git"
-version = "0.8.31"
-dependencies = [
- "rstest",
- "starlark",
- "vx-runtime",
- "vx-starlark",
- "workspace-hack",
-]
-
-[[package]]
-name = "vx-provider-gitleaks"
-version = "0.8.31"
-dependencies = [
- "rstest",
- "starlark",
- "vx-runtime",
- "vx-starlark",
- "workspace-hack",
-]
-
-[[package]]
-name = "vx-provider-go"
-version = "0.8.31"
-dependencies = [
- "rstest",
- "starlark",
- "vx-runtime",
- "vx-starlark",
- "workspace-hack",
-]
-
-[[package]]
-name = "vx-provider-golangci-lint"
-version = "0.8.31"
-dependencies = [
- "rstest",
- "starlark",
- "vx-runtime",
- "vx-starlark",
- "workspace-hack",
-]
-
-[[package]]
-name = "vx-provider-goreleaser"
-version = "0.8.31"
-dependencies = [
- "rstest",
- "starlark",
- "vx-runtime",
- "vx-starlark",
- "workspace-hack",
-]
-
-[[package]]
-name = "vx-provider-gping"
-version = "0.8.31"
-dependencies = [
- "rstest",
- "starlark",
- "vx-runtime",
- "vx-starlark",
- "workspace-hack",
-]
-
-[[package]]
-name = "vx-provider-grpcurl"
-version = "0.8.31"
-dependencies = [
- "rstest",
- "starlark",
- "vx-runtime",
- "vx-starlark",
- "workspace-hack",
-]
-
-[[package]]
-name = "vx-provider-grype"
-version = "0.8.31"
-dependencies = [
- "rstest",
- "starlark",
- "vx-runtime",
- "vx-starlark",
- "workspace-hack",
-]
-
-[[package]]
-name = "vx-provider-hadolint"
-version = "0.8.31"
-dependencies = [
- "rstest",
- "starlark",
- "vx-runtime",
- "vx-starlark",
- "workspace-hack",
-]
-
-[[package]]
-name = "vx-provider-helix"
-version = "0.8.31"
-dependencies = [
- "rstest",
- "starlark",
- "vx-runtime",
- "vx-starlark",
- "workspace-hack",
-]
-
-[[package]]
-name = "vx-provider-helm"
-version = "0.8.31"
-dependencies = [
- "rstest",
- "starlark",
- "vx-runtime",
- "vx-starlark",
- "workspace-hack",
-]
-
-[[package]]
-name = "vx-provider-hyperfine"
-version = "0.8.31"
-dependencies = [
- "rstest",
- "starlark",
- "vx-runtime",
- "vx-starlark",
- "workspace-hack",
-]
-
-[[package]]
-name = "vx-provider-imagemagick"
-version = "0.8.31"
-dependencies = [
- "rstest",
- "starlark",
- "vx-runtime",
- "vx-starlark",
- "workspace-hack",
-]
-
-[[package]]
-name = "vx-provider-java"
-version = "0.8.31"
-dependencies = [
- "rstest",
- "starlark",
- "vx-runtime",
- "vx-starlark",
- "workspace-hack",
-]
-
-[[package]]
-name = "vx-provider-jj"
-version = "0.8.31"
-dependencies = [
- "rstest",
- "starlark",
- "vx-runtime",
- "vx-starlark",
- "workspace-hack",
-]
-
-[[package]]
-name = "vx-provider-jq"
-version = "0.8.31"
-dependencies = [
- "rstest",
- "starlark",
- "vx-runtime",
- "vx-starlark",
- "workspace-hack",
-]
-
-[[package]]
-name = "vx-provider-just"
-version = "0.8.31"
-dependencies = [
- "rstest",
- "starlark",
- "vx-runtime",
- "vx-starlark",
- "workspace-hack",
-]
-
-[[package]]
-name = "vx-provider-k3d"
-version = "0.8.31"
-dependencies = [
- "rstest",
- "starlark",
- "vx-runtime",
- "vx-starlark",
- "workspace-hack",
-]
-
-[[package]]
-name = "vx-provider-k9s"
-version = "0.8.31"
-dependencies = [
- "rstest",
- "starlark",
- "vx-runtime",
- "vx-starlark",
- "workspace-hack",
-]
-
-[[package]]
-name = "vx-provider-kind"
-version = "0.8.31"
-dependencies = [
- "rstest",
- "starlark",
- "vx-runtime",
- "vx-starlark",
- "workspace-hack",
-]
-
-[[package]]
-name = "vx-provider-kubectl"
-version = "0.8.31"
-dependencies = [
- "rstest",
- "starlark",
- "vx-runtime",
- "vx-starlark",
- "workspace-hack",
-]
-
-[[package]]
-name = "vx-provider-kustomize"
-version = "0.8.31"
-dependencies = [
- "rstest",
- "starlark",
- "vx-runtime",
- "vx-starlark",
- "workspace-hack",
-]
-
-[[package]]
-name = "vx-provider-lazydocker"
-version = "0.8.31"
-dependencies = [
- "rstest",
- "starlark",
- "vx-runtime",
- "vx-starlark",
- "workspace-hack",
-]
-
-[[package]]
-name = "vx-provider-lazygit"
-version = "0.8.31"
-dependencies = [
- "rstest",
- "starlark",
- "vx-runtime",
- "vx-starlark",
- "workspace-hack",
-]
-
-[[package]]
-name = "vx-provider-lefthook"
-version = "0.8.31"
-dependencies = [
- "rstest",
- "starlark",
- "vx-runtime",
- "vx-starlark",
- "workspace-hack",
-]
-
-[[package]]
-name = "vx-provider-lima"
-version = "0.8.31"
-dependencies = [
- "rstest",
- "starlark",
- "vx-runtime",
- "vx-starlark",
- "workspace-hack",
-]
-
-[[package]]
-name = "vx-provider-make"
-version = "0.8.31"
-dependencies = [
- "rstest",
- "starlark",
- "vx-runtime",
- "vx-starlark",
- "workspace-hack",
-]
-
-[[package]]
-name = "vx-provider-maturin"
-version = "0.8.31"
-dependencies = [
- "rstest",
- "starlark",
- "vx-runtime",
- "vx-starlark",
- "workspace-hack",
-]
-
-[[package]]
-name = "vx-provider-meson"
-version = "0.8.31"
-dependencies = [
- "rstest",
- "starlark",
- "vx-runtime",
- "vx-starlark",
- "workspace-hack",
-]
-
-[[package]]
-name = "vx-provider-minikube"
-version = "0.8.31"
-dependencies = [
- "rstest",
- "starlark",
- "vx-runtime",
- "vx-starlark",
- "workspace-hack",
-]
-
-[[package]]
-name = "vx-provider-mise"
-version = "0.8.31"
-dependencies = [
- "rstest",
- "starlark",
- "vx-runtime",
- "vx-starlark",
- "workspace-hack",
-]
-
-[[package]]
-name = "vx-provider-msbuild"
-version = "0.8.31"
-dependencies = [
- "rstest",
- "starlark",
- "vx-runtime",
- "vx-starlark",
- "workspace-hack",
-]
-
-[[package]]
-name = "vx-provider-msvc"
-version = "0.8.31"
-dependencies = [
- "rstest",
- "starlark",
- "vx-runtime",
- "vx-starlark",
- "workspace-hack",
-]
-
-[[package]]
-name = "vx-provider-nasm"
-version = "0.8.31"
-dependencies = [
- "rstest",
- "starlark",
- "vx-runtime",
- "vx-starlark",
- "workspace-hack",
-]
-
-[[package]]
-name = "vx-provider-nerdctl"
-version = "0.8.31"
-dependencies = [
- "rstest",
- "starlark",
- "vx-runtime",
- "vx-starlark",
- "workspace-hack",
-]
-
-[[package]]
-name = "vx-provider-ninja"
-version = "0.8.31"
-dependencies = [
- "rstest",
- "starlark",
- "vx-runtime",
- "vx-starlark",
- "workspace-hack",
-]
-
-[[package]]
-name = "vx-provider-node"
-version = "0.8.31"
-dependencies = [
- "rstest",
- "starlark",
- "vx-runtime",
- "vx-starlark",
- "workspace-hack",
-]
-
-[[package]]
-name = "vx-provider-nuget"
-version = "0.8.31"
-dependencies = [
- "rstest",
- "starlark",
- "vx-runtime",
- "vx-starlark",
- "workspace-hack",
-]
-
-[[package]]
-name = "vx-provider-nx"
-version = "0.8.31"
-dependencies = [
- "rstest",
- "starlark",
- "vx-runtime",
- "vx-starlark",
- "workspace-hack",
-]
-
-[[package]]
-name = "vx-provider-ollama"
-version = "0.8.31"
-dependencies = [
- "rstest",
- "starlark",
- "vx-runtime",
- "vx-starlark",
- "workspace-hack",
-]
-
-[[package]]
-name = "vx-provider-pnpm"
-version = "0.8.31"
-dependencies = [
- "rstest",
- "starlark",
- "vx-runtime",
- "vx-starlark",
- "workspace-hack",
-]
-
-[[package]]
-name = "vx-provider-podman"
-version = "0.8.31"
-dependencies = [
- "rstest",
- "starlark",
- "vx-runtime",
- "vx-starlark",
- "workspace-hack",
-]
-
-[[package]]
-name = "vx-provider-pre-commit"
-version = "0.8.31"
-dependencies = [
- "rstest",
- "starlark",
- "vx-runtime",
- "vx-starlark",
- "workspace-hack",
-]
-
-[[package]]
-name = "vx-provider-prek"
-version = "0.8.31"
-dependencies = [
- "rstest",
- "starlark",
- "vx-runtime",
- "vx-starlark",
- "workspace-hack",
-]
-
-[[package]]
-name = "vx-provider-protoc"
-version = "0.8.31"
-dependencies = [
- "rstest",
- "starlark",
- "vx-runtime",
- "vx-starlark",
- "workspace-hack",
-]
-
-[[package]]
-name = "vx-provider-pwsh"
-version = "0.8.31"
-dependencies = [
- "rstest",
- "starlark",
- "vx-runtime",
- "vx-starlark",
- "workspace-hack",
-]
-
-[[package]]
-name = "vx-provider-python"
-version = "0.8.31"
-dependencies = [
- "rstest",
- "starlark",
- "vx-runtime",
- "vx-starlark",
- "workspace-hack",
-]
-
-[[package]]
-name = "vx-provider-rcedit"
-version = "0.8.31"
-dependencies = [
- "rstest",
- "starlark",
- "vx-runtime",
- "vx-starlark",
- "workspace-hack",
-]
-
-[[package]]
-name = "vx-provider-release-please"
-version = "0.8.31"
-dependencies = [
- "rstest",
- "starlark",
- "vx-runtime",
- "vx-starlark",
- "workspace-hack",
-]
-
-[[package]]
-name = "vx-provider-rez"
-version = "0.8.31"
-dependencies = [
- "rstest",
- "starlark",
- "vx-runtime",
- "vx-starlark",
- "workspace-hack",
-]
-
-[[package]]
-name = "vx-provider-ripgrep"
-version = "0.8.31"
-dependencies = [
- "rstest",
- "starlark",
- "vx-runtime",
- "vx-starlark",
- "workspace-hack",
-]
-
-[[package]]
-name = "vx-provider-ruff"
-version = "0.8.31"
-dependencies = [
- "rstest",
- "starlark",
- "vx-runtime",
- "vx-starlark",
- "workspace-hack",
-]
-
-[[package]]
-name = "vx-provider-rust"
-version = "0.8.31"
-dependencies = [
- "rstest",
- "starlark",
- "vx-runtime",
- "vx-starlark",
- "workspace-hack",
-]
-
-[[package]]
-name = "vx-provider-sccache"
-version = "0.8.31"
-dependencies = [
- "rstest",
- "starlark",
- "vx-runtime",
- "vx-starlark",
- "workspace-hack",
-]
-
-[[package]]
-name = "vx-provider-sd"
-version = "0.8.31"
-dependencies = [
- "rstest",
- "starlark",
- "vx-runtime",
- "vx-starlark",
- "workspace-hack",
-]
-
-[[package]]
-name = "vx-provider-skaffold"
-version = "0.8.31"
-dependencies = [
- "rstest",
- "starlark",
- "vx-runtime",
- "vx-starlark",
- "workspace-hack",
-]
-
-[[package]]
-name = "vx-provider-spack"
-version = "0.8.31"
-dependencies = [
- "rstest",
- "starlark",
- "vx-runtime",
- "vx-starlark",
- "workspace-hack",
-]
-
-[[package]]
-name = "vx-provider-starship"
-version = "0.8.31"
-dependencies = [
- "rstest",
- "starlark",
- "vx-runtime",
- "vx-starlark",
- "workspace-hack",
-]
-
-[[package]]
-name = "vx-provider-syft"
-version = "0.8.31"
-dependencies = [
- "rstest",
- "starlark",
- "vx-runtime",
- "vx-starlark",
- "workspace-hack",
-]
-
-[[package]]
-name = "vx-provider-systemctl"
-version = "0.8.31"
-dependencies = [
- "rstest",
- "starlark",
- "vx-runtime",
- "vx-starlark",
- "workspace-hack",
-]
-
-[[package]]
-name = "vx-provider-task"
-version = "0.8.31"
-dependencies = [
- "rstest",
- "starlark",
- "vx-runtime",
- "vx-starlark",
- "workspace-hack",
-]
-
-[[package]]
-name = "vx-provider-tealdeer"
-version = "0.8.31"
-dependencies = [
- "rstest",
- "starlark",
- "vx-runtime",
- "vx-starlark",
- "workspace-hack",
-]
-
-[[package]]
-name = "vx-provider-terraform"
-version = "0.8.31"
-dependencies = [
- "rstest",
- "starlark",
- "vx-runtime",
- "vx-starlark",
- "workspace-hack",
-]
-
-[[package]]
-name = "vx-provider-tilt"
-version = "0.8.31"
-dependencies = [
- "rstest",
- "starlark",
- "vx-runtime",
- "vx-starlark",
- "workspace-hack",
-]
-
-[[package]]
-name = "vx-provider-tokei"
-version = "0.8.31"
-dependencies = [
- "rstest",
- "starlark",
- "vx-runtime",
- "vx-starlark",
- "workspace-hack",
-]
-
-[[package]]
-name = "vx-provider-trippy"
-version = "0.8.31"
-dependencies = [
- "rstest",
- "starlark",
- "vx-runtime",
- "vx-starlark",
- "workspace-hack",
-]
-
-[[package]]
-name = "vx-provider-trivy"
-version = "0.8.31"
-dependencies = [
- "rstest",
- "starlark",
- "vx-runtime",
- "vx-starlark",
- "workspace-hack",
-]
-
-[[package]]
-name = "vx-provider-turbo"
-version = "0.8.31"
-dependencies = [
- "rstest",
- "starlark",
- "vx-runtime",
- "vx-starlark",
- "workspace-hack",
-]
-
-[[package]]
-name = "vx-provider-usql"
-version = "0.8.31"
-dependencies = [
- "rstest",
- "starlark",
- "vx-runtime",
- "vx-starlark",
- "workspace-hack",
-]
-
-[[package]]
-name = "vx-provider-uv"
-version = "0.8.31"
-dependencies = [
- "rstest",
- "starlark",
- "vx-runtime",
- "vx-starlark",
- "workspace-hack",
-]
-
-[[package]]
-name = "vx-provider-vcpkg"
-version = "0.8.31"
-dependencies = [
- "rstest",
- "starlark",
- "vx-runtime",
- "vx-starlark",
- "workspace-hack",
-]
-
-[[package]]
-name = "vx-provider-vite"
-version = "0.8.31"
-dependencies = [
- "rstest",
- "starlark",
- "vx-runtime",
- "vx-starlark",
- "workspace-hack",
-]
-
-[[package]]
-name = "vx-provider-vscode"
-version = "0.8.31"
-dependencies = [
- "rstest",
- "starlark",
- "vx-runtime",
- "vx-starlark",
- "workspace-hack",
-]
-
-[[package]]
-name = "vx-provider-watchexec"
-version = "0.8.31"
-dependencies = [
- "rstest",
- "starlark",
- "vx-runtime",
- "vx-starlark",
- "workspace-hack",
-]
-
-[[package]]
-name = "vx-provider-winget"
-version = "0.8.31"
-dependencies = [
- "rstest",
- "starlark",
- "vx-runtime",
- "vx-starlark",
- "workspace-hack",
-]
-
-[[package]]
-name = "vx-provider-wix"
-version = "0.8.31"
-dependencies = [
- "rstest",
- "starlark",
- "vx-runtime",
- "vx-starlark",
- "workspace-hack",
-]
-
-[[package]]
-name = "vx-provider-xcodebuild"
-version = "0.8.31"
-dependencies = [
- "rstest",
- "starlark",
- "vx-runtime",
- "vx-starlark",
- "workspace-hack",
-]
-
-[[package]]
-name = "vx-provider-xh"
-version = "0.8.31"
-dependencies = [
- "rstest",
- "starlark",
- "vx-runtime",
- "vx-starlark",
- "workspace-hack",
-]
-
-[[package]]
-name = "vx-provider-xmake"
-version = "0.8.31"
-dependencies = [
- "rstest",
- "starlark",
- "vx-runtime",
- "vx-starlark",
- "workspace-hack",
-]
-
-[[package]]
-name = "vx-provider-yarn"
-version = "0.8.31"
-dependencies = [
- "rstest",
- "starlark",
- "vx-runtime",
- "vx-starlark",
- "workspace-hack",
-]
-
-[[package]]
-name = "vx-provider-yazi"
-version = "0.8.31"
-dependencies = [
- "rstest",
- "starlark",
- "vx-runtime",
- "vx-starlark",
- "workspace-hack",
-]
-
-[[package]]
-name = "vx-provider-yq"
-version = "0.8.31"
-dependencies = [
- "rstest",
- "starlark",
- "vx-runtime",
- "vx-starlark",
- "workspace-hack",
-]
-
-[[package]]
-name = "vx-provider-zellij"
-version = "0.8.31"
-dependencies = [
- "rstest",
- "starlark",
- "vx-runtime",
- "vx-starlark",
- "workspace-hack",
-]
-
-[[package]]
-name = "vx-provider-zig"
-version = "0.8.31"
-dependencies = [
- "rstest",
- "starlark",
- "vx-runtime",
- "vx-starlark",
- "workspace-hack",
-]
-
-[[package]]
-name = "vx-provider-zoxide"
-version = "0.8.31"
-dependencies = [
- "rstest",
- "starlark",
- "vx-runtime",
- "vx-starlark",
- "workspace-hack",
-]
-
-[[package]]
 name = "vx-resolver"
-version = "0.8.31"
+version = "0.8.32"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -6298,11 +4832,11 @@ dependencies = [
  "vx-cache",
  "vx-config",
  "vx-console",
- "vx-core",
  "vx-manifest",
  "vx-output-filter",
  "vx-paths",
  "vx-runtime",
+ "vx-runtime-core",
  "vx-versions",
  "walkdir",
  "which",
@@ -6311,7 +4845,7 @@ dependencies = [
 
 [[package]]
 name = "vx-runtime"
-version = "0.8.31"
+version = "0.8.32"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -6330,7 +4864,6 @@ dependencies = [
  "toml",
  "tracing",
  "vx-cache",
- "vx-core",
  "vx-manifest",
  "vx-paths",
  "vx-runtime-core",
@@ -6342,7 +4875,7 @@ dependencies = [
 
 [[package]]
 name = "vx-runtime-archive"
-version = "0.8.31"
+version = "0.8.32"
 dependencies = [
  "anyhow",
  "flate2",
@@ -6361,7 +4894,7 @@ dependencies = [
 
 [[package]]
 name = "vx-runtime-core"
-version = "0.8.31"
+version = "0.8.32"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -6378,7 +4911,7 @@ dependencies = [
 
 [[package]]
 name = "vx-runtime-http"
-version = "0.8.31"
+version = "0.8.32"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -6411,7 +4944,7 @@ dependencies = [
 
 [[package]]
 name = "vx-setup"
-version = "0.8.31"
+version = "0.8.32"
 dependencies = [
  "anyhow",
  "chrono",
@@ -6428,7 +4961,7 @@ dependencies = [
 
 [[package]]
 name = "vx-shim"
-version = "0.8.31"
+version = "0.8.32"
 dependencies = [
  "anyhow",
  "serde",
@@ -6437,20 +4970,20 @@ dependencies = [
  "thiserror 2.0.18",
  "tokio",
  "tracing",
- "vx-core",
  "vx-env",
  "vx-paths",
+ "vx-runtime-core",
  "which",
  "workspace-hack",
 ]
 
 [[package]]
 name = "vx-star-metadata"
-version = "0.8.31"
+version = "0.8.32"
 
 [[package]]
 name = "vx-starlark"
-version = "0.8.31"
+version = "0.8.32"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -6469,9 +5002,9 @@ dependencies = [
  "tokio",
  "tokio-test",
  "tracing",
- "vx-core",
  "vx-paths",
  "vx-runtime",
+ "vx-runtime-core",
  "vx-star-metadata",
  "vx-version-fetcher",
  "which",
@@ -6480,7 +5013,7 @@ dependencies = [
 
 [[package]]
 name = "vx-system-pm"
-version = "0.8.31"
+version = "0.8.32"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -6503,7 +5036,7 @@ dependencies = [
 
 [[package]]
 name = "vx-version-fetcher"
-version = "0.8.31"
+version = "0.8.32"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -6514,14 +5047,14 @@ dependencies = [
  "tokio",
  "tokio-test",
  "tracing",
- "vx-core",
+ "vx-runtime-core",
  "vx-versions",
  "workspace-hack",
 ]
 
 [[package]]
 name = "vx-versions"
-version = "0.8.31"
+version = "0.8.32"
 dependencies = [
  "anyhow",
  "async-trait",

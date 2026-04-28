@@ -240,7 +240,7 @@ fn test_downloader_config() {
 
 /// Test that the installer can be used with vx-core adapter
 #[tokio::test]
-async fn test_vx_core_integration() {
+async fn test_vx_runtime_core_integration() {
     // This test verifies that the types are compatible
     use vx_installer::{ArchiveFormat, InstallConfig, InstallMethod};
 

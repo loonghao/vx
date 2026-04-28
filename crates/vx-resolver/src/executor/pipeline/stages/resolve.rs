@@ -71,8 +71,8 @@ pub struct WithDepRequest {
     pub version: Option<String>,
 }
 
-impl From<&vx_core::WithDependency> for WithDepRequest {
-    fn from(dep: &vx_core::WithDependency) -> Self {
+impl From<&vx_runtime_core::WithDependency> for WithDepRequest {
+    fn from(dep: &vx_runtime_core::WithDependency) -> Self {
         Self {
             runtime: dep.runtime.clone(),
             version: dep.version.clone(),
@@ -821,7 +821,7 @@ mod tests {
 
     #[test]
     fn test_with_dep_request_from_core() {
-        let core_dep = vx_core::WithDependency::new("bun", Some("1.0.0".to_string()));
+        let core_dep = vx_runtime_core::WithDependency::new("bun", Some("1.0.0".to_string()));
         let req: WithDepRequest = (&core_dep).into();
         assert_eq!(req.runtime, "bun");
         assert_eq!(req.version, Some("1.0.0".to_string()));

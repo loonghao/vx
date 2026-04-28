@@ -860,6 +860,7 @@ pub trait Runtime: Send + Sync {
             .collect();
 
         // Sort versions (newest first)
+        #[allow(clippy::unnecessary_sort_by)]
         versions.sort_by(|a, b| b.cmp(a));
         Ok(versions)
     }
@@ -1109,7 +1110,7 @@ pub trait Runtime: Send + Sync {
             .collect();
 
         // Sort by priority (higher = preferred)
-        matching_mirrors.sort_by(|a, b| b.priority.cmp(&a.priority));
+        matching_mirrors.sort_by_key(|b| std::cmp::Reverse(b.priority));
 
         let mut urls = Vec::new();
 

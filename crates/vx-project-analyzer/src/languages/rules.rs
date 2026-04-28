@@ -103,7 +103,7 @@ pub fn apply_rules(root: &Path, rules: &[ScriptRule], parser: &ScriptParser) -> 
 
     // Sort rules by priority (descending) - we need to collect since rules is a slice
     let mut sorted_rules: Vec<_> = rules.iter().collect();
-    sorted_rules.sort_by(|a, b| b.priority.cmp(&a.priority));
+    sorted_rules.sort_by_key(|b| std::cmp::Reverse(b.priority));
 
     for rule in sorted_rules {
         // Skip if we already have a script with this name

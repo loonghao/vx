@@ -69,7 +69,7 @@ impl ShimExecutor {
         &self,
         exe_name: &str,
         args: &[String],
-        with_deps: &[vx_core::WithDependency],
+        with_deps: &[vx_runtime_core::WithDependency],
     ) -> ShimResult<Option<i32>> {
         // Load the package registry
         let registry = match PackageRegistry::load(&self.registry_path) {
@@ -112,7 +112,7 @@ impl ShimExecutor {
         &self,
         request: &PackageRequest,
         args: &[String],
-        with_deps: &[vx_core::WithDependency],
+        with_deps: &[vx_runtime_core::WithDependency],
     ) -> ShimResult<i32> {
         debug!("Execute package request: {:?}", request);
 
@@ -167,7 +167,7 @@ impl ShimExecutor {
         &self,
         request: &PackageRequest,
         args: &[String],
-        with_deps: &[vx_core::WithDependency],
+        with_deps: &[vx_runtime_core::WithDependency],
     ) -> ShimResult<i32> {
         let shell_name = request.shell_name().unwrap_or("cmd");
 
@@ -246,7 +246,7 @@ impl ShimExecutor {
     fn build_shell_environment(
         &self,
         package: &GlobalPackage,
-        with_deps: &[vx_core::WithDependency],
+        with_deps: &[vx_runtime_core::WithDependency],
     ) -> ShimResult<HashMap<String, String>> {
         // Get runtime dependencies (explicit or inferred from ecosystem)
         let mut runtime_deps = package.get_runtime_dependencies();
@@ -296,7 +296,7 @@ impl ShimExecutor {
     fn build_ecosystem_environment(
         &self,
         ecosystem: &str,
-        with_deps: &[vx_core::WithDependency],
+        with_deps: &[vx_runtime_core::WithDependency],
     ) -> ShimResult<HashMap<String, String>> {
         let runtime_deps = self.infer_all_runtimes_from_ecosystem(ecosystem);
 
@@ -374,7 +374,7 @@ impl ShimExecutor {
         package: &GlobalPackage,
         exe_name: &str,
         args: &[String],
-        with_deps: &[vx_core::WithDependency],
+        with_deps: &[vx_runtime_core::WithDependency],
     ) -> ShimResult<Option<i32>> {
         debug!(
             "Execute package shim for: {} (package: {}, with_deps: {:?})",
@@ -486,7 +486,7 @@ impl ShimExecutor {
     fn build_runtime_environment_with_deps(
         &self,
         package: &GlobalPackage,
-        with_deps: &[vx_core::WithDependency],
+        with_deps: &[vx_runtime_core::WithDependency],
     ) -> ShimResult<HashMap<String, String>> {
         debug!(
             "Build runtime environment for package: {} (ecosystem: {}, with_deps: {:?})",

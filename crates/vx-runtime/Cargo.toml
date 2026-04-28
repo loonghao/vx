@@ -20,7 +20,7 @@ futures-util = { workspace = true }
 # Serialization
 serde = { workspace = true }
 serde_json = { workspace = true }
-bincode = { version = "2.0.1", features = ["serde"] }
+bincode = { workspace = true }
 
 # Utilities
 chrono = { workspace = true }
@@ -30,11 +30,10 @@ regex = { workspace = true }
 toml = { workspace = true }
 
 # Internal dependencies
-vx-core = { path = "../vx-core" }
+vx-runtime-core = { workspace = true }
 vx-cache = { workspace = true }
 vx-versions = { workspace = true }
 vx-paths = { path = "../vx-paths" }
-vx-runtime-core = { path = "../vx-runtime-core" }
 vx-manifest = { path = "../vx-manifest" }
 vx-system-pm = { workspace = true }
 

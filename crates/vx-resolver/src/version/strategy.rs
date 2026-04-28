@@ -325,6 +325,7 @@ impl VersionStrategy for GitVersionStrategy {
                 }
 
                 // Sort by raw version string (descending) to get the latest windows build
+                #[allow(clippy::unnecessary_sort_by)]
                 matches.sort_by(|a, b| b.version.cmp(&a.version));
 
                 let best = matches.first()?;
