@@ -26,6 +26,7 @@ pub use vx_versions::{
 };
 
 // Re-exports from local modules
+pub use core::*;
 pub use normalize::{
     AliasNormalize, DirectoryNormalize, EffectiveNormalizeConfig, ExecutableNormalize,
     MirrorConfig, NormalizeAction, NormalizeConfig, PlatformNormalizeConfig,
@@ -35,7 +36,6 @@ pub use traits::{
     CommandExecutor, CorePathProvider, FileSystem, HttpClient, Installer, PathProvider,
 };
 pub use types::{ExecutionPrep, ExecutionResult, InstallResult, RuntimeDependency, RuntimeSpec};
-pub use core::*;
 pub use version_utils::{
     find_latest_version, is_newer_version, is_prerelease, normalize_version, parse_version,
 };

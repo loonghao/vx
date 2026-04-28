@@ -463,7 +463,10 @@ fn test_create_cdn_assets() {
 #[case("0.5.28", "0.5.28")]
 #[case("vx-v1.0.0-beta.1", "1.0.0-beta.1")]
 fn test_normalize_version(#[case] input: &str, #[case] expected: &str) {
-    assert_eq!(vx_runtime_core::version_utils::normalize_version(input), expected);
+    assert_eq!(
+        vx_runtime_core::version_utils::normalize_version(input),
+        expected
+    );
 }
 
 // ============================================================================
@@ -667,9 +670,15 @@ fn test_regression_vx_prefix_is_stable() {
     assert!(!vx_runtime_core::version_utils::is_prerelease("0.6.27"));
 
     // Prerelease versions SHOULD be detected even with vx-v prefix
-    assert!(vx_runtime_core::version_utils::is_prerelease("vx-v0.6.27-beta.1"));
-    assert!(vx_runtime_core::version_utils::is_prerelease("vx-v0.6.27-alpha.1"));
-    assert!(vx_runtime_core::version_utils::is_prerelease("vx-v0.6.27-rc.1"));
+    assert!(vx_runtime_core::version_utils::is_prerelease(
+        "vx-v0.6.27-beta.1"
+    ));
+    assert!(vx_runtime_core::version_utils::is_prerelease(
+        "vx-v0.6.27-alpha.1"
+    ));
+    assert!(vx_runtime_core::version_utils::is_prerelease(
+        "vx-v0.6.27-rc.1"
+    ));
 }
 
 /// Regression test: Version extraction should handle edge cases

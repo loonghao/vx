@@ -51,13 +51,8 @@ macro_rules! provider_files_test {
                 $provider
             );
             assert!(
-                dir.join("Cargo.toml").exists(),
-                "Cargo.toml should exist for {}",
-                $provider
-            );
-            assert!(
-                dir.join("lib.rs").exists(),
-                "lib.rs should exist for {}",
+                dir.join("tests").exists(),
+                "tests/ directory should exist for {}",
                 $provider
             );
         }

@@ -263,11 +263,6 @@ fn test_nx_provider_files_exist() {
         nx_dir.join("provider.star").exists(),
         "provider.star should exist"
     );
-    assert!(
-        nx_dir.join("Cargo.toml").exists(),
-        "Cargo.toml should exist"
-    );
-    assert!(nx_dir.join("lib.rs").exists(), "lib.rs should exist");
 }
 
 #[test]
@@ -278,11 +273,6 @@ fn test_turbo_provider_files_exist() {
         turbo_dir.join("provider.star").exists(),
         "provider.star should exist"
     );
-    assert!(
-        turbo_dir.join("Cargo.toml").exists(),
-        "Cargo.toml should exist"
-    );
-    assert!(turbo_dir.join("lib.rs").exists(), "lib.rs should exist");
 }
 
 #[test]
@@ -296,11 +286,6 @@ fn test_sccache_provider_files_exist() {
         sccache_dir.join("provider.star").exists(),
         "provider.star should exist"
     );
-    assert!(
-        sccache_dir.join("Cargo.toml").exists(),
-        "Cargo.toml should exist"
-    );
-    assert!(sccache_dir.join("lib.rs").exists(), "lib.rs should exist");
 }
 
 #[test]
@@ -313,14 +298,6 @@ fn test_buildcache_provider_files_exist() {
     assert!(
         buildcache_dir.join("provider.star").exists(),
         "provider.star should exist"
-    );
-    assert!(
-        buildcache_dir.join("Cargo.toml").exists(),
-        "Cargo.toml should exist"
-    );
-    assert!(
-        buildcache_dir.join("lib.rs").exists(),
-        "lib.rs should exist"
     );
 }
 

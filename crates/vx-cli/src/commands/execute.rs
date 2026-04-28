@@ -9,9 +9,9 @@
 
 use crate::ui::UI;
 use anyhow::Result;
-use vx_runtime_core::WithDependency;
 use vx_resolver::{Executor, ResolverConfig};
 use vx_runtime::{CacheMode, ProviderRegistry, RuntimeContext};
+use vx_runtime_core::WithDependency;
 
 // ──────────────────────────────────────────────────────────────────────────────
 // Options struct

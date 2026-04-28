@@ -1109,8 +1109,9 @@ async fn try_jsdelivr_api(client: &reqwest::Client, prerelease: bool) -> Result<
 
     // If no version with valid assets found, return the latest version anyway
     // The download will fail and provide appropriate error message
-    let latest_version = vx_runtime_core::version_utils::find_latest_version(&version_strings, !prerelease)
-        .ok_or_else(|| anyhow!("No suitable version found"))?;
+    let latest_version =
+        vx_runtime_core::version_utils::find_latest_version(&version_strings, !prerelease)
+            .ok_or_else(|| anyhow!("No suitable version found"))?;
 
     let version_number = vx_runtime_core::version_utils::normalize_version(latest_version);
 
