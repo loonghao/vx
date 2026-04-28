@@ -7,7 +7,7 @@
 //! prerelease markers for ecosystem-specific tags like `canary` and `-snapshot`.
 
 use std::cmp::Ordering;
-use vx_core::version_utils as core_vu;
+use vx_runtime_core::version_utils as core_vu;
 use vx_versions::VersionInfo;
 
 /// Version processing utility functions

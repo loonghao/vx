@@ -454,7 +454,7 @@ mod environment_isolation_tests {
 /// These tests verify that {install_dir}, {version}, and other template
 /// variables are correctly expanded in environment configuration.
 ///
-/// Note: These tests use vx_core::version_utils directly to test the shared
+/// Note: These tests use vx_runtime_core::version_utils directly to test the shared
 /// version parsing logic that Executor relies on.
 mod template_expansion_tests {
     use rstest::rstest;
@@ -464,7 +464,7 @@ mod template_expansion_tests {
     #[test]
     fn test_version_sorting_for_install_dir() {
         let mut versions = vec!["18.0.0", "20.0.0", "20.10.0", "22.0.0", "19.5.0"];
-        vx_core::version_utils::sort_versions_desc(&mut versions);
+        vx_runtime_core::version_utils::sort_versions_desc(&mut versions);
         // Should be sorted descending (newest first)
         assert_eq!(versions[0], "22.0.0");
         assert_eq!(versions[1], "20.10.0");
@@ -477,7 +477,7 @@ mod template_expansion_tests {
         let candidates = ["20.0.0", "temp", "18.0.0", ".cache", "invalid"];
         let valid: Vec<&str> = candidates
             .iter()
-            .filter(|v| vx_core::version_utils::parse_version(v).is_some())
+            .filter(|v| vx_runtime_core::version_utils::parse_version(v).is_some())
             .copied()
             .collect();
 
@@ -495,7 +495,7 @@ mod template_expansion_tests {
     #[case("temp", false)]
     #[case(".hidden", false)]
     fn test_version_parsing(#[case] input: &str, #[case] should_parse: bool) {
-        let result = vx_core::version_utils::parse_version(input);
+        let result = vx_runtime_core::version_utils::parse_version(input);
         assert_eq!(
             result.is_some(),
             should_parse,
@@ -509,7 +509,7 @@ mod template_expansion_tests {
     #[test]
     fn test_find_latest_version() {
         let versions = vec!["0.6.25", "0.6.27", "0.6.26"];
-        let latest = vx_core::version_utils::find_latest_version(&versions, false);
+        let latest = vx_runtime_core::version_utils::find_latest_version(&versions, false);
         assert_eq!(latest, Some("0.6.27"));
     }
 
@@ -519,11 +519,11 @@ mod template_expansion_tests {
         let versions = vec!["0.6.25", "0.6.28-beta.1", "0.6.27"];
 
         // Without excluding prerelease
-        let latest = vx_core::version_utils::find_latest_version(&versions, false);
+        let latest = vx_runtime_core::version_utils::find_latest_version(&versions, false);
         assert_eq!(latest, Some("0.6.28-beta.1"));
 
         // Excluding prerelease
-        let latest = vx_core::version_utils::find_latest_version(&versions, true);
+        let latest = vx_runtime_core::version_utils::find_latest_version(&versions, true);
         assert_eq!(latest, Some("0.6.27"));
     }
 
@@ -531,17 +531,17 @@ mod template_expansion_tests {
     #[test]
     fn test_prerelease_comparison() {
         // Stable version should be newer than prerelease of same version
-        assert!(vx_core::version_utils::is_newer_version(
+        assert!(vx_runtime_core::version_utils::is_newer_version(
             "0.6.27",
             "0.6.27-beta.1"
         ));
-        assert!(!vx_core::version_utils::is_newer_version(
+        assert!(!vx_runtime_core::version_utils::is_newer_version(
             "0.6.27-beta.1",
             "0.6.27"
         ));
 
         // Beta of newer version should be newer than stable of older version
-        assert!(vx_core::version_utils::is_newer_version(
+        assert!(vx_runtime_core::version_utils::is_newer_version(
             "0.6.28-beta.1",
             "0.6.27"
         ));
@@ -570,7 +570,7 @@ mod template_expansion_tests {
     #[case("0.6.27", "0.6.27")]
     #[case("vx-v1.0.0-beta.1", "1.0.0-beta.1")]
     fn test_version_normalization(#[case] input: &str, #[case] expected: &str) {
-        let normalized = vx_core::version_utils::normalize_version(input);
+        let normalized = vx_runtime_core::version_utils::normalize_version(input);
         assert_eq!(normalized, expected);
     }
 }
@@ -584,7 +584,7 @@ mod template_expansion_tests {
 /// These tests verify the fixes made in the fix/python-env-and-self-update branch
 /// to ensure they don't regress in future changes.
 mod install_dir_regression_tests {
-    use vx_core::version_utils;
+    use vx_runtime_core::version_utils;
 
     /// Regression test: {install_dir} should select LATEST version, not first in list
     ///

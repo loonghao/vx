@@ -12,10 +12,13 @@
 //! - **DI traits**: `HttpClient`, `FileSystem`, `PathProvider`, `Installer`, etc.
 //! - **Ecosystem**: `Ecosystem` enum (from `vx-versions`)
 
+pub mod command;
+pub mod core;
 pub mod normalize;
 pub mod platform;
 pub mod traits;
 pub mod types;
+pub mod version_utils;
 
 // Re-exports from vx-versions (canonical definitions live there)
 pub use vx_versions::{
@@ -32,3 +35,7 @@ pub use traits::{
     CommandExecutor, CorePathProvider, FileSystem, HttpClient, Installer, PathProvider,
 };
 pub use types::{ExecutionPrep, ExecutionResult, InstallResult, RuntimeDependency, RuntimeSpec};
+pub use core::*;
+pub use version_utils::{
+    find_latest_version, is_newer_version, is_prerelease, normalize_version, parse_version,
+};

@@ -13,7 +13,7 @@ use crate::ResolutionResult;
 use crate::executor::command::{build_command, build_command_with_filter, run_command};
 use crate::executor::pipeline::error::ExecuteError;
 use crate::executor::pipeline::stage::Stage;
-use vx_core::exit_code_from_status;
+use vx_runtime_core::exit_code_from_status;
 
 use super::prepare::PreparedExecution;
 

@@ -17,7 +17,7 @@
 //! be `.cmd` or `.bat` files (especially on Windows).
 //!
 //! ```rust,ignore
-//! use vx_core::command::spawn_command;
+//! use vx_runtime_core::command::spawn_command;
 //! use std::path::Path;
 //!
 //! let output = spawn_command(Path::new("C:\\Program Files\\nodejs\\npm.cmd"), &["--version"])
@@ -59,7 +59,7 @@ pub type CommandResult<T> = Result<T, CommandError>;
 /// # Example
 ///
 /// ```rust,ignore
-/// use vx_core::command::spawn_command;
+/// use vx_runtime_core::command::spawn_command;
 /// use std::path::Path;
 ///
 /// // This works correctly even with paths like "C:\Program Files\nodejs\npm.cmd"

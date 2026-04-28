@@ -29,7 +29,7 @@ use std::process::ExitStatus;
 /// # Example
 ///
 /// ```rust
-/// use vx_core::WithDependency;
+/// use vx_runtime_core::WithDependency;
 ///
 /// // Parse "bun@1.1.0"
 /// let dep = WithDependency::parse("bun@1.1.0");
@@ -102,7 +102,7 @@ impl std::fmt::Display for WithDependency {
 ///
 /// ```rust,ignore
 /// use std::process::Command;
-/// use vx_core::is_ctrl_c_exit;
+/// use vx_runtime_core::is_ctrl_c_exit;
 ///
 /// let status = Command::new("some_command").status().unwrap();
 /// if is_ctrl_c_exit(&status) {
@@ -139,7 +139,7 @@ pub fn is_ctrl_c_exit(status: &ExitStatus) -> bool {
 ///
 /// ```rust,ignore
 /// use std::process::Command;
-/// use vx_core::exit_code_from_status;
+/// use vx_runtime_core::exit_code_from_status;
 ///
 /// let status = Command::new("some_command").status().unwrap();
 /// let code = exit_code_from_status(&status);
@@ -164,7 +164,7 @@ pub fn exit_code_from_status(status: &ExitStatus) -> i32 {
 /// # Example
 ///
 /// ```rust
-/// use vx_core::is_latest_version;
+/// use vx_runtime_core::is_latest_version;
 ///
 /// assert!(is_latest_version("latest"));
 /// assert!(is_latest_version("LATEST"));
@@ -182,7 +182,7 @@ pub fn is_latest_version(version: &str) -> bool {
 /// # Example
 ///
 /// ```rust
-/// use vx_core::resolve_latest_version;
+/// use vx_runtime_core::resolve_latest_version;
 ///
 /// let versions = vec!["1.0.0".to_string(), "2.0.0".to_string(), "1.5.0".to_string()];
 /// assert_eq!(resolve_latest_version("latest", &versions), Some("2.0.0".to_string()));
