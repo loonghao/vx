@@ -4541,6 +4541,7 @@ dependencies = [
  "vx-provider-ccache",
  "vx-provider-choco",
  "vx-provider-cmake",
+ "vx-provider-conda",
  "vx-provider-curl",
  "vx-provider-dagu",
  "vx-provider-deno",
@@ -5139,6 +5140,19 @@ dependencies = [
  "starlark",
  "vx-runtime",
  "vx-starlark",
+ "workspace-hack",
+]
+
+[[package]]
+name = "vx-provider-conda"
+version = "0.8.31"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "rstest",
+ "tokio",
+ "tracing",
+ "vx-runtime",
  "workspace-hack",
 ]
 
