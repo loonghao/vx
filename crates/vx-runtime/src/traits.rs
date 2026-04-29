@@ -9,12 +9,14 @@ use std::path::{Path, PathBuf};
 
 /// HTTP client abstraction for testability
 #[async_trait]
+#[allow(async_fn_in_trait)]
 pub trait HttpClient: Send + Sync {
     /// Perform a GET request and return the response body as string
     async fn get(&self, url: &str) -> Result<String>;
 
     /// Perform a GET request and return the response body as JSON Value
     async fn get_json_value(&self, url: &str) -> Result<serde_json::Value>;
+
 
     /// Download a file to the specified path
     async fn download(&self, url: &str, dest: &Path) -> Result<()>;
@@ -96,6 +98,7 @@ pub trait FileSystem: Send + Sync {
 
 /// Command executor abstraction for testability
 #[async_trait]
+#[allow(async_fn_in_trait)]
 pub trait CommandExecutor: Send + Sync {
     /// Execute a command and return the result
     async fn execute(
@@ -208,12 +211,14 @@ pub trait PathProvider: CorePathProvider {
 
 /// Installer abstraction for testability
 #[async_trait]
+#[allow(async_fn_in_trait)]
 pub trait Installer: Send + Sync {
     /// Extract an archive to a directory
     async fn extract(&self, archive: &Path, dest: &Path) -> Result<()>;
 
     /// Download and extract in one operation
     async fn download_and_extract(&self, url: &str, dest: &Path) -> Result<()>;
+
 
     /// Download and install with layout configuration (RFC 0019)
     ///
