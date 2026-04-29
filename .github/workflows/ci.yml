@@ -649,7 +649,7 @@ jobs:
             os: ubuntu-latest
             artifact: vx-linux-x64
             binary: vx
-            timeout_minutes: 25
+            timeout_minutes: 45
           - name: Windows-x86_64
             os: windows-latest
             artifact: vx-windows-x64
@@ -659,7 +659,7 @@ jobs:
             os: macos-latest
             artifact: vx-macos-x64
             binary: vx
-            timeout_minutes: 30
+            timeout_minutes: 45
 
     steps:
       - uses: actions/checkout@v6
