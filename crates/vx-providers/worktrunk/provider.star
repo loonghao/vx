@@ -18,7 +18,7 @@
 
 load("@vx//stdlib:provider.star",
      "runtime_def", "github_permissions", "fetch_versions_with_tag_prefix")
-load("@vx//stdlib:layout.star", "archive_layout", "post_extract_permissions")
+load("@vx//stdlib:layout.star", "post_extract_permissions")
 load("@vx//stdlib:layout.star", "path_fns")
 
 # ---------------------------------------------------------------------------
@@ -95,16 +95,29 @@ def download_url(ctx, version):
 # ---------------------------------------------------------------------------
 # install_layout
 # ---------------------------------------------------------------------------
-# cargo-dist archives contain a top-level directory named:
-#   worktrunk-v{VERSION}-{TRIPLE}/
+# Archive structure differs by platform (cargo-dist behavior):
+#   Linux/macOS: worktrunk-{triple}/wt          → strip_prefix needed
+#   Windows:      wt.exe at archive root      → no strip_prefix
 #
-# archive_layout(executable, strip_prefix=...) returns the install_layout function.
-# strip_prefix supports placeholders: {version}, {vversion}, {triple}
-#
-install_layout = archive_layout(
-    "wt",
-    strip_prefix = "worktrunk-v{version}-{triple}",
-)
+def install_layout(ctx, _version):
+    triple = _triple(ctx)
+    if triple == None:
+        return None
+    os = ctx.platform.os
+    if os == "windows":
+        # Flat ZIP — no top-level directory to strip
+        return {
+            "__type": "archive",
+            "strip_prefix": None,
+            "executable_paths": ["wt.exe"],
+        }
+    else:
+        # tar.xz has top-level dir: worktrunk-{triple}/
+        return {
+            "__type": "archive",
+            "strip_prefix": "worktrunk-{}".format(triple),
+            "executable_paths": ["wt"],
+        }
 
 # ---------------------------------------------------------------------------
 # store_root  — where vx stores installed versions
