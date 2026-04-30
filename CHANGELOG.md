@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.8.33](https://github.com/loonghao/vx/compare/v0.8.32...v0.8.33) (2026-04-30)
 
 
+### Features
+
+* **providers:** add age encryption tool provider
+* **providers:** add sops secrets management provider
+* **project-analyzer:** add framework detection for Bun, Deno, Nix, Zig
+
+
 ### Performance Improvements
 
 * add cargo build optimization agent rule ([f042114](https://github.com/loonghao/vx/commit/f042114000e11bd3fc94fc3c585aac1baf8511a8))

@@ -1,6 +1,6 @@
 # Supported Tools Overview
 
-vx supports **129 tools** out of the box, spanning language runtimes, package managers, DevOps tools, build systems, code quality tools, and more. All tools are managed through the same unified interface.
+vx supports **131 tools** out of the box, spanning language runtimes, package managers, DevOps tools, build systems, code quality tools, and more. All tools are managed through the same unified interface.
 
 ## At a Glance
 
@@ -9,18 +9,18 @@ vx supports **129 tools** out of the box, spanning language runtimes, package ma
 | [Language Runtimes](#language-runtimes) | Node.js, Python, Go, Rust, Deno, Zig, Java, .NET | 8 |
 | [Package Managers](#package-managers) | npm, pnpm, yarn, bun, uv, pip, cargo, nuget | 8 |
 | [Build Tools](#build-tools) | CMake, Ninja, Just, Task, Make, Meson, protoc, MSBuild, Vite, xmake | 10 |
-| [Build Cache](#build-cache-tools) | sccache, ccache, buildcache, Nx, Turborepo | 5 |
+| [Build Cache](#build-cache-tools) | sccache, ccache, buildcache, Nx, Turborepo | 7 |
 | [DevOps](#devops--kubernetes) | Terraform, kubectl, Helm, Podman, Flux, kustomize | 6+ |
-| [Kubernetes Tools](#kubernetes-tools) | k9s, kind, k3d, minikube, nerdctl | 5 |
+| [Kubernetes Tools](#kubernetes-tools) | k9s, kind, k3d, minikube, nerdctl | 7 |
 | [Cloud CLI](#cloud-cli) | AWS CLI, Azure CLI, Google Cloud CLI | 3 |
 | [Code Quality](#code-quality) | pre-commit, ruff, ripgrep, fd, bat, biome, golangci-lint | 7+ |
-| [Git Tools](#git-tools) | lazygit, jj, delta, gitleaks, lefthook | 5 |
+| [Git Tools](#git-tools) | lazygit, jj, delta, gitleaks, lefthook | 7 |
 | [AI/ML](#aiml-tools) | Ollama, usql | 2 |
 | [Scientific & HPC](#scientific--hpc) | Spack, Rez | 2 |
 | [Media](#media) | FFmpeg, ImageMagick | 2 |
 | [CLI Enhancements](#cli--terminal-enhancements) | jq, fzf, eza, duf, dust, sd, zoxide | 7+ |
 | [System Tools](#system--terminal-tools) | curl, pwsh, NASM, x-cmd, 7zip, htop (bottom) | 6+ |
-| [Security](#security-tools) | cosign, grype, syft, trivy, git-leaks | 5 |
+| [Security](#security-tools) | cosign, grype, syft, trivy, git-leaks, age, sops | 7 |
 | [Windows-specific](#windows-specific) | choco, winget, rcedit, MSVC, Wix, vcpkg | 6 |
 | [Editors & TUI](#editors--tui-tools) | VS Code, Helix, Zellij, Yazi | 4 |
 
@@ -205,6 +205,8 @@ See [Build Cache Guide](./build-cache) for detailed documentation.
 | **syft** | SBOM (Software Bill of Materials) generator |
 | **trivy** | Vulnerability scanner for containers/Git repos |
 | **gitleaks** | Git secret/history scanner |
+| **age** | Simple, modern file encryption (YubiKey support) |
+| **sops** | Secrets operations (encrypted files with multi-key support) |
 
 ## Windows-Specific
 
@@ -270,7 +272,7 @@ vx install <tool>@<version>
 
 > **Note**: For detailed documentation, click the links above. For undocumented tools, please refer to the tool's official documentation.
 
-All 129 tools are immediately available with `vx <tool>`. No manual installation required — vx handles everything automatically.
+All 131 tools are immediately available with `vx <tool>`. No manual installation required — vx handles everything automatically.
 
 ## Custom Tools
 
