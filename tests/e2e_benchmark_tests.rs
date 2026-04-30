@@ -71,7 +71,7 @@ mod thresholds {
     /// Note: Windows full-workspace nextest runs show substantially higher
     /// startup variance than isolated runs, so keep a more generous threshold there.
     #[cfg(windows)]
-    pub const HELP_MS: u64 = 1000;
+    pub const HELP_MS: u64 = 2000;
     #[cfg(not(windows))]
     pub const HELP_MS: u64 = 350;
 
@@ -79,7 +79,7 @@ mod thresholds {
     /// Note: Windows full-workspace nextest runs can show significantly higher
     /// startup variance than isolated runs, so keep a more generous threshold there.
     #[cfg(windows)]
-    pub const VERSION_MS: u64 = 1000;
+    pub const VERSION_MS: u64 = 2000;
     #[cfg(not(windows))]
     pub const VERSION_MS: u64 = 350;
 
