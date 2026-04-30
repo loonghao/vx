@@ -19,6 +19,14 @@ pub enum Ecosystem {
     DotNet,
     /// Java ecosystem (maven, gradle)
     Java,
+    /// Bun runtime ecosystem
+    Bun,
+    /// Deno runtime ecosystem
+    Deno,
+    /// Nix package manager ecosystem
+    Nix,
+    /// Zig programming language ecosystem
+    Zig,
     /// Unknown/Other
     Unknown,
 }
@@ -34,6 +42,10 @@ impl Ecosystem {
             Ecosystem::Cpp => "C++",
             Ecosystem::DotNet => ".NET/C#",
             Ecosystem::Java => "Java",
+            Ecosystem::Bun => "Bun",
+            Ecosystem::Deno => "Deno",
+            Ecosystem::Nix => "Nix",
+            Ecosystem::Zig => "Zig",
             Ecosystem::Unknown => "Unknown",
         }
     }
@@ -66,7 +78,15 @@ impl Ecosystem {
                 "global.json",
                 "Directory.Build.props",
             ],
+            Ecosystem::Bun => &["bun.lockb", "bunfig.toml", "bunfig.toml5"],
+            Ecosystem::Deno => &["deno.json", "deno.jsonc", "deno.lock"],
+            Ecosystem::Nix => &["flake.nix", "default.nix", "shell.nix"],
+            Ecosystem::Zig => &["build.zig", "zig.mod"],
             Ecosystem::Java => &["pom.xml", "build.gradle", "build.gradle.kts"],
+            Ecosystem::Bun => &["bun.lockb", "bunfig.toml"],
+            Ecosystem::Deno => &["deno.json", "deno.lock"],
+            Ecosystem::Nix => &["flake.nix", "shell.nix"],
+            Ecosystem::Zig => &["build.zig"],
             Ecosystem::Unknown => &[],
         }
     }

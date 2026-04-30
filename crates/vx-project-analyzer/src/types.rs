@@ -142,6 +142,9 @@ pub enum ScriptSource {
 
     /// Auto-detected (e.g., noxfile.py exists)
     Detected { reason: String },
+
+    /// From build.zig (Zig build system)
+    BuildZig,
 }
 
 impl std::fmt::Display for ScriptSource {

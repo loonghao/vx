@@ -11,21 +11,29 @@
 //! Frameworks are detected on top of language ecosystems and provide
 //! additional context about project structure and required tools.
 
+mod bun;
 mod capacitor;
+mod deno;
 mod electron;
 mod flutter;
+mod nix;
 mod nwjs;
 mod react_native;
 mod tauri;
 mod types;
+mod zig;
 
+pub use bun::BunDetector;
 pub use capacitor::CapacitorDetector;
+pub use deno::DenoDetector;
 pub use electron::ElectronDetector;
 pub use flutter::FlutterDetector;
+pub use nix::NixDetector;
 pub use nwjs::NwJsDetector;
 pub use react_native::ReactNativeDetector;
 pub use tauri::TauriDetector;
 pub use types::{FrameworkInfo, ProjectFramework};
+pub use zig::ZigDetector;
 
 use crate::dependency::Dependency;
 use crate::error::AnalyzerResult;
@@ -55,11 +63,15 @@ pub trait FrameworkDetector: Send + Sync {
 /// Get all available framework detectors
 pub fn all_framework_detectors() -> Vec<Box<dyn FrameworkDetector>> {
     vec![
+        Box::new(BunDetector::new()),
+        Box::new(DenoDetector::new()),
         Box::new(ElectronDetector::new()),
         Box::new(TauriDetector::new()),
         Box::new(ReactNativeDetector::new()),
         Box::new(FlutterDetector::new()),
+        Box::new(NixDetector::new()),
         Box::new(CapacitorDetector::new()),
         Box::new(NwJsDetector::new()),
+        Box::new(ZigDetector::new()),
     ]
 }
