@@ -20,8 +20,6 @@ use std::path::Path;
 use tracing::debug;
 
 /// Nix framework detector
-#[allow(clippy::vec_init_then_push)]
-#[allow(clippy::collapsible_if)]
 pub struct NixDetector;
 
 impl NixDetector {

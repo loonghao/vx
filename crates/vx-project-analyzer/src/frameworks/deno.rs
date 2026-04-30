@@ -20,8 +20,6 @@ use std::path::Path;
 use tracing::debug;
 
 /// Deno framework detector
-#[allow(clippy::collapsible_if)]
-#[allow(clippy::needless_borrow)]
 pub struct DenoDetector;
 
 impl DenoDetector {

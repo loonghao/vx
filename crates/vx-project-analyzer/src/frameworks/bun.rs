@@ -20,8 +20,6 @@ use std::path::Path;
 use tracing::debug;
 
 /// Bun framework detector
-#[allow(clippy::vec_init_then_push)]
-#[allow(clippy::collapsible_if)]
 pub struct BunDetector;
 
 impl BunDetector {
@@ -173,20 +171,19 @@ impl FrameworkDetector for BunDetector {
                     .get("scripts")
                     .and_then(|s| s.as_object())
             {
-                    // Common Bun script patterns
-                    let bun_patterns = [
-                        ("bun:dev", "Start Bun in development mode"),
-                        ("bun:start", "Start Bun production server"),
-                        ("bun:test", "Run tests with Bun"),
-                        ("bun:run", "Run script with Bun"),
-                    ];
+                // Common Bun script patterns
+                let bun_patterns = [
+                    ("bun:dev", "Start Bun in development mode"),
+                    ("bun:start", "Start Bun production server"),
+                    ("bun:test", "Run tests with Bun"),
+                    ("bun:run", "Run script with Bun"),
+                ];
 
-                    for (name, description) in bun_patterns {
-                        if let Some(command) = scripts_obj.get(name).and_then(|v| v.as_str()) {
-                            let mut script = Script::new(name, command, ScriptSource::PackageJson);
-                            script.description = Some(description.to_string());
-                            scripts.push(script);
-                        }
+                for (name, description) in bun_patterns {
+                    if let Some(command) = scripts_obj.get(name).and_then(|v| v.as_str()) {
+                        let mut script = Script::new(name, command, ScriptSource::PackageJson);
+                        script.description = Some(description.to_string());
+                        scripts.push(script);
                     }
                 }
             }

@@ -19,7 +19,6 @@ use std::path::Path;
 use tracing::debug;
 
 /// Zig framework detector
-#[allow(clippy::needless_borrow)]
 pub struct ZigDetector;
 
 impl ZigDetector {
