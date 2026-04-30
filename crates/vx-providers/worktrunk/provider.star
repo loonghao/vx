@@ -19,7 +19,7 @@
 load("@vx//stdlib:provider.star",
      "runtime_def", "github_permissions", "fetch_versions_with_tag_prefix")
 load("@vx//stdlib:layout.star", "archive_layout", "post_extract_permissions")
-load("@vx//stdlib:provider.star", "path_fns")
+load("@vx//stdlib:layout.star", "path_fns")
 
 # ---------------------------------------------------------------------------
 # Provider metadata
