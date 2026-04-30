@@ -532,10 +532,7 @@ impl StarlarkProvider {
 
     // ── Internal helpers ──────────────────────────────────────────────────────
 
-    #[allow(dead_code)]
-    fn engine(&self) -> StarlarkEngine {
-        StarlarkEngine::new()
-    }
+
 
     /// Look up the build tag (date) for a specific version from the version cache.
     ///
