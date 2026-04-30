@@ -11,13 +11,17 @@
 //! - Native TypeScript support
 
 use super::{FrameworkDetector, FrameworkInfo, ProjectFramework};
+use crate::dependency::Dependency;
 use crate::error::AnalyzerResult;
 use crate::types::{RequiredTool, Script, ScriptSource};
 use async_trait::async_trait;
+use serde_json::Value;
 use std::path::Path;
 use tracing::debug;
 
 /// Bun framework detector
+#[allow(clippy::vec_init_then_push)]
+#[allow(clippy::collapsible_if)]
 pub struct BunDetector;
 
 impl BunDetector {
@@ -147,17 +151,14 @@ impl FrameworkDetector for BunDetector {
     }
 
     fn required_tools(&self, _deps: &[Dependency], _scripts: &[Script]) -> Vec<RequiredTool> {
-        let mut tools = Vec::new();
-
-        // Bun projects need Bun runtime
-        tools.push(RequiredTool::new(
-            "bun",
-            crate::ecosystem::Ecosystem::NodeJs,
-            "Bun runtime for JavaScript/TypeScript",
-            crate::dependency::InstallMethod::Vx("bun"),
-        ));
-
-        tools
+        vec![
+            RequiredTool::new(
+                "bun",
+                crate::ecosystem::Ecosystem::NodeJs,
+                "Bun runtime for JavaScript/TypeScript",
+                crate::dependency::InstallMethod::Vx { tool: "bun".to_string(), version: None },
+            ),
+        ]
     }
 
     async fn additional_scripts(&self, root: &Path) -> AnalyzerResult<Vec<Script>> {
@@ -167,11 +168,11 @@ impl FrameworkDetector for BunDetector {
         let package_json_path = root.join("package.json");
         if package_json_path.exists() {
             let content = tokio::fs::read_to_string(&package_json_path).await?;
-            if let Ok(package_json) = serde_json::from_str::<Value>(&content) {
-                if let Some(scripts_obj) = package_json
+            if let Ok(package_json) = serde_json::from_str::<Value>(&content)
+                && let Some(scripts_obj) = package_json
                     .get("scripts")
                     .and_then(|s| s.as_object())
-                {
+            {
                     // Common Bun script patterns
                     let bun_patterns = [
                         ("bun:dev", "Start Bun in development mode"),

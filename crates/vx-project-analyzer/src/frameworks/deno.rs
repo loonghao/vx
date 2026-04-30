@@ -11,6 +11,7 @@
 //! - Standard library and first-party modules
 
 use super::{FrameworkDetector, FrameworkInfo, ProjectFramework};
+use crate::dependency::Dependency;
 use crate::error::AnalyzerResult;
 use crate::types::{RequiredTool, Script, ScriptSource};
 use async_trait::async_trait;
@@ -19,12 +20,14 @@ use std::path::Path;
 use tracing::debug;
 
 /// Deno framework detector
+#[allow(clippy::collapsible_if)]
+#[allow(clippy::needless_borrow)]
 pub struct DenoDetector;
 
 impl DenoDetector {
     /// Create a new Deno detector
     pub fn new() -> Self {
-        Self
+        Self {}
     }
 
     /// Check for Deno configuration files
@@ -138,10 +141,10 @@ impl FrameworkDetector for DenoDetector {
             let content = tokio::fs::read_to_string(&deno_json_path).await?;
             if let Ok(deno_json) = serde_json::from_str::<Value>(&content) {
                 // Get Deno version constraint if specified
-                if let Some(version) = deno_json
+                if let Some(_version) = deno_json
                     .get("compilerOptions")
                     .and_then(|o| o.as_object())
-                    .and_then(|_| None) // Deno doesn't specify version in config
+                    .and(None::<String>) // Deno doesn't specify version in config
                 {
                     // Deno version is typically managed by `deno upgrade` or .tool-versions
                 }
@@ -171,17 +174,14 @@ impl FrameworkDetector for DenoDetector {
     }
 
     fn required_tools(&self, _deps: &[Dependency], _scripts: &[Script]) -> Vec<RequiredTool> {
-        let mut tools = Vec::new();
-
-        // Deno projects need Deno runtime
-        tools.push(RequiredTool::new(
-            "deno",
-            crate::ecosystem::Ecosystem::NodeJs, // Deno is in Node.js ecosystem
-            "Deno runtime for JavaScript/TypeScript",
-            crate::dependency::InstallMethod::Vx("deno"),
-        ));
-
-        tools
+        vec![
+            RequiredTool::new(
+                "deno",
+                crate::ecosystem::Ecosystem::NodeJs, // Deno is in Node.js ecosystem
+                "Deno runtime for JavaScript/TypeScript",
+                crate::dependency::InstallMethod::Vx { tool: "deno".to_string(), version: None },
+            ),
+        ]
     }
 
     async fn additional_scripts(&self, root: &Path) -> AnalyzerResult<Vec<Script>> {
@@ -191,17 +191,17 @@ impl FrameworkDetector for DenoDetector {
         let deno_json_path = root.join("deno.json");
         if deno_json_path.exists() {
             let content = tokio::fs::read_to_string(&deno_json_path).await?;
-            if let Ok(deno_json) = serde_json::from_str::<Value>(&content) {
-                if let Some(tasks) = deno_json.get("tasks").and_then(|t| t.as_object()) {
-                    for (name, cmd) in tasks {
-                        if let Some(cmd_str) = cmd.as_str() {
-                            let script = Script::new(
-                                &format!("deno:{}", name),
-                                &format!("deno task {}", name),
-                                ScriptSource::DenoJson,
-                            );
-                            scripts.push(script);
-                        }
+            if let Ok(deno_json) = serde_json::from_str::<Value>(&content)
+                && let Some(tasks) = deno_json.get("tasks").and_then(|t| t.as_object())
+            {
+                for (name, cmd) in tasks {
+                    if let Some(_cmd_str) = cmd.as_str() {
+                        let script = Script::new(
+                            format!("deno:{}", name),
+                            format!("deno task {}", name),
+                            ScriptSource::BuildDeno,
+                        );
+                        scripts.push(script);
                     }
                 }
             }
