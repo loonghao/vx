@@ -154,15 +154,16 @@ def install_layout(ctx, _version, runtime_name = "micromamba"):
     os = ctx["platform"]["os"]
 
     if runtime_name == "micromamba":
+        # micromamba tar.bz2 has top-level dir: micromamba/
         return {
             "type":             "archive",
-            "strip_prefix":     "",
+            "strip_prefix":     "micromamba",
             "executable_paths": [
                 "Library/bin/micromamba.exe" if os == "windows" else "bin/micromamba",
             ],
         }
 
-    # Miniforge: conda and mamba
+    # Miniforge: conda and mamba — installed via shell scripts (.sh/.exe), not archives
     if runtime_name == "conda":
         exe = "Scripts\\conda.exe" if os == "windows" else "bin/conda"
     elif runtime_name == "mamba":
@@ -171,7 +172,9 @@ def install_layout(ctx, _version, runtime_name = "micromamba"):
         fail("unknown conda ecosystem runtime: " + runtime_name)
 
     return {
-        "type":             "archive",
+        "type":             "binary",
+        "target_name":       runtime_name,
+        "target_dir":        "bin",
         "executable_paths": [exe],
     }
 
