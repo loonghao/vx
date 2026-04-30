@@ -176,3 +176,56 @@
 4. 测试覆盖率提升：为 `vx-resolver` 添加更多版本约束匹配单元测试
 5. 当前 provider 数：119 个（goreleaser、golangci-lint、cosign 是本轮新增）
 
+---
+
+## 2026-05-01 第十二轮执行
+
+### 执行概况
+- 分支：`auto-improve`（已与 origin/main 同步，rebase 成功）
+- 环境：Windows，Rust 1.93.1（正确工具链），PATH 配置正确
+- 构建验证：`cargo build` 成功（debug 二进制）
+- 测试基线：`cargo test -p vx-starlark --test provider_tests` 全部通过（25 个测试，含 5 个新测试）
+
+### 工作内容
+
+#### 1. 测试覆盖率提升（PR #839 相关）
+- **目标**：提升 PR #839 的代码覆盖率（当前 13.89%，需达到 80% 才能合并）
+- **工作**：为新增的 5 个 provider 添加基础测试：
+  - `worktrunk` - worktree 管理工具
+  - `starship` - 跨 shell 提示符工具
+  - `sccache` - Rust/C++ 编译缓存
+  - `cargo-nextest` - Rust 测试运行器
+  - `cargo-deny` - 依赖审计工具
+- **测试内容**：
+  - 加载 provider.star 文件
+  - 验证 provider name
+  - 验证 runtimes 非空
+- **测试结果**：5 个新测试全部通过
+
+#### 2. 代码修改
+- 修改文件：`crates/vx-starlark/tests/provider_tests.rs`
+- 新增测试函数：
+  - `test_load_worktrunk_provider()`
+  - `test_load_starship_provider()`
+  - `test_load_sccache_provider()`
+  - `test_load_cargo_nextest_provider()`
+  - `test_load_cargo_deny_provider()`
+
+### 提交记录
+1. `test(starlark): add provider tests for worktrunk, starship, sccache, cargo-nextest, cargo-deny` (commit 55157409)
+
+### 质量门禁状态
+- ✅ `cargo test -p vx-starlark --test provider_tests`：25 个测试全部通过
+- ✅ `cargo fmt --check`：通过（已修复格式问题）
+- ✅ Push 到 remote `auto-improve` 分支成功
+
+### 下一步建议
+1. **继续提升测试覆盖率**（优先级最高）：
+   - 为新增 provider 添加更多测试（`fetch_versions`、`download_url`、`install_layout`）
+   - 为 `vx-resolver` 添加版本约束匹配单元测试
+   - 为 `vx-installer` 添加安装逻辑测试
+2. 检查 PR #839 的 CI 状态，确认覆盖率是否提升
+3. 添加更多 provider 的 Starlark 测试（参考 `lint_all_providers_test.rs`）
+4. 当前 provider 数：135 个（worktrunk、starship、sccache 等是之前轮次新增）
+
+---
