@@ -249,12 +249,12 @@ pub trait ProviderEnvironmentResolver: Send + Sync {
     /// 3. Fetches available versions if not cached
     /// 4. Resolves to best matching version
     /// 5. Caches the result
-    async fn resolve_version(
+    fn resolve_version(
         &self,
         runtime_name: &str,
         version_request: &str,
         ctx: &RuntimeContext,
-    ) -> Result<ResolvedVersionInfo>;
+    ) -> impl std::future::Future<Output = Result<ResolvedVersionInfo>> + Send;
 
     /// Build environment for a resolved version
     ///
