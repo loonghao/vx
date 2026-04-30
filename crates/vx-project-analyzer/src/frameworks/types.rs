@@ -5,6 +5,10 @@ use serde::{Deserialize, Serialize};
 /// Detected application framework
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum ProjectFramework {
+    /// Bun - All-in-one JavaScript runtime
+    Bun,
+    /// Deno - Secure TypeScript/JavaScript runtime
+    Deno,
     /// Electron - JavaScript/TypeScript desktop applications
     Electron,
     /// Tauri - Rust + Web technology desktop applications
@@ -15,38 +19,60 @@ pub enum ProjectFramework {
     Flutter,
     /// Capacitor - Cross-platform mobile applications
     Capacitor,
+    /// Nix - Functional package manager
+    Nix,
     /// NW.js (node-webkit) - Desktop applications
     NwJs,
+    /// Zig - Programming language
+    Zig,
 }
 
 impl ProjectFramework {
     /// Get display name for the framework
     pub fn display_name(&self) -> &'static str {
         match self {
+            ProjectFramework::Bun => "Bun",
+            ProjectFramework::Deno => "Deno",
             ProjectFramework::Electron => "Electron",
             ProjectFramework::Tauri => "Tauri",
             ProjectFramework::ReactNative => "React Native",
             ProjectFramework::Flutter => "Flutter",
             ProjectFramework::Capacitor => "Capacitor",
+            ProjectFramework::Nix => "Nix",
             ProjectFramework::NwJs => "NW.js",
+            ProjectFramework::Zig => "Zig",
         }
     }
 
     /// Get the framework's official website
     pub fn website(&self) -> &'static str {
         match self {
+            ProjectFramework::Bun => "https://bun.sh/",
+            ProjectFramework::Deno => "https://deno.land/",
             ProjectFramework::Electron => "https://www.electronjs.org/",
             ProjectFramework::Tauri => "https://tauri.app/",
             ProjectFramework::ReactNative => "https://reactnative.dev/",
             ProjectFramework::Flutter => "https://flutter.dev/",
             ProjectFramework::Capacitor => "https://capacitorjs.com/",
+            ProjectFramework::Nix => "https://nixos.org/",
             ProjectFramework::NwJs => "https://nwjs.io/",
+            ProjectFramework::Zig => "https://ziglang.org/",
         }
     }
 
     /// Get common file indicators for this framework
     pub fn indicator_files(&self) -> &'static [&'static str] {
         match self {
+            ProjectFramework::Bun => &[
+                "bun.lockb",
+                "bunfig.toml",
+                "bunfig.toml5",
+            ],
+            ProjectFramework::Deno => &[
+                "deno.json",
+                "deno.jsonc",
+                "deno.lock",
+            ],
             ProjectFramework::Electron => &[
                 "electron.vite.config.js",
                 "electron.vite.config.ts",
@@ -69,7 +95,16 @@ impl ProjectFramework {
             }
             ProjectFramework::Flutter => &["pubspec.yaml"],
             ProjectFramework::Capacitor => &["capacitor.config.json", "capacitor.config.ts"],
+            ProjectFramework::Nix => &[
+                "flake.nix",
+                "default.nix",
+                "shell.nix",
+            ],
             ProjectFramework::NwJs => &["package.json"], // Detected via package.json main field
+            ProjectFramework::Zig => &[
+                "build.zig",
+                "zig.mod",
+            ],
         }
     }
 }
