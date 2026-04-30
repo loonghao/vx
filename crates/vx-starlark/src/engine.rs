@@ -19,7 +19,7 @@ use starlark::values::structs::AllocStruct;
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::path::Path;
-use tracing::{trace, warn};
+use tracing::trace;
 
 /// FileLoader implementation for @vx//stdlib modules
 ///
