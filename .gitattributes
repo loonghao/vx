@@ -1,1 +1,8 @@
+# Force LF line endings for all text files (Linux CI compatibility)
+* text=auto eol=lf
+
+# Explicitly set for Rust files
+*.rs text eol=lf
+
+# Workspace hack Cargo.toml
 crates/workspace-hack/Cargo.toml text eol=lf
