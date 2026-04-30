@@ -56,11 +56,7 @@ impl NixDetector {
 
     /// Check for Nix-specific shell files
     fn has_nix_shell_files(root: &Path) -> bool {
-        let nix_files = [
-            "shell.nix",
-            "dev-shell.nix",
-            "flake.nix",
-        ];
+        let nix_files = ["shell.nix", "dev-shell.nix", "flake.nix"];
 
         nix_files.iter().any(|f| root.join(f).exists())
     }
@@ -128,14 +124,15 @@ impl FrameworkDetector for NixDetector {
     }
 
     fn required_tools(&self, _deps: &[Dependency], _scripts: &[Script]) -> Vec<RequiredTool> {
-        vec![
-            RequiredTool::new(
-                "nix",
-                crate::ecosystem::Ecosystem::Nix,
-                "Nix package manager and build system",
-                crate::dependency::InstallMethod::Vx { tool: "nix".to_string(), version: None },
-            ),
-        ]
+        vec![RequiredTool::new(
+            "nix",
+            crate::ecosystem::Ecosystem::Nix,
+            "Nix package manager and build system",
+            crate::dependency::InstallMethod::Vx {
+                tool: "nix".to_string(),
+                version: None,
+            },
+        )]
     }
 
     async fn additional_scripts(&self, root: &Path) -> AnalyzerResult<Vec<Script>> {

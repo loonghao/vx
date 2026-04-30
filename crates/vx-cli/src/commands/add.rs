@@ -40,12 +40,12 @@ use crate::ui::UI;
 
 /// Parsed tool specification.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct ToolSpec {
+pub struct AddRuntimeSpec {
     pub name: String,
     pub version: String,
 }
 
-impl ToolSpec {
+impl AddRuntimeSpec {
     /// Parse a `name[@version]` spec. Defaults version to `latest`.
     pub fn parse(raw: &str) -> Result<Self> {
         let raw = raw.trim();
@@ -178,12 +178,12 @@ pub async fn handle(
 // Spec parsing & validation
 // ---------------------------------------------------------------------------
 
-fn parse_specs(specs: &[String]) -> Result<Vec<ToolSpec>> {
+fn parse_specs(specs: &[String]) -> Result<Vec<AddRuntimeSpec>> {
     let mut parsed = Vec::with_capacity(specs.len());
     let mut seen: HashSet<String> = HashSet::new();
 
     for raw in specs {
-        let spec = ToolSpec::parse(raw)?;
+        let spec = AddRuntimeSpec::parse(raw)?;
         if !seen.insert(spec.name.clone()) {
             bail!("duplicate tool in command: '{}'", spec.name);
         }
@@ -193,7 +193,7 @@ fn parse_specs(specs: &[String]) -> Result<Vec<ToolSpec>> {
     Ok(parsed)
 }
 
-fn validate_tool_names(registry: &ProviderRegistry, specs: &[ToolSpec]) -> Result<()> {
+fn validate_tool_names(registry: &ProviderRegistry, specs: &[AddRuntimeSpec]) -> Result<()> {
     let mut unknown = Vec::new();
     for spec in specs {
         if registry.get_provider(&spec.name).is_none() {
@@ -272,7 +272,7 @@ impl Edit {
 /// Apply edits to a parsed vx.toml document (exposed for testing).
 pub fn apply_edits(
     doc: &mut DocumentMut,
-    specs: &[ToolSpec],
+    specs: &[AddRuntimeSpec],
     options: &AddOptions,
 ) -> Result<Vec<Edit>> {
     // Ensure [tools] table exists.
@@ -337,7 +337,7 @@ fn read_existing_version(tools: &Table, name: &str) -> Option<String> {
     }
 }
 
-fn write_tool_entry(tools: &mut Table, spec: &ToolSpec, os: &[String]) -> Result<()> {
+fn write_tool_entry(tools: &mut Table, spec: &AddRuntimeSpec, os: &[String]) -> Result<()> {
     if os.is_empty() {
         // If an existing detailed entry is present, preserve its extra fields,
         // only updating `version`.

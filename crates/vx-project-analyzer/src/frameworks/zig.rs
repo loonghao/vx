@@ -128,17 +128,15 @@ impl FrameworkDetector for ZigDetector {
     }
 
     fn required_tools(&self, _deps: &[Dependency], _scripts: &[Script]) -> Vec<RequiredTool> {
-        vec![
-            RequiredTool::new(
-                "zig",
-                crate::ecosystem::Ecosystem::Zig,
-                "Zig compiler for general-purpose programming",
-                crate::dependency::InstallMethod::Vx {
-                    tool: "zig".to_string(),
-                    version: None,
-                },
-            ),
-        ]
+        vec![RequiredTool::new(
+            "zig",
+            crate::ecosystem::Ecosystem::Zig,
+            "Zig compiler for general-purpose programming",
+            crate::dependency::InstallMethod::Vx {
+                tool: "zig".to_string(),
+                version: None,
+            },
+        )]
     }
 
     async fn additional_scripts(&self, root: &Path) -> AnalyzerResult<Vec<Script>> {

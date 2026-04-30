@@ -35,18 +35,12 @@ impl BunDetector {
 
     /// Check for Bun configuration files
     fn has_bun_config(root: &Path) -> bool {
-        root.join("bunfig.toml").exists()
-            || root.join("bunfig.toml5").exists()
+        root.join("bunfig.toml").exists() || root.join("bunfig.toml5").exists()
     }
 
     /// Check for Bun-specific files
     fn has_bun_files(root: &Path) -> bool {
-        let bun_files = [
-            "bunfig.toml",
-            "bunfig.toml5",
-            "bun.lockb",
-            "bun.lock",
-        ];
+        let bun_files = ["bunfig.toml", "bunfig.toml5", "bun.lockb", "bun.lock"];
 
         bun_files.iter().any(|f| root.join(f).exists())
     }
@@ -149,14 +143,15 @@ impl FrameworkDetector for BunDetector {
     }
 
     fn required_tools(&self, _deps: &[Dependency], _scripts: &[Script]) -> Vec<RequiredTool> {
-        vec![
-            RequiredTool::new(
-                "bun",
-                crate::ecosystem::Ecosystem::NodeJs,
-                "Bun runtime for JavaScript/TypeScript",
-                crate::dependency::InstallMethod::Vx { tool: "bun".to_string(), version: None },
-            ),
-        ]
+        vec![RequiredTool::new(
+            "bun",
+            crate::ecosystem::Ecosystem::NodeJs,
+            "Bun runtime for JavaScript/TypeScript",
+            crate::dependency::InstallMethod::Vx {
+                tool: "bun".to_string(),
+                version: None,
+            },
+        )]
     }
 
     async fn additional_scripts(&self, root: &Path) -> AnalyzerResult<Vec<Script>> {
@@ -167,9 +162,7 @@ impl FrameworkDetector for BunDetector {
         if package_json_path.exists() {
             let content = tokio::fs::read_to_string(&package_json_path).await?;
             if let Ok(package_json) = serde_json::from_str::<Value>(&content)
-                && let Some(scripts_obj) = package_json
-                    .get("scripts")
-                    .and_then(|s| s.as_object())
+                && let Some(scripts_obj) = package_json.get("scripts").and_then(|s| s.as_object())
             {
                 // Common Bun script patterns
                 let bun_patterns = [

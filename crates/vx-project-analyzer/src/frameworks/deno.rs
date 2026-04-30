@@ -30,20 +30,14 @@ impl DenoDetector {
 
     /// Check for Deno configuration files
     fn has_deno_config(root: &Path) -> bool {
-        root.join("deno.json").exists()
-            || root.join("deno.jsonc").exists()
+        root.join("deno.json").exists() || root.join("deno.jsonc").exists()
     }
 
     /// Check for Deno-specific files
     fn has_deno_files(root: &Path) -> bool {
         // Common Deno entry points
         let deno_files = [
-            "mod.ts",
-            "mod.js",
-            "main.ts",
-            "main.js",
-            "deps.ts",
-            "deps.js",
+            "mod.ts", "mod.js", "main.ts", "main.js", "deps.ts", "deps.js",
         ];
 
         deno_files.iter().any(|f| root.join(f).exists())
@@ -53,12 +47,7 @@ impl DenoDetector {
     fn has_deno_imports(root: &Path) -> bool {
         // Check common entry point files
         let check_files = [
-            "mod.ts",
-            "mod.js",
-            "main.ts",
-            "main.js",
-            "index.ts",
-            "index.js",
+            "mod.ts", "mod.js", "main.ts", "main.js", "index.ts", "index.js",
         ];
 
         for file in &check_files {
@@ -142,7 +131,8 @@ impl FrameworkDetector for DenoDetector {
                 if let Some(_version) = deno_json
                     .get("compilerOptions")
                     .and_then(|o| o.as_object())
-                    .and(None::<String>) // Deno doesn't specify version in config
+                    .and(None::<String>)
+                // Deno doesn't specify version in config
                 {
                     // Deno version is typically managed by `deno upgrade` or .tool-versions
                 }
@@ -172,14 +162,15 @@ impl FrameworkDetector for DenoDetector {
     }
 
     fn required_tools(&self, _deps: &[Dependency], _scripts: &[Script]) -> Vec<RequiredTool> {
-        vec![
-            RequiredTool::new(
-                "deno",
-                crate::ecosystem::Ecosystem::NodeJs, // Deno is in Node.js ecosystem
-                "Deno runtime for JavaScript/TypeScript",
-                crate::dependency::InstallMethod::Vx { tool: "deno".to_string(), version: None },
-            ),
-        ]
+        vec![RequiredTool::new(
+            "deno",
+            crate::ecosystem::Ecosystem::NodeJs, // Deno is in Node.js ecosystem
+            "Deno runtime for JavaScript/TypeScript",
+            crate::dependency::InstallMethod::Vx {
+                tool: "deno".to_string(),
+                version: None,
+            },
+        )]
     }
 
     async fn additional_scripts(&self, root: &Path) -> AnalyzerResult<Vec<Script>> {
