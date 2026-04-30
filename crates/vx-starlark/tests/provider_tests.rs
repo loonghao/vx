@@ -403,3 +403,82 @@ def install_layout(_ctx, _version):
         other => panic!("unexpected install layout: {other:?}"),
     }
 }
+
+// ============================================================
+// New provider tests (worktrunk, starship, sccache, cargo-nextest, cargo-deny)
+// ============================================================
+
+#[tokio::test]
+async fn test_load_worktrunk_provider() {
+    let manifest_dir = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let provider_dir = manifest_dir
+        .parent()  // crates/
+        .unwrap()
+        .join("vx-providers")
+        .join("worktrunk");
+    let star_path = provider_dir.join("provider.star");
+    let provider = vx_starlark::StarlarkProvider::load(&star_path)
+        .await
+        .unwrap();
+    assert_eq!(provider.name(), "worktrunk");
+}
+
+#[tokio::test]
+async fn test_load_starship_provider() {
+    let manifest_dir = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let provider_dir = manifest_dir
+        .parent()  // crates/
+        .unwrap()
+        .join("vx-providers")
+        .join("starship");
+    let star_path = provider_dir.join("provider.star");
+    let provider = vx_starlark::StarlarkProvider::load(&star_path)
+        .await
+        .unwrap();
+    assert_eq!(provider.name(), "starship");
+}
+
+#[tokio::test]
+async fn test_load_sccache_provider() {
+    let manifest_dir = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let provider_dir = manifest_dir
+        .parent()  // crates/
+        .unwrap()
+        .join("vx-providers")
+        .join("sccache");
+    let star_path = provider_dir.join("provider.star");
+    let provider = vx_starlark::StarlarkProvider::load(&star_path)
+        .await
+        .unwrap();
+    assert_eq!(provider.name(), "sccache");
+}
+
+#[tokio::test]
+async fn test_load_cargo_nextest_provider() {
+    let manifest_dir = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let provider_dir = manifest_dir
+        .parent()  // crates/
+        .unwrap()
+        .join("vx-providers")
+        .join("cargo-nextest");
+    let star_path = provider_dir.join("provider.star");
+    let provider = vx_starlark::StarlarkProvider::load(&star_path)
+        .await
+        .unwrap();
+    assert_eq!(provider.name(), "cargo-nextest");
+}
+
+#[tokio::test]
+async fn test_load_cargo_deny_provider() {
+    let manifest_dir = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let provider_dir = manifest_dir
+        .parent()  // crates/
+        .unwrap()
+        .join("vx-providers")
+        .join("cargo-deny");
+    let star_path = provider_dir.join("provider.star");
+    let provider = vx_starlark::StarlarkProvider::load(&star_path)
+        .await
+        .unwrap();
+    assert_eq!(provider.name(), "cargo-deny");
+}
