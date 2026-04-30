@@ -14,7 +14,7 @@ thiserror = { workspace = true }
 tracing = { workspace = true }
 
 # Async runtime
-tokio = { workspace = true, features = ["rt", "sync"] }
+tokio = { workspace = true, features = ["rt", "sync", "process"] }
 
 # Serialization
 serde = { workspace = true }

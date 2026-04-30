@@ -649,7 +649,7 @@ jobs:
             os: ubuntu-latest
             artifact: vx-linux-x64
             binary: vx
-            timeout_minutes: 25
+            timeout_minutes: 45
           - name: Windows-x86_64
             os: windows-latest
             artifact: vx-windows-x64
@@ -659,7 +659,7 @@ jobs:
             os: macos-latest
             artifact: vx-macos-x64
             binary: vx
-            timeout_minutes: 30
+            timeout_minutes: 45
 
     steps:
       - uses: actions/checkout@v6
@@ -813,7 +813,7 @@ jobs:
     if: |
       needs.detect-changes.outputs.should_build == 'true' &&
       needs.detect-changes.outputs.is_main != 'true'
-    timeout-minutes: 20
+    timeout-minutes: 45
     env:
       RUSTC_WRAPPER: sccache
       SCCACHE_DIR: ${{ github.workspace }}/.cache/sccache

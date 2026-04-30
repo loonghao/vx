@@ -14,7 +14,7 @@
 //! ## Example
 //!
 //! ```rust
-//! use vx_core::version_utils::{parse_version, compare_versions, is_prerelease};
+//! use vx_runtime_core::version_utils::{parse_version, compare_versions, is_prerelease};
 //!
 //! let v1 = parse_version("vx-v0.6.27").unwrap();
 //! let v2 = parse_version("0.6.26").unwrap();
@@ -123,7 +123,7 @@ impl std::fmt::Display for ParsedVersion {
 /// # Example
 ///
 /// ```rust
-/// use vx_core::version_utils::normalize_version;
+/// use vx_runtime_core::version_utils::normalize_version;
 ///
 /// assert_eq!(normalize_version("vx-v0.6.27"), "0.6.27");
 /// assert_eq!(normalize_version("v1.0.0"), "1.0.0");
@@ -152,7 +152,7 @@ pub fn normalize_version(version: &str) -> &str {
 /// # Example
 ///
 /// ```rust
-/// use vx_core::version_utils::parse_version;
+/// use vx_runtime_core::version_utils::parse_version;
 ///
 /// let v = parse_version("vx-v0.6.27").unwrap();
 /// assert_eq!(v.major, 0);
@@ -207,7 +207,7 @@ pub fn parse_version(version: &str) -> Option<ParsedVersion> {
 /// # Example
 ///
 /// ```rust
-/// use vx_core::version_utils::{compare_versions, parse_version};
+/// use vx_runtime_core::version_utils::{compare_versions, parse_version};
 /// use std::cmp::Ordering;
 ///
 /// let v1 = parse_version("1.0.0").unwrap();
@@ -238,7 +238,7 @@ pub fn compare_versions_str(a: &str, b: &str) -> Option<Ordering> {
 /// # Example
 ///
 /// ```rust
-/// use vx_core::version_utils::is_newer_version;
+/// use vx_runtime_core::version_utils::is_newer_version;
 ///
 /// assert!(is_newer_version("1.0.0", "0.9.9"));
 /// assert!(is_newer_version("0.6.27", "0.6.26"));
@@ -261,7 +261,7 @@ pub fn is_newer_version(version_a: &str, version_b: &str) -> bool {
 /// # Example
 ///
 /// ```rust
-/// use vx_core::version_utils::is_prerelease;
+/// use vx_runtime_core::version_utils::is_prerelease;
 ///
 /// assert!(!is_prerelease("vx-v0.6.27"));
 /// assert!(!is_prerelease("0.6.27"));
@@ -287,7 +287,7 @@ pub fn is_prerelease(version: &str) -> bool {
 /// # Example
 ///
 /// ```rust
-/// use vx_core::version_utils::sort_versions_desc;
+/// use vx_runtime_core::version_utils::sort_versions_desc;
 ///
 /// let mut versions = vec!["0.6.25", "0.6.27", "0.6.26", "invalid"];
 /// sort_versions_desc(&mut versions);
@@ -313,7 +313,7 @@ pub fn sort_versions_desc(versions: &mut [impl AsRef<str>]) {
 /// # Example
 ///
 /// ```rust
-/// use vx_core::version_utils::find_latest_version;
+/// use vx_runtime_core::version_utils::find_latest_version;
 ///
 /// let versions = vec!["0.6.25", "0.6.27", "0.6.26-beta.1", "0.6.26"];
 /// assert_eq!(find_latest_version(&versions, false), Some("0.6.27"));

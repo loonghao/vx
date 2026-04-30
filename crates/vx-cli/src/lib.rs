@@ -2,12 +2,12 @@
 
 use anyhow::{Context, Result};
 use clap::Parser;
-use vx_core::WithDependency;
 use vx_ecosystem_pm::{EcosystemInstaller, InstallOptions, get_installer};
 use vx_paths::global_packages::{GlobalPackage, PackageRegistry};
 use vx_paths::shims;
 use vx_resolver::RuntimeRequest;
 use vx_runtime::ProviderRegistry;
+use vx_runtime_core::WithDependency;
 use vx_shim::{PackageRequest, ShimExecutor};
 
 pub mod cli;

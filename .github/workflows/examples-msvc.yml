@@ -41,19 +41,63 @@ jobs:
     env:
       RUSTC_WRAPPER: sccache
       SCCACHE_DIR: ${{ github.workspace }}/.cache/sccache
+    outputs:
+      used-release-binary: ${{ steps.download-release.outputs.used_release_binary }}
 
     steps:
       - uses: actions/checkout@v6
 
+      # -----------------------------------------------------------------------
+      # Fast path: for schedule or pure example changes, try to download the
+      # latest release binary instead of compiling from scratch (~16 min -> ~1 min)
+      # -----------------------------------------------------------------------
+      - name: Try download release binary (fast path)
+        id: download-release
+        shell: pwsh
+        run: |
+          $useRelease = "false"
+          # Use release binary for schedule triggers or when only examples changed
+          if ("${{ github.event_name }}" -eq "schedule") {
+            $useRelease = "true"
+          }
+          # For workflow_dispatch without msvc provider changes, also prefer release
+          if ("${{ github.event_name }}" -eq "workflow_dispatch" -and "" -eq "${{ inputs.script }}") {
+            $useRelease = "true"
+          }
+
+          if ($useRelease -eq "true") {
+            $releaseUrl = "https://github.com/loonghao/vx/releases/latest/download/vx-x86_64-pc-windows-msvc.zip"
+            Write-Host "Attempting to download release binary from $releaseUrl"
+            try {
+              Invoke-WebRequest -Uri $releaseUrl -OutFile "$env:RUNNER_TEMP\vx-release.zip" -MaximumRetryCount 3 -TimeoutSec 60
+              Expand-Archive -Path "$env:RUNNER_TEMP\vx-release.zip" -DestinationPath "$env:RUNNER_TEMP\vx-release" -Force
+              $exePath = Join-Path "$env:RUNNER_TEMP\vx-release" "vx.exe"
+              if (Test-Path $exePath) {
+                New-Item -ItemType Directory -Force -Path "target\release" | Out-Null
+                Copy-Item $exePath "target\release\vx.exe" -Force
+                & "$exePath" --version
+                Write-Host "Successfully downloaded release binary"
+                echo "used_release_binary=true" >> $env:GITHUB_OUTPUT
+                exit 0
+              }
+            } catch {
+              Write-Warning "Failed to download release binary: $_"
+            }
+          }
+          echo "used_release_binary=false" >> $env:GITHUB_OUTPUT
+
       - name: Install Rust
+        if: steps.download-release.outputs.used_release_binary != 'true'
         uses: dtolnay/rust-toolchain@stable
 
       - name: Install sccache
+        if: steps.download-release.outputs.used_release_binary != 'true'
         uses: taiki-e/install-action@v2
         with:
           tool: sccache
 
       - name: Setup sccache path (Windows)
+        if: steps.download-release.outputs.used_release_binary != 'true'
         shell: pwsh
         run: |
           $sccachePath = (Get-Command sccache -ErrorAction SilentlyContinue).Source
@@ -66,6 +110,7 @@ jobs:
           }
 
       - name: Cache sccache
+        if: steps.download-release.outputs.used_release_binary != 'true'
         uses: actions/cache@v5
         with:
           path: ${{ github.workspace }}/.cache/sccache
@@ -74,9 +119,11 @@ jobs:
             sccache-msvc-examples-
 
       - name: Start sccache server
+        if: steps.download-release.outputs.used_release_binary != 'true'
         run: sccache --start-server || true
 
       - name: Cache Cargo
+        if: steps.download-release.outputs.used_release_binary != 'true'
         uses: actions/cache@v5
         with:
           path: |
@@ -89,8 +136,14 @@ jobs:
           restore-keys: |
             windows-cargo-msvc-examples-
 
-      - name: Build VX
-        run: cargo build --release
+      - name: Build VX with timings
+        if: steps.download-release.outputs.used_release_binary != 'true'
+        run: cargo build --release --timings
+        env:
+          # Use thin LTO and more codegen units for faster CI builds
+          # (trade-off: slightly larger binary, but ~30-50% faster compilation)
+          CARGO_PROFILE_RELEASE_LTO: thin
+          CARGO_PROFILE_RELEASE_CODEGEN_UNITS: 16
 
       - name: Upload VX binary
         uses: actions/upload-artifact@v7
@@ -98,6 +151,15 @@ jobs:
           name: vx-windows-msvc-examples
           path: target/release/vx.exe
           retention-days: 1
+
+      - name: Upload cargo build timings
+        if: always() && steps.download-release.outputs.used_release_binary != 'true'
+        uses: actions/upload-artifact@v7
+        with:
+          name: cargo-build-timings-windows
+          path: target/cargo-timings/cargo-timing.html
+          retention-days: 7
+          if-no-files-found: warn
 
   run-examples:
     name: Run MSVC Examples

@@ -143,7 +143,7 @@ impl<'a> Executor<'a> {
         executable: Option<&str>,
         args: &[String],
         inherit_env: bool,
-        with_deps: &[vx_core::WithDependency],
+        with_deps: &[vx_runtime_core::WithDependency],
     ) -> Result<i32> {
         let span = info_span!(
             "execute",
@@ -630,7 +630,7 @@ impl<'a> Executor<'a> {
     async fn inject_with_dependencies(
         &self,
         runtime_env: &mut std::collections::HashMap<String, String>,
-        with_deps: &[vx_core::WithDependency],
+        with_deps: &[vx_runtime_core::WithDependency],
     ) -> Result<()> {
         let registry = match self.registry {
             Some(r) => r,

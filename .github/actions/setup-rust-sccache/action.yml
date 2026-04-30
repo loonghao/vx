@@ -30,12 +30,6 @@ inputs:
 runs:
   using: "composite"
   steps:
-    - name: Setup MSVC development environment (Windows)
-      if: runner.os == 'Windows'
-      uses: ilammy/msvc-dev-cmd@v1
-      with:
-        arch: x64
-
     - name: Setup Rust
       uses: dtolnay/rust-toolchain@stable
       with:

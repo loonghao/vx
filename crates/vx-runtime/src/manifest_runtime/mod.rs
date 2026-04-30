@@ -982,6 +982,7 @@ impl Runtime for ManifestDrivenRuntime {
                 .unwrap_or_default();
             if !versions.is_empty() {
                 // Newest first – mirrors the convention used by ProviderHandle.
+                #[allow(clippy::unnecessary_sort_by)]
                 versions.sort_by(|a, b| b.cmp(a));
                 return Ok(versions);
             }

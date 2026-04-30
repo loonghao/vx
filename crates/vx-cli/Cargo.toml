@@ -14,7 +14,7 @@ rust-version.workspace = true
 
 [dependencies]
 vx-cache = { workspace = true }
-vx-core = { workspace = true }
+vx-runtime-core = { workspace = true }
 vx-console = { path = "../vx-console" }
 vx-starlark = { workspace = true }
 vx-config = { workspace = true, features = ["schema"] }
@@ -33,103 +33,29 @@ vx-runtime-http = { workspace = true }
 vx-setup = { workspace = true }
 vx-args = { path = "../vx-args" }
 # Providers (active - have Cargo.toml)
-vx-provider-bun = { workspace = true }
-vx-provider-rcedit = { workspace = true }
-vx-provider-choco = { workspace = true }
-vx-provider-brew = { workspace = true }
-vx-provider-make = { workspace = true }
-vx-provider-nasm = { workspace = true }
-vx-provider-python = { workspace = true }
-vx-provider-msvc = { workspace = true }
-vx-provider-ffmpeg = { workspace = true }
-vx-provider-imagemagick = { workspace = true }
-vx-provider-msbuild = { workspace = true }
-vx-provider-7zip = { workspace = true }
-vx-provider-actrun = { workspace = true }
 # Dockerfile linter
-vx-provider-hadolint = { workspace = true }
 # Meson build system (PyPI package alias)
-vx-provider-meson = { workspace = true }
 # curl (system detection only)
-vx-provider-curl = { workspace = true }
 # Rez package manager (Python-based)
-vx-provider-rez = { workspace = true }
 # Cloud CLIs
-vx-provider-awscli = { workspace = true }
-vx-provider-azcli = { workspace = true }
-vx-provider-gcloud = { workspace = true }
 # Container & Kubernetes
-vx-provider-podman = { workspace = true }
 
-vx-provider-kubectl = { workspace = true }
-vx-provider-helm = { workspace = true }
-vx-provider-kind = { workspace = true }
-vx-provider-k3d = { workspace = true }
-vx-provider-grpcurl = { workspace = true }
-vx-provider-lima = { workspace = true }
-vx-provider-lefthook = { workspace = true }
 # CLI utilities
-vx-provider-bat = { workspace = true }
-vx-provider-fd = { workspace = true }
-vx-provider-fzf = { workspace = true }
-vx-provider-jq = { workspace = true }
-vx-provider-yq = { workspace = true }
-vx-provider-ripgrep = { workspace = true }
 # Build systems
-vx-provider-cmake = { workspace = true }
-vx-provider-ninja = { workspace = true }
-vx-provider-protoc = { workspace = true }
 # Runtimes
-vx-provider-deno = { workspace = true }
-vx-provider-java = { workspace = true }
-vx-provider-dotnet = { workspace = true }
-vx-provider-rust = { workspace = true }
-vx-provider-zig = { workspace = true }
-vx-provider-go = { workspace = true }
-vx-provider-node = { workspace = true }
 # Node.js package managers
-vx-provider-pnpm = { workspace = true }
-vx-provider-yarn = { workspace = true }
 # Package managers
-vx-provider-nuget = { workspace = true }
-vx-provider-uv = { workspace = true }
-vx-provider-prek = { workspace = true }
-vx-provider-vcpkg = { workspace = true }
-vx-provider-winget = { workspace = true }
 # DevOps & CI tools
-vx-provider-terraform = { workspace = true }
-vx-provider-gh = { workspace = true }
-vx-provider-release-please = { workspace = true }
-vx-provider-task = { workspace = true }
-vx-provider-dagu = { workspace = true }
 # Shell & terminal
-vx-provider-bash = { workspace = true }
-vx-provider-pwsh = { workspace = true }
-vx-provider-starship = { workspace = true }
 # Version control
-vx-provider-git = { workspace = true }
-vx-provider-jj = { workspace = true }
 # AI & services
-vx-provider-ollama = { workspace = true }
 # Editors & IDEs
-vx-provider-vscode = { workspace = true }
 # Build cache
 
-vx-provider-sccache = { workspace = true }
-vx-provider-ccache = { workspace = true }
-vx-provider-buildcache = { workspace = true }
 # Python ecosystem
-vx-provider-pre-commit = { workspace = true }
-vx-provider-spack = { workspace = true }
 # Build tools
-vx-provider-just = { workspace = true }
 # Frontend tooling
-vx-provider-nx = { workspace = true }
-vx-provider-turbo = { workspace = true }
-vx-provider-vite = { workspace = true }
 # Platform-specific
-vx-provider-systemctl = { workspace = true }
-vx-provider-xcodebuild = { workspace = true }
 # Bridge framework for embedded bridge binaries (MSBuild.exe etc.)
 vx-bridge = { workspace = true }
 clap = { workspace = true }

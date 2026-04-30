@@ -37,7 +37,7 @@ which = { workspace = true }
 semver = { workspace = true }
 
 # Internal dependencies
-vx-core = { path = "../vx-core" }
+vx-runtime-core = { workspace = true }
 vx-paths = { path = "../vx-paths" }
 vx-runtime = { path = "../vx-runtime", features = ["testing"] }
 vx-star-metadata = { path = "../vx-star-metadata" }
