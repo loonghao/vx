@@ -126,10 +126,8 @@ pub fn select(prompt: &str, options: &[&str]) -> Result<usize> {
             console::Key::ArrowUp | console::Key::Char('k') => {
                 selected = selected.saturating_sub(1);
             }
-            console::Key::ArrowDown | console::Key::Char('j') => {
-                if selected < options.len() - 1 {
-                    selected += 1;
-                }
+            console::Key::ArrowDown | console::Key::Char('j') if selected < options.len() - 1 => {
+                selected += 1;
             }
             console::Key::Enter => {
                 return Ok(selected);
@@ -188,10 +186,8 @@ pub fn multi_select(prompt: &str, options: &[&str]) -> Result<Vec<usize>> {
             console::Key::ArrowUp | console::Key::Char('k') => {
                 selected = selected.saturating_sub(1);
             }
-            console::Key::ArrowDown | console::Key::Char('j') => {
-                if selected < options.len() - 1 {
-                    selected += 1;
-                }
+            console::Key::ArrowDown | console::Key::Char('j') if selected < options.len() - 1 => {
+                selected += 1;
             }
             console::Key::Char(' ') => {
                 checked[selected] = !checked[selected];

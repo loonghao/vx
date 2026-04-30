@@ -90,7 +90,7 @@ impl ExtensionDiscovery {
         }
 
         // Sort by priority (higher priority first)
-        extensions.sort_by(|a, b| b.source.priority().cmp(&a.source.priority()));
+        extensions.sort_by_key(|b| std::cmp::Reverse(b.source.priority()));
 
         // Log discovered extensions with their sources
         if !extensions.is_empty() {

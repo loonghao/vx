@@ -13,8 +13,8 @@ use vx_paths::project::{PROJECT_VX_DIR, find_vx_config};
 
 use super::pipeline::error::ExecuteError;
 
-// Re-export from vx_core for convenience
-pub use vx_core::exit_code_from_status;
+// Re-export from vx_runtime_core for convenience
+pub use vx_runtime_core::exit_code_from_status;
 
 /// Bundle directory name within .vx
 pub const BUNDLE_DIR: &str = "bundle";

@@ -766,6 +766,7 @@ impl StarlarkProvider {
             })
             .collect();
 
+        #[allow(clippy::unnecessary_sort_by)]
         versions.sort_by(|a, b| b.version.cmp(&a.version));
         Ok(versions)
     }
@@ -788,6 +789,7 @@ impl StarlarkProvider {
             })
             .collect();
 
+        #[allow(clippy::unnecessary_sort_by)]
         versions.sort_by(|a, b| b.version.cmp(&a.version));
         Ok(versions)
     }
@@ -815,6 +817,7 @@ impl StarlarkProvider {
             })
             .collect();
 
+        #[allow(clippy::unnecessary_sort_by)]
         versions.sort_by(|a, b| b.version.cmp(&a.version));
         Ok(versions)
     }
@@ -962,6 +965,7 @@ impl StarlarkProvider {
             })
             .collect();
 
+        #[allow(clippy::unnecessary_sort_by)]
         versions.sort_by(|a, b| b.version.cmp(&a.version));
         Ok(versions)
     }

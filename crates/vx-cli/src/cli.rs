@@ -1858,7 +1858,7 @@ impl CommandHandler for Commands {
                         ctx,
                         &request,
                         &[],
-                        &vx_core::WithDependency::parse_many(&ctx.options.with_deps),
+                        &vx_runtime_core::WithDependency::parse_many(&ctx.options.with_deps),
                     )
                     .await
                 }

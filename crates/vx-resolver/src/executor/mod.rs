@@ -36,5 +36,5 @@ pub use bundle::{
 pub use executor::Executor;
 pub use project_config::ProjectToolsConfig;
 
-// Re-export from vx_core for convenience
-pub use vx_core::{exit_code_from_status, is_ctrl_c_exit};
+// Re-export from vx_runtime_core for convenience
+pub use vx_runtime_core::{exit_code_from_status, is_ctrl_c_exit};

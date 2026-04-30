@@ -126,7 +126,7 @@ test-ci-quick:
 
 # Run linting checks
 lint:
-    vx cargo clippy --workspace --all-targets -- -D warnings
+    vx cargo clippy --workspace --all-targets -- -D warnings -Aasync-fn-in-trait
 
 # Format code
 format:

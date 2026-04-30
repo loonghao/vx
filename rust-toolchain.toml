@@ -1,6 +1,3 @@
-# Rust toolchain configuration for vx project
-# This ensures consistent Rust version across development and CI
-
 [toolchain]
-channel = "1.93.1"
+channel = "stable"
 components = ["rustfmt", "clippy"]

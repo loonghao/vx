@@ -294,7 +294,7 @@ fn test_extract_version_from_url(#[case] url: &str, #[case] expected_version: &s
 // Version comparison tests
 // ============================================================================
 
-// Note: These tests now use vx_core::version_utils directly to ensure
+// Note: These tests now use vx_runtime_core::version_utils directly to ensure
 // consistency with the production code in self_update.rs
 
 #[rstest]
@@ -318,7 +318,7 @@ fn test_extract_version_from_url(#[case] url: &str, #[case] expected_version: &s
 #[case("vx-v0.6.26", "vx-v0.6.27", false)]
 fn test_is_newer_version(#[case] version_a: &str, #[case] version_b: &str, #[case] expected: bool) {
     assert_eq!(
-        vx_core::version_utils::is_newer_version(version_a, version_b),
+        vx_runtime_core::version_utils::is_newer_version(version_a, version_b),
         expected,
         "is_newer_version({}, {}) should be {}",
         version_a,
@@ -351,7 +351,7 @@ fn test_is_newer_version(#[case] version_a: &str, #[case] version_b: &str, #[cas
 #[case("", None)]
 #[case("v", None)]
 fn test_extract_semver(#[case] input: &str, #[case] expected: Option<(u64, u64, u64)>) {
-    let parsed = vx_core::version_utils::parse_version(input);
+    let parsed = vx_runtime_core::version_utils::parse_version(input);
     let result = parsed.map(|v| (v.major, v.minor, v.patch));
     assert_eq!(
         result, expected,
@@ -371,7 +371,7 @@ fn test_extract_semver_for_cdn_versions() {
         "vx-v0.5.29",
     ];
 
-    let latest = vx_core::version_utils::find_latest_version(&cdn_versions, false);
+    let latest = vx_runtime_core::version_utils::find_latest_version(&cdn_versions, false);
 
     assert_eq!(
         latest,
@@ -463,7 +463,10 @@ fn test_create_cdn_assets() {
 #[case("0.5.28", "0.5.28")]
 #[case("vx-v1.0.0-beta.1", "1.0.0-beta.1")]
 fn test_normalize_version(#[case] input: &str, #[case] expected: &str) {
-    assert_eq!(vx_core::version_utils::normalize_version(input), expected);
+    assert_eq!(
+        vx_runtime_core::version_utils::normalize_version(input),
+        expected
+    );
 }
 
 // ============================================================================
@@ -482,7 +485,7 @@ fn test_normalize_version(#[case] input: &str, #[case] expected: &str) {
 #[case("0.5.28-pre.1", true)]
 fn test_is_prerelease(#[case] version: &str, #[case] expected: bool) {
     assert_eq!(
-        vx_core::version_utils::is_prerelease(version),
+        vx_runtime_core::version_utils::is_prerelease(version),
         expected,
         "is_prerelease({}) should be {}",
         version,
@@ -586,7 +589,7 @@ fn test_regression_self_update_stable_vs_prerelease() {
     let available_version = "0.6.27";
 
     assert!(
-        vx_core::version_utils::is_newer_version(available_version, current_version),
+        vx_runtime_core::version_utils::is_newer_version(available_version, current_version),
         "Stable release 0.6.27 should be newer than prerelease 0.6.27-beta.1"
     );
 }
@@ -604,11 +607,11 @@ fn test_regression_cdn_version_list_latest_selection() {
     ];
 
     // Should find 0.6.28-beta.1 if including prereleases
-    let latest_all = vx_core::version_utils::find_latest_version(&cdn_versions, false);
+    let latest_all = vx_runtime_core::version_utils::find_latest_version(&cdn_versions, false);
     assert_eq!(latest_all, Some("vx-v0.6.28-beta.1"));
 
     // Should find 0.6.27 if excluding prereleases (typical for stable updates)
-    let latest_stable = vx_core::version_utils::find_latest_version(&cdn_versions, true);
+    let latest_stable = vx_runtime_core::version_utils::find_latest_version(&cdn_versions, true);
     assert_eq!(latest_stable, Some("vx-v0.6.27"));
 }
 
@@ -617,21 +620,21 @@ fn test_regression_cdn_version_list_latest_selection() {
 #[test]
 fn test_regression_mixed_prefix_update_check() {
     // GitHub API returns "vx-v" format, local version might be stored without prefix
-    assert!(vx_core::version_utils::is_newer_version(
+    assert!(vx_runtime_core::version_utils::is_newer_version(
         "vx-v0.6.27",
         "0.6.26"
     ));
-    assert!(vx_core::version_utils::is_newer_version(
+    assert!(vx_runtime_core::version_utils::is_newer_version(
         "0.6.27",
         "vx-v0.6.26"
     ));
 
     // Same version with different formats should NOT trigger update
-    assert!(!vx_core::version_utils::is_newer_version(
+    assert!(!vx_runtime_core::version_utils::is_newer_version(
         "vx-v0.6.27",
         "0.6.27"
     ));
-    assert!(!vx_core::version_utils::is_newer_version(
+    assert!(!vx_runtime_core::version_utils::is_newer_version(
         "0.6.27",
         "vx-v0.6.27"
     ));
@@ -642,15 +645,15 @@ fn test_regression_mixed_prefix_update_check() {
 #[test]
 fn test_regression_prerelease_progression() {
     // Typical prerelease progression: alpha -> beta -> rc -> stable
-    assert!(vx_core::version_utils::is_newer_version(
+    assert!(vx_runtime_core::version_utils::is_newer_version(
         "0.6.27-beta.1",
         "0.6.27-alpha.1"
     ));
-    assert!(vx_core::version_utils::is_newer_version(
+    assert!(vx_runtime_core::version_utils::is_newer_version(
         "0.6.27-rc.1",
         "0.6.27-beta.1"
     ));
-    assert!(vx_core::version_utils::is_newer_version(
+    assert!(vx_runtime_core::version_utils::is_newer_version(
         "0.6.27",
         "0.6.27-rc.1"
     ));
@@ -660,31 +663,37 @@ fn test_regression_prerelease_progression() {
 #[test]
 fn test_regression_vx_prefix_is_stable() {
     // Stable versions (no prerelease suffix) should NOT be considered prerelease
-    assert!(!vx_core::version_utils::is_prerelease("vx-v0.6.27"));
-    assert!(!vx_core::version_utils::is_prerelease("vx-v1.0.0"));
-    assert!(!vx_core::version_utils::is_prerelease("x-v0.6.27"));
-    assert!(!vx_core::version_utils::is_prerelease("v0.6.27"));
-    assert!(!vx_core::version_utils::is_prerelease("0.6.27"));
+    assert!(!vx_runtime_core::version_utils::is_prerelease("vx-v0.6.27"));
+    assert!(!vx_runtime_core::version_utils::is_prerelease("vx-v1.0.0"));
+    assert!(!vx_runtime_core::version_utils::is_prerelease("x-v0.6.27"));
+    assert!(!vx_runtime_core::version_utils::is_prerelease("v0.6.27"));
+    assert!(!vx_runtime_core::version_utils::is_prerelease("0.6.27"));
 
     // Prerelease versions SHOULD be detected even with vx-v prefix
-    assert!(vx_core::version_utils::is_prerelease("vx-v0.6.27-beta.1"));
-    assert!(vx_core::version_utils::is_prerelease("vx-v0.6.27-alpha.1"));
-    assert!(vx_core::version_utils::is_prerelease("vx-v0.6.27-rc.1"));
+    assert!(vx_runtime_core::version_utils::is_prerelease(
+        "vx-v0.6.27-beta.1"
+    ));
+    assert!(vx_runtime_core::version_utils::is_prerelease(
+        "vx-v0.6.27-alpha.1"
+    ));
+    assert!(vx_runtime_core::version_utils::is_prerelease(
+        "vx-v0.6.27-rc.1"
+    ));
 }
 
 /// Regression test: Version extraction should handle edge cases
 #[test]
 fn test_regression_version_extraction_edge_cases() {
     // Single digit versions
-    let v = vx_core::version_utils::parse_version("1.0.0").unwrap();
+    let v = vx_runtime_core::version_utils::parse_version("1.0.0").unwrap();
     assert_eq!((v.major, v.minor, v.patch), (1, 0, 0));
 
     // Large version numbers
-    let v = vx_core::version_utils::parse_version("20.10.15").unwrap();
+    let v = vx_runtime_core::version_utils::parse_version("20.10.15").unwrap();
     assert_eq!((v.major, v.minor, v.patch), (20, 10, 15));
 
     // Two-part version (Node.js style "20.10")
-    let v = vx_core::version_utils::parse_version("20.10").unwrap();
+    let v = vx_runtime_core::version_utils::parse_version("20.10").unwrap();
     assert_eq!((v.major, v.minor, v.patch), (20, 10, 0));
 }
 
@@ -708,7 +717,7 @@ fn test_tag_format_for_version(
     #[case] expected_primary_tag: &str,
 ) {
     // Test cargo-dist detection
-    let parsed = vx_core::version_utils::parse_version(version).unwrap();
+    let parsed = vx_runtime_core::version_utils::parse_version(version).unwrap();
     let is_cargo_dist = parsed.major > 0 || (parsed.major == 0 && parsed.minor >= 7);
     assert_eq!(
         is_cargo_dist, uses_cargo_dist,
@@ -736,7 +745,7 @@ fn test_tag_candidates_include_fallback(
     #[case] expected_primary: &str,
     #[case] expected_fallback: &str,
 ) {
-    let parsed = vx_core::version_utils::parse_version(version).unwrap();
+    let parsed = vx_runtime_core::version_utils::parse_version(version).unwrap();
     let is_cargo_dist = parsed.major > 0 || (parsed.major == 0 && parsed.minor >= 7);
 
     let candidates = if is_cargo_dist {
@@ -765,7 +774,7 @@ fn test_cdn_asset_naming_consistency(
     #[case] should_be_versioned: bool,
     #[case] expected_tag: &str,
 ) {
-    let parsed = vx_core::version_utils::parse_version(version).unwrap();
+    let parsed = vx_runtime_core::version_utils::parse_version(version).unwrap();
 
     // Check versioned naming (only v0.6.x)
     let uses_versioned = parsed.major == 0 && parsed.minor == 6;
@@ -807,7 +816,7 @@ fn test_cdn_asset_naming_consistency(
 #[test]
 fn test_regression_v06x_to_v07x_update_urls() {
     let target_version = "0.7.3";
-    let parsed = vx_core::version_utils::parse_version(target_version).unwrap();
+    let parsed = vx_runtime_core::version_utils::parse_version(target_version).unwrap();
 
     // v0.7.3 should use cargo-dist format
     let is_cargo_dist = parsed.major > 0 || (parsed.major == 0 && parsed.minor >= 7);
@@ -855,7 +864,7 @@ fn test_regression_v06x_to_v07x_update_urls() {
 #[case("x-v0.6.27", "0.6.27")]
 #[case("0.7.0", "0.7.0")]
 fn test_jsdelivr_version_normalization(#[case] jsdelivr_version: &str, #[case] expected: &str) {
-    let normalized = vx_core::version_utils::normalize_version(jsdelivr_version);
+    let normalized = vx_runtime_core::version_utils::normalize_version(jsdelivr_version);
     assert_eq!(
         normalized, expected,
         "jsDelivr version '{}' should normalize to '{}'",
@@ -875,7 +884,7 @@ fn test_jsdelivr_mixed_format_latest_selection() {
         "0.7.3",     // jsDelivr format for v0.7.3
     ];
 
-    let latest_stable = vx_core::version_utils::find_latest_version(&cdn_versions, true);
+    let latest_stable = vx_runtime_core::version_utils::find_latest_version(&cdn_versions, true);
     assert_eq!(
         latest_stable,
         Some("0.7.3"),
@@ -909,7 +918,7 @@ fn get_alternative_asset_names(asset_name: &str, version: &str) -> Vec<String> {
 
 /// Helper: check if a version uses cargo-dist tag format (mirrors production logic)
 fn uses_cargo_dist_tag_format(version: &str) -> bool {
-    if let Some(parsed) = vx_core::version_utils::parse_version(version) {
+    if let Some(parsed) = vx_runtime_core::version_utils::parse_version(version) {
         parsed.major > 0 || (parsed.major == 0 && parsed.minor >= 7)
     } else {
         false
@@ -983,7 +992,7 @@ fn test_versioned_generates_unversioned_fallback(
 #[test]
 fn test_regression_v06x_binary_updating_to_v077() {
     let target_version = "0.7.7";
-    let parsed = vx_core::version_utils::parse_version(target_version).unwrap();
+    let parsed = vx_runtime_core::version_utils::parse_version(target_version).unwrap();
 
     // v0.7.7 should use cargo-dist tag format
     let is_cargo_dist = parsed.major > 0 || (parsed.major == 0 && parsed.minor >= 7);

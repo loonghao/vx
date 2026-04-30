@@ -9,6 +9,7 @@ load("@vx//stdlib:provider.star",
      "runtime_def", "github_permissions", "dep_def",
      "archive_layout", "path_fns")
 load("@vx//stdlib:env.star",    "env_prepend", "env_set")
+load("@vx//stdlib:http.star",   "fetch_json_versions")
 
 # ---------------------------------------------------------------------------
 # Provider metadata
@@ -41,12 +42,15 @@ runtimes = [
 permissions = github_permissions(extra_hosts = ["dotnetcli.azureedge.net"])
 
 # ---------------------------------------------------------------------------
-# fetch_versions — from dotnetcli.azureedge.net
-# Note: For now we use an empty list; users should specify version explicitly
+# fetch_versions — from Microsoft .NET releases index
 # ---------------------------------------------------------------------------
 
-def fetch_versions(_ctx):
-    return []
+def fetch_versions(ctx):
+    return fetch_json_versions(
+        ctx,
+        "https://dotnetcli.blob.core.windows.net/dotnet/release-metadata/releases-index.json",
+        "dotnet_releases",
+    )
 
 # ---------------------------------------------------------------------------
 # Platform helpers

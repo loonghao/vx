@@ -282,6 +282,7 @@ impl ProviderHandle {
 
             if !versions.is_empty() {
                 // Sort versions in descending order (newest first)
+                #[allow(clippy::unnecessary_sort_by)]
                 versions.sort_by(|a, b| b.cmp(a));
                 return versions;
             }

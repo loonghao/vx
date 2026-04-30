@@ -580,6 +580,7 @@ fn resolve_version_prefix(
             .collect();
 
         // Sort in descending order to get the latest version
+        #[allow(clippy::unnecessary_sort_by)]
         matching.sort_by(|a, b| b.cmp(a));
 
         if let Some(matched) = matching.first() {
