@@ -85,10 +85,11 @@ def download_url(ctx, version):
 # ---------------------------------------------------------------------------
 
 def install_layout(_ctx, _version):
+    # sops releases are direct binaries (no archive)
     return {
-        "__type__":        "archive",
-        "strip_prefix":     "",
-        "executable_paths": ["sops"],
+        "__type":        "binary",
+        "target_name":   "sops",
+        "target_dir":    "bin",
     }
 
 # ---------------------------------------------------------------------------

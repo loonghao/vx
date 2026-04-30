@@ -38,8 +38,9 @@ permissions = github_permissions()
 #   cargo-deny-0.19.4-aarch64-apple-darwin.tar.gz
 #   cargo-deny-0.19.4-x86_64-pc-windows-msvc.zip
 _p = github_rust_provider("EmbarkStudios", "cargo-deny",
-    asset      = "cargo-deny-{vversion}-{triple}.{ext}",
+    asset      = "cargo-deny-{version}-{triple}.{ext}",
     executable = "cargo-deny",
+    tag_prefix = "",
 )
 
 fetch_versions   = _p["fetch_versions"]
