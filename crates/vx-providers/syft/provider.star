@@ -1,4 +1,4 @@
-load("@vx//stdlib:provider.star", "runtime_def", "github_permissions", "binary_layout")
+load("@vx//stdlib:provider.star", "runtime_def", "github_permissions")
 load("@vx//stdlib:provider_templates.star", "github_go_provider")
 
 # Metadata
