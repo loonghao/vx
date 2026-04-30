@@ -1,6 +1,6 @@
 # Supported Tools Overview
 
-vx supports **129 tools** out of the box, spanning language runtimes, package managers, DevOps tools, build systems, and more. All tools are managed through the same unified interface.
+vx supports **129 tools** out of the box, spanning language runtimes, package managers, DevOps tools, build systems, code quality tools, and more. All tools are managed through the same unified interface.
 
 ## At a Glance
 
@@ -8,17 +8,21 @@ vx supports **129 tools** out of the box, spanning language runtimes, package ma
 |----------|-------|-------|
 | [Language Runtimes](#language-runtimes) | Node.js, Python, Go, Rust, Deno, Zig, Java, .NET | 8 |
 | [Package Managers](#package-managers) | npm, pnpm, yarn, bun, uv, pip, cargo, nuget | 8 |
-| [DevOps](#devops) | Terraform, kubectl, Helm, Podman CLI, Git | 5 |
-
+| [Build Tools](#build-tools) | CMake, Ninja, Just, Task, Make, Meson, protoc, MSBuild, Vite, xmake | 10 |
+| [Build Cache](#build-cache-tools) | sccache, ccache, buildcache, Nx, Turborepo | 5 |
+| [DevOps](#devops--kubernetes) | Terraform, kubectl, Helm, Podman, Flux, kustomize | 6+ |
+| [Kubernetes Tools](#kubernetes-tools) | k9s, kind, k3d, minikube, nerdctl | 5 |
 | [Cloud CLI](#cloud-cli) | AWS CLI, Azure CLI, Google Cloud CLI | 3 |
-| [Build Tools](#build-tools) | CMake, Ninja, Just, Task, Make, Meson, protoc, MSBuild | 8 |
-| [Code Quality](#code-quality) | pre-commit, Vite | 2 |
-| [AI](#ai) | Ollama | 1 |
+| [Code Quality](#code-quality) | pre-commit, ruff, ripgrep, fd, bat, biome, golangci-lint | 7+ |
+| [Git Tools](#git-tools) | lazygit, jj, delta, gitleaks, lefthook | 5 |
+| [AI/ML](#aiml-tools) | Ollama, usql | 2 |
 | [Scientific & HPC](#scientific--hpc) | Spack, Rez | 2 |
 | [Media](#media) | FFmpeg, ImageMagick | 2 |
-| [System Tools](#system-tools) | jq, gh, curl, pwsh, Git, NASM, x-cmd | 7+ |
-
-| [Windows-specific](#windows-specific) | choco, winget, rcedit, MSVC Build Tools | 4 |
+| [CLI Enhancements](#cli--terminal-enhancements) | jq, fzf, eza, duf, dust, sd, zoxide | 7+ |
+| [System Tools](#system--terminal-tools) | curl, pwsh, NASM, x-cmd, 7zip, htop (bottom) | 6+ |
+| [Security](#security-tools) | cosign, grype, syft, trivy, git-leaks | 5 |
+| [Windows-specific](#windows-specific) | choco, winget, rcedit, MSVC, Wix, vcpkg | 6 |
+| [Editors & TUI](#editors--tui-tools) | VS Code, Helix, Zellij, Yazi | 4 |
 
 ## Language Runtimes
 
@@ -46,25 +50,9 @@ vx supports **129 tools** out of the box, spanning language runtimes, package ma
 | **uvx** | Python | uv | [Details →](./python) |
 | **cargo** | Rust | rust | [Details →](./rust) |
 | **nuget** | .NET | — | [Details →](./build-tools) |
-
-## DevOps
-
-| Tool | Description | Documentation |
-|------|-------------|---------------|
-| **Terraform** | Infrastructure as Code | [Details →](./devops) |
-| **kubectl** | Kubernetes CLI | [Details →](./devops) |
-| **Helm** | Kubernetes package manager | [Details →](./devops) |
-| **Podman** | Container CLI and compose workflow | [Details →](./devops) |
-| **Git** | Version control (MinGit on Windows) | [Details →](./devops) |
-| **Dagu** | DAG-based workflow executor | — |
-
-## Cloud CLI
-
-| Tool | Cloud Provider | Documentation |
-|------|---------------|---------------|
-| **AWS CLI** | Amazon Web Services | [Details →](./cloud) |
-| **Azure CLI** | Microsoft Azure | [Details →](./cloud) |
-| **Google Cloud CLI** | Google Cloud Platform | [Details →](./cloud) |
+| **conan** | C/C++ | — | — |
+| **vcpkg** | C/C++ | — | — |
+| **mise** | Multi-language | — | — |
 
 ## Build Tools
 
@@ -78,20 +66,88 @@ vx supports **129 tools** out of the box, spanning language runtimes, package ma
 | **Meson** | Build system | [Details →](./build-tools) |
 | **protoc** | Protocol Buffers compiler | [Details →](./build-tools) |
 | **MSBuild** | Microsoft Build Engine | [Details →](./build-tools) |
-| **MSVC Build Tools** | Microsoft C/C++ compiler toolchain | [Details →](./build-tools) |
 | **Vite** | Frontend build tool | [Details →](./build-tools) |
+| **xmake** | C/C++ build system | — |
+| **Nx** | Monorepo build system (package alias) | [Details →](./build-cache) |
+| **Turborepo** | Monorepo build cache (package alias) | [Details →](./build-cache) |
+
+## Build Cache Tools
+
+See [Build Cache Guide](./build-cache) for detailed documentation.
+
+| Tool | Languages | Best For | Documentation |
+|------|-----------|----------|---------------|
+| **sccache** | Rust, C/C++, CUDA | Cross-language, CI/CD | [Details →](./build-cache) |
+| **ccache** | C/C++ | Native C/C++ projects | [Details →](./build-cache) |
+| **buildcache** | C/C++, CUDA | MSVC, Visual Studio | [Details →](./build-cache) |
+
+## DevOps & Kubernetes
+
+| Tool | Description | Documentation |
+|------|-------------|---------------|
+| **Terraform** | Infrastructure as Code | [Details →](./devops) |
+| **kubectl** | Kubernetes CLI | [Details →](./devops) |
+| **Helm** | Kubernetes package manager | [Details →](./devops) |
+| **Podman** | Container CLI and compose | [Details →](./devops) |
+| **Flux** | GitOps tool for Kubernetes | [Details →](./devops) |
+| **kustomize** | Kubernetes configuration management | — |
+| **Dagu** | DAG-based workflow executor | — |
+
+## Kubernetes Tools
+
+| Tool | Description |
+|------|-------------|
+| **k9s** | Terminal UI for Kubernetes |
+| **kind** | Kubernetes in Docker |
+| **k3d** | Lightweight Kubernetes (k3s in Docker) |
+| **minikube** | Local Kubernetes cluster |
+| **nerdctl** | Container runtime CLI (compatible with Docker CLI) |
+| **skaffold** | Local Kubernetes development |
+
+## Cloud CLI
+
+| Tool | Cloud Provider | Documentation |
+|------|---------------|---------------|
+| **AWS CLI** | Amazon Web Services | [Details →](./cloud) |
+| **Azure CLI** | Microsoft Azure | [Details →](./cloud) |
+| **Google Cloud CLI** | Google Cloud Platform | [Details →](./cloud) |
 
 ## Code Quality
 
 | Tool | Description | Documentation |
 |------|-------------|---------------|
 | **pre-commit** | Multi-language pre-commit hooks | [Details →](./quality) |
+| **ruff** | Python linter and formatter | [Details →](./quality) |
+| **ripgrep (rg)** | Fast grep alternative | [Details →](./quality) |
+| **fd** | Fast find alternative | [Details →](./quality) |
+| **bat** | Better cat with syntax highlighting | [Details →](./quality) |
+| **biome** | JavaScript/TypeScript formatter/linter | [Details →](./quality) |
+| **oxlint** | JavaScript/linter | [Details →](./quality) |
+| **golangci-lint** | Go linter aggregator | [Details →](./quality) |
+| **cargo-audit** | Rust security audit | [Details →](./quality) |
+| **cargo-deny** | Rust dependency checker | [Details →](./quality) |
+| **cargo-nextest** | Rust test runner | [Details →](./quality) |
+| **hadolint** | Dockerfile linter | [Details →](./quality) |
+| **actionlint** | GitHub Actions linter | [Details →](./quality) |
 
-## AI
+## Git Tools
+
+| Tool | Description |
+|------|-------------|
+| **Git** | Version control (MinGit on Windows) |
+| **gh** | GitHub CLI |
+| **lazygit** | Terminal UI for Git |
+| **jj** (jujutsu) | Version control system (Git-compatible) |
+| **delta** | Syntax-highlighted git diff |
+| **gitleaks** | Git secret/history scanner |
+| **lefthook** | Git hooks manager |
+
+## AI/ML Tools
 
 | Tool | Description | Documentation |
 |------|-------------|---------------|
 | **Ollama** | Run LLMs locally (Llama, Mistral, Gemma) | [Details →](./ai) |
+| **usql** | Universal SQL CLI (AI-enhanced) | — |
 
 ## Scientific & HPC
 
@@ -106,18 +162,49 @@ vx supports **129 tools** out of the box, spanning language runtimes, package ma
 |------|-------------|---------------|
 | **FFmpeg** | Audio/video processing | [Details →](./media) |
 | **ImageMagick** | Image processing | [Details →](./media) |
+| **dive** | Docker image analysis | — |
 
-## System Tools
+## CLI & Terminal Enhancements
 
 | Tool | Description |
 |------|-------------|
 | **jq** | JSON processor |
-| **gh** | GitHub CLI |
+| **fzf** | Fuzzy finder |
+| **eza** | Modern ls replacement |
+| **duf** | Disk usage utility |
+| **dust** | Disk usage analyzer |
+| **sd** | Better sed (simple find & replace) |
+| **zoxide** | Smart cd replacement |
+| **atuin** | Shell history sync |
+| **starship** | Cross-shell prompt |
+| **tealdeer** (tldr) | Simplified man pages |
+| **xh** | HTTP client (like curl, but better) |
+| **hyperfine** | Command-line benchmarking |
+| **gping** | Graphical ping |
+| **trippy** | Network diagnostics (traceroute + ping) |
+
+## System & Terminal Tools
+
+| Tool | Description |
+|------|-------------|
 | **curl** | HTTP client |
 | **pwsh** | PowerShell |
 | **NASM** | Netwide Assembler |
-
 | **x-cmd** | Command-line toolbox with 100+ modules and AI |
+| **7zip** | File archiver |
+| **bottom** | System monitor (htop alternative) |
+| **watchexec** | File watcher and command runner |
+| **systemctl** | Systemd service manager (Linux) |
+
+## Security Tools
+
+| Tool | Description |
+|------|-------------|
+| **cosign** | Container image signing/verification |
+| **grype** | Container vulnerability scanner |
+| **syft** | SBOM (Software Bill of Materials) generator |
+| **trivy** | Vulnerability scanner for containers/Git repos |
+| **gitleaks** | Git secret/history scanner |
 
 ## Windows-Specific
 
@@ -127,6 +214,41 @@ vx supports **129 tools** out of the box, spanning language runtimes, package ma
 | **winget** | Windows Package Manager |
 | **rcedit** | Windows resource editor |
 | **MSVC Build Tools** | cl, link, lib, nmake, ml64, dumpbin, editbin |
+| **Wix** | Windows Installer (MSI) creation |
+| **vcpkg** | C/C++ package manager |
+
+## Editors & TUI Tools
+
+| Tool | Description |
+|------|-------------|
+| **VS Code** (code) | Visual Studio Code editor |
+| **Helix** | Modal text editor |
+| **Zellij** | Terminal multiplexer |
+| **Yazi** | Terminal file manager |
+
+## CI/CD Tools
+
+| Tool | Description |
+|------|-------------|
+| **prek** | Pre-commit hooks manager |
+| **release-please** | Release automation (conventional commits) |
+| **goreleaser** | Go release automation |
+| **buf** | Protocol Buffers tools |
+| **ctlptl** | Local Kubernetes for CI |
+
+## Other Tools
+
+| Tool | Description |
+|------|-------------|
+| **awscli** | AWS CLI |
+| **azcli** | Azure CLI |
+| **gcloud** | Google Cloud CLI |
+| **llvm** | Compiler toolchain |
+| **maturin** | Python/Rust package builder |
+| **openclaw** | Open source CLAW |
+| **wix** | Windows Installer XML (WiX) |
+| **xcodebuild** | Xcode build tool (macOS) |
+| **yq** | YAML/XML/JSON processor |
 
 ## Usage Pattern
 
@@ -143,6 +265,12 @@ vx install <tool>@<version>
 [tools]
 <tool> = "<version>"
 ```
+
+## Complete Tool List (129 Total)
+
+> **Note**: For detailed documentation, click the links above. For undocumented tools, please refer to the tool's official documentation.
+
+All 129 tools are immediately available with `vx <tool>`. No manual installation required — vx handles everything automatically.
 
 ## Custom Tools
 
