@@ -1,7 +1,6 @@
 //! Installation strategy definitions
 
 use serde::{Deserialize, Serialize};
-use std::path::PathBuf;
 
 /// Installation strategy for a system tool
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -153,83 +152,5 @@ impl ScriptType {
             Self::PowerShell | Self::Cmd => cfg!(windows),
             Self::Bash => cfg!(unix),
         }
-    }
-}
-
-/// System installation configuration for a runtime
-#[allow(dead_code)]
-#[derive(Debug, Clone, Default, Deserialize, Serialize)]
-pub struct SystemInstallConfig {
-    /// Installation strategies (ordered by priority)
-    #[serde(default)]
-    pub strategies: Vec<InstallStrategy>,
-
-    /// Tools provided by this runtime
-    #[serde(default)]
-    pub provides: Vec<ProvidedTool>,
-}
-
-/// A tool provided by another runtime
-#[allow(dead_code)]
-#[derive(Debug, Clone, Deserialize, Serialize)]
-pub struct ProvidedTool {
-    /// Tool name
-    pub name: String,
-
-    /// Relative path to the tool
-    pub relative_path: String,
-
-    /// Supported platforms
-    #[serde(default)]
-    pub platforms: Vec<String>,
-}
-
-#[allow(dead_code)]
-impl ProvidedTool {
-    /// Check if this tool is available on the current platform
-    pub fn is_available(&self) -> bool {
-        if self.platforms.is_empty() {
-            return true;
-        }
-        let current_os = std::env::consts::OS;
-        self.platforms.iter().any(|p| p == current_os || p == "*")
-    }
-
-    /// Get the full path to the tool given the provider's installation directory
-    pub fn full_path(&self, provider_install_dir: &std::path::Path) -> PathBuf {
-        provider_install_dir.join(&self.relative_path)
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_strategy_priority() {
-        let strategy = InstallStrategy::package_manager("choco", "git").with_priority(80);
-        assert_eq!(strategy.priority(), 80);
-    }
-
-    #[test]
-    fn test_script_type_extension() {
-        assert_eq!(ScriptType::PowerShell.extension(), "ps1");
-        assert_eq!(ScriptType::Bash.extension(), "sh");
-        assert_eq!(ScriptType::Cmd.extension(), "cmd");
-    }
-
-    #[test]
-    fn test_provided_tool() {
-        let tool = ProvidedTool {
-            name: "curl".to_string(),
-            relative_path: "mingw64/bin/curl.exe".to_string(),
-            platforms: vec!["windows".to_string()],
-        };
-
-        #[cfg(windows)]
-        assert!(tool.is_available());
-
-        #[cfg(not(windows))]
-        assert!(!tool.is_available());
     }
 }
