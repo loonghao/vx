@@ -8,7 +8,7 @@
 
 ## What is vx?
 
-vx is a **zero-config universal development tool manager** (v0.8.25, MIT-licensed, written in Rust). Users prefix any command with `vx` (e.g., `vx node --version`, `vx cargo build`) and vx automatically installs, manages, and forwards to the correct tool version. vx currently ships **129 providers** covering language runtimes, build tools, DevOps CLIs, cloud platforms, and more — all defined via Starlark DSL (`provider.star`).
+vx is a **zero-config universal development tool manager** (v0.8.32, MIT-licensed, written in Rust). Users prefix any command with `vx` (e.g., `vx node --version`, `vx cargo build`) and vx automatically installs, manages, and forwards to the correct tool version. vx currently ships **129 providers** covering language runtimes, build tools, DevOps CLIs, cloud platforms, and more — all defined via Starlark DSL (`provider.star`).
 
 **Key insight for agents**: vx is a transparent proxy. The user writes the exact same commands they already know — just prepended with `vx`. There is **no new syntax to learn** for tool execution.
 
@@ -106,7 +106,7 @@ User Command: vx npm install
 7. **Check `vx.toml`** first to understand project tool requirements
 8. **New providers use Starlark DSL only** — No Rust code required for new tool definitions
 9. **Layer dependencies go downward only** — Never import from a higher architectural layer
-10. **Provider count is 122** — Update any docs that reference old counts (78, 73, 70+, 50+, etc.)
+10. **Provider count is 129** — Update any docs that reference old counts (78, 73, 70+, 50+, 122, 124, 126, etc.)
 
 ### Setup Commands
 
@@ -186,7 +186,7 @@ vx dev                         # Enter dev environment
 │  vx-manifest       (Provider manifest parsing)          │
 │  vx-args           (Argument parsing)                   │
 ├─────────────────────────────────────────────────────────┤
-│  vx-providers/*    (124 Providers — provider.star DSL)  │
+│  vx-providers/*    (129 Providers — provider.star DSL)  │
 │  vx-bridge         (Generic command bridge)             │
 └─────────────────────────────────────────────────────────┘
 ```
@@ -222,7 +222,7 @@ For the complete DSL reference — stdlib modules, context object fields, templa
 
 ## All Providers
 
-vx supports 126+ providers across JavaScript, Python, Rust, Go, system tools, DevOps, security, cloud, .NET, C/C++, media, and more. See [`docs/tools/overview.md`](docs/tools/overview.md) for the complete list.
+vx supports 129 providers across JavaScript, Python, Rust, Go, system tools, DevOps, security, cloud, .NET, C/C++, media, and more. See [`docs/tools/overview.md`](docs/tools/overview.md) for the complete list.
 
 ## Decision Framework for AI Agents
 
