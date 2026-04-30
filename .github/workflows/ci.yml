@@ -813,7 +813,7 @@ jobs:
     if: |
       needs.detect-changes.outputs.should_build == 'true' &&
       needs.detect-changes.outputs.is_main != 'true'
-    timeout-minutes: 20
+    timeout-minutes: 45
     env:
       RUSTC_WRAPPER: sccache
       SCCACHE_DIR: ${{ github.workspace }}/.cache/sccache
