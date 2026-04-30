@@ -165,8 +165,10 @@ def install_layout(ctx, _version, runtime_name = "micromamba"):
     # Miniforge: conda and mamba
     if runtime_name == "conda":
         exe = "Scripts\\conda.exe" if os == "windows" else "bin/conda"
-    else:
+    elif runtime_name == "mamba":
         exe = "Scripts\\mamba.exe" if os == "windows" else "bin/mamba"
+    else:
+        fail("unknown conda ecosystem runtime: " + runtime_name)
 
     return {
         "type":             "archive",

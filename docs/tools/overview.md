@@ -14,7 +14,7 @@ vx supports **132 tools** out of the box, spanning language runtimes, package ma
 | [Kubernetes Tools](#kubernetes-tools) | k9s, kind, k3d, minikube, nerdctl | 7 |
 | [Cloud CLI](#cloud-cli) | AWS CLI, Azure CLI, Google Cloud CLI | 3 |
 | [Code Quality](#code-quality) | pre-commit, ruff, ripgrep, fd, bat, biome, golangci-lint | 7+ |
-| [Git Tools](#git-tools) | lazygit, jj, delta, gitleaks, lefthook | 7 |
+| [Git Tools](#git-tools) | worktrunk, lazygit, jj, delta, gitleaks, lefthook | 8 |
 | [AI/ML](#aiml-tools) | Ollama, usql | 2 |
 | [Scientific & HPC](#scientific--hpc) | Spack, Rez | 2 |
 | [Media](#media) | FFmpeg, ImageMagick | 2 |
@@ -134,6 +134,7 @@ See [Build Cache Guide](./build-cache) for detailed documentation.
 
 | Tool | Description |
 |------|-------------|
+| **worktrunk** (wt) | Git worktree manager for parallel AI agent workflows |
 | **Git** | Version control (MinGit on Windows) |
 | **gh** | GitHub CLI |
 | **lazygit** | Terminal UI for Git |
@@ -268,11 +269,11 @@ vx install <tool>@<version>
 <tool> = "<version>"
 ```
 
-## Complete Tool List (129 Total)
+## Complete Tool List (132 Total)
 
 > **Note**: For detailed documentation, click the links above. For undocumented tools, please refer to the tool's official documentation.
 
-All 131 tools are immediately available with `vx <tool>`. No manual installation required — vx handles everything automatically.
+All 132 tools are immediately available with `vx <tool>`. No manual installation required — vx handles everything automatically.
 
 ## Custom Tools
 

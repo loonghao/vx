@@ -194,4 +194,4 @@ all = "just dev"
 - [Core Concepts](/guide/concepts) — Understand providers, runtimes, and versions
 - [Configuration](/guide/configuration) — Deep dive into `vx.toml`
 - [CLI Reference](/cli/overview) — Explore all available commands
-- [Supported Tools](/tools/overview) — See the full list of 129 tools
+- [Supported Tools](/tools/overview) — See the full list of 132 tools
