@@ -9,7 +9,6 @@
 # Inheritance pattern: Level 2 (custom download_url for multiple runtimes)
 
 load("@vx//stdlib:github.star", "make_fetch_versions", "github_asset_url")
-load("@vx//stdlib:platform.star", "is_windows", "exe_ext")
 
 # ---------------------------------------------------------------------------
 # Provider metadata
@@ -150,7 +149,7 @@ def download_url(ctx, version, runtime_name = "micromamba"):
 # install_layout
 # ---------------------------------------------------------------------------
 
-def install_layout(ctx, version, runtime_name = "micromamba"):
+def install_layout(ctx, _version, runtime_name = "micromamba"):
     """Describe how to extract the downloaded archive."""
     os = ctx["platform"]["os"]
 
@@ -178,7 +177,7 @@ def install_layout(ctx, version, runtime_name = "micromamba"):
 # environment
 # ---------------------------------------------------------------------------
 
-def environment(ctx, version, install_dir, runtime_name = "micromamba"):
+def environment(ctx, _version, install_dir, runtime_name = "micromamba"):
     """Return environment variables to set for this runtime."""
     if runtime_name == "micromamba":
         return {
