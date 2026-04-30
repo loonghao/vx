@@ -245,8 +245,9 @@ jobs:
                   break
                   ;;
                 "providers")
-                  # Test all providers as a group
-                  TEST_PKGS+=("-p" "vx-provider-*")
+                  # Providers are Starlark files, not separate crates.
+                  # Provider tests are handled by the "Test Providers" workflow.
+                  echo "Skipping cargo test for providers (Starlark files, tested separately)"
                   ;;
                 *)
                   TEST_PKGS+=("-p" "$crate")

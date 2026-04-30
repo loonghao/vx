@@ -13,7 +13,13 @@
 load("@vx//stdlib:provider.star",
      "runtime_def", "github_permissions")
 load("@vx//stdlib:github.star", "make_fetch_versions", "github_asset_url")
-load("@vx//stdlib:env.star", "env_prepend")
+load("@vx//stdlib:layout.star", "path_fns")
+
+# Use stdlib path_fns for correct cross-platform path handling
+paths = path_fns("age")
+store_root       = paths["store_root"]
+get_execute_path = paths["get_execute_path"]
+environment      = paths["environment"]
 
 # ---------------------------------------------------------------------------
 # Provider metadata
@@ -89,20 +95,6 @@ def install_layout(_ctx, _version):
         "strip_prefix":     "age",
         "executable_paths": ["age"],
     }
-
-# ---------------------------------------------------------------------------
-# Path + env functions
-# ---------------------------------------------------------------------------
-
-def store_root(ctx):
-    return ctx.vx_home + "/store/age"
-
-def get_execute_path(ctx, _version):
-    exe = "age.exe" if ctx.platform.os == "windows" else "age"
-    return ctx.install_dir + "/" + exe
-
-def environment(ctx, _version):
-    return [env_prepend("PATH", ctx.install_dir)]
 
 def post_install(_ctx, _version):
     return None
