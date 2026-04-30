@@ -438,10 +438,10 @@ async fn try_installer_script_fallback(
 /// Check if version_a is newer than version_b using semver comparison
 /// Supports formats: "0.6.27", "v0.6.27", "0.6.27-beta.1"
 ///
-/// This is a thin wrapper around vx_core::version_utils::is_newer_version
+/// This is a thin wrapper around vx_runtime_core::version_utils::is_newer_version
 /// to ensure consistent version comparison across the codebase.
 fn is_newer_version(version_a: &str, version_b: &str) -> bool {
-    vx_core::version_utils::is_newer_version(version_a, version_b)
+    vx_runtime_core::version_utils::is_newer_version(version_a, version_b)
 }
 
 /// Create an HTTP client with optional GitHub authentication
@@ -584,7 +584,7 @@ async fn try_jsdelivr_api_specific(
     // Check if the requested version exists using normalized comparison
     let version_exists = versions.iter().any(|v| {
         if let Some(v_str) = v.as_str() {
-            vx_core::version_utils::normalize_version(v_str) == version
+            vx_runtime_core::version_utils::normalize_version(v_str) == version
         } else {
             false
         }
@@ -1070,19 +1070,19 @@ async fn try_jsdelivr_api(client: &reqwest::Client, prerelease: bool) -> Result<
         .as_array()
         .ok_or_else(|| anyhow!("No versions found in jsDelivr response"))?;
 
-    // Find the latest version based on prerelease flag using vx_core utilities
+    // Find the latest version based on prerelease flag using vx_runtime_core utilities
     let version_strings: Vec<&str> = versions.iter().filter_map(|v| v.as_str()).collect();
 
     // Try to find a version that has actual assets
     for version_str in &version_strings {
-        let is_prerelease = vx_core::version_utils::is_prerelease(version_str);
+        let is_prerelease = vx_runtime_core::version_utils::is_prerelease(version_str);
 
         // Skip prerelease versions if we don't want them
         if !prerelease && is_prerelease {
             continue;
         }
 
-        let version_number = vx_core::version_utils::normalize_version(version_str);
+        let version_number = vx_runtime_core::version_utils::normalize_version(version_str);
 
         // Create CDN assets for this version
         let assets = create_cdn_assets(version_number);
@@ -1109,10 +1109,11 @@ async fn try_jsdelivr_api(client: &reqwest::Client, prerelease: bool) -> Result<
 
     // If no version with valid assets found, return the latest version anyway
     // The download will fail and provide appropriate error message
-    let latest_version = vx_core::version_utils::find_latest_version(&version_strings, !prerelease)
-        .ok_or_else(|| anyhow!("No suitable version found"))?;
+    let latest_version =
+        vx_runtime_core::version_utils::find_latest_version(&version_strings, !prerelease)
+            .ok_or_else(|| anyhow!("No suitable version found"))?;
 
-    let version_number = vx_core::version_utils::normalize_version(latest_version);
+    let version_number = vx_runtime_core::version_utils::normalize_version(latest_version);
 
     let assets = create_cdn_assets(version_number);
 
@@ -1120,7 +1121,7 @@ async fn try_jsdelivr_api(client: &reqwest::Client, prerelease: bool) -> Result<
         tag_name: latest_version.to_string(),
         name: format!("Release {}", version_number),
         body: "Release information retrieved from CDN".to_string(),
-        prerelease: vx_core::version_utils::is_prerelease(latest_version),
+        prerelease: vx_runtime_core::version_utils::is_prerelease(latest_version),
         assets,
     })
 }
@@ -1139,7 +1140,7 @@ async fn verify_asset_exists(client: &reqwest::Client, url: &str) -> bool {
 /// - v0.7.0+ (cargo-dist): primarily unversioned format (vx-x86_64-pc-windows-msvc.zip) with tag v{ver}
 ///   but also supports versioned format (vx-0.7.0-x86_64-pc-windows-msvc.zip) as fallback
 fn uses_versioned_artifact_naming(version: &str) -> bool {
-    if let Some(parsed) = vx_core::version_utils::parse_version(version) {
+    if let Some(parsed) = vx_runtime_core::version_utils::parse_version(version) {
         // Only v0.6.x uses versioned naming as PRIMARY format
         // v0.7.0+ (cargo-dist) uses unversioned as primary, versioned as fallback
         parsed.major == 0 && parsed.minor == 6
@@ -1161,7 +1162,7 @@ fn get_tag_for_version(version: &str) -> String {
 
 /// Check if a version uses cargo-dist tag format (v{version} instead of vx-v{version})
 fn uses_cargo_dist_tag_format(version: &str) -> bool {
-    if let Some(parsed) = vx_core::version_utils::parse_version(version) {
+    if let Some(parsed) = vx_runtime_core::version_utils::parse_version(version) {
         parsed.major > 0 || (parsed.major == 0 && parsed.minor >= 7)
     } else {
         false

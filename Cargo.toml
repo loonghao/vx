@@ -1,6 +1,5 @@
 [workspace]
 members = [
-  "crates/vx-core",
   "crates/vx-cache",
   "crates/vx-versions",
   "crates/vx-starlark",
@@ -28,175 +27,59 @@ members = [
   "crates/vx-metrics",
   "crates/vx-cli",
   # Providers (active - have Cargo.toml)
-  "crates/vx-providers/bun",
-  "crates/vx-providers/rcedit",
-  "crates/vx-providers/choco",
-  "crates/vx-providers/brew",
   # Build tools
-  "crates/vx-providers/make",
-  "crates/vx-providers/nasm",
   # Python runtime
-  "crates/vx-providers/python",
   # MSVC Build Tools (Windows-only)
-  "crates/vx-providers/msvc",
   # Media processing tools
-  "crates/vx-providers/ffmpeg",
-  "crates/vx-providers/imagemagick",
   # MSBuild
-  "crates/vx-providers/msbuild",
   # 7-Zip file archiver
-  "crates/vx-providers/7zip",
   # Actionforge runner
-  "crates/vx-providers/actrun",
   # Dockerfile linter
-  "crates/vx-providers/hadolint",
   # Meson build system (PyPI package alias)
-  "crates/vx-providers/meson",
   # Conan C/C++ package manager (PyPI package alias)
-  "crates/vx-providers/conan",
   # xmake build system
-  "crates/vx-providers/xmake",
   # WiX Toolset (Windows installer)
-  "crates/vx-providers/wix",
   # curl (system detection only)
-  "crates/vx-providers/curl",
   # Rez package manager (Python-based)
-  "crates/vx-providers/rez",
   # Cloud CLI tools
-  "crates/vx-providers/awscli",
-  "crates/vx-providers/azcli",
-  "crates/vx-providers/gcloud",
   # Container tools
-  "crates/vx-providers/podman",
 
   # Kubernetes tools
-  "crates/vx-providers/kubectl",
-  "crates/vx-providers/helm",
-  "crates/vx-providers/flux",
-  "crates/vx-providers/kind",
-  "crates/vx-providers/k3d",
-  "crates/vx-providers/nerdctl",
-  "crates/vx-providers/skaffold",
-  "crates/vx-providers/minikube",
-  "crates/vx-providers/kustomize",
   # Data tools
-  "crates/vx-providers/duckdb",
-  "crates/vx-providers/usql",
   # gRPC tools
-  "crates/vx-providers/grpcurl",
   # VM tools
-  "crates/vx-providers/lima",
   # Git tools
-  "crates/vx-providers/lefthook",
   # CLI utilities
-  "crates/vx-providers/bat",
-  "crates/vx-providers/fd",
-  "crates/vx-providers/fzf",
-  "crates/vx-providers/jq",
-  "crates/vx-providers/yq",
-  "crates/vx-providers/ripgrep",
-  "crates/vx-providers/hyperfine",
-  "crates/vx-providers/zoxide",
-  "crates/vx-providers/eza",
-  "crates/vx-providers/atuin",
-  "crates/vx-providers/delta",
-  "crates/vx-providers/tealdeer",
-  "crates/vx-providers/dust",
-  "crates/vx-providers/tokei",
-  "crates/vx-providers/xh",
-  "crates/vx-providers/bottom",
-  "crates/vx-providers/zellij",
   # Terminal file manager / editor
-  "crates/vx-providers/yazi",
-  "crates/vx-providers/helix",
   # Git TUI / dotfile management
-  "crates/vx-providers/lazygit",
-  "crates/vx-providers/chezmoi",
   # Container / security tools
-  "crates/vx-providers/trivy",
-  "crates/vx-providers/dive",
-  "crates/vx-providers/lazydocker",
-  "crates/vx-providers/k9s",
   # Dev environment / version manager
-  "crates/vx-providers/mise",
   # Web development / linting
-  "crates/vx-providers/biome",
   # Security scanning
-  "crates/vx-providers/gitleaks",
   # Network diagnostics
-  "crates/vx-providers/gping",
-  "crates/vx-providers/trippy",
   # File watching / text processing
-  "crates/vx-providers/watchexec",
-  "crates/vx-providers/sd",
   # Disk usage / system
-  "crates/vx-providers/duf",
   # CI/CD linting
-  "crates/vx-providers/actionlint",
   # Build tools
-  "crates/vx-providers/cmake",
-  "crates/vx-providers/ninja",
-  "crates/vx-providers/protoc",
   # Language runtimes
-  "crates/vx-providers/deno",
-  "crates/vx-providers/java",
-  "crates/vx-providers/dotnet",
-  "crates/vx-providers/rust",
-  "crates/vx-providers/zig",
   # Package managers
-  "crates/vx-providers/pnpm",
-  "crates/vx-providers/nuget",
   # DevOps tools
-  "crates/vx-providers/terraform",
-  "crates/vx-providers/gh",
-  "crates/vx-providers/release-please",
   # Shell and terminal tools
-  "crates/vx-providers/bash",
-  "crates/vx-providers/pwsh",
-  "crates/vx-providers/starship",
   # Task runners
-  "crates/vx-providers/task",
-  "crates/vx-providers/dagu",
   # VCS tools
-  "crates/vx-providers/jj",
   # AI tools
-  "crates/vx-providers/ollama",
   # IDE tools
-  "crates/vx-providers/vscode",
   # System tools
-  "crates/vx-providers/systemctl",
-  "crates/vx-providers/xcodebuild",
 
   # Rust testing tools
-  "crates/vx-providers/cargo-nextest",
   # Rust dependency linting
-  "crates/vx-providers/cargo-deny",
   # Rust security auditing
-  "crates/vx-providers/cargo-audit",
   # Build cache
-  "crates/vx-providers/sccache",
-  "crates/vx-providers/ccache",
-  "crates/vx-providers/buildcache",
   # Node.js build cache (monorepo tools)
-  "crates/vx-providers/nx",
-  "crates/vx-providers/turbo",
-  "crates/vx-providers/vite",
   # Python ecosystem tools
-  "crates/vx-providers/pre-commit",
-  "crates/vx-providers/spack",
-  "crates/vx-providers/maturin",
-  "crates/vx-providers/ruff",
   # Go development tools
-  "crates/vx-providers/goreleaser",
-  "crates/vx-providers/golangci-lint",
-  "crates/vx-providers/ctlptl",
-  "crates/vx-providers/tilt",
   # Protobuf tools
-  "crates/vx-providers/buf",
   # Security/supply-chain tools
-  "crates/vx-providers/cosign",
-  "crates/vx-providers/syft",
-  "crates/vx-providers/grype",
   # Generic command bridge framework
   "crates/vx-bridge",
   # Workspace-hack crate (managed by cargo-hakari, reduces duplicate dependency compilations)
@@ -245,7 +128,7 @@ tempfile = { workspace = true }
 assert_cmd = { workspace = true }
 predicates = { workspace = true }
 # Test dependencies for integration tests
-vx-core = { workspace = true }
+vx-runtime-core = { workspace = true }
 walkdir.workspace = true
 serde_json = { workspace = true }
 rstest = "0.26"
@@ -268,7 +151,6 @@ rust-version = "1.93.0"
 
 [workspace.dependencies]
 # Internal crates
-vx-core = { path = "crates/vx-core" }
 vx-cache = { path = "crates/vx-cache" }
 vx-starlark = { path = "crates/vx-starlark" }
 vx-star-metadata = { path = "crates/vx-star-metadata" }
@@ -294,157 +176,37 @@ vx-shim = { path = "crates/vx-shim" }
 vx-metrics = { path = "crates/vx-metrics" }
 vx-cli = { path = "crates/vx-cli" }
 # Active providers (have Cargo.toml)
-vx-provider-bun = { path = "crates/vx-providers/bun" }
-vx-provider-rcedit = { path = "crates/vx-providers/rcedit" }
-vx-provider-choco = { path = "crates/vx-providers/choco" }
-vx-provider-brew = { path = "crates/vx-providers/brew" }
-vx-provider-make = { path = "crates/vx-providers/make" }
-vx-provider-nasm = { path = "crates/vx-providers/nasm" }
-vx-provider-python = { path = "crates/vx-providers/python" }
-vx-provider-msvc = { path = "crates/vx-providers/msvc" }
-vx-provider-ffmpeg = { path = "crates/vx-providers/ffmpeg" }
-vx-provider-imagemagick = { path = "crates/vx-providers/imagemagick" }
-vx-provider-msbuild = { path = "crates/vx-providers/msbuild" }
-vx-provider-7zip = { path = "crates/vx-providers/7zip" }
-vx-provider-actrun = { path = "crates/vx-providers/actrun" }
-vx-provider-hadolint = { path = "crates/vx-providers/hadolint" }
-vx-provider-meson = { path = "crates/vx-providers/meson" }
-vx-provider-conan = { path = "crates/vx-providers/conan" }
-vx-provider-xmake = { path = "crates/vx-providers/xmake" }
-vx-provider-wix = { path = "crates/vx-providers/wix" }
-vx-provider-curl = { path = "crates/vx-providers/curl" }
-vx-provider-rez = { path = "crates/vx-providers/rez" }
 # Cloud CLI tools
-vx-provider-awscli = { path = "crates/vx-providers/awscli" }
-vx-provider-azcli = { path = "crates/vx-providers/azcli" }
-vx-provider-gcloud = { path = "crates/vx-providers/gcloud" }
 # Container tools
-vx-provider-podman = { path = "crates/vx-providers/podman" }
 
 # Kubernetes tools
-vx-provider-kubectl = { path = "crates/vx-providers/kubectl" }
-vx-provider-helm = { path = "crates/vx-providers/helm" }
-vx-provider-kind = { path = "crates/vx-providers/kind" }
-vx-provider-k3d = { path = "crates/vx-providers/k3d" }
-vx-provider-nerdctl = { path = "crates/vx-providers/nerdctl" }
-vx-provider-skaffold = { path = "crates/vx-providers/skaffold" }
-vx-provider-minikube = { path = "crates/vx-providers/minikube" }
-vx-provider-kustomize = { path = "crates/vx-providers/kustomize" }
 # gRPC tools
-vx-provider-grpcurl = { path = "crates/vx-providers/grpcurl" }
 # VM tools
-vx-provider-lima = { path = "crates/vx-providers/lima" }
 # Git tools
-vx-provider-lefthook = { path = "crates/vx-providers/lefthook" }
 # CLI utilities
-vx-provider-bat = { path = "crates/vx-providers/bat" }
-vx-provider-fd = { path = "crates/vx-providers/fd" }
-vx-provider-fzf = { path = "crates/vx-providers/fzf" }
-vx-provider-jq = { path = "crates/vx-providers/jq" }
-vx-provider-yq = { path = "crates/vx-providers/yq" }
-vx-provider-ripgrep = { path = "crates/vx-providers/ripgrep" }
-vx-provider-hyperfine = { path = "crates/vx-providers/hyperfine" }
-vx-provider-zoxide = { path = "crates/vx-providers/zoxide" }
-vx-provider-eza = { path = "crates/vx-providers/eza" }
-vx-provider-atuin = { path = "crates/vx-providers/atuin" }
-vx-provider-delta = { path = "crates/vx-providers/delta" }
-vx-provider-tealdeer = { path = "crates/vx-providers/tealdeer" }
-vx-provider-dust = { path = "crates/vx-providers/dust" }
-vx-provider-tokei = { path = "crates/vx-providers/tokei" }
-vx-provider-xh = { path = "crates/vx-providers/xh" }
-vx-provider-bottom = { path = "crates/vx-providers/bottom" }
-vx-provider-zellij = { path = "crates/vx-providers/zellij" }
-vx-provider-yazi = { path = "crates/vx-providers/yazi" }
-vx-provider-helix = { path = "crates/vx-providers/helix" }
-vx-provider-lazygit = { path = "crates/vx-providers/lazygit" }
-vx-provider-chezmoi = { path = "crates/vx-providers/chezmoi" }
-vx-provider-trivy = { path = "crates/vx-providers/trivy" }
-vx-provider-dive = { path = "crates/vx-providers/dive" }
-vx-provider-lazydocker = { path = "crates/vx-providers/lazydocker" }
-vx-provider-k9s = { path = "crates/vx-providers/k9s" }
-vx-provider-mise = { path = "crates/vx-providers/mise" }
-vx-provider-biome = { path = "crates/vx-providers/biome" }
-vx-provider-gitleaks = { path = "crates/vx-providers/gitleaks" }
-vx-provider-gping = { path = "crates/vx-providers/gping" }
-vx-provider-trippy = { path = "crates/vx-providers/trippy" }
-vx-provider-watchexec = { path = "crates/vx-providers/watchexec" }
-vx-provider-sd = { path = "crates/vx-providers/sd" }
-vx-provider-duf = { path = "crates/vx-providers/duf" }
-vx-provider-actionlint = { path = "crates/vx-providers/actionlint" }
 # Build tools
-vx-provider-cmake = { path = "crates/vx-providers/cmake" }
-vx-provider-ninja = { path = "crates/vx-providers/ninja" }
-vx-provider-protoc = { path = "crates/vx-providers/protoc" }
 # Language runtimes
-vx-provider-deno = { path = "crates/vx-providers/deno" }
-vx-provider-java = { path = "crates/vx-providers/java" }
-vx-provider-dotnet = { path = "crates/vx-providers/dotnet" }
-vx-provider-rust = { path = "crates/vx-providers/rust" }
-vx-provider-zig = { path = "crates/vx-providers/zig" }
 # Package managers
-vx-provider-pnpm = { path = "crates/vx-providers/pnpm" }
-vx-provider-nuget = { path = "crates/vx-providers/nuget" }
 # DevOps tools
-vx-provider-terraform = { path = "crates/vx-providers/terraform" }
-vx-provider-gh = { path = "crates/vx-providers/gh" }
-vx-provider-release-please = { path = "crates/vx-providers/release-please" }
 # Shell and terminal tools
-vx-provider-bash = { path = "crates/vx-providers/bash" }
-vx-provider-pwsh = { path = "crates/vx-providers/pwsh" }
-vx-provider-starship = { path = "crates/vx-providers/starship" }
 # Task runners
-vx-provider-task = { path = "crates/vx-providers/task" }
-vx-provider-dagu = { path = "crates/vx-providers/dagu" }
 # VCS tools
-vx-provider-jj = { path = "crates/vx-providers/jj" }
 # AI tools
-vx-provider-ollama = { path = "crates/vx-providers/ollama" }
 # IDE tools
-vx-provider-vscode = { path = "crates/vx-providers/vscode" }
 # System tools
-vx-provider-systemctl = { path = "crates/vx-providers/systemctl" }
 
-vx-provider-xcodebuild = { path = "crates/vx-providers/xcodebuild" }
 # Build cache
-vx-provider-sccache = { path = "crates/vx-providers/sccache" }
-vx-provider-ccache = { path = "crates/vx-providers/ccache" }
-vx-provider-buildcache = { path = "crates/vx-providers/buildcache" }
 # Node.js build cache (monorepo tools)
-vx-provider-nx = { path = "crates/vx-providers/nx" }
-vx-provider-turbo = { path = "crates/vx-providers/turbo" }
-vx-provider-vite = { path = "crates/vx-providers/vite" }
 # Python ecosystem tools
-vx-provider-pre-commit = { path = "crates/vx-providers/pre-commit" }
-vx-provider-spack = { path = "crates/vx-providers/spack" }
-vx-provider-maturin = { path = "crates/vx-providers/maturin" }
-vx-provider-ruff = { path = "crates/vx-providers/ruff" }
 # Go development tools
-vx-provider-goreleaser = { path = "crates/vx-providers/goreleaser" }
-vx-provider-golangci-lint = { path = "crates/vx-providers/golangci-lint" }
-vx-provider-ctlptl = { path = "crates/vx-providers/ctlptl" }
-vx-provider-tilt = { path = "crates/vx-providers/tilt" }
 # Protobuf tools
-vx-provider-buf = { path = "crates/vx-providers/buf" }
 # Security/supply-chain tools
-vx-provider-cosign = { path = "crates/vx-providers/cosign" }
-vx-provider-syft = { path = "crates/vx-providers/syft" }
-vx-provider-grype = { path = "crates/vx-providers/grype" }
 # Version control
-vx-provider-git = { path = "crates/vx-providers/git" }
 # Go ecosystem
-vx-provider-go = { path = "crates/vx-providers/go" }
 # Node.js ecosystem
-vx-provider-node = { path = "crates/vx-providers/node" }
-vx-provider-yarn = { path = "crates/vx-providers/yarn" }
 # Build tools
-vx-provider-just = { path = "crates/vx-providers/just" }
 # Package managers
-vx-provider-uv = { path = "crates/vx-providers/uv" }
-vx-provider-prek = { path = "crates/vx-providers/prek" }
-vx-provider-vcpkg = { path = "crates/vx-providers/vcpkg" }
-vx-provider-winget = { path = "crates/vx-providers/winget" }
 # Data tools
-vx-provider-usql = { path = "crates/vx-providers/usql" }
 vx-console = { path = "crates/vx-console" }
 vx-output-filter = { path = "crates/vx-output-filter" }
 vx-manifest = { path = "crates/vx-manifest" }
@@ -559,6 +321,7 @@ wiremock = "0.6"
 serial_test = "3.0"
 assert_cmd = "2.0"
 predicates = "3.1"
+bincode = { version = "2.0.1", features = ["serde"] }
 
 
 # Optimize compilation times

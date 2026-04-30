@@ -9,7 +9,7 @@ use std::process::Stdio;
 use tokio::process::Command;
 use tracing::{debug, info};
 use vx_args::{ArgParser, HelpFormatter, Interpolator, ParsedArgs};
-use vx_core::exit_code_from_status;
+use vx_runtime_core::exit_code_from_status;
 
 /// Extension executor - executes extension scripts
 pub struct ExtensionExecutor {

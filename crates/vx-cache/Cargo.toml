@@ -10,8 +10,8 @@ repository = { workspace = true }
 anyhow = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
-bincode = { version = "2.0.1", features = ["serde"] }
-sha2 = "0.10"
+bincode = { workspace = true }
+sha2 = { workspace = true }
 hex = "0.4"
 workspace-hack = { version = "0.1", path = "../workspace-hack" }
 

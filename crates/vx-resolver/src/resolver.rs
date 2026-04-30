@@ -315,6 +315,7 @@ impl Resolver {
                         .filter(|p| p.exists())
                         .collect();
                     // Sort descending so the latest version comes first
+                    #[allow(clippy::unnecessary_sort_by)]
                     matches.sort_by(|a, b| b.cmp(a));
 
                     if let Some(path) = matches.into_iter().next() {

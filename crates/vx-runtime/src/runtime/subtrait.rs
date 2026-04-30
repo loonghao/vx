@@ -164,6 +164,7 @@ impl<T: Runtime + ?Sized> RuntimeExecutable for T {
 
 /// Version fetching and resolution view of a [`Runtime`].
 #[async_trait]
+#[allow(async_fn_in_trait)]
 pub trait RuntimeVersioning: Send + Sync {
     /// Fetch all available versions from the upstream registry.
     async fn fetch_versions(&self, ctx: &RuntimeContext) -> Result<Vec<VersionInfo>>;
@@ -221,6 +222,7 @@ impl<T: Runtime + ?Sized> RuntimeVersioning for T {
 
 /// Download and install view of a [`Runtime`].
 #[async_trait]
+#[allow(async_fn_in_trait)]
 pub trait RuntimeInstallable: Send + Sync {
     /// Returns `true` if vx can directly download and install this version.
     fn is_version_installable(&self, version: &str) -> bool;
@@ -281,6 +283,7 @@ impl<T: Runtime + ?Sized> RuntimeInstallable for T {
 
 /// Lifecycle hooks view of a [`Runtime`].
 #[async_trait]
+#[allow(async_fn_in_trait)]
 pub trait RuntimeHooks: Send + Sync {
     async fn pre_install(&self, version: &str, ctx: &RuntimeContext) -> Result<()>;
     fn post_extract(&self, version: &str, install_path: &Path) -> Result<()>;
@@ -334,6 +337,7 @@ impl<T: Runtime + ?Sized> RuntimeHooks for T {
 
 /// Environment variable preparation view of a [`Runtime`].
 #[async_trait]
+#[allow(async_fn_in_trait)]
 pub trait RuntimeEnvironment: Send + Sync {
     /// Environment variables needed when this runtime is in the environment path.
     async fn prepare_environment(
@@ -371,6 +375,7 @@ impl<T: Runtime + ?Sized> RuntimeEnvironment for T {
 
 /// Command execution view of a [`Runtime`].
 #[async_trait]
+#[allow(async_fn_in_trait)]
 pub trait RuntimeExecuteOps: Send + Sync {
     /// Execute the runtime with the given arguments.
     async fn execute(&self, args: &[String], ctx: &ExecutionContext) -> Result<ExecutionResult>;

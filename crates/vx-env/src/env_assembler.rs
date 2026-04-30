@@ -204,6 +204,7 @@ impl EnvAssembler {
         // Sort operations by priority (descending) while preserving insertion order for same priority
         let mut ops = self.operations;
         // Use stable sort to preserve insertion order for same priority
+        #[allow(clippy::unnecessary_sort_by)]
         ops.sort_by(|a, b| b.0.cmp(&a.0));
 
         for (_, var) in ops {

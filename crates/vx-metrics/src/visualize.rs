@@ -20,6 +20,7 @@ pub fn load_metrics(dir: &Path, limit: usize) -> anyhow::Result<Vec<CommandMetri
         .collect();
 
     // Sort by filename descending (timestamps sort lexicographically)
+    #[allow(clippy::unnecessary_sort_by)]
     files.sort_by(|a, b| b.file_name().cmp(&a.file_name()));
     files.truncate(limit);
 
