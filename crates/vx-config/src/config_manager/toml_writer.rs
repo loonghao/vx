@@ -67,7 +67,7 @@ impl TomlWriter {
         self
     }
 
-    /// Add a section header [section]
+    /// Add a section header `\[section\]`
     pub fn section(mut self, name: &str) -> Self {
         self.flush_comments_to_section(name);
         self.current_section = Some(name.to_string());

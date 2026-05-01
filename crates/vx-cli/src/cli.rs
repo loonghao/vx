@@ -1454,9 +1454,9 @@ pub enum AiCommand {
     /// Proxy to Vercel Skills CLI (auto-installs if needed)
     ///
     /// Pass any arguments to the skills CLI. Examples:
-    ///   vx ai skills add <repo-url>
+    ///   vx ai skills add `<repo-url>`
     ///   vx ai skills list
-    ///   vx ai skills find <query>
+    ///   vx ai skills find `<query>`
     ///   vx ai skills init [name]
     Skills {
         /// Arguments to pass to the skills CLI

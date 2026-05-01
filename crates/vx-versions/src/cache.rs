@@ -1,6 +1,6 @@
 //! High-performance version cache using bincode serialization
 //!
-//! Re-exported as [`vx_versions::VersionCache`].
+//! Re-exported as [`VersionCache`].
 //!
 //! This module provides a fast, compact cache for version information.
 //!

@@ -155,7 +155,7 @@ impl PathManager {
 
     /// Get the actual platform-specific store directory for a runtime version
     ///
-    /// Returns: ~/.vx/store/<runtime>/<version>/<platform>
+    /// Returns: ~/.vx/store/`<runtime>`/`<version>`/`<platform>`
     ///
     /// This is the **actual** directory where files are stored.
     /// Use this when installing or directly accessing platform-specific files.
@@ -172,7 +172,7 @@ impl PathManager {
     }
 
     /// Get the store directory for a specific runtime
-    /// Returns: ~/.vx/store/<runtime>
+    /// Returns: ~/.vx/store/`<runtime>`
     ///
     /// This returns the unified runtime directory, not platform-specific.
     pub fn runtime_store_dir(&self, runtime_name: &str) -> PathBuf {
@@ -180,7 +180,7 @@ impl PathManager {
     }
 
     /// Get the store directory for a specific runtime version
-    /// Returns: ~/.vx/store/<runtime>/<version>
+    /// Returns: ~/.vx/store/`<runtime>`/`<version>`
     ///
     /// This returns the unified version directory. All file access through this
     /// path will automatically redirect to the platform-specific directory.
