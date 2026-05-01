@@ -3,6 +3,50 @@
 
 ---
 
+### Run 13 — 2026-05-01 (Friday 10:35)
+
+**Branch**: `auto-improve` (synced with origin/main)
+**Environment**: Rust 1.93.1, PowerShell 7
+**Changes made**:
+
+1. **Phase 1 cleanup: Dead code removal** ✅
+   - Deleted commented-out test functions in `tests/cli_integration_tests.rs`:
+     - `test_update_help()` (for removed `update` command)
+     - `test_clean_help()` (for removed `clean` command)
+     - `test_clean_dry_run()` (for removed `clean` command)
+     - `test_stats_command()` (for removed `stats` command)
+     - `test_venv_help()` (for removed `venv` command)
+     - `test_global_help()` (for removed `global` command)
+   - Commit: `969dac5d` — `chore(cleanup): remove commented-out test functions for removed commands`
+   - 62 deletions, 0 insertions
+
+2. **Phase 2 verification: Provider quality** ✅
+   - Ran `vx cargo test -p vx-starlark --test lint_all_providers_test`
+   - Result: **135/135 providers clean, 0 issues**
+   - All providers load correctly
+
+3. **Baseline verification** ✅
+   - `cargo clippy --workspace -- -D warnings` ✅ PASS (0 warnings)
+   - `cargo check --workspace` ✅ PASS
+
+**Phase 1 status**: Partial — commented-out code blocks removed from 1 file. Remaining tasks:
+- [ ] Check unused dependencies (manual check of Cargo.toml or install cargo-machete)
+- [ ] Check for deprecated Providers in `crates/vx-providers/`
+- [ ] Search for other commented-out code blocks >5 lines in other files
+
+**Phase 2 status**: Partial — all providers verified to load correctly. Remaining tasks:
+- [ ] Check for duplicate `download_url` logic (refactor to templates)
+- [ ] Verify 4-platform support for all providers
+- [ ] Check for expired asset naming patterns
+
+**Next run plan**:
+1. Complete Phase 1: Check unused dependencies (try `cargo install cargo-machete` or manual review)
+2. Complete Phase 2: Check for hand-written `download_url` functions that can be replaced with templates
+3. Start Phase 3: Rust code standards governance (clippy, fmt, docs)
+4. After completing 3 phases, push to `origin/auto-improve`
+
+---
+
 ### Run 12 — 2026-05-01 (Friday 07:39)
 **Branch**: `auto-improve` (synced with origin/main, independent Rust 1.90.0 uninstalled)
 **Environment**: Rust 1.93.1 (rustup override set), PowerShell 7 (PATH conflict resolved after 4h debugging)
@@ -13,11 +57,11 @@
    - **Clippy baseline**: ✅ PASS (0 warnings, 0 errors) — run `cargo clippy --workspace -- -D warnings`
    - **Test baseline**: ✅ PASS (all functional tests pass) — only 1 performance benchmark (`bench_config_parse_small`) failed due to environment fluctuation (1575ms > 1500ms expected), does not affect functionality.
 **Issues found but deferred**:
-- Phase 1 (Dead Code cleanup): Unused dependencies, commented code blocks >5 lines, deprecated Providers not yet checked.
-- Phase 2 (Provider quality governance): Duplicate `download_url` logic, missing platform support, expired asset naming patterns, missing required fields not yet checked.
+- Phase1 (Dead Code cleanup): Unused dependencies, commented code blocks >5 lines, deprecated Providers not yet checked.
+- Phase2 (Provider quality governance): Duplicate `download_url` logic, missing platform support, expired asset naming patterns, missing required fields not yet checked.
 **Next run plan**:
-1. Complete Phase 1 tasks: check unused dependencies (manual check of Cargo.toml), find commented code blocks, check deprecated Providers.
-2. Complete Phase 2 tasks: refactor duplicate `download_url` to standard templates, verify 4-platform support for all Providers.
+1. Complete Phase1 tasks: check unused dependencies (manual check of Cargo.toml), find commented code blocks, check deprecated Providers.
+2. Complete Phase2 tasks: refactor duplicate `download_url` to standard templates, verify 4-platform support for all Providers.
 3. After completing 3 phases, push to `origin/auto-improve` per submission rules.
 
 ---
@@ -43,31 +87,6 @@
 **Phase1 status**: Partial — removed confirmed dead code from 2 crates. Remaining `#[allow(dead_code)]` attributes are on:
 - Test helper structs (expected)
 - `ProvidedBy` strategy in `InstallStrategy` (used via enum variants)
-- `StepRunner` in `vx-console` (fields set but not read in certain cfg combinations)
+- `StepRunner` in `vx-console` (fields set but not read in certain cfg combinations).
 
 ---
-
-### Run 10 — 2026-04-30 (Wednesday 23:49)
-**Branch**: `auto-improve`
-**Rust toolchain**: 1.93.1 (override set via `rustup override set 1.93.1`)
-**Phase 3: Forbidden terminology governance (ToolSpec → RuntimeSpec)**
-**Issues found and fixed**:
-1. **`ToolSpec` in `vx-env` crate** — `crates/vx-env/src/tool_env.rs` had `pub struct ToolSpec` (forbidden term). Renamed to `RuntimeSpec`:
-   - Rewrote `tool_env.rs` with `RuntimeSpec` struct name
-   - Updated `lib.rs` export: `ToolSpec` → `RuntimeSpec`
-   - Updated all usages in tests
-2. **`ToolSpec` reference in `vx-cli`** — `handler.rs` and `export.rs` still imported/used `ToolSpec`:
-   - `handler.rs`: Updated import and 2 usage sites (`ToolSpec::with_bin_dirs` → `RuntimeSpec::with_bin_dirs`)
-   - `export.rs`: Updated comment and usage
-3. **`ToolSpec` in `add.rs`** — Different struct (for `vx add` command parsing). Renamed to `AddRuntimeSpec` (to distinguish from `RuntimeSpec` in vx-env):
-   - Rewrote `add.rs` with `AddRuntimeSpec` struct name
-   - Updated `add_command_tests.rs` to import `AddRuntimeSpec`
-**Compilation results**:
-- `cargo check -p vx-env` ✅ PASS
-- `cargo check -p vx-cli` ✅ PASS
-**Remaining issues**:
-1. `provider_stars.rs` not found during doctests (build script output path issue)
-2. Edition 2024 compatibility in `vx-project-analyzer` (`E0038`, `E0277`)
-3. System Rust 1.90.0 in PATH before rustup-managed Rust (must use `rustup run 1.93.1`)
-
---- 
