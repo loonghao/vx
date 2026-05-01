@@ -17,6 +17,7 @@ load("@vx//stdlib:provider.star",
      "path_fns",
      "fetch_versions_with_tag_prefix")
 load("@vx//stdlib:env.star", "env_prepend")
+load("@vx//stdlib:system_install.star", "cross_platform_install")
 
 # ---------------------------------------------------------------------------
 # Provider metadata
@@ -56,12 +57,12 @@ fetch_versions = fetch_versions_with_tag_prefix("gohugoio", "hugo", tag_prefix =
 # ---------------------------------------------------------------------------
 
 _PLATFORMS = {
-    "windows/x64":  ("Windows", "64bit"),
-    "windows/arm64": ("Windows", "ARM64"),
-    "macos/x64":     ("macOS",   "64bit"),
-    "macos/arm64":   ("macOS",   "ARM64"),
-    "linux/x64":     ("Linux",   "64bit"),
-    "linux/arm64":   ("Linux",   "ARM64"),
+    "windows/x64":  ("windows", "amd64"),
+    "windows/arm64": ("windows", "arm64"),
+    "macos/x64":     ("darwin",  "universal"),
+    "macos/arm64":   ("darwin", "universal"),
+    "linux/x64":     ("linux",   "amd64"),
+    "linux/arm64":   ("linux",   "arm64"),
 }
 
 def _hugo_platform(ctx):
@@ -122,3 +123,10 @@ def post_install(_ctx, _version):
 
 def deps(_ctx, _version):
     return []
+
+# system_install fallback when GitHub download is unavailable
+system_install = cross_platform_install(
+    windows = "hugo",
+    macos   = "hugo",
+    linux   = "hugo",
+)

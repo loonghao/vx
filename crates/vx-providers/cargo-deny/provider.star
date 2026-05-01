@@ -1,5 +1,6 @@
 load("@vx//stdlib:provider.star", "runtime_def", "github_permissions")
 load("@vx//stdlib:provider_templates.star", "github_rust_provider")
+load("@vx//stdlib:system_install.star", "cross_platform_install")
 
 # ---------------------------------------------------------------------------
 # Provider metadata
@@ -33,12 +34,12 @@ permissions = github_permissions()
 # ---------------------------------------------------------------------------
 # Use github_rust_provider template
 # ---------------------------------------------------------------------------
-# cargo-deny uses standard Rust target triple naming:
+# cargo-deny assets are ALL .tar.gz (including Windows):
 #   cargo-deny-0.19.4-x86_64-unknown-linux-gnu.tar.gz
 #   cargo-deny-0.19.4-aarch64-apple-darwin.tar.gz
-#   cargo-deny-0.19.4-x86_64-pc-windows-msvc.zip
+#   cargo-deny-0.19.4-x86_64-pc-windows-msvc.tar.gz
 _p = github_rust_provider("EmbarkStudios", "cargo-deny",
-    asset      = "cargo-deny-{version}-{triple}.{ext}",
+    asset      = "cargo-deny-{version}-{triple}.tar.gz",
     executable = "cargo-deny",
     tag_prefix = "",
 )
@@ -49,3 +50,10 @@ install_layout   = _p["install_layout"]
 store_root       = _p["store_root"]
 get_execute_path = _p["get_execute_path"]
 environment      = _p["environment"]
+
+# system_install fallback when GitHub download is unavailable
+system_install = cross_platform_install(
+    windows = "cargo-deny",
+    macos   = "cargo-deny",
+    linux   = "cargo-deny",
+)
