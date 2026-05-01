@@ -113,3 +113,54 @@
 - [ ] Run `cargo outdated` and evaluate real upgrades (not workspace-hack deps)
 
 ---
+
+### Run 17 — 2026-05-02 (Saturday 01:30)
+
+**Branch**: `auto-improve` (synced with origin/main)
+**Environment**: Rust 1.93.1, PowerShell 7
+**Commit**: `d1587f6a`
+
+**Changes made**:
+
+1. **Phase 3: Doc warning fixes (bulk)** ✅
+   - Fixed all `unclosed HTML tag` warnings (~20 warnings):
+     - `vx-paths/src/manager.rs`: wrapped `<runtime>`, `<version>`, `<platform>`, `<package>` in backticks
+     - `vx-paths/src/resolver.rs`: wrapped `<provider>`, `<version>`, `<platform>` in backticks
+     - `vx-project-analyzer/src/script_parser/types.rs`: wrapped `<tool>`, `<module>` in backticks
+     - `vx-runtime/src/provider_env.rs`: wrapped `<PROVIDER>` in backticks
+     - `vx-cli/src/cli.rs`: wrapped `<name>` in backticks
+   - Fixed all `this URL is not a hyperlink` warnings (~7 warnings):
+     - `vx-config/src/types/dependencies.rs`: wrapped URLs in `<>`
+     - `vx-paths/src/shims.rs`: wrapped URL in `<>`
+     - `vx-project-analyzer/src/frameworks/deno.rs`: wrapped URLs in `<>`
+     - `vx-runtime/src/runtime/mod.rs`: wrapped URL in `<>`
+     - `vx-cli/src/cli.rs` (3 locations): wrapped URLs in `<>`
+   - Fixed all `public documentation links to private item` warnings (5 warnings):
+     - `vx-starlark/src/provider/mod.rs`: removed links to private submodules (`cache`, `versions`, `execute`, `hooks`, `store`)
+
+2. **Verification**:
+   - Document warnings: 94 → 25 (73% reduction)
+   - Tests: Most passed, 2 pre-existing failures (`cross_platform_install` not found in `builtin-python` and `builtin-uv` providers)
+
+**Phase status**:
+- Phase 1: ✅ COMPLETE
+- Phase 2: ⏳ NOT STARTED (provider platform support check pending)
+- Phase 3: 🔄 IN PROGRESS (25 warnings remaining: `unresolved link` warnings)
+- Phase 4: ⏳ NOT STARTED
+- Phase 5: ⏳ NOT STARTED (large file split pending)
+- Phase 6: ⏳ NOT STARTED
+- Phase 7: ⏳ NOT STARTED
+
+**Next run plan**:
+1. Fix remaining 25 `unresolved link` warnings (escape `[` and `]` with `\[` and `\]`)
+2. Check provider platform support (Phase 2)
+3. Split large files (Phase 5) - `vx-cli/src/cli.rs` (2358 lines)
+
+**Items to investigate in next runs**:
+- [ ] Fix remaining 25 `unresolved link` warnings (escape bracketed text)
+- [ ] Split `vx-cli/src/cli.rs` (2358 lines) into submodules
+- [ ] Check all 136 providers for 4-platform support
+- [ ] Clean up test files with `_v2`, `_new`, `_fixed` suffixes (Phase 4)
+- [ ] Run `cargo outdated` and evaluate real upgrades (Phase 6)
+
+---

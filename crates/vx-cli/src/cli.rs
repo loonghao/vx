@@ -217,7 +217,7 @@ pub struct Cli {
     /// Can also be set via `VX_FILTER_LEVEL` environment variable.
     ///
     ///   light      = ANSI strip + blank-run collapse only (no dedup, no line limit)
-    ///   normal     = + dedup ≥3 identical lines, 500-line budget  [default]
+    ///   normal     = + dedup ≥3 identical lines, 500-line budget (default)
     ///   aggressive = + dedup ≥2 identical lines, 100-line budget
     #[arg(
         long = "filter-level",
@@ -1457,7 +1457,7 @@ pub enum AiCommand {
     ///   vx ai skills add `<repo-url>`
     ///   vx ai skills list
     ///   vx ai skills find `<query>`
-    ///   vx ai skills init [name]
+    ///   vx ai skills init `<name>`
     Skills {
         /// Arguments to pass to the skills CLI
         #[arg(trailing_var_arg = true, allow_hyphen_values = true)]

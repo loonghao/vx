@@ -1,6 +1,6 @@
 //! Version resolver
 //!
-//! Re-exported as [`vx_versions::VersionResolver`].
+//! Defines the version resolution traits and types.
 //!
 //! This module provides version resolution logic that supports:
 //! - Exact versions: "3.11.11"

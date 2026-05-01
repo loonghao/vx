@@ -299,7 +299,7 @@ impl StarlarkProvider {
         self.execute_prepare_environment(&ctx, version).await
     }
 
-    /// Alias for [`environment`] — kept for backward compatibility.
+    /// Alias for [`Self::environment`] — kept for backward compatibility.
     #[inline]
     pub async fn prepare_environment(&self, version: &str) -> Result<Vec<EnvOp>> {
         self.environment(version).await

@@ -124,7 +124,7 @@ impl ValidationResult {
 
 /// Core trait for TOML configuration types
 ///
-/// All configuration types that can be managed by [`ConfigManager`] must
+/// All configuration types that can be managed by [`crate::config_manager::ConfigManager`] must
 /// implement this trait.
 pub trait TomlConfig: Sized {
     /// Get the configuration type name (e.g., "vx", "provider", "extension")
