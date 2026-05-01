@@ -32,7 +32,7 @@ impl Default for GitHubReleasesConfig {
             strip_v_prefix: true,
             tag_prefix: None,
             skip_prereleases: true,
-            per_page: 30,
+            per_page: 100,  // GitHub API allows max 100 per page
             lts_pattern: None,
             jsdelivr_fallback: true,
         }
