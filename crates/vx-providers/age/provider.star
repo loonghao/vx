@@ -14,6 +14,7 @@ load("@vx//stdlib:provider.star",
      "runtime_def", "github_permissions")
 load("@vx//stdlib:github.star", "make_fetch_versions", "github_asset_url")
 load("@vx//stdlib:layout.star", "path_fns", "path_env_fns")
+load("@vx//stdlib:system_install.star", "cross_platform_install")
 
 # Use stdlib path_fns for correct cross-platform path handling
 paths = path_fns("age")
@@ -104,3 +105,10 @@ def post_install(_ctx, _version):
 
 def deps(_ctx, _version):
     return []
+
+# system_install fallback when GitHub download is unavailable
+system_install = cross_platform_install(
+    windows = "age",
+    macos   = "age",
+    linux   = "age",
+)

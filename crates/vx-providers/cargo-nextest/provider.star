@@ -1,5 +1,6 @@
 load("@vx//stdlib:provider.star", "runtime_def", "github_permissions")
 load("@vx//stdlib:provider_templates.star", "github_rust_provider")
+load("@vx//stdlib:system_install.star", "cross_platform_install")
 
 # ---------------------------------------------------------------------------
 # Provider metadata
@@ -47,3 +48,10 @@ install_layout   = _p["install_layout"]
 store_root       = _p["store_root"]
 get_execute_path = _p["get_execute_path"]
 environment      = _p["environment"]
+
+# system_install fallback when GitHub download is unavailable
+system_install = cross_platform_install(
+    windows = "cargo-nextest",
+    macos   = "cargo-nextest",
+    linux   = "cargo-nextest",
+)
