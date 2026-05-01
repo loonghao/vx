@@ -95,8 +95,8 @@ def fetch_versions(ctx, runtime_name = "micromamba"):
 
 def _micromamba_platform(ctx):
     """Map platform to micromamba platform string."""
-    os   = ctx["platform"]["os"]
-    arch = ctx["platform"]["arch"]
+    os   = ctx.platform.os
+    arch = ctx.platform.arch
     platforms = {
         "windows/x64":  "win-64",
         "macos/x64":    "osx-64",
@@ -108,8 +108,8 @@ def _micromamba_platform(ctx):
 
 def _miniforge_filename(ctx, version):
     """Build Miniforge filename for the platform."""
-    os   = ctx["platform"]["os"]
-    arch = ctx["platform"]["arch"]
+    os   = ctx.platform.os
+    arch = ctx.platform.arch
     files = {
         "windows/x64":  "Miniforge3-{}-Windows-x86_64.exe".format(version),
         "macos/x64":    "Miniforge3-{}-MacOSX-x86_64.sh".format(version),
@@ -151,7 +151,7 @@ def download_url(ctx, version, runtime_name = "micromamba"):
 
 def install_layout(ctx, _version, runtime_name = "micromamba"):
     """Describe how to extract the downloaded archive."""
-    os = ctx["platform"]["os"]
+    os = ctx.platform.os
 
     if runtime_name == "micromamba":
         # micromamba tar.bz2 has top-level dir: micromamba/
@@ -187,12 +187,12 @@ def environment(ctx, _version, install_dir, runtime_name = "micromamba"):
     if runtime_name == "micromamba":
         return {
             "MAMBA_ROOT_PREFIX": install_dir,
-            "PATH":             install_dir + ("/Library/bin" if ctx["platform"]["os"] == "windows" else "/bin"),
+            "PATH":             install_dir + ("/Library/bin" if ctx.platform.os == "windows" else "/bin"),
         }
 
     return {
         "CONDA_PREFIX": install_dir,
-        "PATH":         install_dir + ("/Scripts" if ctx["platform"]["os"] == "windows" else "/bin"),
+        "PATH":         install_dir + ("/Scripts" if ctx.platform.os == "windows" else "/bin"),
     }
 
 # ---------------------------------------------------------------------------
