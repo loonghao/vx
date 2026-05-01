@@ -1,3 +1,4 @@
+load("@vx//stdlib:system_install.star", "cross_platform_install")
 # provider.star - biome (JS/TS linter and formatter)
 #
 # biome: Fast formatter and linter for JavaScript, TypeScript, JSX, JSON, CSS

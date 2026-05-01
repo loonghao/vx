@@ -1,5 +1,6 @@
 load("@vx//stdlib:provider.star", "runtime_def", "github_permissions")
 load("@vx//stdlib:provider_templates.star", "github_rust_provider")
+load("@vx//stdlib:system_install.star", "cross_platform_install")
 
 # ---------------------------------------------------------------------------
 # Provider metadata

@@ -1,3 +1,4 @@
+load("@vx//stdlib:system_install.star", "cross_platform_install")
 # provider.star - usql provider
 #
 # usql is a universal command-line interface for SQL databases.

@@ -1,3 +1,4 @@
+load("@vx//stdlib:system_install.star", "cross_platform_install")
 # provider.star - atuin provider
 #
 # atuin: Magical shell history with SQLite and encrypted sync

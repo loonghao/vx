@@ -1,3 +1,4 @@
+load("@vx//stdlib:system_install.star", "cross_platform_install")
 # provider.star - buildcache (MSVC-friendly Compiler Cache) provider
 #
 # buildcache is a compiler cache with excellent MSVC support,

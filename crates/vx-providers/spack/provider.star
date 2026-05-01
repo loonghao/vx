@@ -1,3 +1,4 @@
+load("@vx//stdlib:system_install.star", "cross_platform_install")
 # provider.star - Spack provider
 #
 # Linux/macOS only. Source archive from GitHub releases.

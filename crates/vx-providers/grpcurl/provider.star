@@ -1,3 +1,4 @@
+load("@vx//stdlib:system_install.star", "cross_platform_install")
 # provider.star - grpcurl provider
 #
 # grpcurl is a command-line tool that lets you interact with gRPC servers.
@@ -16,8 +17,7 @@
 # Version source: fullstorydev/grpcurl releases on GitHub (tag prefix "v")
 
 load("@vx//stdlib:provider.star",
-     "runtime_def", "github_permissions", "path_fns",
-     "brew_install", "cross_platform_install")
+     "runtime_def", "github_permissions", "path_fns")
 load("@vx//stdlib:github.star", "make_fetch_versions", "github_asset_url")
 load("@vx//stdlib:env.star",    "env_prepend")
 
@@ -91,15 +91,6 @@ def download_url(ctx, version):
     os_name, arch_name, ext = platform[0], platform[1], platform[2]
     asset = "grpcurl_{}_{}_{}.{}".format(version, os_name, arch_name, ext)
     return github_asset_url("fullstorydev", "grpcurl", "v" + version, asset)
-
-# ---------------------------------------------------------------------------
-# system_install - Homebrew on macOS (fallback when download_url fails)
-# ---------------------------------------------------------------------------
-
-def system_install(_ctx, _version):
-    return cross_platform_install(
-        macos = brew_install("grpcurl"),
-    )
 
 # ---------------------------------------------------------------------------
 # install_layout

@@ -1,3 +1,4 @@
+load("@vx//stdlib:system_install.star", "cross_platform_install")
 # provider.star - ruff provider
 #
 # ruff: An extremely fast Python linter and code formatter, written in Rust

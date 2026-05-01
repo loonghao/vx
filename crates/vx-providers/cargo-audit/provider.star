@@ -1,3 +1,4 @@
+load("@vx//stdlib:system_install.star", "cross_platform_install")
 # provider.star - cargo-audit provider
 #
 # cargo-audit audits Cargo.lock files for crates with security vulnerabilities

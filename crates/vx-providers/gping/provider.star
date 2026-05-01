@@ -1,3 +1,4 @@
+load("@vx//stdlib:system_install.star", "cross_platform_install")
 # provider.star - gping (graphical ping utility)
 #
 # gping: Ping with a graph

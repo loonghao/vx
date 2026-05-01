@@ -1,3 +1,4 @@
+load("@vx//stdlib:system_install.star", "cross_platform_install")
 # provider.star - vcpkg provider
 #
 # C++ library manager. Tags are date-based: "2025-12-16" (no "v" prefix).
@@ -65,7 +66,6 @@ _VCPKG_ASSETS = {
     "linux/arm64":   "vcpkg-glibc-arm64",
 }
 
-
 def download_url(ctx, version):
     asset = platform_map(ctx, _VCPKG_ASSETS)
     if not asset:
@@ -93,15 +93,12 @@ def install_layout(ctx, _version):
 def store_root(ctx):
     return ctx.vx_home + "/store/vcpkg"
 
-
 def get_execute_path(ctx, _version):
     exe = "vcpkg.exe" if ctx.platform.os == "windows" else "vcpkg"
     return ctx.install_dir + "/bin/" + exe
 
-
 def post_install(_ctx, _version):
     return None
-
 
 def environment(ctx, _version):
     return [

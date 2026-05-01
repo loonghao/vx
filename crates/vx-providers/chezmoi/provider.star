@@ -1,3 +1,4 @@
+load("@vx//stdlib:system_install.star", "cross_platform_install")
 # provider.star - chezmoi provider
 #
 # chezmoi: Manage your dotfiles across multiple machines

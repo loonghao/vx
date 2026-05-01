@@ -1,3 +1,4 @@
+load("@vx//stdlib:system_install.star", "cross_platform_install")
 # provider.star - sd (intuitive sed alternative)
 #
 # sd: Intuitive find & replace CLI

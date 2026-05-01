@@ -1,3 +1,4 @@
+load("@vx//stdlib:system_install.star", "cross_platform_install")
 # provider.star - Terraform provider
 #
 # Terraform releases are hosted on releases.hashicorp.com (NOT GitHub).

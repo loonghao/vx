@@ -1,3 +1,4 @@
+load("@vx//stdlib:system_install.star", "cross_platform_install")
 # provider.star - actionlint (GitHub Actions workflow linter)
 #
 # actionlint: Static checker for GitHub Actions workflow files

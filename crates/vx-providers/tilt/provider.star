@@ -1,3 +1,4 @@
+load("@vx//stdlib:system_install.star", "cross_platform_install")
 # provider.star - tilt provider
 #
 # tilt: A toolkit for fixing the pains of microservice development.

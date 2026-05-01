@@ -1,12 +1,9 @@
 # Vault Provider
 # Vault is a tool for secrets management, encryption as a service, and privileged access management.
-# The vault binary includes both server and CLI functionality.
 
 load("@vx//stdlib:provider.star", "runtime_def", "github_permissions")
 load("@vx//stdlib:provider_templates.star", "github_go_provider")
-load("@vx//stdlib:system_install.star",
-     "cross_platform_install",
-     "winget_install", "brew_install", "apt_install")
+load("@vx//stdlib:system_install.star", "cross_platform_install")
 
 # Provider metadata
 name        = "vault"

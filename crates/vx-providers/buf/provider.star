@@ -1,3 +1,4 @@
+load("@vx//stdlib:system_install.star", "cross_platform_install")
 # provider.star - buf provider
 #
 # buf: The Buf CLI for working with Protocol Buffers (Protobuf).

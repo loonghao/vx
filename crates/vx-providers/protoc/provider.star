@@ -1,3 +1,4 @@
+load("@vx//stdlib:system_install.star", "cross_platform_install")
 # provider.star - Protocol Buffers compiler (protoc)
 #
 # protoc uses non-standard platform naming:

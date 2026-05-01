@@ -1,3 +1,4 @@
+load("@vx//stdlib:system_install.star", "cross_platform_install")
 # provider.star - bat provider
 #
 # bat: A cat clone with syntax highlighting and Git integration

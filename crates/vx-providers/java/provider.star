@@ -1,3 +1,4 @@
+load("@vx//stdlib:system_install.star", "cross_platform_install")
 # provider.star - Java (Adoptium Temurin) provider
 #
 # Version source: Adoptium API

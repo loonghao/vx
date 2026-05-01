@@ -1,3 +1,4 @@
+load("@vx//stdlib:system_install.star", "cross_platform_install")
 # provider.star - ccache (C/C++ Compiler Cache) provider
 #
 # ccache is a compiler cache that speeds up recompilation by caching

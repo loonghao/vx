@@ -1,3 +1,4 @@
+load("@vx//stdlib:system_install.star", "cross_platform_install")
 # provider.star - Task (go-task) provider
 #
 # task: A task runner / simpler Make alternative written in Go
@@ -28,7 +29,6 @@ aliases     = ["go-task", "taskfile"]
 runtimes = [runtime_def("task", aliases=["go-task"],
                          test_commands = [{"command": "{executable} --version", "name": "version_check",
                                            "expected_output": "^\\d+\\.\\d+\\.\\d+"}])]
-
 
 # ---------------------------------------------------------------------------
 # Permissions

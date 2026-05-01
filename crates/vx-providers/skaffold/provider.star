@@ -1,3 +1,4 @@
+load("@vx//stdlib:system_install.star", "cross_platform_install")
 # provider.star - skaffold provider
 #
 # skaffold is a command-line tool that facilitates continuous development

@@ -1,3 +1,4 @@
+load("@vx//stdlib:system_install.star", "cross_platform_install")
 # provider.star - bun provider
 #
 # Bun: Incredibly fast JavaScript runtime, bundler, test runner, and package manager

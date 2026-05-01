@@ -1,3 +1,4 @@
+load("@vx//stdlib:system_install.star", "cross_platform_install")
 # provider.star - watchexec (file watcher / command runner)
 #
 # watchexec: Execute commands when watched files change

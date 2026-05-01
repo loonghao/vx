@@ -1,3 +1,4 @@
+load("@vx//stdlib:system_install.star", "cross_platform_install")
 # provider.star - Helm provider
 #
 # Helm releases are hosted on get.helm.sh (not GitHub releases).

@@ -1,3 +1,4 @@
+load("@vx//stdlib:system_install.star", "cross_platform_install")
 # provider.star - tealdeer provider
 #
 # tealdeer: A very fast Rust implementation of tldr (simplified man pages)
