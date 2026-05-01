@@ -412,7 +412,7 @@ def install_layout(_ctx, _version):
 async fn test_load_worktrunk_provider() {
     let manifest_dir = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     let provider_dir = manifest_dir
-        .parent()  // crates/
+        .parent() // crates/
         .unwrap()
         .join("vx-providers")
         .join("worktrunk");
@@ -427,7 +427,7 @@ async fn test_load_worktrunk_provider() {
 async fn test_load_starship_provider() {
     let manifest_dir = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     let provider_dir = manifest_dir
-        .parent()  // crates/
+        .parent() // crates/
         .unwrap()
         .join("vx-providers")
         .join("starship");
@@ -442,7 +442,7 @@ async fn test_load_starship_provider() {
 async fn test_load_sccache_provider() {
     let manifest_dir = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     let provider_dir = manifest_dir
-        .parent()  // crates/
+        .parent() // crates/
         .unwrap()
         .join("vx-providers")
         .join("sccache");
@@ -457,7 +457,7 @@ async fn test_load_sccache_provider() {
 async fn test_load_cargo_nextest_provider() {
     let manifest_dir = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     let provider_dir = manifest_dir
-        .parent()  // crates/
+        .parent() // crates/
         .unwrap()
         .join("vx-providers")
         .join("cargo-nextest");
@@ -472,7 +472,7 @@ async fn test_load_cargo_nextest_provider() {
 async fn test_load_cargo_deny_provider() {
     let manifest_dir = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     let provider_dir = manifest_dir
-        .parent()  // crates/
+        .parent() // crates/
         .unwrap()
         .join("vx-providers")
         .join("cargo-deny");
@@ -491,7 +491,7 @@ async fn test_load_cargo_deny_provider() {
 fn load_provider_content(provider_name: &str) -> (std::path::PathBuf, String) {
     let manifest_dir = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     let provider_dir = manifest_dir
-        .parent()  // crates/
+        .parent() // crates/
         .unwrap()
         .join("vx-providers")
         .join(provider_name);
@@ -517,8 +517,16 @@ async fn test_worktrunk_download_url() {
     match result {
         Ok(json) => {
             if let Some(s) = json.as_str() {
-                assert!(s.contains("worktrunk"), "URL should contain 'worktrunk': {}", s);
-                assert!(s.starts_with("https://"), "URL should start with https://: {}", s);
+                assert!(
+                    s.contains("worktrunk"),
+                    "URL should contain 'worktrunk': {}",
+                    s
+                );
+                assert!(
+                    s.starts_with("https://"),
+                    "URL should start with https://: {}",
+                    s
+                );
             } else if json.is_null() {
                 // None = platform not supported
             } else {
@@ -553,7 +561,10 @@ async fn test_worktrunk_install_layout() {
     match result {
         Ok(json) => {
             if let Some(obj) = json.as_object() {
-                assert!(obj.contains_key("__type"), "install_layout should return dict with '__type' key");
+                assert!(
+                    obj.contains_key("__type"),
+                    "install_layout should return dict with '__type' key"
+                );
             } else if json.is_null() {
                 // None = platform not supported
             } else {
@@ -588,7 +599,11 @@ async fn test_starship_download_url() {
     match result {
         Ok(json) => {
             if let Some(s) = json.as_str() {
-                assert!(s.contains("starship"), "URL should contain 'starship': {}", s);
+                assert!(
+                    s.contains("starship"),
+                    "URL should contain 'starship': {}",
+                    s
+                );
             } else if json.is_null() {
                 // None = platform not supported
             }
@@ -633,7 +648,8 @@ async fn test_sccache_download_url() {
 async fn test_cargo_nextest_download_url() {
     let (star_path, content) = load_provider_content("cargo-nextest");
     let engine = vx_starlark::StarlarkEngine::new();
-    let ctx = vx_starlark::ProviderContext::new("cargo-nextest", std::env::temp_dir().join("vx-test"));
+    let ctx =
+        vx_starlark::ProviderContext::new("cargo-nextest", std::env::temp_dir().join("vx-test"));
 
     let result = engine.call_function(
         &star_path,
@@ -675,7 +691,11 @@ async fn test_cargo_deny_download_url() {
     match result {
         Ok(json) => {
             if let Some(s) = json.as_str() {
-                assert!(s.contains("cargo-deny"), "URL should contain 'cargo-deny': {}", s);
+                assert!(
+                    s.contains("cargo-deny"),
+                    "URL should contain 'cargo-deny': {}",
+                    s
+                );
             } else if json.is_null() {
                 // None = platform not supported
             }

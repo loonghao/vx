@@ -532,8 +532,6 @@ impl StarlarkProvider {
 
     // ── Internal helpers ──────────────────────────────────────────────────────
 
-
-
     /// Look up the build tag (date) for a specific version from the version cache.
     ///
     /// Returns `Some(date)` if the version was found in cache and has a `date` field.

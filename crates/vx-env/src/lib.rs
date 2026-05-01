@@ -86,7 +86,7 @@ pub use error::EnvError;
 pub use executor::{execute_with_env, generate_wrapper_script};
 pub use session::{IsolationConfig, SessionContext, SessionSource};
 pub use spawner::{ExportFormat, ShellSpawner, detect_shell, print_exit, print_welcome};
-pub use tool_env::{ToolEnvironment, RuntimeSpec};
+pub use tool_env::{RuntimeSpec, ToolEnvironment};
 pub use words::{join_args, parse_command, quote_arg};
 
 /// Result type for vx-env operations

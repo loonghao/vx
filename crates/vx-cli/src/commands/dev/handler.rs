@@ -12,7 +12,7 @@ use anyhow::{Context, Result};
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::env;
 use std::process::Command;
-use vx_env::{ToolEnvironment, RuntimeSpec};
+use vx_env::{RuntimeSpec, ToolEnvironment};
 use vx_starlark::handle::global_registry;
 use vx_starlark::provider::{EnvOp, apply_env_ops};
 
