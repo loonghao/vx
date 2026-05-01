@@ -17,10 +17,10 @@ runtimes = [
 # Permissions
 permissions = github_permissions()
 
-# Use github_go_provider template with custom asset naming
-# grype uses underscores: grype_v0.111.1_darwin_amd64.tar.gz
+# Use github_go_provider template
+# grype asset naming: grype_0.111.1_linux_amd64.tar.gz  (underscore, NO v prefix in asset)
 _p = github_go_provider("anchore", "grype",
-    asset = "grype_v{version}_{os}_{arch}.{ext}",
+    asset      = "grype_{version}_{os}_{arch}.{ext}",
     executable = "grype",
 )
 

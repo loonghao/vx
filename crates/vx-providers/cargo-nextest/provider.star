@@ -33,13 +33,12 @@ permissions = github_permissions()
 # ---------------------------------------------------------------------------
 # Use github_rust_provider template
 # ---------------------------------------------------------------------------
-# cargo-nextest uses standard Rust target triple naming:
-#   cargo-nextest-0.9.133-x86_64-unknown-linux-gnu.tar.gz
-#   cargo-nextest-0.9.133-aarch64-apple-darwin.tar.gz
-#   cargo-nextest-0.9.133-x86_64-pc-windows-msvc.zip
+# nextest tags: "cargo-nextest-0.9.133" (no "v" prefix; includes tool name)
+# asset naming: cargo-nextest-0.9.133-x86_64-unknown-linux-gnu.tar.gz
 _p = github_rust_provider("nextest-rs", "nextest",
-    asset      = "cargo-nextest-{vversion}-{triple}.{ext}",
+    asset      = "cargo-nextest-{version}-{triple}.{ext}",
     executable = "cargo-nextest",
+    tag_prefix = "cargo-nextest-",
 )
 
 fetch_versions   = _p["fetch_versions"]

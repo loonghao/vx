@@ -13,13 +13,16 @@
 load("@vx//stdlib:provider.star",
      "runtime_def", "github_permissions")
 load("@vx//stdlib:github.star", "make_fetch_versions", "github_asset_url")
-load("@vx//stdlib:layout.star", "path_fns")
+load("@vx//stdlib:layout.star", "path_fns", "path_env_fns")
 
 # Use stdlib path_fns for correct cross-platform path handling
 paths = path_fns("age")
 store_root       = paths["store_root"]
 get_execute_path = paths["get_execute_path"]
-environment      = paths["environment"]
+
+# path_fns does NOT export "environment" – use path_env_fns for PATH prepend
+_env_fns   = path_env_fns()
+environment = _env_fns["environment"]
 
 # ---------------------------------------------------------------------------
 # Provider metadata
