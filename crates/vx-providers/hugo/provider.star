@@ -91,16 +91,12 @@ def download_url(ctx, version):
 # install_layout — standard archive with top-level dir
 # ---------------------------------------------------------------------------
 
-def install_layout(ctx, _version):
+def install_layout(ctx, version):
     platform = _hugo_platform(ctx)
     if not platform:
         return None
     os_str, arch_str = platform
-    if ctx.platform.os == "windows":
-        ext = "zip"
-    else:
-        ext = "tar.gz"
-    archive_prefix = "hugo_{}_{}-{}".format(_version, os_str, arch_str)
+    archive_prefix = "hugo_{}_{}-{}".format(version, os_str, arch_str)
     target_name = "hugo" + (".exe" if ctx.platform.os == "windows" else "")
     return {
         "type":          "archive",
