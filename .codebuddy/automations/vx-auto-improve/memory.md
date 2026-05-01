@@ -1,5 +1,163 @@
 # vx auto-improve 执行历史
 
+## 2026-05-01 第二十一轮执行
+
+### 执行概况
+- 分支：`auto-improve`（已与 origin/main 同步，up to date）
+- 环境：Windows，Rust 1.95.0
+- 构建验证：`vx just quick` 成功（format → lint → test → build）
+- 测试：3605 tests passed, 119 skipped（新增 3 个测试）
+
+### 代码修改
+
+#### 1. 更新 `AGENTS.md` Provider 数量
+- **文件**：`AGENTS.md`
+- **修改**：Provider 数量从 136 更新到 135（3 处：第 11、56、225 行）
+- **原因**：实际 Provider 目录数为 135，`(Get-ChildItem crates\vx-providers -Directory).Count` 返回 135
+- **提交**：`6ad3b9f7` - "docs(agents): update provider count from 136 to 135"
+
+#### 2. 添加 `flux` Provider 测试
+- **文件**：
+  - `crates/vx-starlark/tests/flux_tests.rs`：新建文件，3 个单元测试
+- **测试内容**：
+  - `test_load_flux_provider` - 加载并验证名称
+  - `test_flux_download_url` - 测试 download_url 函数
+  - `test_flux_install_layout` - 测试 install_layout 函数
+- **提交**：`f83e5594` - "test(starlark): add flux provider tests (load, download_url, install_layout)"
+
+### 提交记录
+1. `docs(agents): update provider count from 136 to 135` (commit 6ad3b9f7)
+   - Update AGENTS.md: provider count 136 → 135 (3 occurrences)
+2. `test(starlark): add flux provider tests (load, download_url, install_layout)` (commit f83e5594)
+   - Add `crates/vx-starlark/tests/flux_tests.rs` with 3 unit tests
+   - Test load provider, download_url function, install_layout function
+
+### 质量门禁状态
+- ✅ `vx just format`：成功
+- ✅ `vx just lint`：成功（clippy 零警告）
+- ✅ `vx just test`：3605 passed, 119 skipped（新增 3 个测试）
+- ✅ `vx just build`：成功
+- ✅ Push 到 remote `auto-improve` 分支成功
+
+### GitHub 安全提示
+- remote: GitHub found 4 vulnerabilities on loonghao/vx's default branch (2 high, 2 moderate)
+- 参考：https://github.com/loonghao/vx/security/dependabot
+- **注意**：来自 `starlark` 依赖的 4 个 `unmaintained` 警告
+
+### 下一轮建议
+1. **处理 `cargo audit` 警告**：4 个 `unmaintained` 依赖（`bincode`、`derivative`、`fxhash`、`paste`），考虑 fork `starlark` 或等待上游更新
+2. **继续提升测试覆盖率**：为更多 Provider 添加测试（如 `duckdb`、`usql`、`xh` 等）
+3. **优化核心引擎**：改进 `vx-starlark` 错误信息，添加更多上下文
+4. **解决 Windows 文件锁定问题**：找到避免 `vx.exe` 锁定的方法
+5. **当前 Provider 数**：135 个
+
+---
+
+## 2026-05-01 第二十轮执行
+
+### 执行概况
+- 分支：`auto-improve`（已与 origin/main 同步，up to date）
+- 环境：Windows，Rust 1.95.0
+- 构建验证：`vx just quick` 成功（format → lint → test → build）
+- 测试：3602 tests passed, 119 skipped
+
+### 代码修改
+
+#### 1. 添加 `sccache` Provider
+- **文件**：
+  - `crates/vx-providers/sccache/provider.star`：新建文件
+  - `crates/vx-starlark/tests/sccache_tests.rs`：新建文件，3 个单元测试
+  - `AGENTS.md`：Provider 数量从 135 更新到 136（3 处）
+- **Provider 类型**：Rust 编译缓存工具（GitHub Releases）
+- **模板**：使用 `github_rust_provider` 模板
+- **Asset 命名**：`sccache-v{version}-{triple}.tar.gz`
+- **测试内容**：
+  - `test_load_sccache_provider` - 加载并验证名称
+  - `test_sccache_download_url` - 测试 download_url 函数
+  - `test_sccache_install_layout` - 测试 install_layout 函数
+
+### 提交记录
+1. `feat(provider): add sccache provider for Rust compilation caching` (commit 565b2421)
+   - Add `crates/vx-providers/sccache/provider.star` using github_rust_provider template
+   - Add `crates/vx-starlark/tests/sccache_tests.rs` with 3 unit tests
+   - Update AGENTS.md: provider count 135 → 136 (3 occurrences)
+
+### 质量门禁状态
+- ✅ `vx just format`：成功
+- ✅ `vx just lint`：成功（clippy 零警告）
+- ✅ `vx just test`：3602 passed, 119 skipped
+- ✅ `vx just build`：成功
+- ✅ Push 到 remote `auto-improve` 分支成功
+
+### GitHub 安全提示
+- remote: GitHub found 4 vulnerabilities on loonghao/vx's default branch (2 high, 2 moderate)
+- 参考：https://github.com/loonghao/vx/security/dependabot
+- **注意**：来自 `starlark` 依赖的 4 个 `unmaintained` 警告
+
+### 下一轮建议
+1. **添加 `cargo-audit` Provider**：安全漏洞扫描工具（高优先级）
+2. **添加 `flux` Provider**：GitOps 工具（云原生类）
+3. **添加 `duckdb` Provider**：嵌入式分析数据库（数据工具类）
+4. **处理 `cargo audit` 警告**：4 个 `unmaintained` 依赖（`bincode`、`derivative`、`fxhash`、`paste`）
+5. **继续提升测试覆盖率**：为更多 Provider 添加测试
+6. **解决 Windows 文件锁定问题**：找到避免 `vx.exe` 锁定的方法
+7. **当前 Provider 数**：136 个
+
+---
+
+## 2026-05-01 第十九轮执行
+
+### 执行概况
+- 分支：`auto-improve`（已与 origin/main 同步，up to date）
+- 环境：Windows，Rust 1.95.0
+- 构建验证：`vx just build` 成功
+- 测试：3593 tests passed, 119 skipped
+
+### 代码修改
+
+#### 1. 添加 GitHub API 分页功能单元测试
+- **文件**：
+  - `crates/vx-version-fetcher/src/fetchers/github.rs`：将 `api_url()` 改为 `pub` 并添加 `#[doc(hidden)]`
+  - `crates/vx-version-fetcher/tests/pagination_tests.rs`：新建文件，6 个单元测试
+- **测试内容**：
+  - `test_api_url_generates_correct_page_parameter` - 验证 URL 分页参数正确
+  - `test_api_url_generates_correct_base_url` - 验证 URL 基础格式正确
+  - `test_per_page_configuration` - 验证 `per_page` 配置正确
+  - `test_pagination_stop_condition` - 验证分页停止条件逻辑
+  - `test_fetcher_creation` - 验证 Fetcher 创建正确
+  - `test_with_per_page_builder` - 验证构建器模式正确
+- **原因**：上一轮（第十八轮）实现了多页获取功能，但缺少单元测试覆盖
+
+### 提交记录
+1. `test(fetcher): add pagination unit tests for GitHub API multi-page fetching` (commit 031a4c3e)
+   - Make `api_url()` pub with `#[doc(hidden)]` for integration testing
+   - Add 6 unit tests in `crates/vx-version-fetcher/tests/pagination_tests.rs`
+   - Test api_url() generates correct pagination parameters
+   - Test per_page configuration is respected
+   - Test pagination stop condition logic
+
+### 质量门禁状态
+- ✅ `vx cargo fmt`：成功（代码格式化）
+- ✅ `vx cargo build`：成功
+- ✅ `vx cargo test -p vx-version-fetcher`：6 tests passed
+- ✅ `cargo clippy --workspace -- -D warnings`：零警告
+- ✅ Push 到 remote `auto-improve` 分支成功
+
+### GitHub 安全提示
+- remote: GitHub found 4 vulnerabilities on loonghao/vx's default branch (2 high, 2 moderate)
+- 参考：https://github.com/loonghao/vx/security/dependabot
+- **注意**：来自 `starlark` 依赖的 4 个 `unmaintained` 警告
+
+### 下一轮建议
+1. **处理 `cargo audit` 警告**：4 个 `unmaintained` 依赖（`bincode`、`derivative`、`fxhash`、`paste`），考虑 fork `starlark` 或等待上游更新
+2. **添加更多分页测试**：使用 mock HTTP server 测试 `fetch_from_github()` 的完整多页获取逻辑
+3. **检查现有 Provider 的 `download_url` 是否正确处理所有平台**
+4. **继续提升测试覆盖率**：为更多 Provider 添加测试
+5. **解决 Windows 文件锁定问题**：找到避免 `vx.exe` 锁定的方法
+6. **当前 Provider 数**：135 个
+
+---
+
 ## 2026-05-01 第十八轮执行
 
 ### 执行概况
