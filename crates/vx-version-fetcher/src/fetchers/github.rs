@@ -125,8 +125,13 @@ impl GitHubReleasesFetcher {
         self
     }
 
-    /// Get the API URL for a specific page
-    fn api_url(&self, page: usize) -> String {
+    /// Get the API URL for a specific page.
+    ///
+    /// # Note
+    /// This method is `pub` to allow integration testing of URL generation.
+    /// It is not part of the stable API and may change without notice.
+    #[doc(hidden)]
+    pub fn api_url(&self, page: usize) -> String {
         format!(
             "https://api.github.com/repos/{}/{}/releases?per_page={}&page={}",
             self.owner, self.repo, self.config.per_page, page
