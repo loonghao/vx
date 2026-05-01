@@ -194,18 +194,6 @@ fn test_uninstall_alias_remove() {
 }
 
 // ============================================
-// Update Command (REMOVED - command no longer exists)
-// ============================================
-
-// #[test]
-// fn test_update_help() {
-//     vx().args(["update", "--help"])
-//         .assert()
-//         .success()
-//         .stdout(predicate::str::contains("Update"));
-// }
-
-// ============================================
 // Self-Update Command
 // ============================================
 
@@ -270,32 +258,6 @@ fn test_sync_help() {
 }
 
 // ============================================
-// Clean Command (REMOVED - command no longer exists)
-// ============================================
-
-// #[test]
-// fn test_clean_help() {
-//     vx().args(["clean", "--help"])
-//         .assert()
-//         .success()
-//         .stdout(predicate::str::contains("Clean"));
-// }
-
-// #[test]
-// fn test_clean_dry_run() {
-//     vx().args(["clean", "--dry-run"]).assert().success();
-// }
-
-// ============================================
-// Stats Command (REMOVED - command no longer exists)
-// ============================================
-
-// #[test]
-// fn test_stats_command() {
-//     vx().arg("stats").assert().success();
-// }
-
-// ============================================
 // Shell Command
 // ============================================
 
@@ -330,30 +292,6 @@ fn test_shell_init_bash() {
         .success()
         .stdout(predicate::str::contains("vx"));
 }
-
-// ============================================
-// Venv Command (REMOVED - command no longer exists)
-// ============================================
-
-// #[test]
-// fn test_venv_help() {
-//     vx().args(["venv", "--help"])
-//         .assert()
-//         .success()
-//         .stdout(predicate::str::contains("Virtual environment"));
-// }
-
-// ============================================
-// Global Command (REMOVED - command no longer exists)
-// ============================================
-
-// #[test]
-// fn test_global_help() {
-//     vx().args(["global", "--help"])
-//         .assert()
-//         .success()
-//         .stdout(predicate::str::contains("Global"));
-// }
 
 // ============================================
 // Env Command
