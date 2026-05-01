@@ -26,7 +26,7 @@
 //!
 //! ## Future Enhancement: shimexe-core Integration
 //!
-//! This module can be enhanced to use `shimexe-core` (https://github.com/loonghao/shimexe)
+//! This module can be enhanced to use `shimexe-core` (<https://github.com/loonghao/shimexe>)
 //! for advanced shim functionality:
 //! - TOML-based shim configuration (.shim.toml files)
 //! - Environment variable expansion with ${VAR:default} syntax

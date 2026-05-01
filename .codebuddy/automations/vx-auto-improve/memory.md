@@ -1,5 +1,101 @@
 # vx auto-improve 执行历史
 
+## 2026-05-01 第二十三轮执行
+
+### 执行概况
+- 分支：`auto-improve`（已与 origin/main 同步，up to date）
+- 环境：Windows，Rust 1.95.0
+- 构建验证：`vx just quick` 成功（format → lint → test → build）
+- 测试：3614 tests passed, 119 skipped（新增 5 个 duckdb 测试，全部通过）
+
+### 代码修改
+
+#### 1. 添加 `duckdb` Provider 测试
+- **文件**：
+  - `crates/vx-starlark/tests/duckdb_tests.rs`：新建文件，5 个单元测试
+- **测试内容**：
+  - `test_load_duckdb_provider` - 加载并验证名称
+  - `test_duckdb_download_url` - 测试 download_url 函数（通用）
+  - `test_duckdb_download_url_windows` - 测试 Windows 平台 URL
+  - `test_duckdb_download_url_linux` - 测试 Linux 平台 URL
+  - `test_duckdb_install_layout` - 测试 install_layout 函数
+
+### 提交记录
+1. `test(starlark): add duckdb provider tests (load, download_url, install_layout)` (commit 3bdfd89e)
+   - Add `crates/vx-starlark/tests/duckdb_tests.rs` with 5 unit tests
+   - Test load provider, download_url function (cross-platform), install_layout function
+
+### 质量门禁状态
+- ✅ `vx just format`：成功
+- ✅ `vx just lint`：成功（clippy 零警告）
+- ✅ `vx just test`：3614 passed, 119 skipped（新增 5 个测试）
+- ✅ `vx just build`：成功
+- ✅ Push 到 remote `auto-improve` 分支成功
+
+### GitHub 安全提示
+- remote: GitHub found 4 vulnerabilities on loonghao/vx's default branch (2 high, 2 moderate)
+- 参考：https://github.com/loonghao/vx/security/dependabot
+- **注意**：来自 `starlark` 依赖的 4 个 `unmaintained` 警告
+
+### 下一轮建议
+1. **添加 `usql` Provider 测试**：通用 SQL 客户端（数据工具类，任务中提及）
+2. **添加 `xh` Provider 测试**：HTTP 客户端工具
+3. **处理 `cargo audit` 警告**：4 个 `unmaintained` 依赖（`bincode`、`derivative`、`fxhash`、`paste`）
+4. **优化核心引擎**：改进 `vx-starlark` 错误信息，添加更多上下文
+5. **当前 Provider 数**：136 个，测试数：3614 个
+
+---
+
+## 2026-05-01 第二十二轮执行
+
+### 执行概况
+- 分支：`auto-improve`（已与 origin/main 同步，up to date）
+- 环境：Windows，Rust 1.95.0
+- 构建验证：`vx just build` 成功
+- 测试：3605 tests passed, 119 skipped（新增 4 个 hugo 测试，全部通过）
+
+### 代码修改
+
+#### 1. 添加 `hugo` Provider
+- **文件**：
+  - `crates/vx-providers/hugo/provider.star`：新建文件
+  - `crates/vx-starlark/tests/hugo_tests.rs`：新建文件，4 个单元测试
+  - `AGENTS.md`：Provider 数量从 135 更新到 136（2 处）
+- **Provider 类型**：静态站点生成器（Go，GitHub Releases）
+- **Asset 命名**：`hugo_{version}_{OS}-{Arch}.{ext}`（自定义命名，非标准 goreleaser）
+- **测试内容**：
+  - `test_load_hugo_provider` - 加载并验证名称
+  - `test_hugo_download_url` - 测试 download_url 函数
+  - `test_hugo_download_url_windows` - 测试 Windows 平台 URL
+  - `test_hugo_install_layout` - 测试 install_layout 函数
+
+### 提交记录
+1. `feat(provider): add hugo provider for static site generation` (commit 3da1deed)
+   - Add `crates/vx-providers/hugo/provider.star` with custom download_url
+   - Add `crates/vx-starlark/tests/hugo_tests.rs` with 4 unit tests
+   - Update AGENTS.md: provider count 135 → 136 (2 occurrences)
+
+### 质量门禁状态
+- ✅ `vx just build`：成功
+- ✅ `vx just lint`：成功（clippy 零警告）
+- ✅ `vx just format`：成功
+- ✅ `vx cargo nextest run -p vx-starlark --test hugo_tests`：4 passed
+- ✅ Push 到 remote `auto-improve` 分支成功
+
+### GitHub 安全提示
+- remote: GitHub found 4 vulnerabilities on loonghao/vx's default branch (2 high, 2 moderate)
+- 参考：https://github.com/loonghao/vx/security/dependabot
+- **注意**：来自 `starlark` 依赖的 4 个 `unmaintained` 警告
+
+### 下一轮建议
+1. **添加 `btop` Provider**：资源监控工具（C++，GitHub Releases），注意 Windows 预编译二进制可能不可用
+2. **处理 `cargo audit` 警告**：4 个 `unmaintained` 依赖（`bincode`、`derivative`、`fxhash`、`paste`）
+3. **继续提升测试覆盖率**：为更多 Provider 添加测试（如 `procs`、`dog` 等）
+4. **优化核心引擎**：改进 `vx-starlark` 错误信息，添加更多上下文
+5. **当前 Provider 数**：136 个
+
+---
+
 ## 2026-05-01 第二十一轮执行
 
 ### 执行概况

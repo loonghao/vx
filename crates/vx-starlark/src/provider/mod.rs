@@ -9,11 +9,11 @@
 //! # Module structure
 //!
 //! - [`types`]   — Type definitions (InstallLayout, PostExtractAction, etc.)
-//! - [`cache`]   — Incremental analysis cache
-//! - [`versions`] — Version fetching and JSON transform strategies
-//! - [`execute`] — execute_install / execute_download_url / etc.
-//! - [`hooks`]   — Hook action parsing (post_extract, pre_run)
-//! - [`store`]   — Store path query functions (store_root, get_execute_path, post_install)
+//! - `cache`    — Incremental analysis cache (private)
+//! - `versions`  — Version fetching and JSON transform strategies (private)
+//! - `execute`   — execute_install / execute_download_url / etc. (private)
+//! - `hooks`     — Hook action parsing (post_extract, pre_run) (private)
+//! - `store`     — Store path query functions (store_root, get_execute_path, post_install) (private)
 
 pub mod bridge;
 pub mod builder;

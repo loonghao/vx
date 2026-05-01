@@ -25,7 +25,7 @@ pub struct DetectionConfig {
     #[serde(default)]
     pub registry_paths: Vec<String>,
 
-    /// Acceptable exit codes (default: [0])
+    /// Acceptable exit codes (default: $$0$$)
     /// Some tools return non-zero exit codes even on success (e.g., cl.exe returns 2)
     #[serde(default = "default_exit_codes")]
     pub exit_codes: Vec<i32>,

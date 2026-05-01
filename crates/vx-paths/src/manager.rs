@@ -195,7 +195,7 @@ impl PathManager {
 
     /// Get the actual executable path in the platform-specific store
     ///
-    /// Returns: ~/.vx/store/<runtime>/<version>/<platform>/bin/<runtime>.exe (Windows)
+    /// Returns: `~/.vx/store/<runtime>/<version>/<platform>/bin/<runtime>.exe` (Windows)
     ///
     /// This returns the path to the executable in the platform-specific directory.
     /// Use this when installing or directly accessing executables.
@@ -213,7 +213,7 @@ impl PathManager {
     }
 
     /// Get the executable path in the store for a specific runtime version
-    /// Returns: ~/.vx/store/<runtime>/<version>/bin/<runtime>.exe (Windows)
+    /// Returns: `~/.vx/store/<runtime>/<version>/bin/<runtime>.exe` (Windows)
     ///
     /// This is a **unified** path that automatically redirects to the
     /// platform-specific directory. Use this for general executable access.
@@ -238,8 +238,8 @@ impl PathManager {
     /// List all installed versions of a runtime in the store
     ///
     /// This supports both store layouts:
-    /// - Unified layout: <runtime>/<version>/
-    /// - Legacy platform layout: <runtime>/<version>/<platform>/
+    /// - Unified layout: `<runtime>/<version>/`
+    /// - Legacy platform layout: `<runtime>/<version>/<platform>/`
     ///
     /// Returns: List of version strings, sorted by semantic version (highest first)
     pub fn list_store_versions(&self, runtime_name: &str) -> Result<Vec<String>> {
@@ -353,7 +353,7 @@ impl PathManager {
     }
 
     /// Get the runtime link path in an environment
-    /// Returns: ~/.vx/envs/<env_name>/<runtime>
+    /// Returns: `~/.vx/envs/<env_name>/<runtime>`
     pub fn env_runtime_path(&self, env_name: &str, runtime_name: &str) -> PathBuf {
         self.env_dir(env_name).join(runtime_name)
     }
@@ -421,19 +421,19 @@ impl PathManager {
     }
 
     /// Get the npm-tools directory for a specific package
-    /// Returns: ~/.vx/npm-tools/<package>
+    /// Returns: `~/.vx/npm-tools/<package>`
     pub fn npm_tool_dir(&self, package_name: &str) -> PathBuf {
         self.paths.npm_tools_dir.join(package_name)
     }
 
     /// Get the npm-tools directory for a specific package version
-    /// Returns: ~/.vx/npm-tools/<package>/<version>
+    /// Returns: `~/.vx/npm-tools/<package>/<version>`
     pub fn npm_tool_version_dir(&self, package_name: &str, version: &str) -> PathBuf {
         self.npm_tool_dir(package_name).join(version)
     }
 
     /// Get the bin directory for an npm tool
-    /// Returns: ~/.vx/npm-tools/<package>/<version>/bin
+    /// Returns: `~/.vx/npm-tools/<package>/<version>/bin`
     pub fn npm_tool_bin_dir(&self, package_name: &str, version: &str) -> PathBuf {
         self.npm_tool_version_dir(package_name, version).join("bin")
     }
@@ -467,26 +467,26 @@ impl PathManager {
     }
 
     /// Get the pip-tools directory for a specific package
-    /// Returns: ~/.vx/pip-tools/<package>
+    /// Returns: `~/.vx/pip-tools/<package>`
     pub fn pip_tool_dir(&self, package_name: &str) -> PathBuf {
         self.paths.pip_tools_dir.join(package_name)
     }
 
     /// Get the pip-tools directory for a specific package version
-    /// Returns: ~/.vx/pip-tools/<package>/<version>
+    /// Returns: `~/.vx/pip-tools/<package>/<version>`
     pub fn pip_tool_version_dir(&self, package_name: &str, version: &str) -> PathBuf {
         self.pip_tool_dir(package_name).join(version)
     }
 
     /// Get the venv directory for a pip tool
-    /// Returns: ~/.vx/pip-tools/<package>/<version>/venv
+    /// Returns: `~/.vx/pip-tools/<package>/<version>/venv`
     pub fn pip_tool_venv_dir(&self, package_name: &str, version: &str) -> PathBuf {
         self.pip_tool_version_dir(package_name, version)
             .join("venv")
     }
 
     /// Get the bin directory for a pip tool
-    /// Returns: ~/.vx/pip-tools/<package>/<version>/venv/Scripts (Windows) or venv/bin (Unix)
+    /// Returns: `~/.vx/pip-tools/<package>/<version>/venv/Scripts` (Windows) or `venv/bin` (Unix)
     pub fn pip_tool_bin_dir(&self, package_name: &str, version: &str) -> PathBuf {
         let venv_dir = self.pip_tool_venv_dir(package_name, version);
         if cfg!(windows) {

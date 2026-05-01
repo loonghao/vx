@@ -1141,18 +1141,18 @@ pub enum ProviderCommand {
     Stats,
     /// Add a provider from a local file, directory, or remote HTTP URL
     ///
-    /// Copies provider.star file(s) into ~/.vx/providers/<name>/provider.star
+    /// Copies provider.star file(s) into `~/.vx/providers/<name>/provider.star`
     /// so that `vx <runtime>` can use it immediately on the next invocation.
     ///
     /// Supported sources:
     ///   - Single file:  vx provider add ./my-tool/provider.star
     ///   - Directory:    vx provider add ./my-providers/   (recursively finds all provider.star)
-    ///   - HTTP URL:     vx provider add https://example.com/provider.star
+    ///   - HTTP URL:     vx provider add <https://example.com/provider.star>
     ///
     /// Examples:
     ///   vx provider add ./my-tool/provider.star
     ///   vx provider add ./examples/providers/
-    ///   vx provider add https://raw.githubusercontent.com/user/repo/main/provider.star
+    ///   vx provider add <https://raw.githubusercontent.com/user/repo/main/provider.star>
     ///   vx provider add /tmp/provider.star --name my-tool
     Add {
         /// Path to a provider.star file, a directory containing provider.star files,
@@ -1379,7 +1379,7 @@ pub enum ExtCommand {
     },
     /// Install an extension from a remote source
     Install {
-        /// Extension source (e.g., github:user/repo, https://github.com/user/repo)
+        /// Extension source (e.g., github:user/repo, <https://github.com/user/repo>)
         source: String,
     },
     /// Uninstall an extension

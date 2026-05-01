@@ -2,7 +2,7 @@
 //!
 //! Detects Deno applications by checking for:
 //! - `deno.json` or `deno.jsonc` configuration files
-//! - Deno-specific URL imports (https://deno.land/, https://esm.sh/)
+//! - Deno-specific URL imports (<https://deno.land/>, <https://esm.sh/>)
 //! - `deps.ts` or `deps.js` files (Deno dependency management)
 //!
 //! Deno is a secure JavaScript/TypeScript runtime with:

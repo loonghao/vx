@@ -3,6 +3,53 @@
 
 ---
 
+### Run 16 — 2026-05-01 (Friday 22:30)
+
+**Branch**: `auto-improve` (synced with origin/main)
+**Environment**: Rust 1.93.1, PowerShell 7
+**Commit**: `02d363ab`
+
+**Changes made**:
+
+1. **Phase 3: Documentation warning fixes** ✅
+   - Fixed doc warnings in `vx-cli/src/cli.rs`: wrapped `<repo-url>` and `<query>` in backticks
+   - Fixed doc warnings in `vx-cli/src/commands/mod.rs`: wrapped `<runtime>` in backticks
+   - Fixed doc warnings in `vx-cli/src/commands/test/args.rs`: wrapped URL in `<>` for clickable links
+   - Fixed doc warnings in `vx-cli/src/commands/auth.rs`: wrapped URL in `<>` for clickable links
+   - Fixed doc warnings in `vx-config/src/config_manager/toml_writer.rs`: escaped `[section]` with `\[section\]`
+   - Fixed doc warnings in `vx-paths/src/manager.rs`: wrapped `<runtime>`, `<version>`, `<platform>` in backticks
+   - Fixed doc warnings in `vx-paths/src/resolver.rs`: wrapped `<provider>`, `<version>`, `<platform>` in backticks
+   - Fixed doc warnings in `vx-versions/src/cache.rs`: removed crate prefix from intra-doc link
+   - Commit: `02d363ab` — `chore(cleanup): fix doc warnings in vx-cli, vx-config, vx-paths, vx-versions`
+
+2. **Verification**:
+   - `cargo clippy --workspace -- -D warnings` ✅ PASS
+   - `cargo test --workspace` ✅ PASS (0 failed)
+   - `cargo doc` - reduced warnings (94 remaining)
+
+**Phase status**:
+- Phase 1: ✅ COMPLETE
+- Phase 2: 🔄 IN PROGRESS (provider analysis done, platform support check pending)
+- Phase 3: 🔄 IN PROGRESS (doc warnings partially fixed, 94 remaining)
+- Phase 4: ⏳ NOT STARTED
+- Phase 5: ⏳ NOT STARTED (large files identified)
+- Phase 6: ⏳ NOT STARTED
+- Phase 7: ⏳ NOT STARTED
+
+**Next run plan**:
+1. Fix remaining 94 doc warnings (focus on vx-paths, vx-config, vx-migration, vx-setup)
+2. Check provider platform support (Phase 2)
+3. Split large files (Phase 5) - `vx-cli/src/cli.rs` (2358 lines)
+
+**Items to investigate in next runs**:
+- [ ] Fix remaining 94 doc warnings
+- [ ] Split `vx-cli/src/cli.rs` (2358 lines) into submodules
+- [ ] Check all 136 providers for 4-platform support
+- [ ] Remove/update unnecessary `#[allow(dead_code)]` attributes (24 remaining)
+- [ ] Run `cargo outdated` and evaluate upgrades
+
+---
+
 ### Run 15 — 2026-05-01 (Friday 16:05)
 
 **Branch**: `auto-improve` (synced with origin/main)
@@ -64,95 +111,5 @@
 - [ ] Remove/update unnecessary `#[allow(dead_code)]` attributes (26 remaining)
 - [ ] Check for duplicate test files (with `_v2`, `_new`, `_fixed` suffixes)
 - [ ] Run `cargo outdated` and evaluate real upgrades (not workspace-hack deps)
-
----
-
-### Run 14 — 2026-05-01 (Friday 13:25)
-
-**Branch**: `auto-improve` (synced with origin/main)
-**Environment**: Rust 1.93.1, PowerShell 7
-**Commit**: `a3509d2b`
-
-**Changes made**:
-
-1. **Phase 1 cleanup: Dead code removal** ✅
-   - Deleted commented-out test modules in `crates/vx-cli/tests/cli_integration_tests.rs`:
-     - `clean_tests` module (lines 418-473) — for removed `clean` command
-     - `stats_tests` module (lines 482-496) — for removed `stats` command
-   - 55+ lines of dead code removed
-   - Commit: `a3509d2b` — `chore(cleanup): remove dead code and unused dependencies`
-
-2. **Phase 1 cleanup: Unused dependencies** ✅
-   - Removed from `vx-cli/Cargo.toml`:
-     - `dialoguer` (not used in codebase)
-     - `toml` (not used in src/)
-   - Removed from `vx-args/Cargo.toml`:
-     - `serde_json` (not used in codebase)
-   - Kept `workspace-hack` (expected in workspace-hack pattern)
-
-3. **Phase 2 verification: Provider quality** 🔄
-   - Analyzed providers with hand-written `download_url`:
-     - `git/provider.star`: Complex logic (MinGit ZIP for Windows, system install for Unix) — KEEP hand-written
-     - `cmake/provider.star`: Custom platform mapping — can be converted but complex
-   - Many providers already use templates (`github_rust_provider`, `github_go_provider`)
-   - `cargo machete` identified unused deps (some false positives like `workspace-hack`)
-
-4. **Phase 3: Rust code standards** ✅
-   - `cargo fmt --all` — passes (no changes needed)
-   - `cargo clippy --workspace -- -D warnings` — passes (0 warnings)
-   - `cargo test --workspace` — passes (0 failures)
-
-**Verification**:
-- `cargo clippy --workspace -- -D warnings` ✅ PASS (0 warnings)
-- `cargo test --workspace` ✅ PASS (all tests pass)
-- `cargo check --workspace` ✅ PASS
-
-**Phase status**:
-- Phase 1: ✅ COMPLETE (dead code + unused deps removed)
-- Phase 2: 🔄 PARTIAL (analysis done, complex providers identified)
-- Phase 3: ✅ COMPLETE (fmt + clippy + tests pass)
-
-**Next run plan**:
-1. Convert simple providers with hand-written `download_url` to use templates
-2. Check for missing platform support in all providers
-3. Run `cargo outdated` to check for outdated dependencies
-4. After completing 3 phases, push to `origin/auto-improve`
-
-**Items to investigate in next runs**:
-- [ ] Convert `cmake` provider to use `github_rust_provider` template (if possible)
-- [ ] Check all 135 providers for 4-platform support (windows/x64, macos/arm64, linux/x64, windows/arm64)
-- [ ] Run `cargo outdated` and evaluate upgrades
-- [ ] Check for `#[allow(dead_code)]` attributes that can be removed
-
----
-
-### Run 13 — 2026-05-01 (Friday 10:35)
-
-**Branch**: `auto-improve` (synced with origin/main)
-**Environment**: Rust 1.93.1, PowerShell 7
-**Changes made**:
-
-1. **Phase 1 cleanup: Dead code removal** ✅
-   - Deleted commented-out test functions in `tests/cli_integration_tests.rs`:
-     - `test_update_help()` (for removed `update` command)
-     - `test_clean_help()` (for removed `clean` command)
-     - `test_clean_dry_run()` (for removed `clean` command)
-     - `test_stats_command()` (for removed `stats` command)
-     - `test_venv_help()` (for removed `venv` command)
-     - `test_global_help()` (for removed `global` command)
-   - Commit: `969dac5d` — `chore(cleanup): remove commented-out test functions for removed commands`
-   - 62 deletions, 0 insertions
-
-2. **Phase 2 verification: Provider quality** ✅
-   - Ran `vx cargo test -p vx-starlark --test lint_all_providers_test`
-   - Result: **135/135 providers clean, 0 issues**
-   - All providers load correctly
-
-3. **Baseline verification** ✅
-   - `cargo clippy --workspace -- -D warnings` ✅ PASS (0 warnings)
-   - `cargo check --workspace` ✅ PASS
-
-**Phase 1 status**: Complete — commented-out code blocks removed from 1 file.
-**Phase 2 status**: Partial — all providers verified to load correctly.
 
 ---
