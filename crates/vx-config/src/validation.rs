@@ -2,13 +2,6 @@
 
 use crate::types::VxConfig;
 
-/// Validation warning (non-fatal)
-#[derive(Debug, Clone)]
-#[allow(dead_code)]
-pub struct ValidationWarning {
-    pub message: String,
-}
-
 /// Validation result
 #[derive(Debug, Default)]
 pub struct ValidationResult {
