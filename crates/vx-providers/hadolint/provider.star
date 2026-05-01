@@ -118,3 +118,9 @@ def install_layout(ctx, _version):
 # environment (inherited from template)
 # ---------------------------------------------------------------------------
 # Note: environment is already provided by _p["environment"] above
+
+system_install = cross_platform_install(
+    windows = "hadolint",
+    macos   = "hadolint",
+    linux   = "hadolint",
+)

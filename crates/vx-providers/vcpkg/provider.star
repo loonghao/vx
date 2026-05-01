@@ -121,3 +121,9 @@ def deps(_ctx, _version):
         dep_def("cmake", optional = True, reason = "CMake is commonly used with vcpkg"),
         dep_def("ninja", optional = True, reason = "Ninja provides faster builds"),
     ]
+
+system_install = cross_platform_install(
+    windows = "vcpkg",
+    macos   = "vcpkg",
+    linux   = "vcpkg",
+)

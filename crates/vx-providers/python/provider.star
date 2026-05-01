@@ -147,3 +147,9 @@ def deps(_ctx, _version):
         dep_def("uv", optional = True,
                 reason = "uv provides faster package management for Python"),
     ]
+
+system_install = cross_platform_install(
+    windows = "python",
+    macos   = "python",
+    linux   = "python",
+)

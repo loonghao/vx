@@ -44,3 +44,9 @@ environment      = _p["environment"]
 # ---------------------------------------------------------------------------
 def deps(_ctx, _version):
     return []
+
+system_install = cross_platform_install(
+    windows = "sccache",
+    macos   = "sccache",
+    linux   = "sccache",
+)

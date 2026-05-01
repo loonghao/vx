@@ -101,3 +101,9 @@ def deps(_ctx, _version):
         dep_def("git", optional = True,
                 reason = "Git is required for fetching Spack packages"),
     ]
+
+system_install = cross_platform_install(
+    windows = "spack",
+    macos   = "spack",
+    linux   = "spack",
+)

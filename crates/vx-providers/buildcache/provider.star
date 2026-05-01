@@ -134,3 +134,9 @@ def environment(ctx, _version):
         env_prepend("PATH", ctx.install_dir + "/bin"),
         env_prepend("PATH", ctx.install_dir),
     ]
+
+system_install = cross_platform_install(
+    windows = "buildcache",
+    macos   = "buildcache",
+    linux   = "buildcache",
+)

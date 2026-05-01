@@ -135,3 +135,9 @@ def environment(ctx, _version):
 
 def deps(_ctx, _version):
     return []
+
+system_install = cross_platform_install(
+    windows = "bun",
+    macos   = "bun",
+    linux   = "bun",
+)
