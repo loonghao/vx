@@ -2,30 +2,28 @@
 
 ## Run History
 
-### Run 1 — 2026-04-11
+### Run 2 — 2026-05-01
 
-**Branch**: `auto-improve` (worktree at `G:\PycharmProjects\github\.vx-docs`)
-**Status**: SUCCESS — 5 commits pushed
+**Branch**: `docs-update-20260501` (worktree at `G:\PycharmProjects\github\.vx-docs`)
+**Status**: SUCCESS — 1 commit pushed, PR #840 merged to main
 
 **What was done**:
-1. **P0 llms-full.txt**: Expanded Supported Tools from ~20 to complete 129 providers, organized by category
-2. **P0 docs/tools/overview.md**: Updated At-a-Glance table and added missing tool categories (Compiler Caches, Security, Code Quality, Terminal Utils, Git Tools, Database, System Tools)
-3. **P1 MCP Integration**: Created new `docs/guide/mcp-integration.md` with configs for Claude Desktop, Cursor, Windsurf; added to navigation in config.ts
-4. **P0 AGENTS.md**: Fixed provider count discrepancies (122/124/126 → 129), added 9 missing providers (buf, cargo-audit, cargo-deny, grype, kustomize, minikube, syft, tokei, usql)
-5. **llms.txt**: Updated MCP integration doc link to correct page
+1. **Rebased docs with main** (successful, with warnings about previously applied commits)
+2. **Updated provider count from 129/131 to 132** across 5 files:
+   - `AGENTS.md`: 5 places updated
+   - `CLAUDE.md`: 3 places updated (also updated version from 0.8.32 to 0.8.33)
+   - `llms.txt`: 3 places updated
+   - `llms-full.txt`: 3 places updated
+   - `docs/tools/overview.md`: 1 place updated
+3. **Created PR #840**: `docs: update provider count from 129/131 to 132 across all documentation`
+4. **CI passed**, PR auto-merged to main
 
-**Commits pushed** (ce4fe22e → 38426c34):
-- `docs(tools): expand Supported Tools to complete 129 providers in llms-full.txt and overview.md`
-- `docs(mcp): add MCP integration guide for Claude Desktop, Cursor, Windsurf + update nav`
-- `fix(docs): sync AGENTS.md provider count to 129 and add 9 missing providers`
-- `docs(llms): add MCP integration link to llms-full.txt documentation section`
-- `chore(iter): iteration done [iteration-done]`
+**Commit**: `025c682e` — "docs: update provider count from 129/131 to 132 across all documentation"
 
-**Build status**: ✓ `build complete in 22.89s`
+**Build status**: ✓ CI passed (CodeQL and Documentation Build in progress during merge)
 
 **Next iteration priorities**:
-- Check if Chinese (`docs/zh/`) docs need equivalent MCP integration page
-- Improve architecture OVERVIEW.md with complete Mermaid crate dependency graph
-- Check if `llms-full.txt` Supported Tools section has correct provider names for bundled runtimes (npm/npx bundled with node, gofmt bundled with go)
-- Consider adding `cargo-nextest` to Security/Quality section in AGENTS.md provider table
-- Verify `docs/tools/devops.md` and `docs/tools/quality.md` content matches the new tools added
+- Expand `llms-full.txt` Supported Tools section to include all 132 providers (currently only ~52 listed)
+- Verify all 132 providers are documented in `docs/tools/*.md`
+- Check if any new providers (actionlint, actrun, atuin, etc.) need detailed documentation
+- Consider adding missing tool categories or updating existing tables

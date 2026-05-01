@@ -50,7 +50,7 @@ vx uvx ruff check .      # 和 uvx ruff check 一样，但自动安装
 vx go build ./...        # 和 go build 一样，但可移植
 ```
 
-### 132 工具支持
+### 135 工具支持
 从语言运行时到 DevOps 工具，vx 用统一接口管理所有工具。查看[完整工具列表](/zh/tools/overview)。
 
 ### 声明式配置

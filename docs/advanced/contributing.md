@@ -166,7 +166,7 @@ vx/
 │   ├── vx-config/           # Configuration management
 │   ├── vx-console/          # Unified output and progress
 │   ├── vx-project-analyzer/ # Project detection
-│   └── vx-providers/        # 132 tool providers (provider.star)
+│   └── vx-providers/        # 135 tool providers (provider.star)
 ├── skills/                  # AI agent skill files (5 SKILL.md)
 ├── docs/                    # Documentation (English + Chinese)
 ├── tests/                   # Integration tests

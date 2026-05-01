@@ -1,8 +1,8 @@
 # vx
 
-> vx is a universal development tool manager — prefix any command with `vx` and it auto-installs the tool on first use. No manual setup, no version conflicts. 132 tools, one command prefix.
+> vx is a universal development tool manager — prefix any command with `vx` and it auto-installs the tool on first use. No manual setup, no version conflicts. 135 tools, one command prefix.
 
-vx eliminates the complexity of managing multiple language runtimes (Node.js, Python, Go, Rust, etc.) while maintaining zero learning curve. Built with Rust for performance, it supports direct execution, project environments via `vx.toml`, MCP integration, and AI-native development workflows. Providers are defined using Starlark DSL (`provider.star`) — a declarative, zero-compilation approach that covers 132 tools.
+vx eliminates the complexity of managing multiple language runtimes (Node.js, Python, Go, Rust, etc.) while maintaining zero learning curve. Built with Rust for performance, it supports direct execution, project environments via `vx.toml`, MCP integration, and AI-native development workflows. Providers are defined using Starlark DSL (`provider.star`) — a declarative, zero-compilation approach that covers 135 tools.
 
 - **Install (Linux/macOS)**: `curl -fsSL https://raw.githubusercontent.com/loonghao/vx/main/install.sh | bash`
 - **Install (Windows)**: `powershell -c "irm https://raw.githubusercontent.com/loonghao/vx/main/install.ps1 | iex"`
@@ -46,7 +46,7 @@ vx analyze --json          # Project analysis as JSON
 ## Key Features
 
 - Zero learning curve — use the same commands you already know, just prefix with `vx`
-- Auto-installs runtimes on first use (Node.js, Python/UV, Go, Rust, Bun, Deno, and 132 tools in total)
+- Auto-installs runtimes on first use (Node.js, Python/UV, Go, Rust, Bun, Deno, and 135 tools in total)
 - Project environments via `vx.toml` with `vx setup` / `vx dev`
 - Enhanced script system with `{{args}}` passthrough for complex tool arguments
 - MCP (Model Context Protocol) ready — replace `npx`/`uvx` with `vx` in MCP configs

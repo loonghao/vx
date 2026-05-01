@@ -4,7 +4,7 @@
 version = 1
 
 [metadata]
-generated_at = "2026-05-01T00:10:59Z"
+generated_at = "2026-05-01T01:01:59Z"
 vx_version = "0.6.19"
 platform = "x86_64-pc-windows-msvc"
 
@@ -111,9 +111,9 @@ resolved_from = "7.4.13"
 ecosystem = "generic"
 
 [tools.python]
-version = "3.14.4"
+version = "3.12.13"
 source = "vx install"
-resolved_from = "3"
+resolved_from = "3.12"
 ecosystem = "python"
 
 [tools.rust]
