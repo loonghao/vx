@@ -11,7 +11,7 @@
 # Version source: getsops/sops releases on GitHub (tag prefix "v")
 
 load("@vx//stdlib:provider.star",
-     "runtime_def", "github_permissions")
+     "runtime_def", "github_permissions", "path_fns")
 load("@vx//stdlib:github.star", "make_fetch_versions", "github_asset_url")
 load("@vx//stdlib:env.star", "env_prepend")
 load("@vx//stdlib:system_install.star", "cross_platform_install")
@@ -74,9 +74,10 @@ def download_url(ctx, version):
     if not platform:
         return None
     os_str, arch_str = platform
-    # sops uses dots as separators: sops-v3.12.2.linux.amd64
+    # sops uses dots as separators. Windows assets omit the os segment:
+    # sops-v3.12.2.linux.amd64, sops-v3.12.2.amd64.exe
     if ctx.platform.os == "windows":
-        asset = "sops-v{}.{}.{}.exe".format(version, os_str, arch_str)
+        asset = "sops-v{}.{}.exe".format(version, arch_str)
     else:
         asset = "sops-v{}.{}.{}".format(version, os_str, arch_str)
     return github_asset_url("getsops", "sops", "v" + version, asset)
@@ -85,27 +86,26 @@ def download_url(ctx, version):
 # install_layout
 # ---------------------------------------------------------------------------
 
-def install_layout(_ctx, _version):
+def install_layout(ctx, _version):
     # sops releases are direct binaries (no archive)
+    exe = "sops.exe" if ctx.platform.os == "windows" else "sops"
     return {
-        "__type":        "binary",
-        "target_name":   "sops",
-        "target_dir":    "bin",
+        "type":             "binary",
+        "target_name":      exe,
+        "target_dir":       "bin",
+        "executable_paths": ["bin/" + exe, exe, "sops"],
     }
 
 # ---------------------------------------------------------------------------
 # Path + env functions
 # ---------------------------------------------------------------------------
 
-def store_root(ctx):
-    return ctx.vx_home + "/store/sops"
-
-def get_execute_path(ctx, _version):
-    exe = "sops.exe" if ctx.platform.os == "windows" else "sops"
-    return ctx.install_dir + "/" + exe
+paths            = path_fns("sops", executable = "bin/sops")
+store_root       = paths["store_root"]
+get_execute_path = paths["get_execute_path"]
 
 def environment(ctx, _version):
-    return [env_prepend("PATH", ctx.install_dir)]
+    return [env_prepend("PATH", ctx.install_dir + "/bin")]
 
 def post_install(_ctx, _version):
     return None
