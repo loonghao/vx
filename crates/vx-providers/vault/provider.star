@@ -38,9 +38,15 @@ store_root       = _p["store_root"]
 get_execute_path = _p["get_execute_path"]
 environment      = _p["environment"]
 
-# download_url: v2.x binaries are still available on GitHub (BUSL license
-# only affects source code, not binaries). Always delegate to template.
+# download_url: v2.0.0+ has NO public GitHub assets (BUSL license change).
+# Source remains open, but HashiCorp no longer uploads binaries to GitHub releases.
+# Return None for v2.x so the installer falls back to system_install.
 def download_url(ctx, version):
+    # Strip "v" prefix for comparison
+    v = version.lstrip("v")
+    # v2.0.0+ → no GitHub assets, use system_install fallback
+    if v.startswith("2.") or v.startswith("3.") or len(v) > 0 and v[0] not in "01":
+        return None
     return _p["download_url"](ctx, version)
 
 # system_install: fallback to package managers when GitHub download is unavailable
