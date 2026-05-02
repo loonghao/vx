@@ -25,11 +25,12 @@ permissions = github_permissions()
 # Use github_go_provider template (GoReleaser format)
 # Asset format: step_{os}_{version}_{arch}.{ext}
 # Example: step_linux_0.30.2_amd64.tar.gz
-# Archive has top-level dir: step_{os}_{version}_{arch}/ → need strip_prefix
+# Archive has top-level dir: step_{version}/
+# Executable is at bin/step inside the archive
 _p = github_go_provider("smallstep", "cli",
     asset        = "step_{os}_{version}_{arch}.{ext}",
-    executable   = "step",
-    strip_prefix = "step_{os}_{version}_{arch}",
+    executable   = "bin/step",
+    strip_prefix = "step_{version}",
 )
 
 # Export functions from template
