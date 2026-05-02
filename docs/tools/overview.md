@@ -50,6 +50,9 @@ vx supports **132 tools** out of the box, spanning language runtimes, package ma
 | **uvx** | Python | uv | [Details →](./python) |
 | **cargo** | Rust | rust | [Details →](./rust) |
 | **nuget** | .NET | — | [Details →](./build-tools) |
+| **conda** | Python/Multi-language | — | — |
+| **micromamba** | Conda-compatible | — | — |
+| **mamba** | Conda-compatible | — | — |
 | **conan** | C/C++ | — | — |
 | **vcpkg** | C/C++ | — | — |
 | **mise** | Multi-language | — | — |
@@ -268,11 +271,11 @@ vx install <tool>@<version>
 <tool> = "<version>"
 ```
 
-## Complete Tool List (129 Total)
+## Complete Tool List (132 Total)
 
 > **Note**: For detailed documentation, click the links above. For undocumented tools, please refer to the tool's official documentation.
 
-All 131 tools are immediately available with `vx <tool>`. No manual installation required — vx handles everything automatically.
+All 132 tools are immediately available with `vx <tool>`. No manual installation required — vx handles everything automatically.
 
 ## Custom Tools
 
