@@ -49,12 +49,15 @@ def download_url(ctx, version):
         return None
     return _p["download_url"](ctx, version)
 
-# system_install: fallback to package managers when GitHub download is unavailable
-# (vault ≥2.0.0 has no public assets due to BUSL license change)
+# system_install: fallback to package managers when GitHub download is unavailable.
+# - v1.x: download_url works (GitHub assets exist).
+# - v2.x+: download_url returns None (no public assets, BUSL license).
+#   Linux: HashiCorp repo must be added manually; set to None to avoid silent failure.
+#   macOS/Windows: package managers (brew/winget) still work for v2.x.
 system_install = cross_platform_install(
     windows = "HashiCorp.Vault",
     macos   = "vault",
-    linux   = "vault",
+    linux   = None,
 )
 
 # No additional dependencies
