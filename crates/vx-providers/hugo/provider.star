@@ -5,8 +5,7 @@
 # Release assets (GitHub releases):
 #   hugo_{version}_Linux-64bit.tar.gz
 #   hugo_{version}_Linux-ARM64.tar.gz
-#   hugo_{version}_macOS-64bit.tar.gz
-#   hugo_{version}_macOS-ARM64.tar.gz
+#   hugo_{version}_darwin-universal.pkg
 #   hugo_{version}_Windows-64bit.zip
 #   hugo_{version}_Windows-ARM64.zip
 #
@@ -14,9 +13,8 @@
 
 load("@vx//stdlib:provider.star",
      "runtime_def", "github_permissions",
-     "path_fns",
+     "path_fns", "path_env_fns",
      "fetch_versions_with_tag_prefix")
-load("@vx//stdlib:env.star", "env_prepend")
 load("@vx//stdlib:system_install.star", "cross_platform_install")
 
 # ---------------------------------------------------------------------------
@@ -60,7 +58,7 @@ _PLATFORMS = {
     "windows/x64":  ("windows", "amd64"),
     "windows/arm64": ("windows", "arm64"),
     "macos/x64":     ("darwin",  "universal"),
-    "macos/arm64":   ("darwin", "universal"),
+    "macos/arm64":   ("darwin",  "universal"),
     "linux/x64":     ("linux",   "amd64"),
     "linux/arm64":   ("linux",   "arm64"),
 }
@@ -81,6 +79,9 @@ def download_url(ctx, version):
     if not platform:
         return None
     os_str, arch_str = platform
+    if ctx.platform.os == "macos":
+        # Recent Hugo releases publish macOS as .pkg installers, not tarballs.
+        return None
     if ctx.platform.os == "windows":
         ext = "zip"
     else:
@@ -92,34 +93,18 @@ def download_url(ctx, version):
 # install_layout — standard archive with top-level dir
 # ---------------------------------------------------------------------------
 
-def install_layout(ctx, version):
-    platform = _hugo_platform(ctx)
-    if not platform:
-        return None
-    os_str, arch_str = platform
-    archive_prefix = "hugo_{}_{}-{}".format(version, os_str, arch_str)
-    target_name = "hugo" + (".exe" if ctx.platform.os == "windows" else "")
-    return {
-        "type":          "archive",
-        "source_name":   None,  # archive extraction, binary name determined by archive content
-        "target_name":   target_name,
-        "target_dir":    "bin",
-        "archive_prefix": archive_prefix + "/",
-    }
+install_layout = archive_layout("hugo", strip_prefix="hugo_{version}_{os}-{arch}")
 
 # ---------------------------------------------------------------------------
 # Path queries + environment
 # ---------------------------------------------------------------------------
 
-paths            = path_fns("hugo", executable = "bin/hugo")
+paths            = path_fns("hugo")
 store_root       = paths["store_root"]
 get_execute_path = paths["get_execute_path"]
-
-def environment(ctx, _version):
-    return [env_prepend("PATH", ctx.install_dir + "/bin")]
-
-def post_install(_ctx, _version):
-    return None
+env_fns          = path_env_fns()
+environment      = env_fns["environment"]
+post_install     = env_fns["post_install"]
 
 def deps(_ctx, _version):
     return []
