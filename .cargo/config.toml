@@ -6,8 +6,8 @@
 rustflags = "-C link-args=/STACK:33554432"
 
 # Rust 1.95.0: remap-path-scope stabilized - control path information in binaries
-# "all"      - remap all paths (reproducible builds, privacy)
-# "dep-only"  - only remap dependencies (preserve project paths for debugging)
-# "none"      - no path remapping (default)
+# Valid scopes: macro, diagnostics, documentation, debuginfo, coverage, object, all
+# "all"  - remap all paths (reproducible builds, privacy)
+# "none" - no path remapping (default)
 [build]
-rustflags = ["--remap-path-scope=dep-only"]
+rustflags = ["--remap-path-scope=all"]
