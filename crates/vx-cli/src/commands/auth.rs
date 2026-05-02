@@ -9,7 +9,7 @@ use std::time::Duration;
 /// GitHub OAuth Device Flow authentication
 ///
 /// This follows the GitHub Device Flow specification:
-/// https://docs.github.com/en/apps/oauth-apps/building-oauth-apps/authorizing-oauth-apps#device-flow
+/// <https://docs.github.com/en/apps/oauth-apps/building-oauth-apps/authorizing-oauth-apps#device-flow>
 pub struct GitHubDeviceFlow {
     client_id: String,
 }

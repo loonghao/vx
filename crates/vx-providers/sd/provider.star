@@ -1,3 +1,4 @@
+load("@vx//stdlib:system_install.star", "cross_platform_install")
 # provider.star - sd (intuitive sed alternative)
 #
 # sd: Intuitive find & replace CLI
@@ -34,3 +35,9 @@ get_execute_path = _p["get_execute_path"]
 post_install     = _p["post_install"]
 environment      = _p["environment"]
 deps             = _p["deps"]
+
+system_install = cross_platform_install(
+    windows = "sd",
+    macos   = "sd",
+    linux   = "sd",
+)

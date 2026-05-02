@@ -11,7 +11,7 @@ use crate::version::{Version, VersionRange};
 use async_trait::async_trait;
 use std::any::Any;
 
-/// Migration from config v1 ([tools]) to v2 ([runtimes]) format
+/// Migration from config v1 (`[tools]`) to v2 (`[runtimes]`) format
 pub struct ConfigV1ToV2Migration;
 
 impl ConfigV1ToV2Migration {

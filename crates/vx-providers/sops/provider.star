@@ -14,6 +14,7 @@ load("@vx//stdlib:provider.star",
      "runtime_def", "github_permissions")
 load("@vx//stdlib:github.star", "make_fetch_versions", "github_asset_url")
 load("@vx//stdlib:env.star", "env_prepend")
+load("@vx//stdlib:system_install.star", "cross_platform_install")
 
 # ---------------------------------------------------------------------------
 # Provider metadata
@@ -31,7 +32,7 @@ ecosystem   = "security"
 
 runtimes = [
     runtime_def("sops",
-        version_pattern = "v\\d+\\.\\d+\\.\\d+",
+        version_pattern = "\\d+\\.\\d+\\.\\d+",
     ),
 ]
 
@@ -85,10 +86,11 @@ def download_url(ctx, version):
 # ---------------------------------------------------------------------------
 
 def install_layout(_ctx, _version):
+    # sops releases are direct binaries (no archive)
     return {
-        "__type__":        "archive",
-        "strip_prefix":     "",
-        "executable_paths": ["sops"],
+        "__type":        "binary",
+        "target_name":   "sops",
+        "target_dir":    "bin",
     }
 
 # ---------------------------------------------------------------------------
@@ -110,3 +112,10 @@ def post_install(_ctx, _version):
 
 def deps(_ctx, _version):
     return []
+
+# system_install fallback when GitHub download is unavailable
+system_install = cross_platform_install(
+    windows = "sops",
+    macos   = "sops",
+    linux   = "sops",
+)

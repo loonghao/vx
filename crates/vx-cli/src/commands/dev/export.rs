@@ -90,7 +90,7 @@ pub async fn generate_env_export(config: &ConfigView, format: ExportFormat) -> R
     // Get registry to query runtime bin directories
     let (registry, context) = get_registry()?;
 
-    // Create ToolSpecs with proper bin directories from runtime providers
+    // Create RuntimeSpecs with proper bin directories from runtime providers
     let mut tool_specs = Vec::new();
     for (tool_name, version) in &config.tools {
         // Find the runtime for this tool to get bin directories
@@ -130,7 +130,7 @@ pub async fn generate_env_export(config: &ConfigView, format: ExportFormat) -> R
             };
 
         let mut spec =
-            vx_env::ToolSpec::with_bin_dirs(tool_name.clone(), version.clone(), bin_dirs);
+            vx_env::RuntimeSpec::with_bin_dirs(tool_name.clone(), version.clone(), bin_dirs);
         if let Some(bin_dir) = resolved_bin_dir {
             spec = spec.set_resolved_bin_dir(bin_dir);
         }

@@ -12,6 +12,7 @@
 //! - Cross-platform (Linux, macOS, WSL)
 
 use super::{FrameworkDetector, FrameworkInfo, ProjectFramework};
+use crate::dependency::Dependency;
 use crate::error::AnalyzerResult;
 use crate::types::{RequiredTool, Script, ScriptSource};
 use async_trait::async_trait;
@@ -42,12 +43,12 @@ impl NixDetector {
     /// Detect Nix version from .nix-version
     fn detect_nix_version(root: &Path) -> Option<String> {
         let version_file = root.join(".nix-version");
-        if version_file.exists() {
-            if let Ok(content) = std::fs::read_to_string(&version_file) {
-                let version = content.trim().to_string();
-                if !version.is_empty() {
-                    return Some(version);
-                }
+        if version_file.exists()
+            && let Ok(content) = std::fs::read_to_string(&version_file)
+        {
+            let version = content.trim().to_string();
+            if !version.is_empty() {
+                return Some(version);
             }
         }
         None
@@ -55,11 +56,7 @@ impl NixDetector {
 
     /// Check for Nix-specific shell files
     fn has_nix_shell_files(root: &Path) -> bool {
-        let nix_files = [
-            "shell.nix",
-            "dev-shell.nix",
-            "flake.nix",
-        ];
+        let nix_files = ["shell.nix", "dev-shell.nix", "flake.nix"];
 
         nix_files.iter().any(|f| root.join(f).exists())
     }
@@ -127,17 +124,15 @@ impl FrameworkDetector for NixDetector {
     }
 
     fn required_tools(&self, _deps: &[Dependency], _scripts: &[Script]) -> Vec<RequiredTool> {
-        let mut tools = Vec::new();
-
-        // Nix projects need Nix package manager
-        tools.push(RequiredTool::new(
+        vec![RequiredTool::new(
             "nix",
             crate::ecosystem::Ecosystem::Nix,
             "Nix package manager and build system",
-            crate::dependency::InstallMethod::Vx("nix"),
-        ));
-
-        tools
+            crate::dependency::InstallMethod::Vx {
+                tool: "nix".to_string(),
+                version: None,
+            },
+        )]
     }
 
     async fn additional_scripts(&self, root: &Path) -> AnalyzerResult<Vec<Script>> {
@@ -157,12 +152,12 @@ impl FrameworkDetector for NixDetector {
                 ("run", "Run application"),
             ];
 
-            for (name, description) in nix_patterns.iter() {
+            for (name, _description) in nix_patterns.iter() {
                 if content.contains(name) {
                     let script = Script::new(
-                        &format!("nix:{}", name),
-                        &format!("nix build .#{}", name),
-                        ScriptSource::FlakeNix,
+                        format!("nix:{}", name),
+                        format!("nix build .#{}", name),
+                        ScriptSource::BuildNix,
                     );
                     scripts.push(script);
                 }

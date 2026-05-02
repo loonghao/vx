@@ -145,6 +145,15 @@ pub enum ScriptSource {
 
     /// From build.zig (Zig build system)
     BuildZig,
+
+    /// From Bun build system
+    BuildBun,
+
+    /// From Deno build system
+    BuildDeno,
+
+    /// From Nix build system
+    BuildNix,
 }
 
 impl std::fmt::Display for ScriptSource {
@@ -157,6 +166,10 @@ impl std::fmt::Display for ScriptSource {
             ScriptSource::Makefile => write!(f, "Makefile"),
             ScriptSource::Justfile => write!(f, "justfile"),
             ScriptSource::Detected { reason } => write!(f, "detected ({})", reason),
+            ScriptSource::BuildZig => write!(f, "build.zig"),
+            ScriptSource::BuildBun => write!(f, "Bun build"),
+            ScriptSource::BuildDeno => write!(f, "Deno task"),
+            ScriptSource::BuildNix => write!(f, "Nix build"),
         }
     }
 }

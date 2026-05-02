@@ -1,3 +1,4 @@
+load("@vx//stdlib:system_install.star", "cross_platform_install")
 # provider.star - skaffold provider
 #
 # skaffold is a command-line tool that facilitates continuous development
@@ -121,3 +122,9 @@ def post_install(_ctx, _version):
 
 def deps(_ctx, _version):
     return []
+
+system_install = cross_platform_install(
+    windows = "skaffold",
+    macos   = "skaffold",
+    linux   = "skaffold",
+)

@@ -45,7 +45,7 @@ pub struct ConfigView {
     pub settings: HashMap<String, String>,
     pub env: HashMap<String, String>,
     pub scripts: HashMap<String, ScriptConfig>,
-    /// Project name (from [project] section or directory name)
+    /// Project name (from `[project]` section or directory name)
     pub project_name: String,
     /// Whether to use isolation mode (default: true)
     pub isolation: bool,

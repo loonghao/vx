@@ -1,3 +1,4 @@
+load("@vx//stdlib:system_install.star", "cross_platform_install")
 # provider.star - Hadolint provider
 #
 # Hadolint is a Dockerfile linter that helps you build best practice Docker images.
@@ -118,3 +119,9 @@ def install_layout(ctx, _version):
 # environment (inherited from template)
 # ---------------------------------------------------------------------------
 # Note: environment is already provided by _p["environment"] above
+
+system_install = cross_platform_install(
+    windows = "hadolint",
+    macos   = "hadolint",
+    linux   = "hadolint",
+)

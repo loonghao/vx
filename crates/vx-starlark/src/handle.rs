@@ -418,7 +418,7 @@ impl ProviderHandle {
 
     /// Uninstall all installed versions of this provider.
     ///
-    /// Calls [`uninstall`] for each installed version in sequence.
+    /// Calls [`Self::uninstall`] for each installed version in sequence.
     /// Continues on individual failures and returns the first error encountered.
     pub async fn uninstall_all(&self) -> Result<()> {
         let versions = self.installed_versions();
@@ -631,7 +631,7 @@ impl ProviderHandle {
     /// Get environment variables for a specific version (legacy API)
     ///
     /// Applies all [`EnvOp`]s from `environment()` and returns the resulting map.
-    /// For multi-tool composition, prefer [`environment_ops`] + [`apply_env_ops`].
+    /// For multi-tool composition, prefer calling [`Self::environment`] and using [`apply_env_ops`].
     pub async fn environment(
         &self,
         version: &str,

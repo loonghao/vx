@@ -1,3 +1,4 @@
+load("@vx//stdlib:system_install.star", "cross_platform_install")
 # provider.star - watchexec (file watcher / command runner)
 #
 # watchexec: Execute commands when watched files change
@@ -47,3 +48,9 @@ def download_url(ctx, version):
     ext = "zip" if ctx.platform.os == "windows" else "tar.xz"
     fname = "watchexec-{}-{}.{}".format(version, triple, ext)
     return github_asset_url("watchexec", "watchexec", "v" + version, fname)
+
+system_install = cross_platform_install(
+    windows = "watchexec",
+    macos   = "watchexec",
+    linux   = "watchexec",
+)

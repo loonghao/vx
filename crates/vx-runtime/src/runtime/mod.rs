@@ -973,7 +973,7 @@ pub trait Runtime: Send + Sync {
     ///
     /// Default: delegates to `prepare_environment()`.
     ///
-    /// See: https://github.com/loonghao/vx/issues/573
+    /// See: <https://github.com/loonghao/vx/issues/573>
     async fn execution_environment(
         &self,
         version: &str,

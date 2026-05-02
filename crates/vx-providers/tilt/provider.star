@@ -1,3 +1,4 @@
+load("@vx//stdlib:system_install.star", "cross_platform_install")
 # provider.star - tilt provider
 #
 # tilt: A toolkit for fixing the pains of microservice development.
@@ -114,3 +115,9 @@ def environment(ctx, _version):
 
 def deps(_ctx, _version):
     return []
+
+system_install = cross_platform_install(
+    windows = "tilt",
+    macos   = "tilt",
+    linux   = "tilt",
+)

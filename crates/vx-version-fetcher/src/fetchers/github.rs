@@ -32,7 +32,7 @@ impl Default for GitHubReleasesConfig {
             strip_v_prefix: true,
             tag_prefix: None,
             skip_prereleases: true,
-            per_page: 30,
+            per_page: 100, // GitHub API allows max 100 per page
             lts_pattern: None,
             jsdelivr_fallback: true,
         }
@@ -125,11 +125,16 @@ impl GitHubReleasesFetcher {
         self
     }
 
-    /// Get the API URL
-    fn api_url(&self) -> String {
+    /// Get the API URL for a specific page.
+    ///
+    /// # Note
+    /// This method is `pub` to allow integration testing of URL generation.
+    /// It is not part of the stable API and may change without notice.
+    #[doc(hidden)]
+    pub fn api_url(&self, page: usize) -> String {
         format!(
-            "https://api.github.com/repos/{}/{}/releases?per_page={}",
-            self.owner, self.repo, self.config.per_page
+            "https://api.github.com/repos/{}/{}/releases?per_page={}&page={}",
+            self.owner, self.repo, self.config.per_page, page
         )
     }
 
@@ -169,62 +174,95 @@ impl GitHubReleasesFetcher {
         )
     }
 
-    /// Fetch versions from GitHub API
+    /// Fetch versions from GitHub API (with pagination support)
     async fn fetch_from_github(&self, ctx: &dyn FetchContext) -> FetchResult<Vec<VersionInfo>> {
-        let url = self.api_url();
+        let mut all_versions: Vec<VersionInfo> = Vec::new();
+        let mut page = 1usize;
 
-        let response = ctx
-            .get_json_value(&url)
-            .await
-            .map_err(|e| FetchError::network(e.to_string()))?;
+        loop {
+            let url = self.api_url(page);
+            tracing::debug!(
+                "Fetching GitHub releases page {} for {}/{}",
+                page,
+                self.owner,
+                self.repo
+            );
 
-        // Parse releases array
-        let releases = response
-            .as_array()
-            .ok_or_else(|| FetchError::invalid_format("GitHub", "Expected array of releases"))?;
+            let response = ctx
+                .get_json_value(&url)
+                .await
+                .map_err(|e| FetchError::network(e.to_string()))?;
 
-        // Parse versions, filtering out releases with no downloadable assets
-        // (e.g., Deno v2.6.9 has a tag but no binary artifacts)
-        let mut versions: Vec<VersionInfo> = releases
-            .iter()
-            .filter(|release| {
-                // Skip releases that have no assets (empty releases / failed CI builds)
-                let has_assets = release
-                    .get("assets")
-                    .and_then(|a| a.as_array())
-                    .map(|a| !a.is_empty())
-                    .unwrap_or(false);
-                if !has_assets {
-                    let tag = release
-                        .get("tag_name")
-                        .and_then(|t| t.as_str())
-                        .unwrap_or("unknown");
-                    tracing::debug!(
-                        "Skipping release {} for {}: no downloadable assets",
-                        tag,
-                        self.tool_name
-                    );
-                }
-                has_assets
-            })
-            .filter_map(|release| {
-                let tag_name = release.get("tag_name")?.as_str()?;
-                let is_prerelease = release
-                    .get("prerelease")
-                    .and_then(|p| p.as_bool())
-                    .unwrap_or(false);
-                self.parse_version(tag_name, is_prerelease)
-            })
-            .collect();
+            // Parse releases array
+            let releases = response.as_array().ok_or_else(|| {
+                FetchError::invalid_format("GitHub", "Expected array of releases")
+            })?;
 
-        if versions.is_empty() {
+            // Break if empty page (no more releases)
+            if releases.is_empty() {
+                tracing::debug!("No more releases on page {}, stopping pagination", page);
+                break;
+            }
+
+            // Parse versions, filtering out releases with no downloadable assets
+            let page_versions: Vec<VersionInfo> = releases
+                .iter()
+                .filter(|release| {
+                    // Skip releases that have no assets (empty releases / failed CI builds)
+                    let has_assets = release
+                        .get("assets")
+                        .and_then(|a| a.as_array())
+                        .map(|a| !a.is_empty())
+                        .unwrap_or(false);
+                    if !has_assets {
+                        let tag = release
+                            .get("tag_name")
+                            .and_then(|t| t.as_str())
+                            .unwrap_or("unknown");
+                        tracing::debug!(
+                            "Skipping release {} for {}: no downloadable assets",
+                            tag,
+                            self.tool_name
+                        );
+                    }
+                    has_assets
+                })
+                .filter_map(|release| {
+                    let tag_name = release.get("tag_name")?.as_str()?;
+                    let is_prerelease = release
+                        .get("prerelease")
+                        .and_then(|p| p.as_bool())
+                        .unwrap_or(false);
+                    self.parse_version(tag_name, is_prerelease)
+                })
+                .collect();
+
+            let count = page_versions.len();
+            all_versions.extend(page_versions);
+            tracing::debug!("Fetched {} releases from page {}", count, page);
+
+            // If we got fewer results than per_page, we've reached the last page
+            if count < self.config.per_page {
+                break;
+            }
+
+            page += 1;
+        }
+
+        if all_versions.is_empty() {
             return Err(FetchError::no_versions(&self.tool_name));
         }
 
         // Sort
-        version_utils::sort_versions_desc(&mut versions);
+        version_utils::sort_versions_desc(&mut all_versions);
 
-        Ok(versions)
+        tracing::info!(
+            "Total versions fetched for {}: {}",
+            self.tool_name,
+            all_versions.len()
+        );
+
+        Ok(all_versions)
     }
 
     /// Create jsDelivr fallback fetcher

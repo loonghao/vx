@@ -1,3 +1,4 @@
+load("@vx//stdlib:system_install.star", "cross_platform_install")
 # provider.star - buf provider
 #
 # buf: The Buf CLI for working with Protocol Buffers (Protobuf).
@@ -120,3 +121,9 @@ def environment(ctx, _version):
 
 def deps(_ctx, _version):
     return []
+
+system_install = cross_platform_install(
+    windows = "buf",
+    macos   = "buf",
+    linux   = "buf",
+)

@@ -13,7 +13,7 @@ pub struct Args {
     #[arg(long, conflicts_with_all = &["runtime", "extension", "local"])]
     pub all: bool,
 
-    /// Test a provider from URL (e.g., https://github.com/user/vx-provider-foo)
+    /// Test a provider from URL (e.g., <https://github.com/user/vx-provider-foo>)
     #[arg(long, conflicts_with_all = &["runtime", "all", "local"])]
     pub extension: Option<String>,
 

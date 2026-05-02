@@ -287,8 +287,8 @@ impl PathResolver {
     /// Find a tool in the store directory with a specific executable name
     ///
     /// This method uses the new directory structure:
-    /// - New (post-platform-redirection): <provider>/<version>/<platform>/
-    /// - Fallback: <provider>/<version>/ (for cross-platform tools like vcpkg)
+    /// - New (post-platform-redirection): `<provider>/<version>/<platform>/`
+    /// - Fallback: `<provider>/<version>/` (for cross-platform tools like vcpkg)
     ///
     /// # Arguments
     /// * `tool_name` - The runtime/tool name (used for directory lookup)
@@ -334,8 +334,8 @@ impl PathResolver {
     /// Find all versions of a tool in the store directory with a specific executable name
     ///
     /// This method uses the new directory structure:
-    /// - New (post-platform-redirection): <provider>/<version>/<platform>/
-    /// - Fallback: <provider>/<version>/ (for cross-platform tools like vcpkg)
+    /// - New (post-platform-redirection): `<provider>`/`<version>`/`<platform>`/
+    /// - Fallback: `<provider>`/`<version>`/ (for cross-platform tools like vcpkg)
     pub fn find_all_in_store_with_exe(
         &self,
         tool_name: &str,

@@ -1,6 +1,6 @@
 //! Version information types
 //!
-//! Re-exported as [`vx_versions::VersionInfo`].
+//! Defines [`VersionInfo`] (re-exported from crate root).
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};

@@ -50,3 +50,6 @@ test_toml.rs
 .jj/
 jobs/
 tasks/
+
+# CodeBuddy automations (local only, do not commit)
+.codebuddy/automations/

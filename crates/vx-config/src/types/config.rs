@@ -34,7 +34,7 @@ pub struct VxConfig {
     #[serde(default, skip_serializing_if = "HashMap::is_empty")]
     pub tools: HashMap<String, ToolVersion>,
 
-    /// Tool versions (alias for backward compatibility with [runtimes])
+    /// Tool versions (alias for backward compatibility with $$runtimes$$)
     /// This field is merged into `tools` during deserialization
     #[serde(default, skip_serializing_if = "HashMap::is_empty")]
     pub runtimes: HashMap<String, ToolVersion>,

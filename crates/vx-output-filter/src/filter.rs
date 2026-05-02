@@ -107,8 +107,8 @@ impl OutputFilterConfig {
 
 /// Stateful per-stream filter.
 ///
-/// Call [`filter_line`] for each output line; call [`finalize`] at the end
-/// to flush any pending dedup summary.
+/// Call [`OutputFilter::filter_line`] for each output line; call
+/// [`OutputFilter::finalize`] at the end to flush any pending dedup summary.
 pub struct OutputFilter {
     config: OutputFilterConfig,
     /// Last line content seen (after ANSI strip)

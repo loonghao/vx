@@ -1,3 +1,4 @@
+load("@vx//stdlib:system_install.star", "cross_platform_install")
 # provider.star - tealdeer provider
 #
 # tealdeer: A very fast Rust implementation of tldr (simplified man pages)
@@ -96,3 +97,9 @@ def post_install(_ctx, _version):
 
 def deps(_ctx, _version):
     return []
+
+system_install = cross_platform_install(
+    windows = "tealdeer",
+    macos   = "tealdeer",
+    linux   = "tealdeer",
+)

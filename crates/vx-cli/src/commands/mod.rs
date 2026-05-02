@@ -26,7 +26,7 @@ pub mod common;
 /// Input validation for Agent DX (rejects control chars, path traversal, injection)
 pub mod input_validation;
 
-/// Schema introspection for AI agents (vx schema <runtime>)
+/// Schema introspection for AI agents (vx schema `<runtime>`)
 pub mod schema;
 
 // =============================================================================

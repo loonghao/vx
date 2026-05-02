@@ -403,3 +403,306 @@ def install_layout(_ctx, _version):
         other => panic!("unexpected install layout: {other:?}"),
     }
 }
+
+// ============================================================
+// New provider tests (worktrunk, starship, sccache, cargo-nextest, cargo-deny)
+// ============================================================
+
+#[tokio::test]
+async fn test_load_worktrunk_provider() {
+    let manifest_dir = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let provider_dir = manifest_dir
+        .parent() // crates/
+        .unwrap()
+        .join("vx-providers")
+        .join("worktrunk");
+    let star_path = provider_dir.join("provider.star");
+    let provider = vx_starlark::StarlarkProvider::load(&star_path)
+        .await
+        .unwrap();
+    assert_eq!(provider.name(), "worktrunk");
+}
+
+#[tokio::test]
+async fn test_load_starship_provider() {
+    let manifest_dir = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let provider_dir = manifest_dir
+        .parent() // crates/
+        .unwrap()
+        .join("vx-providers")
+        .join("starship");
+    let star_path = provider_dir.join("provider.star");
+    let provider = vx_starlark::StarlarkProvider::load(&star_path)
+        .await
+        .unwrap();
+    assert_eq!(provider.name(), "starship");
+}
+
+#[tokio::test]
+async fn test_load_sccache_provider() {
+    let manifest_dir = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let provider_dir = manifest_dir
+        .parent() // crates/
+        .unwrap()
+        .join("vx-providers")
+        .join("sccache");
+    let star_path = provider_dir.join("provider.star");
+    let provider = vx_starlark::StarlarkProvider::load(&star_path)
+        .await
+        .unwrap();
+    assert_eq!(provider.name(), "sccache");
+}
+
+#[tokio::test]
+async fn test_load_cargo_nextest_provider() {
+    let manifest_dir = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let provider_dir = manifest_dir
+        .parent() // crates/
+        .unwrap()
+        .join("vx-providers")
+        .join("cargo-nextest");
+    let star_path = provider_dir.join("provider.star");
+    let provider = vx_starlark::StarlarkProvider::load(&star_path)
+        .await
+        .unwrap();
+    assert_eq!(provider.name(), "cargo-nextest");
+}
+
+#[tokio::test]
+async fn test_load_cargo_deny_provider() {
+    let manifest_dir = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let provider_dir = manifest_dir
+        .parent() // crates/
+        .unwrap()
+        .join("vx-providers")
+        .join("cargo-deny");
+    let star_path = provider_dir.join("provider.star");
+    let provider = vx_starlark::StarlarkProvider::load(&star_path)
+        .await
+        .unwrap();
+    assert_eq!(provider.name(), "cargo-deny");
+}
+
+// ============================================================
+// Function call tests for new providers (download_url, install_layout)
+// ============================================================
+
+/// Helper: load provider.star content for a given provider name
+fn load_provider_content(provider_name: &str) -> (std::path::PathBuf, String) {
+    let manifest_dir = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let provider_dir = manifest_dir
+        .parent() // crates/
+        .unwrap()
+        .join("vx-providers")
+        .join(provider_name);
+    let star_path = provider_dir.join("provider.star");
+    let content = std::fs::read_to_string(&star_path).unwrap();
+    (star_path, content)
+}
+
+#[tokio::test]
+async fn test_worktrunk_download_url() {
+    let (star_path, content) = load_provider_content("worktrunk");
+    let engine = vx_starlark::StarlarkEngine::new();
+    let ctx = vx_starlark::ProviderContext::new("worktrunk", std::env::temp_dir().join("vx-test"));
+
+    let result = engine.call_function(
+        &star_path,
+        &content,
+        "download_url",
+        &ctx,
+        &[serde_json::json!("0.46.0")],
+    );
+
+    match result {
+        Ok(json) => {
+            if let Some(s) = json.as_str() {
+                assert!(
+                    s.contains("worktrunk"),
+                    "URL should contain 'worktrunk': {}",
+                    s
+                );
+                assert!(
+                    s.starts_with("https://"),
+                    "URL should start with https://: {}",
+                    s
+                );
+            } else if json.is_null() {
+                // None = platform not supported
+            } else {
+                panic!("Unexpected return type: {:?}", json);
+            }
+        }
+        Err(e) => {
+            let err_str = e.to_string();
+            assert!(
+                err_str.contains("not found") || err_str.contains("FunctionNotFound"),
+                "Unexpected error: {}",
+                e
+            );
+        }
+    }
+}
+
+#[tokio::test]
+async fn test_worktrunk_install_layout() {
+    let (star_path, content) = load_provider_content("worktrunk");
+    let engine = vx_starlark::StarlarkEngine::new();
+    let ctx = vx_starlark::ProviderContext::new("worktrunk", std::env::temp_dir().join("vx-test"));
+
+    let result = engine.call_function(
+        &star_path,
+        &content,
+        "install_layout",
+        &ctx,
+        &[serde_json::json!("0.46.0")],
+    );
+
+    match result {
+        Ok(json) => {
+            if let Some(obj) = json.as_object() {
+                assert!(
+                    obj.contains_key("__type"),
+                    "install_layout should return dict with '__type' key"
+                );
+            } else if json.is_null() {
+                // None = platform not supported
+            } else {
+                panic!("Unexpected return type: {:?}", json);
+            }
+        }
+        Err(e) => {
+            let err_str = e.to_string();
+            assert!(
+                err_str.contains("not found") || err_str.contains("FunctionNotFound"),
+                "Unexpected error: {}",
+                e
+            );
+        }
+    }
+}
+
+#[tokio::test]
+async fn test_starship_download_url() {
+    let (star_path, content) = load_provider_content("starship");
+    let engine = vx_starlark::StarlarkEngine::new();
+    let ctx = vx_starlark::ProviderContext::new("starship", std::env::temp_dir().join("vx-test"));
+
+    let result = engine.call_function(
+        &star_path,
+        &content,
+        "download_url",
+        &ctx,
+        &[serde_json::json!("1.0.0")],
+    );
+
+    match result {
+        Ok(json) => {
+            if let Some(s) = json.as_str() {
+                assert!(
+                    s.contains("starship"),
+                    "URL should contain 'starship': {}",
+                    s
+                );
+            } else if json.is_null() {
+                // None = platform not supported
+            }
+        }
+        Err(e) => {
+            let err_str = e.to_string();
+            assert!(err_str.contains("not found") || err_str.contains("FunctionNotFound"));
+        }
+    }
+}
+
+#[tokio::test]
+async fn test_sccache_download_url() {
+    let (star_path, content) = load_provider_content("sccache");
+    let engine = vx_starlark::StarlarkEngine::new();
+    let ctx = vx_starlark::ProviderContext::new("sccache", std::env::temp_dir().join("vx-test"));
+
+    let result = engine.call_function(
+        &star_path,
+        &content,
+        "download_url",
+        &ctx,
+        &[serde_json::json!("0.8.0")],
+    );
+
+    match result {
+        Ok(json) => {
+            if let Some(s) = json.as_str() {
+                assert!(s.contains("sccache"), "URL should contain 'sccache': {}", s);
+            } else if json.is_null() {
+                // None = platform not supported
+            }
+        }
+        Err(e) => {
+            let err_str = e.to_string();
+            assert!(err_str.contains("not found") || err_str.contains("FunctionNotFound"));
+        }
+    }
+}
+
+#[tokio::test]
+async fn test_cargo_nextest_download_url() {
+    let (star_path, content) = load_provider_content("cargo-nextest");
+    let engine = vx_starlark::StarlarkEngine::new();
+    let ctx =
+        vx_starlark::ProviderContext::new("cargo-nextest", std::env::temp_dir().join("vx-test"));
+
+    let result = engine.call_function(
+        &star_path,
+        &content,
+        "download_url",
+        &ctx,
+        &[serde_json::json!("0.9.0")],
+    );
+
+    match result {
+        Ok(json) => {
+            if let Some(s) = json.as_str() {
+                assert!(s.contains("nextest"), "URL should contain 'nextest': {}", s);
+            } else if json.is_null() {
+                // None = platform not supported (cargo-nextest uses package_alias)
+            }
+        }
+        Err(e) => {
+            let err_str = e.to_string();
+            assert!(err_str.contains("not found") || err_str.contains("FunctionNotFound"));
+        }
+    }
+}
+
+#[tokio::test]
+async fn test_cargo_deny_download_url() {
+    let (star_path, content) = load_provider_content("cargo-deny");
+    let engine = vx_starlark::StarlarkEngine::new();
+    let ctx = vx_starlark::ProviderContext::new("cargo-deny", std::env::temp_dir().join("vx-test"));
+
+    let result = engine.call_function(
+        &star_path,
+        &content,
+        "download_url",
+        &ctx,
+        &[serde_json::json!("0.14.0")],
+    );
+
+    match result {
+        Ok(json) => {
+            if let Some(s) = json.as_str() {
+                assert!(
+                    s.contains("cargo-deny"),
+                    "URL should contain 'cargo-deny': {}",
+                    s
+                );
+            } else if json.is_null() {
+                // None = platform not supported
+            }
+        }
+        Err(e) => {
+            let err_str = e.to_string();
+            assert!(err_str.contains("not found") || err_str.contains("FunctionNotFound"));
+        }
+    }
+}

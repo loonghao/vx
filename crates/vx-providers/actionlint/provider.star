@@ -1,3 +1,4 @@
+load("@vx//stdlib:system_install.star", "cross_platform_install")
 # provider.star - actionlint (GitHub Actions workflow linter)
 #
 # actionlint: Static checker for GitHub Actions workflow files
@@ -32,3 +33,9 @@ get_execute_path = _p["get_execute_path"]
 post_install     = _p["post_install"]
 environment      = _p["environment"]
 deps             = _p["deps"]
+
+system_install = cross_platform_install(
+    windows = "actionlint",
+    macos   = "actionlint",
+    linux   = "actionlint",
+)

@@ -32,7 +32,7 @@ def github_releases(ctx, owner, repo, include_prereleases = False):
         "owner":              owner,
         "repo":               repo,
         "include_prereleases": include_prereleases,
-        "url":                "https://api.github.com/repos/{}/{}/releases?per_page=50".format(owner, repo),
+        "url":                "https://api.github.com/repos/{}/{}/releases?per_page=100".format(owner, repo),
     }
 
 def parse_github_tag(tag):

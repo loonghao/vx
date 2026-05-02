@@ -256,7 +256,7 @@ pub struct LockFile {
     /// Locked tool versions
     #[serde(default)]
     pub tools: BTreeMap<String, LockedTool>,
-    /// Tool dependencies (e.g., npm -> [node])
+    /// Tool dependencies (e.g., npm -> `node`)
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub dependencies: BTreeMap<String, Vec<String>>,
 }
