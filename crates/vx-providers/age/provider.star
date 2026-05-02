@@ -93,10 +93,19 @@ def download_url(ctx, version):
 # install_layout
 # ---------------------------------------------------------------------------
 
-def install_layout(_ctx, _version):
+def _age_strip_prefix(ctx, version):
+    """Compute the archive strip_prefix based on platform and version."""
+    platform = _age_platform(ctx)
+    if not platform:
+        return "age"
+    os_str, arch_str = platform
+    # Archive directory: age-v{version}-{os}-{arch}
+    return "age-v{}-{}-{}".format(version, os_str, arch_str)
+
+def install_layout(ctx, version):
     return {
         "__type":           "archive",
-        "strip_prefix":     "age",
+        "strip_prefix":     _age_strip_prefix(ctx, version),
         "executable_paths": ["age"],
     }
 

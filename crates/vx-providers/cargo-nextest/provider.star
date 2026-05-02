@@ -36,6 +36,9 @@ permissions = github_permissions()
 # ---------------------------------------------------------------------------
 # nextest tags: "cargo-nextest-0.9.133" (no "v" prefix; includes tool name)
 # asset naming: cargo-nextest-0.9.133-x86_64-unknown-linux-gnu.tar.gz
+# NOTE: github_rust_provider strips tag_prefix from version, so asset must include tool prefix.
+#       If tag_prefix="cargo-nextest-", version="0.9.133", asset="cargo-nextest-{version}-{triple}.{ext}"
+#       yields "cargo-nextest-0.9.133-x86_64-..." which is correct.
 _p = github_rust_provider("nextest-rs", "nextest",
     asset      = "cargo-nextest-{version}-{triple}.{ext}",
     executable = "cargo-nextest",
