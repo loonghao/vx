@@ -1,3 +1,4 @@
+load("@vx//stdlib:system_install.star", "cross_platform_install")
 # provider.star - buildcache (MSVC-friendly Compiler Cache) provider
 #
 # buildcache is a compiler cache with excellent MSVC support,
@@ -134,3 +135,9 @@ def environment(ctx, _version):
         env_prepend("PATH", ctx.install_dir + "/bin"),
         env_prepend("PATH", ctx.install_dir),
     ]
+
+system_install = cross_platform_install(
+    windows = "buildcache",
+    macos   = "buildcache",
+    linux   = "buildcache",
+)

@@ -9,7 +9,6 @@
 # Inheritance pattern: Level 2 (custom download_url for multiple runtimes)
 
 load("@vx//stdlib:github.star", "make_fetch_versions", "github_asset_url")
-load("@vx//stdlib:platform.star", "is_windows", "exe_ext")
 
 # ---------------------------------------------------------------------------
 # Provider metadata
@@ -96,8 +95,8 @@ def fetch_versions(ctx, runtime_name = "micromamba"):
 
 def _micromamba_platform(ctx):
     """Map platform to micromamba platform string."""
-    os   = ctx["platform"]["os"]
-    arch = ctx["platform"]["arch"]
+    os   = ctx.platform.os
+    arch = ctx.platform.arch
     platforms = {
         "windows/x64":  "win-64",
         "macos/x64":    "osx-64",
@@ -109,8 +108,8 @@ def _micromamba_platform(ctx):
 
 def _miniforge_filename(ctx, version):
     """Build Miniforge filename for the platform."""
-    os   = ctx["platform"]["os"]
-    arch = ctx["platform"]["arch"]
+    os   = ctx.platform.os
+    arch = ctx.platform.arch
     files = {
         "windows/x64":  "Miniforge3-{}-Windows-x86_64.exe".format(version),
         "macos/x64":    "Miniforge3-{}-MacOSX-x86_64.sh".format(version),
@@ -150,27 +149,32 @@ def download_url(ctx, version, runtime_name = "micromamba"):
 # install_layout
 # ---------------------------------------------------------------------------
 
-def install_layout(ctx, version, runtime_name = "micromamba"):
+def install_layout(ctx, _version, runtime_name = "micromamba"):
     """Describe how to extract the downloaded archive."""
-    os = ctx["platform"]["os"]
+    os = ctx.platform.os
 
     if runtime_name == "micromamba":
+        # micromamba tar.bz2 has top-level dir: micromamba/
         return {
             "type":             "archive",
-            "strip_prefix":     "",
+            "strip_prefix":     "micromamba",
             "executable_paths": [
                 "Library/bin/micromamba.exe" if os == "windows" else "bin/micromamba",
             ],
         }
 
-    # Miniforge: conda and mamba
+    # Miniforge: conda and mamba — installed via shell scripts (.sh/.exe), not archives
     if runtime_name == "conda":
         exe = "Scripts\\conda.exe" if os == "windows" else "bin/conda"
-    else:
+    elif runtime_name == "mamba":
         exe = "Scripts\\mamba.exe" if os == "windows" else "bin/mamba"
+    else:
+        fail("unknown conda ecosystem runtime: " + runtime_name)
 
     return {
-        "type":             "archive",
+        "type":             "binary",
+        "target_name":       runtime_name,
+        "target_dir":        "bin",
         "executable_paths": [exe],
     }
 
@@ -178,17 +182,17 @@ def install_layout(ctx, version, runtime_name = "micromamba"):
 # environment
 # ---------------------------------------------------------------------------
 
-def environment(ctx, version, install_dir, runtime_name = "micromamba"):
+def environment(ctx, _version, install_dir, runtime_name = "micromamba"):
     """Return environment variables to set for this runtime."""
     if runtime_name == "micromamba":
         return {
             "MAMBA_ROOT_PREFIX": install_dir,
-            "PATH":             install_dir + ("/Library/bin" if ctx["platform"]["os"] == "windows" else "/bin"),
+            "PATH":             install_dir + ("/Library/bin" if ctx.platform.os == "windows" else "/bin"),
         }
 
     return {
         "CONDA_PREFIX": install_dir,
-        "PATH":         install_dir + ("/Scripts" if ctx["platform"]["os"] == "windows" else "/bin"),
+        "PATH":         install_dir + ("/Scripts" if ctx.platform.os == "windows" else "/bin"),
     }
 
 # ---------------------------------------------------------------------------

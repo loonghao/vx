@@ -82,7 +82,7 @@ impl ResolvedVersionInfo {
 pub struct ProviderEnvironment {
     /// Resolved version info
     pub version_info: ResolvedVersionInfo,
-    /// Provider name (for VX_<PROVIDER>_* vars)
+    /// Provider name (for `VX_<PROVIDER>_*` vars)
     pub provider_name: String,
     /// Runtime name
     pub runtime_name: String,
@@ -124,12 +124,12 @@ impl ProviderEnvironment {
     /// Build all environment variables for this provider
     ///
     /// This creates REZ-like environment variables:
-    /// - VX_<PROVIDER>_ROOT - Root installation directory
-    /// - VX_<PROVIDER>_BASE - Base version directory (without platform)
-    /// - VX_<PROVIDER>_BIN - Binary directory (for PATH)
-    /// - VX_<PROVIDER>_VERSION - Current version
-    /// - VX_<PROVIDER>_VERSIONS - All installed versions (separator-joined)
-    /// - VX_<PROVIDER>_ORIGINAL_REQUEST - Original version request
+    /// - `VX_<PROVIDER>_ROOT` - Root installation directory
+    /// - `VX_<PROVIDER>_BASE` - Base version directory (without platform)
+    /// - `VX_<PROVIDER>_BIN` - Binary directory (for PATH)
+    /// - `VX_<PROVIDER>_VERSION` - Current version
+    /// - `VX_<PROVIDER>_VERSIONS` - All installed versions (separator-joined)
+    /// - `VX_<PROVIDER>_ORIGINAL_REQUEST` - Original version request
     /// - Plus any manifest-specific vars
     pub fn build_env_vars(&self) -> HashMap<String, String> {
         let mut env = HashMap::new();
@@ -260,7 +260,7 @@ pub trait ProviderEnvironmentResolver: Send + Sync {
     ///
     /// This creates a ProviderEnvironment with:
     /// - Resolved version info
-    /// - REZ-like environment variables (VX_<PROVIDER>_ROOT, etc.)
+    /// - REZ-like environment variables (`VX_<PROVIDER>_ROOT`, etc.)
     /// - PATH entries to prepend
     /// - Manifest-specific environment variables
     fn build_environment(

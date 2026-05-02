@@ -5,21 +5,21 @@ use serde::{Deserialize, Serialize};
 /// Tool invocation method
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ToolInvocation {
-    /// uv run <tool>
+    /// uv run `<tool>`
     UvRun,
-    /// uvx <tool> (temporary installation)
+    /// uvx `<tool>` (temporary installation)
     Uvx,
-    /// npx <tool>
+    /// npx `<tool>`
     Npx,
-    /// python -m <module>
+    /// python -m `<module>`
     PythonModule,
     /// Direct command invocation
     Direct,
-    /// pnpm exec <tool>
+    /// pnpm exec `<tool>`
     PnpmExec,
-    /// yarn <tool> or yarn exec <tool>
+    /// yarn `<tool>` or yarn exec `<tool>`
     YarnExec,
-    /// bunx <tool>
+    /// bunx `<tool>`
     Bunx,
 }
 

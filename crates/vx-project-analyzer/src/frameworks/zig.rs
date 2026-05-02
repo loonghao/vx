@@ -11,6 +11,7 @@
 //! - First-class cross-compilation support
 
 use super::{FrameworkDetector, FrameworkInfo, ProjectFramework};
+use crate::dependency::Dependency;
 use crate::error::AnalyzerResult;
 use crate::types::{RequiredTool, Script, ScriptSource};
 use async_trait::async_trait;
@@ -44,12 +45,12 @@ impl ZigDetector {
     /// Detect Zig version from .zig-version
     fn detect_zig_version(root: &Path) -> Option<String> {
         let version_file = root.join(".zig-version");
-        if version_file.exists() {
-            if let Ok(content) = std::fs::read_to_string(&version_file) {
-                let version = content.trim().to_string();
-                if !version.is_empty() {
-                    return Some(version);
-                }
+        if version_file.exists()
+            && let Ok(content) = std::fs::read_to_string(&version_file)
+        {
+            let version = content.trim().to_string();
+            if !version.is_empty() {
+                return Some(version);
             }
         }
         None
@@ -127,17 +128,15 @@ impl FrameworkDetector for ZigDetector {
     }
 
     fn required_tools(&self, _deps: &[Dependency], _scripts: &[Script]) -> Vec<RequiredTool> {
-        let mut tools = Vec::new();
-
-        // Zig projects need Zig compiler
-        tools.push(RequiredTool::new(
+        vec![RequiredTool::new(
             "zig",
             crate::ecosystem::Ecosystem::Zig,
             "Zig compiler for general-purpose programming",
-            crate::dependency::InstallMethod::Vx("zig"),
-        ));
-
-        tools
+            crate::dependency::InstallMethod::Vx {
+                tool: "zig".to_string(),
+                version: None,
+            },
+        )]
     }
 
     async fn additional_scripts(&self, root: &Path) -> AnalyzerResult<Vec<Script>> {
@@ -156,11 +155,11 @@ impl FrameworkDetector for ZigDetector {
                 ("install", "Install Zig project"),
             ];
 
-            for (step, description) in zig_steps.iter() {
+            for (step, _description) in zig_steps.iter() {
                 if content.contains(step) {
                     let script = Script::new(
-                        &format!("zig:{}", step),
-                        &format!("zig build {}", step),
+                        format!("zig:{}", step),
+                        format!("zig build {}", step),
                         ScriptSource::BuildZig,
                     );
                     scripts.push(script);

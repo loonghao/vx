@@ -940,18 +940,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "dialoguer"
-version = "0.12.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "25f104b501bf2364e78d0d3974cbc774f738f5865306ed128e1e0d7499c0ad96"
-dependencies = [
- "console",
- "shell-words",
- "tempfile",
- "zeroize",
-]
-
-[[package]]
 name = "diff"
 version = "0.1.13"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4468,7 +4456,6 @@ dependencies = [
  "regex",
  "rstest",
  "serde",
- "serde_json",
  "thiserror 2.0.18",
  "vx-paths",
  "workspace-hack",
@@ -4509,7 +4496,6 @@ dependencies = [
  "chrono",
  "clap",
  "colored",
- "dialoguer",
  "dirs",
  "dotenvy",
  "flate2",
@@ -4531,7 +4517,6 @@ dependencies = [
  "test-case",
  "tokio",
  "tokio-test",
- "toml",
  "toml_edit",
  "toon-format",
  "tracing",

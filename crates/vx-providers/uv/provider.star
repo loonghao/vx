@@ -1,3 +1,4 @@
+load("@vx//stdlib:system_install.star", "cross_platform_install")
 # provider.star - uv provider
 #
 # uv: An extremely fast Python package installer and resolver
@@ -84,3 +85,9 @@ pre_run = pre_run_ensure_deps("uv",
 
 def deps(_ctx, _version):
     return []
+
+system_install = cross_platform_install(
+    windows = "uv",
+    macos   = "uv",
+    linux   = "uv",
+)

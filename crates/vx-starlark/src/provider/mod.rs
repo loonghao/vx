@@ -9,11 +9,11 @@
 //! # Module structure
 //!
 //! - [`types`]   — Type definitions (InstallLayout, PostExtractAction, etc.)
-//! - [`cache`]   — Incremental analysis cache
-//! - [`versions`] — Version fetching and JSON transform strategies
-//! - [`execute`] — execute_install / execute_download_url / etc.
-//! - [`hooks`]   — Hook action parsing (post_extract, pre_run)
-//! - [`store`]   — Store path query functions (store_root, get_execute_path, post_install)
+//! - `cache`    — Incremental analysis cache (private)
+//! - `versions`  — Version fetching and JSON transform strategies (private)
+//! - `execute`   — execute_install / execute_download_url / etc. (private)
+//! - `hooks`     — Hook action parsing (post_extract, pre_run) (private)
+//! - `store`     — Store path query functions (store_root, get_execute_path, post_install) (private)
 
 pub mod bridge;
 pub mod builder;
@@ -299,7 +299,7 @@ impl StarlarkProvider {
         self.execute_prepare_environment(&ctx, version).await
     }
 
-    /// Alias for [`environment`] — kept for backward compatibility.
+    /// Alias for [`Self::environment`] — kept for backward compatibility.
     #[inline]
     pub async fn prepare_environment(&self, version: &str) -> Result<Vec<EnvOp>> {
         self.environment(version).await
@@ -531,11 +531,6 @@ impl StarlarkProvider {
     }
 
     // ── Internal helpers ──────────────────────────────────────────────────────
-
-    #[allow(dead_code)]
-    fn engine(&self) -> StarlarkEngine {
-        StarlarkEngine::new()
-    }
 
     /// Look up the build tag (date) for a specific version from the version cache.
     ///

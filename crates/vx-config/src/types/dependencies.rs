@@ -76,7 +76,7 @@ pub struct PythonDependenciesConfig {
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
 #[serde(default)]
 pub struct GoDependenciesConfig {
-    /// Go proxy URL (e.g., https://goproxy.cn, https://proxy.golang.org)
+    /// Go proxy URL (e.g., <https://goproxy.cn>, <https://proxy.golang.org>)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub proxy: Option<String>,
 

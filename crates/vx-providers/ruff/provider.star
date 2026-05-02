@@ -1,3 +1,4 @@
+load("@vx//stdlib:system_install.star", "cross_platform_install")
 # provider.star - ruff provider
 #
 # ruff: An extremely fast Python linter and code formatter, written in Rust
@@ -59,3 +60,9 @@ install_layout   = _p["install_layout"]
 store_root       = _p["store_root"]
 get_execute_path = _p["get_execute_path"]
 environment      = _p["environment"]
+
+system_install = cross_platform_install(
+    windows = "ruff",
+    macos   = "ruff",
+    linux   = "ruff",
+)

@@ -63,16 +63,8 @@ impl ProjectFramework {
     /// Get common file indicators for this framework
     pub fn indicator_files(&self) -> &'static [&'static str] {
         match self {
-            ProjectFramework::Bun => &[
-                "bun.lockb",
-                "bunfig.toml",
-                "bunfig.toml5",
-            ],
-            ProjectFramework::Deno => &[
-                "deno.json",
-                "deno.jsonc",
-                "deno.lock",
-            ],
+            ProjectFramework::Bun => &["bun.lockb", "bunfig.toml", "bunfig.toml5"],
+            ProjectFramework::Deno => &["deno.json", "deno.jsonc", "deno.lock"],
             ProjectFramework::Electron => &[
                 "electron.vite.config.js",
                 "electron.vite.config.ts",
@@ -95,16 +87,9 @@ impl ProjectFramework {
             }
             ProjectFramework::Flutter => &["pubspec.yaml"],
             ProjectFramework::Capacitor => &["capacitor.config.json", "capacitor.config.ts"],
-            ProjectFramework::Nix => &[
-                "flake.nix",
-                "default.nix",
-                "shell.nix",
-            ],
+            ProjectFramework::Nix => &["flake.nix", "default.nix", "shell.nix"],
             ProjectFramework::NwJs => &["package.json"], // Detected via package.json main field
-            ProjectFramework::Zig => &[
-                "build.zig",
-                "zig.mod",
-            ],
+            ProjectFramework::Zig => &["build.zig", "zig.mod"],
         }
     }
 }

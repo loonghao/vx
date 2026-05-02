@@ -1,3 +1,4 @@
+load("@vx//stdlib:system_install.star", "cross_platform_install")
 # provider.star - Python provider
 #
 # Version source: python-build-standalone GitHub releases
@@ -147,3 +148,9 @@ def deps(_ctx, _version):
         dep_def("uv", optional = True,
                 reason = "uv provides faster package management for Python"),
     ]
+
+system_install = cross_platform_install(
+    windows = "python",
+    macos   = "python",
+    linux   = "python",
+)
