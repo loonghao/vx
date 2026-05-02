@@ -12,7 +12,7 @@ use anyhow::{Context, Result};
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::env;
 use std::process::Command;
-use vx_env::{ToolEnvironment, ToolSpec};
+use vx_env::{RuntimeSpec, ToolEnvironment};
 use vx_starlark::handle::global_registry;
 use vx_starlark::provider::{EnvOp, apply_env_ops};
 
@@ -306,7 +306,7 @@ async fn build_dev_environment(
     // We also inject system-PATH deps discovered in Phase 1.
     let (registry, context) = get_registry()?;
 
-    // Build ToolSpecs for all resolved tools (direct + transitive deps)
+    // Build RuntimeSpecs for all resolved tools (direct + transitive deps)
     let mut tool_specs = Vec::new();
     for (tool_name, version) in &resolved_order {
         // Find the runtime for this tool to get bin directories
@@ -333,7 +333,7 @@ async fn build_dev_environment(
                 (vec!["bin".to_string()], None)
             };
 
-        let mut spec = ToolSpec::with_bin_dirs(tool_name.clone(), version.clone(), bin_dirs);
+        let mut spec = RuntimeSpec::with_bin_dirs(tool_name.clone(), version.clone(), bin_dirs);
         if let Some(bin_dir) = resolved_bin_dir {
             spec = spec.set_resolved_bin_dir(bin_dir);
         }
@@ -458,7 +458,7 @@ pub fn build_script_environment(config: &ConfigView) -> Result<HashMap<String, S
                 .expect("Failed to build local Tokio runtime for build_script_environment")
         });
 
-    // Create ToolSpecs with proper bin directories from runtime providers
+    // Create RuntimeSpecs with proper bin directories from runtime providers
     let mut tool_specs = Vec::new();
     for (tool_name, version) in &config.tools {
         let (bin_dirs, resolved_bin_dir) = if let Some(provider) =
@@ -492,7 +492,7 @@ pub fn build_script_environment(config: &ConfigView) -> Result<HashMap<String, S
             (vec!["bin".to_string()], None)
         };
 
-        let mut spec = ToolSpec::with_bin_dirs(tool_name.clone(), version.clone(), bin_dirs);
+        let mut spec = RuntimeSpec::with_bin_dirs(tool_name.clone(), version.clone(), bin_dirs);
         if let Some(bin_dir) = resolved_bin_dir {
             spec = spec.set_resolved_bin_dir(bin_dir);
         }

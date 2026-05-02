@@ -1,42 +1,42 @@
 //! Tests for `vx add` command — focused on the pure pieces that do not
 //! require a live `ProviderRegistry` or network access (spec parsing and
 //! TOML-editing helpers exposed via `pub` API).
-
+//!
 use toml_edit::DocumentMut;
-use vx_cli::commands::add::{AddOptions, ToolSpec, apply_edits};
+use vx_cli::commands::add::{AddOptions, AddRuntimeSpec, apply_edits};
 
 #[test]
 fn parse_tool_spec_name_only_defaults_latest() {
-    let spec = ToolSpec::parse("node").unwrap();
+    let spec = AddRuntimeSpec::parse("node").unwrap();
     assert_eq!(spec.name, "node");
     assert_eq!(spec.version, "latest");
 }
 
 #[test]
 fn parse_tool_spec_with_exact_version() {
-    let spec = ToolSpec::parse("node@22.14.0").unwrap();
+    let spec = AddRuntimeSpec::parse("node@22.14.0").unwrap();
     assert_eq!(spec.name, "node");
     assert_eq!(spec.version, "22.14.0");
 }
 
 #[test]
 fn parse_tool_spec_with_partial_version() {
-    let spec = ToolSpec::parse("python@3.11").unwrap();
+    let spec = AddRuntimeSpec::parse("python@3.11").unwrap();
     assert_eq!(spec.name, "python");
     assert_eq!(spec.version, "3.11");
 }
 
 #[test]
 fn parse_tool_spec_trims_whitespace() {
-    let spec = ToolSpec::parse("  node@22  ").unwrap();
+    let spec = AddRuntimeSpec::parse("  node@22  ").unwrap();
     assert_eq!(spec.name, "node");
     assert_eq!(spec.version, "22");
 }
 
 #[test]
 fn parse_tool_spec_rejects_empty() {
-    assert!(ToolSpec::parse("").is_err());
-    assert!(ToolSpec::parse("   ").is_err());
+    assert!(AddRuntimeSpec::parse("").is_err());
+    assert!(AddRuntimeSpec::parse("   ").is_err());
 }
 
 // ---------------------------------------------------------------------------
@@ -50,7 +50,7 @@ fn parse_doc(input: &str) -> DocumentMut {
 #[test]
 fn apply_edits_adds_new_tool_to_empty_toml() {
     let mut doc = parse_doc("");
-    let specs = vec![ToolSpec::parse("node@22").unwrap()];
+    let specs = vec![AddRuntimeSpec::parse("node@22").unwrap()];
     let opts = AddOptions::default();
 
     let edits = apply_edits(&mut doc, &specs, &opts).unwrap();
@@ -76,7 +76,7 @@ uv = "latest"
 auto_install = true
 "#;
     let mut doc = parse_doc(original);
-    let specs = vec![ToolSpec::parse("node@22").unwrap()];
+    let specs = vec![AddRuntimeSpec::parse("node@22").unwrap()];
     let opts = AddOptions::default();
 
     apply_edits(&mut doc, &specs, &opts).unwrap();
@@ -96,7 +96,7 @@ fn apply_edits_updates_existing_tool_version() {
 node = "20"
 "#;
     let mut doc = parse_doc(original);
-    let specs = vec![ToolSpec::parse("node@22").unwrap()];
+    let specs = vec![AddRuntimeSpec::parse("node@22").unwrap()];
     let opts = AddOptions::default();
 
     let edits = apply_edits(&mut doc, &specs, &opts).unwrap();
@@ -113,7 +113,7 @@ fn apply_edits_skips_unchanged_entries() {
 node = "22"
 "#;
     let mut doc = parse_doc(original);
-    let specs = vec![ToolSpec::parse("node@22").unwrap()];
+    let specs = vec![AddRuntimeSpec::parse("node@22").unwrap()];
     let opts = AddOptions::default();
 
     let edits = apply_edits(&mut doc, &specs, &opts).unwrap();
@@ -123,7 +123,7 @@ node = "22"
 #[test]
 fn apply_edits_with_os_writes_detailed_table() {
     let mut doc = parse_doc("");
-    let specs = vec![ToolSpec::parse("pwsh@7.4").unwrap()];
+    let specs = vec![AddRuntimeSpec::parse("pwsh@7.4").unwrap()];
     let opts = AddOptions {
         os: vec!["windows".to_string()],
         ..AddOptions::default()
@@ -148,7 +148,7 @@ version = "7.4.0"
 os = ["windows"]
 "#;
     let mut doc = parse_doc(original);
-    let specs = vec![ToolSpec::parse("pwsh@7.4.13").unwrap()];
+    let specs = vec![AddRuntimeSpec::parse("pwsh@7.4.13").unwrap()];
     let opts = AddOptions::default();
 
     apply_edits(&mut doc, &specs, &opts).unwrap();
@@ -167,9 +167,9 @@ os = ["windows"]
 fn apply_edits_multiple_tools_in_one_call() {
     let mut doc = parse_doc("[tools]\n");
     let specs = vec![
-        ToolSpec::parse("node@22").unwrap(),
-        ToolSpec::parse("python@3.12").unwrap(),
-        ToolSpec::parse("uv").unwrap(),
+        AddRuntimeSpec::parse("node@22").unwrap(),
+        AddRuntimeSpec::parse("python@3.12").unwrap(),
+        AddRuntimeSpec::parse("uv").unwrap(),
     ];
     let opts = AddOptions::default();
 

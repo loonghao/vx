@@ -13,7 +13,17 @@
 load("@vx//stdlib:provider.star",
      "runtime_def", "github_permissions")
 load("@vx//stdlib:github.star", "make_fetch_versions", "github_asset_url")
-load("@vx//stdlib:env.star", "env_prepend")
+load("@vx//stdlib:layout.star", "path_fns", "path_env_fns")
+load("@vx//stdlib:system_install.star", "cross_platform_install")
+
+# Use stdlib path_fns for correct cross-platform path handling
+paths = path_fns("age")
+store_root       = paths["store_root"]
+get_execute_path = paths["get_execute_path"]
+
+# path_fns does NOT export "environment" – use path_env_fns for PATH prepend
+_env_fns   = path_env_fns()
+environment = _env_fns["environment"]
 
 # ---------------------------------------------------------------------------
 # Provider metadata
@@ -85,27 +95,20 @@ def download_url(ctx, version):
 
 def install_layout(_ctx, _version):
     return {
-        "__type__":        "archive",
-        "strip_prefix":     "",
+        "__type":           "archive",
+        "strip_prefix":     "age",
         "executable_paths": ["age"],
     }
-
-# ---------------------------------------------------------------------------
-# Path + env functions
-# ---------------------------------------------------------------------------
-
-def store_root(ctx):
-    return ctx.vx_home + "/store/age"
-
-def get_execute_path(ctx, _version):
-    exe = "age.exe" if ctx.platform.os == "windows" else "age"
-    return ctx.install_dir + "/" + exe
-
-def environment(ctx, _version):
-    return [env_prepend("PATH", ctx.install_dir)]
 
 def post_install(_ctx, _version):
     return None
 
 def deps(_ctx, _version):
     return []
+
+# system_install fallback when GitHub download is unavailable
+system_install = cross_platform_install(
+    windows = "age",
+    macos   = "age",
+    linux   = "age",
+)

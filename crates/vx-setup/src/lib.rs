@@ -11,10 +11,10 @@
 //!
 //! # Default Pipeline
 //!
-//! 1. `pre_setup` - User-defined hook (from [hooks] section)
+//! 1. `pre_setup` - User-defined hook (from $$hooks$$ section)
 //! 2. `install_tools` - Built-in: Install all configured tools
 //! 3. `export_paths` - Built-in: Export tool paths for CI environments
-//! 4. `post_setup` - User-defined hook (from [hooks] section)
+//! 4. `post_setup` - User-defined hook (from $$hooks$$ section)
 //!
 //! # Example
 //!

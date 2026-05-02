@@ -36,7 +36,7 @@ pub struct ActivationConfig {
 
     /// Custom prompt format (optional)
     /// Template variables: {name}
-    /// Default: "({name}[vx])"
+    /// Default: "({name} \[vx\])"
     pub prompt_format: Option<String>,
 
     /// Shell aliases to define

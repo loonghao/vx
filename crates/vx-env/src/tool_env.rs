@@ -9,9 +9,9 @@ use std::path::PathBuf;
 use vx_paths::PathManager;
 use vx_runtime_core::Platform;
 
-/// Tool specification for environment building
+/// Runtime specification for environment building
 #[derive(Debug, Clone)]
-pub struct ToolSpec {
+pub struct RuntimeSpec {
     /// Tool name (e.g., "node", "go", "uv")
     pub name: String,
     /// Version specification (e.g., "20.0.0", "latest")
@@ -23,7 +23,7 @@ pub struct ToolSpec {
     pub resolved_bin_dir: Option<PathBuf>,
 }
 
-impl ToolSpec {
+impl RuntimeSpec {
     /// Create a new tool specification
     pub fn new(name: impl Into<String>, version: impl Into<String>) -> Self {
         Self {
@@ -76,7 +76,7 @@ impl ToolSpec {
 #[derive(Debug, Default)]
 pub struct ToolEnvironment {
     /// Tools to include in the environment
-    tools: Vec<ToolSpec>,
+    tools: Vec<RuntimeSpec>,
     /// Additional environment variables (setenv)
     env_vars: HashMap<String, String>,
     /// Whether to include vx bin directory
@@ -107,7 +107,7 @@ impl ToolEnvironment {
 
     /// Add a tool to the environment
     pub fn tool(mut self, name: impl Into<String>, version: impl Into<String>) -> Self {
-        self.tools.push(ToolSpec::new(name, version));
+        self.tools.push(RuntimeSpec::new(name, version));
         self
     }
 
@@ -115,13 +115,13 @@ impl ToolEnvironment {
     pub fn tools(mut self, tools: &HashMap<String, String>) -> Self {
         for (name, version) in tools {
             self.tools
-                .push(ToolSpec::new(name.clone(), version.clone()));
+                .push(RuntimeSpec::new(name.clone(), version.clone()));
         }
         self
     }
 
-    /// Add multiple tools from ToolSpec instances
-    pub fn tools_from_specs(mut self, specs: Vec<ToolSpec>) -> Self {
+    /// Add multiple tools from RuntimeSpec instances
+    pub fn tools_from_specs(mut self, specs: Vec<RuntimeSpec>) -> Self {
         self.tools.extend(specs);
         self
     }
@@ -297,7 +297,7 @@ impl ToolEnvironment {
     fn resolve_tool_path(
         &self,
         path_manager: &PathManager,
-        tool: &ToolSpec,
+        tool: &RuntimeSpec,
     ) -> Result<Option<PathBuf>> {
         // Handle "system" version - find tool from system PATH
         if tool.version == "system" {
@@ -639,7 +639,7 @@ fn find_system_tool_path(tool: &str) -> Option<PathBuf> {
 /// - Direct: executables in version directory
 /// - Platform-specific: `tool-{platform}/bin/` subdirectory (e.g., cmake-4.2.2-windows-x86_64/bin)
 /// - Nested platform: `{platform}/python/` subdirectory (e.g., windows-x64/python)
-fn find_bin_dir(store_dir: &PathBuf, tool: &ToolSpec) -> PathBuf {
+fn find_bin_dir(store_dir: &PathBuf, tool: &RuntimeSpec) -> PathBuf {
     // Priority order:
     // 1. Check tool-specific bin directories directly under store_dir
     for bin_dir_name in &tool.possible_bin_dirs {
@@ -766,8 +766,8 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_tool_spec_new() {
-        let spec = ToolSpec::new("node", "20.0.0");
+    fn test_runtime_spec_new() {
+        let spec = RuntimeSpec::new("node", "20.0.0");
         assert_eq!(spec.name, "node");
         assert_eq!(spec.version, "20.0.0");
     }

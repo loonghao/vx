@@ -529,7 +529,7 @@ impl VxConfigSnapshot {
     ///
     /// This delegates to `vx_config::parse_config` to ensure consistent
     /// handling of all config formats (simple strings, detailed tables,
-    /// [runtimes] alias, platform filtering, etc.).
+    /// `[runtimes]` alias, platform filtering, etc.).
     pub async fn load(path: &Path) -> AnalyzerResult<Option<Self>> {
         if !path.exists() {
             return Ok(None);

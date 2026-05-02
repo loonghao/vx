@@ -19,7 +19,7 @@ use starlark::values::structs::AllocStruct;
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::path::Path;
-use tracing::{trace, warn};
+use tracing::trace;
 
 /// FileLoader implementation for @vx//stdlib modules
 ///
@@ -206,34 +206,6 @@ impl StarlarkEngine {
             .collect();
 
         Ok(result)
-    }
-
-    /// Parse a provider.star script, run the linter, and emit warnings via tracing.
-    ///
-    /// This is called automatically before evaluating any provider script so that
-    /// provider authors get early feedback on code quality issues.
-    #[allow(dead_code)]
-    fn lint_and_warn(&self, script_name: &str, script_content: &str) {
-        match self.lint_script(script_name, script_content) {
-            Ok(lints) if !lints.is_empty() => {
-                for lint in &lints {
-                    warn!(
-                        provider = %script_name,
-                        rule = %lint.rule,
-                        location = %lint.location,
-                        "provider.star lint: {}",
-                        lint.problem
-                    );
-                }
-            }
-            Ok(_) => {
-                trace!(provider = %script_name, "provider.star lint: clean");
-            }
-            Err(e) => {
-                // Lint errors are non-fatal — just log them
-                warn!(provider = %script_name, "provider.star lint failed: {}", e);
-            }
-        }
     }
 
     /// Get a named variable from a Starlark script (e.g. `runtimes`, `permissions`)

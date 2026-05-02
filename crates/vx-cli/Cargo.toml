@@ -62,13 +62,11 @@ clap = { workspace = true }
 tokio = { workspace = true }
 anyhow = { workspace = true }
 colored = { workspace = true }
-dialoguer = { workspace = true }
 glob = { workspace = true }
 indicatif = { workspace = true }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
 walkdir = { workspace = true }
-toml = { workspace = true }
 toml_edit = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }

@@ -1,3 +1,4 @@
+load("@vx//stdlib:system_install.star", "cross_platform_install")
 # provider.star - Terraform provider
 #
 # Terraform releases are hosted on releases.hashicorp.com (NOT GitHub).
@@ -88,3 +89,9 @@ get_execute_path = paths["get_execute_path"]
 env_fns          = path_env_fns()
 environment      = env_fns["environment"]
 post_install     = env_fns["post_install"]
+
+system_install = cross_platform_install(
+    windows = "terraform",
+    macos   = "terraform",
+    linux   = "terraform",
+)

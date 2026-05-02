@@ -1,3 +1,4 @@
+load("@vx//stdlib:system_install.star", "cross_platform_install")
 # provider.star - cargo-audit provider
 #
 # cargo-audit audits Cargo.lock files for crates with security vulnerabilities
@@ -119,3 +120,9 @@ def environment(ctx, _version):
 
 def deps(_ctx, _version):
     return []
+
+system_install = cross_platform_install(
+    windows = "cargo-audit",
+    macos   = "cargo-audit",
+    linux   = "cargo-audit",
+)

@@ -1,3 +1,4 @@
+load("@vx//stdlib:system_install.star", "cross_platform_install")
 # provider.star - Protocol Buffers compiler (protoc)
 #
 # protoc uses non-standard platform naming:
@@ -106,3 +107,9 @@ def environment(ctx, _version):
 
 def deps(_ctx, _version):
     return []
+
+system_install = cross_platform_install(
+    windows = "protoc",
+    macos   = "protoc",
+    linux   = "protoc",
+)

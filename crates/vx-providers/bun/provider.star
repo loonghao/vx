@@ -1,3 +1,4 @@
+load("@vx//stdlib:system_install.star", "cross_platform_install")
 # provider.star - bun provider
 #
 # Bun: Incredibly fast JavaScript runtime, bundler, test runner, and package manager
@@ -135,3 +136,9 @@ def environment(ctx, _version):
 
 def deps(_ctx, _version):
     return []
+
+system_install = cross_platform_install(
+    windows = "bun",
+    macos   = "bun",
+    linux   = "bun",
+)
