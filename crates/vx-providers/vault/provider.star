@@ -38,11 +38,9 @@ store_root       = _p["store_root"]
 get_execute_path = _p["get_execute_path"]
 environment      = _p["environment"]
 
-# Custom download_url: v2.x has no public assets (BUSL license) → return None
-# to trigger system_install fallback.
+# download_url: v2.x binaries are still available on GitHub (BUSL license
+# only affects source code, not binaries). Always delegate to template.
 def download_url(ctx, version):
-    if version.startswith("2."):
-        return None
     return _p["download_url"](ctx, version)
 
 # system_install: fallback to package managers when GitHub download is unavailable

@@ -96,7 +96,7 @@ def download_url(ctx, version):
 def install_layout(_ctx, _version):
     return {
         "__type":           "archive",
-        "strip_prefix":     "age",
+        "strip_prefix":     "",
         "executable_paths": ["age"],
     }
 
