@@ -1,5 +1,6 @@
-load("@vx//stdlib:provider.star", "runtime_def", "github_permissions")
+load("@vx//stdlib:provider.star", "runtime_def", "github_permissions", "fetch_versions_with_tag_prefix")
 load("@vx//stdlib:provider_templates.star", "github_rust_provider")
+load("@vx//stdlib:github.star", "github_asset_url")
 load("@vx//stdlib:system_install.star", "cross_platform_install")
 
 # ---------------------------------------------------------------------------
@@ -42,8 +43,25 @@ _p = github_rust_provider("nextest-rs", "nextest",
     tag_prefix = "cargo-nextest-",
 )
 
-fetch_versions   = _p["fetch_versions"]
-download_url     = _p["download_url"]
+fetch_versions   = fetch_versions_with_tag_prefix("nextest-rs", "nextest", tag_prefix = "cargo-nextest-")
+
+def download_url(ctx, version):
+    triples = {
+        "windows/x64":   "x86_64-pc-windows-msvc",
+        "windows/arm64": "aarch64-pc-windows-msvc",
+        "macos/x64":     "universal-apple-darwin",
+        "macos/arm64":   "universal-apple-darwin",
+        "linux/x64":     "x86_64-unknown-linux-musl",
+        "linux/arm64":   "aarch64-unknown-linux-musl",
+    }
+    key = "{}/{}".format(ctx.platform.os, ctx.platform.arch)
+    triple = triples.get(key)
+    if not triple:
+        return None
+    ext = "zip" if ctx.platform.os == "windows" else "tar.gz"
+    asset = "cargo-nextest-{}-{}.{}".format(version, triple, ext)
+    return github_asset_url("nextest-rs", "nextest", "cargo-nextest-" + version, asset)
+
 install_layout   = _p["install_layout"]
 store_root       = _p["store_root"]
 get_execute_path = _p["get_execute_path"]

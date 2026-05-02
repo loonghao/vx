@@ -1,8 +1,10 @@
 # Vault Provider
 # Vault is a tool for secrets management, encryption as a service, and privileged access management.
 
-load("@vx//stdlib:provider.star", "runtime_def", "github_permissions")
-load("@vx//stdlib:provider_templates.star", "github_go_provider")
+load("@vx//stdlib:provider.star",
+     "runtime_def", "github_permissions",
+     "archive_layout", "path_fns", "path_env_fns",
+     "fetch_versions_from_api")
 load("@vx//stdlib:system_install.star", "cross_platform_install")
 
 # Provider metadata
@@ -20,37 +22,45 @@ runtimes = [
 
 # Permissions: needs GitHub releases access + package managers for system_install
 permissions = github_permissions(
-    exec_cmds = ["winget", "brew", "apt"],
+    extra_hosts = ["releases.hashicorp.com"],
+    exec_cmds   = ["winget", "brew", "apt"],
 )
 
-# Use github_go_provider template (GoReleaser format)
-# Asset format: vault_{version}_{os}_{arch}.zip
-# Example: vault_2.0.0_linux_amd64.zip
-_p = github_go_provider("hashicorp", "vault",
-    asset      = "vault_{version}_{os}_{arch}.{ext}",
-    executable = "vault",
+fetch_versions = fetch_versions_from_api(
+    "https://api.github.com/repos/hashicorp/vault/tags?per_page=100",
+    "github_tags",
 )
 
-# Export functions from template
-fetch_versions   = _p["fetch_versions"]
-install_layout   = _p["install_layout"]
-store_root       = _p["store_root"]
-get_execute_path = _p["get_execute_path"]
-environment      = _p["environment"]
+_VAULT_PLATFORMS = {
+    "windows/x64":   ("windows", "amd64"),
+    "windows/arm64": ("windows", "arm64"),
+    "macos/x64":     ("darwin",  "amd64"),
+    "macos/arm64":   ("darwin",  "arm64"),
+    "linux/x64":     ("linux",   "amd64"),
+    "linux/arm64":   ("linux",   "arm64"),
+}
 
-# download_url: v2.0.0+ has NO public GitHub assets (BUSL license change).
-# Source remains open, but HashiCorp no longer uploads binaries to GitHub releases.
-# Return None for v2.x so the installer falls back to system_install.
+def _vault_platform(ctx):
+    key = "{}/{}".format(ctx.platform.os, ctx.platform.arch)
+    return _VAULT_PLATFORMS.get(key)
+
 def download_url(ctx, version):
-    # Strip "v" prefix for comparison
-    v = version.lstrip("v")
-    # v2.0.0+ → no GitHub assets, use system_install fallback
-    if v.startswith("2.") or v.startswith("3.") or len(v) > 0 and v[0] not in "01":
+    platform = _vault_platform(ctx)
+    if not platform:
         return None
-    return _p["download_url"](ctx, version)
+    os_str, arch_str = platform
+    asset = "vault_{}_{}_{}.zip".format(version, os_str, arch_str)
+    return "https://releases.hashicorp.com/vault/{}/{}".format(version, asset)
 
-# system_install: fallback to package managers when GitHub download is unavailable
-# (vault ≥2.0.0 has no public assets due to BUSL license change)
+install_layout   = archive_layout("vault")
+paths            = path_fns("vault")
+store_root       = paths["store_root"]
+get_execute_path = paths["get_execute_path"]
+env_fns          = path_env_fns()
+environment      = env_fns["environment"]
+post_install     = env_fns["post_install"]
+
+# system_install fallback when direct downloads are unavailable
 system_install = cross_platform_install(
     windows = "HashiCorp.Vault",
     macos   = "vault",
