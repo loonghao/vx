@@ -106,7 +106,7 @@ User Command: vx npm install
 7. **Check `vx.toml`** first to understand project tool requirements
 8. **New providers use Starlark DSL only** — No Rust code required for new tool definitions
 9. **Layer dependencies go downward only** — Never import from a higher architectural layer
-10. **Provider count is 132** — Update any docs that reference old counts (78, 73, 70+, 50+, 122, 124, 126, 129, 131, etc.)
+10. **Provider count is 136** — Update any docs that reference old counts (78, 73, 70+, 50+, 105, 122, 124, 126, 129, 131, 132, 135, etc.)
 
 ### Setup Commands
 
@@ -186,7 +186,7 @@ vx dev                         # Enter dev environment
 │  vx-manifest       (Provider manifest parsing)          │
 │  vx-args           (Argument parsing)                   │
 ├─────────────────────────────────────────────────────────┤
-│  vx-providers/*    (132 Providers — provider.star DSL)  │
+│  vx-providers/*    (136 Providers — provider.star DSL)  │
 │  vx-bridge         (Generic command bridge)             │
 └─────────────────────────────────────────────────────────┘
 ```
@@ -222,7 +222,7 @@ For the complete DSL reference — stdlib modules, context object fields, templa
 
 ## All Providers
 
-vx supports 135 providers across JavaScript, Python, Rust, Go, system tools, DevOps, security, cloud, .NET, C/C++, media, and more. See [`docs/tools/overview.md`](docs/tools/overview.md) for the complete list.
+vx supports 136 providers across JavaScript, Python, Rust, Go, system tools, DevOps, security, cloud, .NET, C/C++, media, and more. See [`docs/tools/overview.md`](docs/tools/overview.md) for the complete list.
 
 ## Decision Framework for AI Agents
 

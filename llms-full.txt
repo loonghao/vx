@@ -1,6 +1,6 @@
 # vx
 
-> vx is a universal development tool manager — prefix any command with `vx` and it auto-installs the tool on first use. No manual setup, no version conflicts. 135 tools, one command prefix.
+> vx is a universal development tool manager — prefix any command with `vx` and it auto-installs the tool on first use. No manual setup, no version conflicts. 136 tools, one command prefix.
 
 vx eliminates the complexity of managing multiple language runtimes (Node.js, Python, Go, Rust, etc.) while maintaining zero learning curve. Built with Rust for performance, it supports direct execution, project environments via `vx.toml`, MCP integration, and AI-native development workflows. Providers are defined using Starlark DSL (`provider.star`) — a declarative, zero-compilation extension system.
 
@@ -20,7 +20,7 @@ vx eliminates the complexity of managing multiple language runtimes (Node.js, Py
 
 - **Zero Learning Curve**: Same commands you already know — just prefix with `vx`. No new syntax.
 - **Auto-Install on First Use**: Runtimes are downloaded and installed automatically when first needed.
-- **132 Tools**: Node.js, Python/UV, Go, Rust, Bun, Deno, Java, Zig, MSVC, CMake, and many more.
+- **136 Tools**: Node.js, Python/UV, Go, Rust, Bun, Deno, Java, Zig, MSVC, CMake, and many more.
 - **Project Environments**: Define tool requirements in `vx.toml`, then `vx setup` installs everything.
 - **Enhanced Script System**: `{{args}}` passthrough lets you pass complex flags directly to scripts.
 - **MCP Ready**: Replace `npx`/`uvx` with `vx` in MCP server configs — zero additional setup.
