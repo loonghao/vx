@@ -6,6 +6,37 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [0.8.34](https://github.com/loonghao/vx/compare/v0.8.33...v0.8.34) (2026-05-03)
+
+
+### Features
+
+* add age and sops providers, update project analyzer frameworks ([f048f10](https://github.com/loonghao/vx/commit/f048f1000b6471d905b143bb6aae8c9ea832fd93))
+* add worktrunk provider (132 tools total) ([#839](https://github.com/loonghao/vx/issues/839)) ([79c179d](https://github.com/loonghao/vx/commit/79c179d1a20ceed3b58335763ea74d61eb7f8c79))
+* **providers:** add conda provider with micromamba, conda and mamba ([94f1aec](https://github.com/loonghao/vx/commit/94f1aec09ccc9a363a883d830fe29816f43d6a0f))
+
+
+### Bug Fixes
+
+* **providers:** correct install_layout strip_prefix and download_url ([3cad3c9](https://github.com/loonghao/vx/commit/3cad3c97c4578b5ca228f3765b60ea7f823dedbd))
+
+
+### Code Refactoring
+
+* **provider:** conda use provider.star only (remove Rust code) ([4ac74a6](https://github.com/loonghao/vx/commit/4ac74a66261ce771619e7120c449e522cdaae6a5))
+
+
+### Documentation
+
+* add age and sops to tools overview and CHANGELOG ([9f8dff3](https://github.com/loonghao/vx/commit/9f8dff34dca7271d80aa83f9ee61266fb0254a51))
+* update provider count from 129/131 to 132 ([499d830](https://github.com/loonghao/vx/commit/499d8302cb989a7109a14e1203d69ab8ca4adcc8))
+* update provider count from 129/131 to 132 across all documentation ([025c682](https://github.com/loonghao/vx/commit/025c682eeb828ac3f1e64054ba68b6994149bea4))
+* update provider count from 132/135 to 136 across all docs ([5dc335c](https://github.com/loonghao/vx/commit/5dc335c86225da3bbda2a03e99e5ce539e5d9b04))
+* update provider count from 132/135 to 136 across all docs ([e736c47](https://github.com/loonghao/vx/commit/e736c47f2afae3e7a9911a9e86cc1b23565d7bb3))
+* update provider count to 131 in AGENTS.md ([ea47fd0](https://github.com/loonghao/vx/commit/ea47fd03f81e512745a417097d2b60874a58a4dc))
+* update provider count to 132 and add conda/micromamba/mamba ([eef8af6](https://github.com/loonghao/vx/commit/eef8af681f11631004df19b70e90fac51985cf90))
+* update provider count to 132 and add conda/micromamba/mamba to overview ([102d59a](https://github.com/loonghao/vx/commit/102d59ad65f2a870186b4aeacb1a8120b0d29c62))
+
 ## [0.8.33](https://github.com/loonghao/vx/compare/v0.8.32...v0.8.33) (2026-04-30)
 
 
