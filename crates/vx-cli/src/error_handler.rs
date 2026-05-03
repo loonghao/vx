@@ -12,8 +12,8 @@
 //! ```
 
 use colored::*;
-use vx_resolver::{EnsureError, ExecuteError, PipelineError, PrepareError, ResolveError};
 use core::hint::cold_path;
+use vx_resolver::{EnsureError, ExecuteError, PipelineError, PrepareError, ResolveError};
 
 /// Format and display a pipeline error with structured output.
 ///
