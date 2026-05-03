@@ -14,8 +14,9 @@
 load("@vx//stdlib:provider.star",
      "runtime_def", "github_permissions",
      "path_fns", "path_env_fns",
-     "fetch_versions_with_tag_prefix")
-load("@vx//stdlib:system_install.star", "cross_platform_install")
+     "fetch_versions_with_tag_prefix",
+     "system_install_strategies", "winget_install", "brew_install", "apt_install")
+load("@vx//stdlib:layout.star", "archive_layout")
 
 # ---------------------------------------------------------------------------
 # Provider metadata
@@ -90,10 +91,10 @@ def download_url(ctx, version):
         version, version, os_str, arch_str, ext)
 
 # ---------------------------------------------------------------------------
-# install_layout — standard archive with top-level dir
+# install_layout — hugo archives have no top-level dir; binary sits at root
 # ---------------------------------------------------------------------------
 
-install_layout = archive_layout("hugo", strip_prefix="hugo_{version}_{os}-{arch}")
+install_layout = archive_layout("hugo")
 
 # ---------------------------------------------------------------------------
 # Path queries + environment
@@ -110,8 +111,9 @@ def deps(_ctx, _version):
     return []
 
 # system_install fallback when GitHub download is unavailable
-system_install = cross_platform_install(
-    windows = "hugo",
-    macos   = "hugo",
-    linux   = "hugo",
-)
+# (use static form — more reliable than callable system_install)
+system_install = system_install_strategies([
+    winget_install("Hugo.Hugo.Extended", priority = 90),
+    brew_install("hugo",                 priority = 90),
+    apt_install("hugo",                  priority = 70),
+])
