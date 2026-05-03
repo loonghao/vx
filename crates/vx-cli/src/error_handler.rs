@@ -12,12 +12,14 @@
 //! ```
 
 use colored::*;
+use core::hint::cold_path;
 use vx_resolver::{EnsureError, ExecuteError, PipelineError, PrepareError, ResolveError};
 
 /// Format and display a pipeline error with structured output.
 ///
 /// Returns the appropriate exit code for the error type.
 pub fn handle_pipeline_error(err: &PipelineError) -> i32 {
+    cold_path();
     match err {
         PipelineError::Resolve(e) => {
             print_error_header("resolve");
@@ -73,6 +75,7 @@ pub fn handle_pipeline_error(err: &PipelineError) -> i32 {
 /// Returns `true` if the error was a PipelineError and was handled,
 /// `false` otherwise (caller should use default formatting).
 pub fn try_handle_error(err: &anyhow::Error) -> bool {
+    cold_path();
     if let Some(pipeline_err) = err.downcast_ref::<PipelineError>() {
         let code = handle_pipeline_error(pipeline_err);
         std::process::exit(code);

@@ -703,8 +703,27 @@ impl Installer for RealInstaller {
                     prefix_dir.display(),
                     dest.display()
                 );
-                // Move all contents from prefix_dir to dest
-                for entry in std::fs::read_dir(&prefix_dir)? {
+                // Rename prefix_dir to a temporary name first to avoid name
+                // collisions when a file inside prefix_dir shares its name with
+                // the prefix itself (e.g. archive `age/` contains binary `age`,
+                // so moving `dest/age/age` → `dest/age` would otherwise try to
+                // remove the parent dir we're iterating from).
+                let parent = prefix_dir.parent().unwrap_or(dest);
+                let mut tmp_dir = parent.join(".vx-strip-prefix-tmp");
+                // If a stale tmp exists (from a previous failed install), remove it
+                if tmp_dir.exists() {
+                    let _ = std::fs::remove_dir_all(&tmp_dir);
+                }
+                // Pick a unique name if the default is taken
+                let mut counter = 0u32;
+                while tmp_dir.exists() {
+                    counter += 1;
+                    tmp_dir = parent.join(format!(".vx-strip-prefix-tmp-{}", counter));
+                }
+                std::fs::rename(&prefix_dir, &tmp_dir)?;
+
+                // Move all contents from tmp_dir to dest
+                for entry in std::fs::read_dir(&tmp_dir)? {
                     let entry = entry?;
                     let source = entry.path();
                     let target = dest.join(entry.file_name());
@@ -722,8 +741,8 @@ impl Installer for RealInstaller {
                     std::fs::rename(&source, &target)?;
                 }
 
-                // Remove the now-empty prefix directory
-                let _ = std::fs::remove_dir(&prefix_dir);
+                // Remove the now-empty temporary directory
+                let _ = std::fs::remove_dir(&tmp_dir);
             }
         }
 

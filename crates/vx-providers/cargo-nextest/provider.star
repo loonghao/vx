@@ -46,6 +46,8 @@ _p = github_rust_provider("nextest-rs", "nextest",
 fetch_versions   = fetch_versions_with_tag_prefix("nextest-rs", "nextest", tag_prefix = "cargo-nextest-")
 
 def download_url(ctx, version):
+    # version from fetch_versions_with_tag_prefix already has prefix removed,
+    # so version = "0.9.133", not "cargo-nextest-0.9.133"
     triples = {
         "windows/x64":   "x86_64-pc-windows-msvc",
         "windows/arm64": "aarch64-pc-windows-msvc",
@@ -59,8 +61,10 @@ def download_url(ctx, version):
     if not triple:
         return None
     ext = "zip" if ctx.platform.os == "windows" else "tar.gz"
+    # tag = "cargo-nextest-0.9.133", asset = "cargo-nextest-0.9.133-{triple}.{ext}"
+    tag = "cargo-nextest-{}".format(version)
     asset = "cargo-nextest-{}-{}.{}".format(version, triple, ext)
-    return github_asset_url("nextest-rs", "nextest", "cargo-nextest-" + version, asset)
+    return github_asset_url("nextest-rs", "nextest", tag, asset)
 
 install_layout   = _p["install_layout"]
 store_root       = _p["store_root"]
