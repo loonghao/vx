@@ -50,7 +50,7 @@ vx uvx ruff check .      # Same as uvx ruff check, but auto-installed
 vx go build ./...        # Same as go build, but portable
 ```
 
-### 135 Tools Supported
+### 136 Tools Supported
 From language runtimes to DevOps tools, vx manages them all with a single interface. See the [full tool list](/tools/overview).
 
 ### Declarative Configuration
