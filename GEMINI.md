@@ -1,7 +1,7 @@
-# CLAUDE.md — vx Project Instructions for Claude Code
+# GEMINI.md — vx Project Instructions for Google Gemini
 
-> This file is read by Claude Code at the start of every conversation.
-> For the full AI agent guide, see @AGENTS.md.
+> This file is read by Google Gemini (AlphaCoder) at the start of every conversation.
+> For the full AI agent guide, see [AGENTS.md](AGENTS.md).
 
 ## Project
 
@@ -59,37 +59,13 @@ Providers:     vx-providers/* (136 Starlark DSL definitions)
 | Add new provider | `crates/vx-providers/<name>/provider.star` |
 | Add project detection | `crates/vx-project-analyzer/src/frameworks/` |
 | Change console output | `crates/vx-console/src/` |
-| View RFCs (design decisions) | `docs/rfcs/` (50 RFCs) |
-
-## New Provider Template
-
-```starlark
-# crates/vx-providers/<name>/provider.star
-load("@vx//stdlib:provider.star", "runtime_def", "github_permissions")
-load("@vx//stdlib:provider_templates.star", "github_rust_provider")
-
-name        = "<name>"
-description = "<description>"
-ecosystem   = "custom"
-runtimes    = [runtime_def("<runtime>")]
-permissions = github_permissions()
-
-_p = github_rust_provider("owner", "repo",
-    asset = "tool-{vversion}-{triple}.{ext}")
-fetch_versions   = _p["fetch_versions"]
-download_url     = _p["download_url"]
-install_layout   = _p["install_layout"]
-store_root       = _p["store_root"]
-get_execute_path = _p["get_execute_path"]
-environment      = _p["environment"]
-```
+| View RFCs (design decisions) | `docs/rfcs/` (50+ RFCs) |
 
 ## Common Pitfalls
 
 - **Don't suggest manual tool installation** — vx handles it. Say `vx node --version`, not "install Node.js first".
 - **Don't use `sudo` with vx** — it manages user-level installations under `~/.vx/`.
 - **Don't import upward** — Foundation crates cannot import from Service layer.
-- **Provider count is 105** — update any docs that reference old counts (78, 73, 70+, 50+).
 - **Provider count is 136** — update any docs that reference old counts (78, 73, 70+, 50+, 105, 122, 124, 126, 129, 131, 132, 135, etc.)
 - **Don't use `println!`** — always use `tracing::info!`, `tracing::debug!` etc.
 - **Don't write inline tests** — tests go in `crates/<name>/tests/`, never `#[cfg(test)]`.
@@ -111,8 +87,8 @@ Replace `npx`/`uvx` with `vx` in MCP server configs for zero-config tool managem
 
 ## Deeper References
 
-- @AGENTS.md — Full AI agent guide with execution flow, mental model, and scenarios
-- @docs/guide/provider-star-reference.md — Complete Starlark DSL reference
-- @docs/architecture/OVERVIEW.md — Architecture deep dive
-- @docs/CONVENTIONS.md — Coding conventions
-- @llms.txt — LLM-friendly project index
+- [AGENTS.md](AGENTS.md) — Full AI agent guide with execution flow, mental model, and scenarios
+- [docs/guide/provider-star-reference.md](docs/guide/provider-star-reference.md) — Complete Starlark DSL reference
+- [docs/architecture/OVERVIEW.md](docs/architecture/OVERVIEW.md) — Architecture deep dive
+- [docs/CONVENTIONS.md](docs/CONVENTIONS.md) — Coding conventions
+- [llms.txt](llms.txt) — LLM-friendly project index
