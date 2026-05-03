@@ -6,6 +6,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [0.8.35](https://github.com/loonghao/vx/compare/v0.8.34...v0.8.35) (2026-05-03)
+
+
+### Bug Fixes
+
+* **ci:** ensure Release workflow triggers even when release is created from update-pr job ([7259bc6](https://github.com/loonghao/vx/commit/7259bc6fab2b45aad62fc4c7c583577f6157209f))
+
 ## [0.8.34](https://github.com/loonghao/vx/compare/v0.8.33...v0.8.34) (2026-05-03)
 
 
