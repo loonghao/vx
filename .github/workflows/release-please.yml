@@ -23,6 +23,22 @@
 #    creation. Uses skip-github-pull-request to prevent creating new PRs.
 # 2. "update-pr" job (skips on release commits): Handles creating/updating
 #    release PRs for normal feature/fix commits.
+#
+# RACE CONDITION FIX (v0.8.34 regression, run 25286122285):
+# release-please-action@v5 can create the release (tag + GitHub Release) from
+# *either* job, because it always tags merged release PRs when it sees them —
+# independent of the skip-github-pull-request flag. Specifically, when a fix
+# commit's `update-pr` job starts running just after the release PR is merged,
+# it detects the merged PR and creates the release itself. The subsequent
+# `release` job (on the release commit) then reports releases_created=false
+# because the release already exists, and the "Trigger Release workflow" step
+# is skipped — so cargo-dist never runs for that version.
+#
+# Fix: Both jobs trigger the Release workflow when their release-please step
+# reports releases_created=true. Additionally, the `release` job has a fallback
+# that dispatches Release based on the tag derived from
+# .release-please-manifest.json when the release already exists (i.e. it was
+# created by a prior run), ensuring cargo-dist always runs once per release.
 
 name: Release Please
 
@@ -67,12 +83,46 @@ jobs:
             --repo "${{ github.repository }}" \
             --field "tag=${{ steps.release.outputs.tag_name }}"
 
+      # Fallback: the release may have been created by a prior `update-pr`
+      # run (race condition — see workflow header). In that case
+      # releases_created is 'false' but the release still needs cargo-dist
+      # to publish artifacts. Derive the tag from the manifest, verify the
+      # release exists, and dispatch Release if it does.
+      - name: Checkout repository
+        if: ${{ steps.release.outputs.releases_created != 'true' }}
+        uses: actions/checkout@v5
+
+      - name: Trigger Release workflow (fallback)
+        if: ${{ steps.release.outputs.releases_created != 'true' }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          version=$(jq -r '."."' .release-please-manifest.json)
+          if [ -z "$version" ] || [ "$version" = "null" ]; then
+            echo "::warning::Could not read version from .release-please-manifest.json; skipping fallback dispatch."
+            exit 0
+          fi
+          tag="v${version}"
+          echo "releases_created=false but commit is 'chore: release'; checking tag ${tag}..."
+          if ! gh release view "$tag" --repo "${{ github.repository }}" >/dev/null 2>&1; then
+            echo "::warning::Release ${tag} does not exist yet; nothing to dispatch."
+            exit 0
+          fi
+          echo "Release ${tag} already exists (likely created by a prior run). Dispatching Release workflow..."
+          gh workflow run release.yml \
+            --repo "${{ github.repository }}" \
+            --field "tag=${tag}"
+
   # Job 2: Create/update release PRs for normal commits
   # Skipped on release commits to prevent duplicate PRs (issue #713).
   update-pr:
     runs-on: ubuntu-latest
     if: >-
       !startsWith(github.event.head_commit.message, 'chore: release')
+    outputs:
+      releases_created: ${{ steps.release.outputs.releases_created }}
+      tag_name: ${{ steps.release.outputs.tag_name }}
     steps:
       - uses: googleapis/release-please-action@v5
         id: release
@@ -80,3 +130,17 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
+
+      # release-please-action can create a release here too (when it detects
+      # a just-merged release PR). Trigger cargo-dist in that case so that
+      # the subsequent `release` job isn't the sole path to Release dispatch.
+      - name: Trigger Release workflow
+        if: ${{ steps.release.outputs.releases_created == 'true' }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "Release created from update-pr job, triggering cargo-dist Release workflow..."
+          echo "Tag: ${{ steps.release.outputs.tag_name }}"
+          gh workflow run release.yml \
+            --repo "${{ github.repository }}" \
+            --field "tag=${{ steps.release.outputs.tag_name }}"
