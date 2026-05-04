@@ -1,4 +1,5 @@
 use rstest::rstest;
+use serial_test::serial;
 use vx_output_filter::filter::{FilterLevel, OutputFilter, OutputFilterConfig};
 use vx_output_filter::rules::{is_error_line, strip_ansi};
 
@@ -162,12 +163,14 @@ fn test_filter_level_aggressive_config() {
 }
 
 #[test]
+#[serial]
 fn test_filter_level_from_env_default_is_normal() {
     unsafe { std::env::remove_var("VX_FILTER_LEVEL") };
     assert_eq!(FilterLevel::from_env(), FilterLevel::Normal);
 }
 
 #[test]
+#[serial]
 fn test_filter_level_from_env_recognises_light() {
     unsafe { std::env::set_var("VX_FILTER_LEVEL", "light") };
     assert_eq!(FilterLevel::from_env(), FilterLevel::Light);
@@ -175,6 +178,7 @@ fn test_filter_level_from_env_recognises_light() {
 }
 
 #[test]
+#[serial]
 fn test_filter_level_from_env_recognises_aggressive() {
     unsafe { std::env::set_var("VX_FILTER_LEVEL", "aggressive") };
     assert_eq!(FilterLevel::from_env(), FilterLevel::Aggressive);
