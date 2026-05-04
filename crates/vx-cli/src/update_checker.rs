@@ -111,23 +111,19 @@ fn get_cache_path() -> Result<PathBuf> {
 /// Load cache from disk
 fn load_cache() -> UpdateCheckCache {
     match get_cache_path() {
-        Ok(path) if path.exists() => {
-            match fs::read_to_string(&path) {
-                Ok(content) => {
-                    match serde_json::from_str::<UpdateCheckCache>(&content) {
-                        Ok(cache) => cache,
-                        Err(e) => {
-                            tracing::debug!("Failed to parse cache file: {}, using default", e);
-                            UpdateCheckCache::default()
-                        }
-                    }
-                }
+        Ok(path) if path.exists() => match fs::read_to_string(&path) {
+            Ok(content) => match serde_json::from_str::<UpdateCheckCache>(&content) {
+                Ok(cache) => cache,
                 Err(e) => {
-                    tracing::debug!("Failed to read cache file: {}, using default", e);
+                    tracing::debug!("Failed to parse cache file: {}, using default", e);
                     UpdateCheckCache::default()
                 }
+            },
+            Err(e) => {
+                tracing::debug!("Failed to read cache file: {}, using default", e);
+                UpdateCheckCache::default()
             }
-        }
+        },
         _ => UpdateCheckCache::default(),
     }
 }
@@ -135,8 +131,7 @@ fn load_cache() -> UpdateCheckCache {
 /// Save cache to disk
 fn save_cache(cache: &UpdateCheckCache) -> Result<()> {
     let path = get_cache_path()?;
-    let content = serde_json::to_string_pretty(cache)
-        .context("Failed to serialize cache")?;
+    let content = serde_json::to_string_pretty(cache).context("Failed to serialize cache")?;
 
     fs::write(&path, content)
         .with_context(|| format!("Failed to write cache file: {}", path.display()))?;
@@ -172,7 +167,8 @@ fn is_cache_valid(cache: &UpdateCheckCache) -> bool {
 
 /// Parse ISO 8601 time string to Unix timestamp
 fn parse_iso8601_time(s: &str) -> Result<u64> {
-    let dt = s.parse::<chrono::DateTime<chrono::Utc>>()
+    let dt = s
+        .parse::<chrono::DateTime<chrono::Utc>>()
         .map_err(|e| anyhow!("Failed to parse time: {}", e))?;
 
     Ok(dt.timestamp() as u64)
@@ -186,7 +182,7 @@ fn format_time(t: SystemTime) -> String {
 
 /// Fetch latest version from CDN (non-blocking, best-effort)
 async fn fetch_latest_version() -> Result<String> {
-    use reqwest::header::{USER_AGENT, AUTHORIZATION};
+    use reqwest::header::{AUTHORIZATION, USER_AGENT};
 
     let client = reqwest::Client::builder()
         .timeout(Duration::from_secs(5)) // Short timeout to avoid blocking
@@ -224,7 +220,9 @@ async fn fetch_latest_version() -> Result<String> {
 
     // Add authorization if token is available
     if let Ok(token) = env::var("GITHUB_TOKEN").or_else(|_| env::var("VX_GITHUB_TOKEN")) {
-        if let Ok(header_value) = reqwest::header::HeaderValue::from_str(&format!("Bearer {}", token)) {
+        if let Ok(header_value) =
+            reqwest::header::HeaderValue::from_str(&format!("Bearer {}", token))
+        {
             headers.insert(AUTHORIZATION, header_value);
         }
     }
@@ -232,10 +230,14 @@ async fn fetch_latest_version() -> Result<String> {
     tracing::debug!("Sending request to GitHub API...");
     match client.get(github_url).headers(headers).send().await {
         Ok(response) if response.status().is_success() => {
-            tracing::debug!("GitHub API request successful, status: {}", response.status());
+            tracing::debug!(
+                "GitHub API request successful, status: {}",
+                response.status()
+            );
             if let Ok(json) = response.json::<serde_json::Value>().await {
                 if let Some(tag) = json["tag_name"].as_str() {
-                    let version = tag.trim_start_matches('v')
+                    let version = tag
+                        .trim_start_matches('v')
                         .trim_start_matches("vx-v")
                         .to_string();
                     return Ok(version);
@@ -271,7 +273,10 @@ async fn perform_update_check(cache: &mut UpdateCheckCache) -> Result<()> {
 
             save_cache(cache)?;
 
-            tracing::debug!("Update check successful: latest version = {}", cache.latest_version);
+            tracing::debug!(
+                "Update check successful: latest version = {}",
+                cache.latest_version
+            );
             Ok(())
         }
         Err(e) => {
@@ -322,7 +327,10 @@ fn do_update_check_sync() -> Option<String> {
                         tracing::debug!("Update check failed: {}", e);
                     }
                     Err(_timeout) => {
-                        tracing::debug!("Update check timed out after {}s", timeout_duration.as_secs());
+                        tracing::debug!(
+                            "Update check timed out after {}s",
+                            timeout_duration.as_secs()
+                        );
                     }
                 }
             }
