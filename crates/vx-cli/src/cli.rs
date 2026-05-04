@@ -87,6 +87,23 @@ impl From<CacheModeArg> for CacheMode {
     }
 }
 
+/// Update channel for self-update
+///
+/// Controls which release channel to use for vx updates:
+/// - **Stable**: Only stable releases (default)
+/// - **Beta**: Include pre-release versions
+/// - **Dev**: Nightly builds (not yet available)
+#[derive(ValueEnum, Clone, Copy, Debug, Default)]
+pub enum Channel {
+    /// Stable releases only (default)
+    #[default]
+    Stable,
+    /// Include beta/pre-release versions
+    Beta,
+    /// Nightly/dev builds (future feature)
+    Dev,
+}
+
 #[derive(Parser)]
 #[command(name = "vx")]
 #[command(about = "Universal version executor for development tools")]
@@ -837,9 +854,9 @@ pub enum Commands {
         /// GitHub token for authenticated API requests
         #[arg(long)]
         token: Option<String>,
-        /// Include pre-release versions
-        #[arg(long)]
-        prerelease: bool,
+        /// Update channel (stable, beta, dev)
+        #[arg(long, value_enum)]
+        channel: Option<Channel>,
         /// Force update even if already up to date
         #[arg(short, long)]
         force: bool,
@@ -1586,12 +1603,12 @@ impl CommandHandler for Commands {
                 check,
                 version,
                 token,
-                prerelease,
+                channel,
                 force,
             } => {
                 commands::self_update::handle(
                     token.as_deref(),
-                    *prerelease,
+                    *channel,
                     *force,
                     *check,
                     version.as_deref(),
