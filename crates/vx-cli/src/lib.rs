@@ -21,12 +21,13 @@ pub mod suggestions;
 pub mod system_tools;
 pub mod tracing_setup;
 pub mod ui;
+pub mod update_checker;
 
 #[cfg(test)]
 pub mod test_utils;
 
 // Re-export for convenience
-pub use cli::{Cli, OutputFormat};
+pub use cli::{Cli, Commands, OutputFormat};
 pub use commands::{CommandContext, CommandHandler, GlobalOptions};
 pub use output::{CommandOutput, OutputRenderer};
 pub use registry::{ProviderRegistryExt, create_context, create_registry};
@@ -85,15 +86,30 @@ pub async fn main() -> anyhow::Result<()> {
     // Fast-path for lightweight commands that do not require provider registry
     // or runtime context initialization. This significantly reduces fixed startup
     // overhead for config/script read-only operations used in benchmarks.
+    //
+    // IMPORTANT: We still check for updates (non-blocking) before returning.
     if let Some(result) = try_execute_lightweight_command(&cli).await {
         if result.is_err() {
             _metrics_guard.set_exit_code(1);
         }
+
+        // Check for vx updates (non-blocking, cached)
+        // Skip notification for self-update command to avoid confusion
+        if !matches!(&cli.command, Some(Commands::SelfUpdate { .. })) {
+            // Wait for update check to complete (with timeout)
+            let timeout_duration = std::time::Duration::from_secs(10);
+            let handle = update_checker::notify_if_update_available();
+            if let Err(_) = tokio::time::timeout(timeout_duration, handle).await {
+                tracing::debug!("Update check timed out after {}s", timeout_duration.as_secs());
+            }
+        }
+
         return result;
     }
 
     // Register embedded bridge binaries (e.g., MSBuild.exe on Windows)
     // This must happen before any provider tries to deploy bridges.
+    println!("DEBUG: Reached normal command path (after lightweight check)");
     registry::register_embedded_bridges();
 
     // Create provider registry with all available providers
@@ -127,6 +143,17 @@ pub async fn main() -> anyhow::Result<()> {
     // Set exit code for metrics
     if result.is_err() {
         _metrics_guard.set_exit_code(1);
+    }
+
+    // Check for vx updates (non-blocking, cached)
+    // Skip notification for self-update command to avoid confusion
+    if !matches!(&cli.command, Some(Commands::SelfUpdate { .. })) {
+        // Wait for update check to complete (with timeout to avoid blocking)
+        let timeout_duration = std::time::Duration::from_secs(10);
+        let handle = update_checker::notify_if_update_available();
+        if let Err(_) = tokio::time::timeout(timeout_duration, handle).await {
+            tracing::debug!("Update check timed out after {}s", timeout_duration.as_secs());
+        }
     }
 
     result
