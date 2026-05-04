@@ -373,6 +373,13 @@ pub async fn check_for_updates_sync() -> Result<Option<String>> {
 /// This function should be called after the main command execution.
 /// It displays a non-intrusive notification to the user.
 ///
+/// # Output Channel
+///
+/// Notifications are sent to **stderr** to avoid polluting structured output
+/// (JSON/TOML) when vx is used by AI agents. This follows CLI best practices:
+/// - stdout: Structured data (JSON, TOML, command output)
+/// - stderr: Errors, warnings, hints, update notifications
+///
 /// # Returns
 ///
 /// Returns a `JoinHandle` that should be awaited (with timeout) by the caller.
@@ -388,11 +395,20 @@ pub fn notify_if_update_available() -> tokio::task::JoinHandle<()> {
         if let Some(latest_version) = do_update_check_sync() {
             let current_version = env!("CARGO_PKG_VERSION");
 
-            crate::ui::UI::info(&format!(
-                "A new version of vx is available: {} → {}",
-                current_version, latest_version
-            ));
-            crate::ui::UI::hint("Run 'vx self-update' to update to the latest version");
+            // Output to stderr to avoid polluting JSON/TOML stdout
+            eprintln!(
+                "{} {}",
+                "ℹ".blue(),
+                format!(
+                    "A new version of vx is available: {} → {}",
+                    current_version, latest_version
+                )
+            );
+            eprintln!(
+                "{} {}",
+                "💡".cyan(),
+                "Run 'vx self-update' to update to the latest version".dimmed()
+            );
         }
     })
 }
