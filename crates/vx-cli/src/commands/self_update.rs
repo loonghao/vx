@@ -65,17 +65,22 @@ enum VersionSource {
 ///
 /// # Arguments
 /// * `token` - Optional GitHub token for authenticated API requests
-/// * `prerelease` - Whether to include pre-release versions
+/// * `channel` - Update channel (stable, beta, dev)
 /// * `force` - Force update even if already up to date
 /// * `check_only` - Only check for updates, don't install
 /// * `target_version` - Specific version to install (e.g., "0.5.28")
 pub async fn handle(
     token: Option<&str>,
-    prerelease: bool,
+    channel: Option<crate::cli::Channel>,
     force: bool,
     check_only: bool,
     target_version: Option<&str>,
 ) -> Result<()> {
+    // Map channel to prerelease flag
+    let prerelease = match channel {
+        Some(crate::cli::Channel::Beta) | Some(crate::cli::Channel::Dev) => true,
+        Some(crate::cli::Channel::Stable) | None => false,
+    };
     UI::section("Checking for updates");
 
     let current_version = env!("CARGO_PKG_VERSION");
