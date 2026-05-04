@@ -99,7 +99,10 @@ pub async fn main() -> anyhow::Result<()> {
             // Wait for update check to complete (with timeout)
             let timeout_duration = std::time::Duration::from_secs(10);
             let handle = update_checker::notify_if_update_available();
-            if let Err(_) = tokio::time::timeout(timeout_duration, handle).await {
+            if tokio::time::timeout(timeout_duration, handle)
+                .await
+                .is_err()
+            {
                 tracing::debug!(
                     "Update check timed out after {}s",
                     timeout_duration.as_secs()
@@ -154,7 +157,10 @@ pub async fn main() -> anyhow::Result<()> {
         // Wait for update check to complete (with timeout to avoid blocking)
         let timeout_duration = std::time::Duration::from_secs(10);
         let handle = update_checker::notify_if_update_available();
-        if let Err(_) = tokio::time::timeout(timeout_duration, handle).await {
+        if tokio::time::timeout(timeout_duration, handle)
+            .await
+            .is_err()
+        {
             tracing::debug!(
                 "Update check timed out after {}s",
                 timeout_duration.as_secs()
