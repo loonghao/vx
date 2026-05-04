@@ -27,6 +27,7 @@
 //! ```
 
 use anyhow::{Context, Result, anyhow};
+use colored::Colorize;
 use serde::{Deserialize, Serialize};
 use std::env;
 use std::fs;
