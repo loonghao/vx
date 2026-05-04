@@ -4765,6 +4765,7 @@ dependencies = [
  "anyhow",
  "regex",
  "rstest",
+ "serial_test",
  "tokio",
  "tracing",
  "vx-runtime-core",
