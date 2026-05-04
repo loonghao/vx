@@ -115,7 +115,6 @@ pub async fn main() -> anyhow::Result<()> {
 
     // Register embedded bridge binaries (e.g., MSBuild.exe on Windows)
     // This must happen before any provider tries to deploy bridges.
-    println!("DEBUG: Reached normal command path (after lightweight check)");
     registry::register_embedded_bridges();
 
     // Create provider registry with all available providers
