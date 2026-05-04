@@ -312,13 +312,14 @@ fn test_cli_self_update_command() {
             check,
             version,
             token,
-            prerelease,
+            channel,
             force,
+            ..
         }) => {
             assert!(!check);
             assert!(version.is_none());
             assert!(token.is_none());
-            assert!(!prerelease);
+            assert!(channel.is_none());
             assert!(!force);
         }
         _ => panic!("Expected SelfUpdate command"),

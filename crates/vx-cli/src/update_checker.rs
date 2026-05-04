@@ -143,23 +143,21 @@ fn save_cache(cache: &UpdateCheckCache) -> Result<()> {
 /// Check if cache is still valid
 fn is_cache_valid(cache: &UpdateCheckCache) -> bool {
     // Check if we should skip checking due to failures
-    if let Some(skip_until) = &cache.skip_until {
-        if let Ok(skip_time) = parse_iso8601_time(skip_until) {
-            if let Ok(now) = SystemTime::now().duration_since(UNIX_EPOCH) {
-                if skip_time > now.as_secs() {
-                    tracing::debug!("Skipping update check until {}", skip_until);
-                    return true; // Use cached data
-                }
-            }
-        }
+    if let Some(skip_until) = &cache.skip_until
+        && let Ok(skip_time) = parse_iso8601_time(skip_until)
+        && let Ok(now) = SystemTime::now().duration_since(UNIX_EPOCH)
+        && skip_time > now.as_secs()
+    {
+        tracing::debug!("Skipping update check until {}", skip_until);
+        return true; // Use cached data
     }
 
     // Check cache age
-    if let Ok(last_check) = parse_iso8601_time(&cache.last_check) {
-        if let Ok(now) = SystemTime::now().duration_since(UNIX_EPOCH) {
-            let age_hours = (now.as_secs() - last_check) / 3600;
-            return age_hours < cache.cache_duration_hours;
-        }
+    if let Ok(last_check) = parse_iso8601_time(&cache.last_check)
+        && let Ok(now) = SystemTime::now().duration_since(UNIX_EPOCH)
+    {
+        let age_hours = (now.as_secs() - last_check) / 3600;
+        return age_hours < cache.cache_duration_hours;
     }
 
     false
@@ -202,14 +200,13 @@ async fn fetch_latest_version() -> Result<String> {
     match client.get(cdn_url).headers(headers.clone()).send().await {
         Ok(response) if response.status().is_success() => {
             tracing::debug!("CDN request successful, status: {}", response.status());
-            if let Ok(json) = response.json::<serde_json::Value>().await {
-                if let Some(version) = json["versions"]
+            if let Ok(json) = response.json::<serde_json::Value>().await
+                && let Some(version) = json["versions"]
                     .as_array()
                     .and_then(|v| v.first())
                     .and_then(|v| v.as_str())
-                {
-                    return Ok(version.to_string());
-                }
+            {
+                return Ok(version.to_string());
             }
         }
         _ => {}
@@ -219,12 +216,11 @@ async fn fetch_latest_version() -> Result<String> {
     let github_url = "https://api.github.com/repos/loonghao/vx/releases/latest";
 
     // Add authorization if token is available
-    if let Ok(token) = env::var("GITHUB_TOKEN").or_else(|_| env::var("VX_GITHUB_TOKEN")) {
-        if let Ok(header_value) =
+    if let Ok(token) = env::var("GITHUB_TOKEN").or_else(|_| env::var("VX_GITHUB_TOKEN"))
+        && let Ok(header_value) =
             reqwest::header::HeaderValue::from_str(&format!("Bearer {}", token))
-        {
-            headers.insert(AUTHORIZATION, header_value);
-        }
+    {
+        headers.insert(AUTHORIZATION, header_value);
     }
 
     tracing::debug!("Sending request to GitHub API...");
@@ -234,14 +230,14 @@ async fn fetch_latest_version() -> Result<String> {
                 "GitHub API request successful, status: {}",
                 response.status()
             );
-            if let Ok(json) = response.json::<serde_json::Value>().await {
-                if let Some(tag) = json["tag_name"].as_str() {
-                    let version = tag
-                        .trim_start_matches('v')
-                        .trim_start_matches("vx-v")
-                        .to_string();
-                    return Ok(version);
-                }
+            if let Ok(json) = response.json::<serde_json::Value>().await
+                && let Some(tag) = json["tag_name"].as_str()
+            {
+                let version = tag
+                    .trim_start_matches('v')
+                    .trim_start_matches("vx-v")
+                    .to_string();
+                return Ok(version);
             }
         }
         _ => {}
@@ -406,12 +402,10 @@ pub fn notify_if_update_available() -> tokio::task::JoinHandle<()> {
 
             // Output to stderr to avoid polluting JSON/TOML stdout
             eprintln!(
-                "{} {}",
+                "{} A new version of vx is available: {} → {}",
                 "ℹ".blue(),
-                format!(
-                    "A new version of vx is available: {} → {}",
-                    current_version, latest_version
-                )
+                current_version,
+                latest_version
             );
             eprintln!(
                 "{} {}",
