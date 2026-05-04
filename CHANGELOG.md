@@ -6,6 +6,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [0.8.36](https://github.com/loonghao/vx/compare/v0.8.35...v0.8.36) (2026-05-04)
+
+
+### Documentation
+
+* update version to v0.8.35 and provider count to 136 ([70f2615](https://github.com/loonghao/vx/commit/70f261552a25a12b609019837755655da95ce126))
+* update version to v0.8.35 and provider count to 136 ([fddf63a](https://github.com/loonghao/vx/commit/fddf63a8382e0b18abf39eb64dd3db60ff17eab8))
+
 ## [0.8.35](https://github.com/loonghao/vx/compare/v0.8.34...v0.8.35) (2026-05-03)
 
 
