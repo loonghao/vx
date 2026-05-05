@@ -14,7 +14,6 @@ load("@vx//stdlib:provider.star",
      "path_fns",
      "system_install_strategies", "brew_install", "apt_install",
      "choco_install", "winget_install")
-load("@vx//stdlib:github.star", "make_fetch_versions", "github_asset_url")
 
 # ---------------------------------------------------------------------------
 # Provider metadata
@@ -59,64 +58,39 @@ runtimes = [
 # Permissions
 # ---------------------------------------------------------------------------
 
-permissions = github_permissions(extra_hosts = ["evermeet.cx", "www.gyan.dev"])
+permissions = github_permissions(extra_hosts = [])
 
 # ---------------------------------------------------------------------------
-# fetch_versions — from GyanD/ffmpeg (use same tags for all platforms)
+# No fetch_versions (use system_install only)
 # ---------------------------------------------------------------------------
 
-fetch_versions = make_fetch_versions("GyanD", "ffmpeg")
+def fetch_versions(_ctx):
+    return []
 
 # ---------------------------------------------------------------------------
-# download_url — Windows: Gyan.dev; macOS: evermeet.cx; Linux: None (system)
+# No download_url (use system_install only)
 # ---------------------------------------------------------------------------
 
-def download_url(ctx, version):
-    os = ctx.platform.os
-    if os == "windows":
-        # Gyan.dev: https://www.gyan.dev/ffmpeg/builds/
-        # Asset: ffmpeg-{version}-essentials_build.zip
-        asset = "ffmpeg-{}-essentials_build.zip".format(version)
-        return github_asset_url("GyanD", "ffmpeg", version, asset)
-    elif os == "darwin":
-        # evermeet.cx: https://evermeet.cx/ffmpeg/
-        # Asset: ffmpeg-{version}.zip (Intel only, no arm64)
-        # Use system_install (brew) as primary for macOS
-        return None
-    elif os == "linux":
-        # Use system package manager (apt/yum)
-        return None
+def download_url(_ctx, _version):
     return None
 
 # ---------------------------------------------------------------------------
-# install_layout — Windows: .zip archive; macOS/Linux: system_install
+# No install_layout (use system_install only)
 # ---------------------------------------------------------------------------
 
-def install_layout(ctx, version):
-    if ctx.platform.os == "windows":
-        return {
-            "type":             "archive",
-            "strip_prefix":     "ffmpeg-{}-essentials_build".format(version),
-            "executable_paths": ["bin/ffmpeg.exe", "bin/ffprobe.exe", "bin/ffplay.exe"],
-        }
-    # macOS/Linux: use system_install
+def install_layout(_ctx, _version):
     return None
 
 # ---------------------------------------------------------------------------
-# Path + env functions
+# Path + env functions (for system_install)
 # ---------------------------------------------------------------------------
 
 paths            = path_fns("ffmpeg")
 store_root       = paths["store_root"]
 get_execute_path = paths["get_execute_path"]
 
-def environment(ctx, _version):
-    if ctx.platform.os == "windows":
-        return [{"op": "prepend", "key": "PATH", "value": ctx.install_dir + "/bin"}]
-    return [{"op": "prepend", "key": "PATH", "value": ctx.install_dir}]
-
-def post_install(_ctx, _version):
-    return None
+def environment(_ctx, _version):
+    return []
 
 # ---------------------------------------------------------------------------
 # system_install — all platforms
