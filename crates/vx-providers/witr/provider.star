@@ -7,8 +7,9 @@
 #   macOS:   witr-darwin-{arch}    (direct binary)
 #   Linux:   witr-linux-{arch}     (direct binary)
 #
-# Use github_binary_provider template (handles direct binaries correctly)
-# Only override download_url (asset name has no version)
+# Uses github_binary_provider template
+# Override download_url (asset name has no version)
+# Override install_layout (template expects version in asset name)
 #
 
 load("@vx//stdlib:provider.star",
@@ -42,11 +43,7 @@ runtimes = [
 permissions = github_permissions()
 
 # ---------------------------------------------------------------------------
-# github_binary_provider template
-#
-# Asset naming: witr-{os}-{arch}[.zip]
-# - os: windows, darwin, linux (matches GitHub releases)
-# - arch: amd64, arm64
+# Platform mapping
 # ---------------------------------------------------------------------------
 
 _OS_MAP = {
@@ -60,13 +57,21 @@ _ARCH_MAP = {
     "arm64": "arm64",
 }
 
+# ---------------------------------------------------------------------------
+# github_binary_provider template
+#
+# We use the template but OVERRIDE both download_url and install_layout.
+# Template expects asset name: witr-{os}-{arch}-v0.3.1.{ext]
+# Actual asset name:   witr-{os}-{arch}.{ext}
+# ---------------------------------------------------------------------------
+
 _p = github_binary_provider(
     "pranshuparmar", "witr",
     asset = "witr-{os}-{arch}{ext}",
     tag_prefix = "v",
 )
 
-# Inherit ALL functions from template (including install_layout)
+# Inherit unmodified functions from template
 fetch_versions   = _p["fetch_versions"]
 store_root       = _p["store_root"]
 get_execute_path = _p["get_execute_path"]
@@ -75,7 +80,7 @@ environment      = _p["environment"]
 deps             = _p["deps"]
 
 # ---------------------------------------------------------------------------
-# download_url — ONLY override (witr asset names don't have version)
+# download_url — OVERRIDE (witr asset names don't have version)
 # ---------------------------------------------------------------------------
 
 def download_url(ctx, version):
@@ -86,3 +91,40 @@ def download_url(ctx, version):
     ext = ".zip" if ctx.platform.os == "windows" else ""
     asset = "witr-{}-{}{}".format(os_str, arch_str, ext)
     return github_asset_url("pranshuparmar", "witr", "v" + version, asset)
+
+# ---------------------------------------------------------------------------
+# install_layout — OVERRIDE (template expects version in asset name)
+#
+# For DIRECT BINARIES (macOS/Linux):
+#   __type__ = "binary_install"
+#   source_name = "witr-{os}-{arch}"  (downloaded filename)
+#   target_name = "witr"                   (installed filename)
+#
+# For ZIP ARCHIVES (Windows):
+#   __type__ = "archive"
+#   source_name = "witr.exe"             (inside .zip)
+#   target_name = "witr.exe"             (installed filename)
+# ---------------------------------------------------------------------------
+
+def install_layout(ctx, _version):
+    if ctx.platform.os == "windows":
+        # .zip archive: binary inside is witr.exe
+        return {
+            "__type__":           "archive",
+            "source_name":      "witr.exe",
+            "target_name":      "witr.exe",
+            "target_dir":       "",
+            "executable_paths": ["witr.exe"],
+        }
+    else:
+        # Direct binary (macOS/Linux)
+        os_str = _OS_MAP[ctx.platform.os]
+        arch_str = _ARCH_MAP[ctx.platform.arch]
+        source_name = "witr-{}-{}".format(os_str, arch_str)
+        return {
+            "__type__":           "binary_install",
+            "source_name":      source_name,
+            "target_name":      "witr",
+            "target_dir":       "",
+            "executable_paths": ["witr"],
+        }
