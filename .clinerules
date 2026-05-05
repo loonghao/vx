@@ -2,7 +2,7 @@
 
 ## Project
 
-vx is a universal development tool manager (Rust, 105 providers, Starlark DSL).
+vx is a universal development tool manager (Rust, 136 providers, Starlark DSL).
 Users prefix commands with `vx` and tools auto-install on first use.
 
 ## Rules
