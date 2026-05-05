@@ -7,9 +7,10 @@
 #   macOS:   witr-darwin-{arch}    (direct binary)
 #   Linux:   witr-linux-{arch}     (direct binary)
 #
-# Uses github_binary_provider template
-# Override download_url (asset name has no version)
-# Override install_layout (template expects version in asset name)
+# NOTE: github_binary_provider template expects version in asset name.
+#       witr assets DON'T have version, so we override BOTH:
+#       - download_url (remove version)
+#       - install_layout (template generated wrong one)
 #
 
 load("@vx//stdlib:provider.star",
@@ -43,7 +44,7 @@ runtimes = [
 permissions = github_permissions()
 
 # ---------------------------------------------------------------------------
-# Platform mapping
+# Platform mapping (GitHub releases use: windows, darwin, linux)
 # ---------------------------------------------------------------------------
 
 _OS_MAP = {
@@ -60,9 +61,12 @@ _ARCH_MAP = {
 # ---------------------------------------------------------------------------
 # github_binary_provider template
 #
-# We use the template but OVERRIDE both download_url and install_layout.
-# Template expects asset name: witr-{os}-{arch}-v0.3.1.{ext]
-# Actual asset name:   witr-{os}-{arch}.{ext}
+# We load the template, but OVERRIDE both:
+#   - download_url (witr assets DON'T have version)
+#   - install_layout (template generates wrong one with version)
+#
+# Template asset naming: witr-{os}-{arch}-v0.3.1.{ext]  (WRONG!)
+# We need:              witr-{os}-{arch}.{ext}        (CORRECT!)
 # ---------------------------------------------------------------------------
 
 _p = github_binary_provider(
@@ -71,7 +75,7 @@ _p = github_binary_provider(
     tag_prefix = "v",
 )
 
-# Inherit unmodified functions from template
+# Inherit MOST functions from template
 fetch_versions   = _p["fetch_versions"]
 store_root       = _p["store_root"]
 get_execute_path = _p["get_execute_path"]
@@ -80,7 +84,7 @@ environment      = _p["environment"]
 deps             = _p["deps"]
 
 # ---------------------------------------------------------------------------
-# download_url — OVERRIDE (witr asset names don't have version)
+# download_url — OVERRIDE (witr asset names DON'T have version)
 # ---------------------------------------------------------------------------
 
 def download_url(ctx, version):
@@ -95,36 +99,26 @@ def download_url(ctx, version):
 # ---------------------------------------------------------------------------
 # install_layout — OVERRIDE (template expects version in asset name)
 #
-# For DIRECT BINARIES (macOS/Linux):
-#   __type__ = "binary_install"
-#   source_name = "witr-{os}-{arch}"  (downloaded filename)
-#   target_name = "witr"                   (installed filename)
-#
-# For ZIP ARCHIVES (Windows):
-#   __type__ = "archive"
-#   source_name = "witr.exe"             (inside .zip)
-#   target_name = "witr.exe"             (installed filename)
+# Based on WORKING yq/provider.star:
+#   - __type__ = "binary_install"
+#   - target_dir = "bin"
+#   - executable_paths = ["bin/" + target_name]
 # ---------------------------------------------------------------------------
 
 def install_layout(ctx, _version):
-    if ctx.platform.os == "windows":
-        # .zip archive: binary inside is witr.exe
-        return {
-            "__type__":           "archive",
-            "source_name":      "witr.exe",
-            "target_name":      "witr.exe",
-            "target_dir":       "",
-            "executable_paths": ["witr.exe"],
-        }
-    else:
-        # Direct binary (macOS/Linux)
-        os_str = _OS_MAP[ctx.platform.os]
-        arch_str = _ARCH_MAP[ctx.platform.arch]
-        source_name = "witr-{}-{}".format(os_str, arch_str)
-        return {
-            "__type__":           "binary_install",
-            "source_name":      source_name,
-            "target_name":      "witr",
-            "target_dir":       "",
-            "executable_paths": ["witr"],
-        }
+    """Install layout for witr.
+    Based on yq/provider.star (which WORKS on macOS/Linux).
+    """
+    os_str   = _OS_MAP.get(ctx.platform.os, ctx.platform.os)
+    arch_str = _ARCH_MAP.get(ctx.platform.arch, ctx.platform.arch)
+
+    source_name = "witr-{}-{}".format(os_str, arch_str)
+    target_name = "witr" + (".exe" if ctx.platform.os == "windows" else "")
+
+    return {
+        "__type__":         "binary_install",
+        "source_name":      source_name,
+        "target_name":      target_name,
+        "target_dir":       "bin",
+        "executable_paths": ["bin/" + target_name],
+    }
