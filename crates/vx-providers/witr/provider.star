@@ -122,9 +122,9 @@ def install_layout(ctx, _version):
             "executable_paths": [target_name],
         }
     else:
-        # Direct binary (Linux/macOS): no extraction needed
+        # Direct binary (Linux/macOS): no extraction needed, just rename
         return {
-            "__type":           "binary_install",
+            "__type":           "binary",
             "source_name":      _asset_name(ctx),
             "target_name":      target_name,
             "target_dir":       "",
