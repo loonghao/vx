@@ -3,17 +3,17 @@
 # FFmpeg - A complete, cross-platform solution to record, convert and stream
 # audio and video.
 #
-# Windows: GyanD/codexffmpeg releases (essentials build)
-# Linux:   johnvansickle.com static builds
-# macOS:   brew install (evermeet.cx only has Intel, uses different versioning)
+# Windows: Gyan.dev releases (essentials build)
+# macOS:   evermeet.cx (Intel binary, use brew as fallback)
+# Linux:   system package manager (apt/yum)
 #
 # Uses stdlib templates from @vx//stdlib:provider.star
 
 load("@vx//stdlib:provider.star",
-     "runtime_def", "bundled_runtime_def", "github_permissions", "post_extract_flatten",
+     "runtime_def", "bundled_runtime_def", "github_permissions",
      "path_fns",
-     "system_install_strategies", "brew_install", "apt_install", "choco_install",
-     "winget_install")
+     "system_install_strategies", "brew_install", "apt_install",
+     "choco_install", "winget_install")
 load("@vx//stdlib:github.star", "make_fetch_versions", "github_asset_url")
 
 # ---------------------------------------------------------------------------
@@ -59,52 +59,48 @@ runtimes = [
 # Permissions
 # ---------------------------------------------------------------------------
 
-permissions = github_permissions(extra_hosts = ["evermeet.cx"])
+permissions = github_permissions(extra_hosts = ["evermeet.cx", "www.gyan.dev"])
 
 # ---------------------------------------------------------------------------
-# fetch_versions — from GyanD/codexffmpeg (Windows) or johnvansickle.com
+# fetch_versions — from GyanD/ffmpeg (use same tags for all platforms)
 # ---------------------------------------------------------------------------
 
-fetch_versions = make_fetch_versions("GyanD", "codexffmpeg")
+fetch_versions = make_fetch_versions("GyanD", "ffmpeg")
 
 # ---------------------------------------------------------------------------
-# Platform helpers
+# download_url — Windows: Gyan.dev; macOS: evermeet.cx; Linux: None (system)
 # ---------------------------------------------------------------------------
 
 def download_url(ctx, version):
-    os   = ctx.platform.os
+    os = ctx.platform.os
     if os == "windows":
+        # Gyan.dev: https://www.gyan.dev/ffmpeg/builds/
+        # Asset: ffmpeg-{version}-essentials_build.zip
         asset = "ffmpeg-{}-essentials_build.zip".format(version)
-        return github_asset_url("GyanD", "codex_ffmpeg", version, asset)
-    # Linux/macOS: use system_install (more reliable than personal mirrors)
+        return github_asset_url("GyanD", "ffmpeg", version, asset)
+    elif os == "darwin":
+        # evermeet.cx: https://evermeet.cx/ffmpeg/
+        # Asset: ffmpeg-{version}.zip (Intel only, no arm64)
+        # Use system_install (brew) as primary for macOS
+        return None
+    elif os == "linux":
+        # Use system package manager (apt/yum)
+        return None
     return None
 
 # ---------------------------------------------------------------------------
-# install_layout
+# install_layout — Windows: .zip archive; macOS/Linux: system_install
 # ---------------------------------------------------------------------------
 
 def install_layout(ctx, version):
-    os = ctx.platform.os
-    if os == "windows":
+    if ctx.platform.os == "windows":
         return {
             "type":             "archive",
             "strip_prefix":     "ffmpeg-{}-essentials_build".format(version),
             "executable_paths": ["bin/ffmpeg.exe", "bin/ffprobe.exe", "bin/ffplay.exe"],
         }
-    # Linux static build (johnvansickle.com) does NOT include ffplay
-    # (ffplay requires SDL which can't be statically linked).
-    # The archive has a top-level directory like "ffmpeg-7.0-amd64-static/"
-    return {
-        "type":             "archive",
-        "strip_prefix":     "",
-        "executable_paths": ["ffmpeg", "ffprobe"],
-    }
-
-# ---------------------------------------------------------------------------
-# post_extract — flatten Linux static build's top-level dir
-# ---------------------------------------------------------------------------
-
-post_extract = post_extract_flatten()
+    # macOS/Linux: use system_install
+    return None
 
 # ---------------------------------------------------------------------------
 # Path + env functions
@@ -119,17 +115,12 @@ def environment(ctx, _version):
         return [{"op": "prepend", "key": "PATH", "value": ctx.install_dir + "/bin"}]
     return [{"op": "prepend", "key": "PATH", "value": ctx.install_dir}]
 
-
 def post_install(_ctx, _version):
     return None
 
 # ---------------------------------------------------------------------------
-# system_install — static dict with all platforms' strategies
+# system_install — all platforms
 # ---------------------------------------------------------------------------
-# NOTE: Use static dict (not function) so parse_system_install_strategies
-# can read it directly without calling. Platform filtering is handled
-# automatically by the per-manager helpers (brew_install, apt_install, etc.)
-# which set the "platforms" field on each strategy dict.
 
 system_install = system_install_strategies([
     brew_install("ffmpeg"),
