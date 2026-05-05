@@ -1,56 +1,22 @@
 # VX Project Rules — Trae AI IDE
 
-## Project Context
+> All project instructions are in [AGENTS.md](AGENTS.md) — follow it exactly.
+> This file only adds Trae-specific notes.
 
-vx is a **universal development tool manager** (v0.8.36, Rust, MIT, 136 providers).
-Users prefix commands with `vx` (e.g., `vx node --version`) and tools auto-install on first use.
-Providers are defined via Starlark DSL (`provider.star`) — no Rust code needed.
+## Trae Specifics
 
-## Essential Rules
+- Use Conventional Commits: `feat:`, `fix:`, `docs:`, `chore:`, `refactor:`, `test:`
+- Run `vx just quick` before submitting PR
+- PRs target `main` branch
+- Provider count is 137 (update docs when adding new providers)
 
-1. **Always** use `vx` prefix: `vx npm install`, `vx cargo build`, `vx go run main.go`
-2. **Never** suggest manual tool installation — vx handles it
-3. **Terminology**: Runtime (not Tool), Provider (not Plugin), provider.star (not config)
-4. **Tests** in `crates/<name>/tests/` — NEVER inline `#[cfg(test)]`
-5. **Framework**: Use `rstest` for parameterized tests
-6. **Logging**: `tracing::info!`, `tracing::debug!` — NEVER `println!`
-7. **Errors**: `anyhow::Result` (app), `thiserror` (lib)
-8. **Architecture**: Layer dependencies go downward only
-9. **Pre-commit**: `vx just quick` (format → lint → test → build)
-10. **Commits**: Conventional Commits (`feat:`, `fix:`, `docs:`, `chore:`)
+## Quick Reference
 
-## Architecture Layers (top → bottom)
-
-1. **CLI**: `vx-cli` — entry point
-2. **Orchestration**: `vx-resolver`, `vx-setup`, `vx-project-analyzer`
-3. **Service**: `vx-runtime`, `vx-starlark`, `vx-installer`, `vx-config`, `vx-console`
-4. **Foundation**: `vx-core`, `vx-paths`, `vx-cache`, `vx-versions`, `vx-manifest`
-5. **Providers**: `vx-providers/*` — 136 Starlark DSL definitions
-
-## New Provider (copy-paste template)
-
-```starlark
-# crates/vx-providers/<name>/provider.star
-load("@vx//stdlib:provider.star", "runtime_def", "github_permissions")
-load("@vx//stdlib:provider_templates.star", "github_rust_provider")
-
-name        = "<name>"
-description = "<description>"
-ecosystem   = "custom"
-runtimes    = [runtime_def("<runtime>")]
-permissions = github_permissions()
-
-_p = github_rust_provider("owner", "repo",
-    asset = "tool-{vversion}-{triple}.{ext}")
-fetch_versions   = _p["fetch_versions"]
-download_url     = _p["download_url"]
-install_layout   = _p["install_layout"]
-store_root       = _p["store_root"]
-get_execute_path = _p["get_execute_path"]
-environment      = _p["environment"]
-```
-
-## References
-
-- [AGENTS.md](AGENTS.md) — Full AI agent guide
-- [docs/guide/provider-star-reference.md](docs/guide/provider-star-reference.md) — Provider DSL
+| Task | Command |
+|------|---------|
+| Full check | `vx just quick` |
+| Format | `vx just fmt` |
+| Lint | `vx just lint` |
+| Test | `vx just test` |
+| Build | `vx just build` |
+| Single crate | `vx cargo test -p <crate-name>` |
