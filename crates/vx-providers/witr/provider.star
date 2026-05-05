@@ -2,18 +2,18 @@
 #
 # witr: "Why is this running?" - Process introspection tool
 #
-# Release assets:
-#   - Windows: witr-windows-{arch}.zip (contains witr.exe)
-#   - macOS:   witr-darwin-{arch} (direct binary)
-#   - Linux:   witr-linux-{arch}   (direct binary)
+# Assets:
+#   Windows: witr-windows-{arch}.zip (contains witr.exe)
+#   macOS:   witr-darwin-{arch}    (direct binary)
+#   Linux:   witr-linux-{arch}     (direct binary)
 #
-# Inheritance level: 1 (fully manual, no template)
-# - Reason: assets are direct binaries on macOS/Linux, .zip on Windows
+# Use github_binary_provider template (handles direct binaries correctly)
+# Only override download_url (asset name has no version)
 #
 
 load("@vx//stdlib:provider.star",
-     "runtime_def", "github_permissions")
-load("@vx//stdlib:github.star", "github_asset_url", "make_fetch_versions")
+     "github_binary_provider", "runtime_def", "github_permissions")
+load("@vx//stdlib:github.star", "github_asset_url")
 
 # ---------------------------------------------------------------------------
 # Provider metadata
@@ -42,95 +42,47 @@ runtimes = [
 permissions = github_permissions()
 
 # ---------------------------------------------------------------------------
-# Helper: map vx platform to witr asset naming
+# github_binary_provider template
+#
+# Asset naming: witr-{os}-{arch}[.zip]
+# - os: windows, darwin, linux (matches GitHub releases)
+# - arch: amd64, arm64
 # ---------------------------------------------------------------------------
 
-def _asset_name(os, arch):
-    """Return the asset filename for the given platform."""
-    os_map = {"windows": "windows", "macos": "darwin", "linux": "linux"}
-    arch_map = {"x64": "amd64", "arm64": "arm64"}
-    os_str = os_map.get(os)
-    arch_str = arch_map.get(arch)
-    if not os_str or not arch_str:
-        return None
-    ext = ".zip" if os == "windows" else ""
-    return "witr-{}-{}{}".format(os_str, arch_str, ext)
+_OS_MAP = {
+    "windows": "windows",
+    "macos":   "darwin",
+    "linux":   "linux",
+}
+
+_ARCH_MAP = {
+    "x64":   "amd64",
+    "arm64": "arm64",
+}
+
+_p = github_binary_provider(
+    "pranshuparmar", "witr",
+    asset = "witr-{os}-{arch}{ext}",
+    tag_prefix = "v",
+)
+
+# Inherit ALL functions from template (including install_layout)
+fetch_versions   = _p["fetch_versions"]
+store_root       = _p["store_root"]
+get_execute_path = _p["get_execute_path"]
+post_install     = _p["post_install"]
+environment      = _p["environment"]
+deps             = _p["deps"]
 
 # ---------------------------------------------------------------------------
-# fetch_versions — from GitHub Releases tags
-# ---------------------------------------------------------------------------
-
-fetch_versions = make_fetch_versions("pranshuparmar", "witr")
-
-# ---------------------------------------------------------------------------
-# download_url — custom (asset name has no version)
+# download_url — ONLY override (witr asset names don't have version)
 # ---------------------------------------------------------------------------
 
 def download_url(ctx, version):
-    asset = _asset_name(ctx.platform.os, ctx.platform.arch)
-    if not asset:
+    os_str = _OS_MAP.get(ctx.platform.os)
+    arch_str = _ARCH_MAP.get(ctx.platform.arch)
+    if not os_str or not arch_str:
         return None
+    ext = ".zip" if ctx.platform.os == "windows" else ""
+    asset = "witr-{}-{}{}".format(os_str, arch_str, ext)
     return github_asset_url("pranshuparmar", "witr", "v" + version, asset)
-
-# ---------------------------------------------------------------------------
-# install_layout — handle both direct binaries and .zip
-# ---------------------------------------------------------------------------
-
-def install_layout(ctx, _version):
-    """Install layout for witr."""
-    os = ctx.platform.os
-    target_name = "witr" + (".exe" if os == "windows" else "")
-
-    if os == "windows":
-        # .zip archive: binary inside is witr.exe
-        return {
-            "__type":           "archive",
-            "source_name":      "witr.exe",
-            "target_name":      target_name,
-            "target_dir":       "",
-            "executable_paths": [target_name],
-        }
-    else:
-        # Direct binary (macOS/Linux): no extraction needed
-        source_name = _asset_name(os, ctx.platform.arch)
-        return {
-            "__type":           "binary",
-            "source_name":      source_name,
-            "target_name":      target_name,
-            "target_dir":       "",
-            "executable_paths": [target_name],
-        }
-
-# ---------------------------------------------------------------------------
-# Paths
-# ---------------------------------------------------------------------------
-
-def store_root(ctx, version):
-    return "~/.vx/store/{}/{}".format(ctx.runtime.name, version)
-
-def get_execute_path(ctx, version):
-    root = store_root(ctx, version)
-    exe = "witr" + (".exe" if ctx.platform.os == "windows" else "")
-    return "{}/{}".format(root, exe)
-
-# ---------------------------------------------------------------------------
-# Environment
-# ---------------------------------------------------------------------------
-
-def environment(ctx, _version):
-    root = store_root(ctx, ctx.version_resolved)
-    return [{"op": "prepend", "key": "PATH", "value": root}]
-
-# ---------------------------------------------------------------------------
-# Post-install: vx will set executable bit automatically
-# ---------------------------------------------------------------------------
-
-def post_install(_ctx, _version):
-    return None
-
-# ---------------------------------------------------------------------------
-# Dependencies (none)
-# ---------------------------------------------------------------------------
-
-def deps(_ctx, _version):
-    return []
