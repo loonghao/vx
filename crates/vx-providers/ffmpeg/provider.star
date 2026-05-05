@@ -59,7 +59,7 @@ runtimes = [
 # Permissions
 # ---------------------------------------------------------------------------
 
-permissions = github_permissions(extra_hosts = ["johnvansickle.com", "evermeet.cx"])
+permissions = github_permissions(extra_hosts = ["evermeet.cx"])
 
 # ---------------------------------------------------------------------------
 # fetch_versions — from GyanD/codexffmpeg (Windows) or johnvansickle.com
@@ -73,20 +73,10 @@ fetch_versions = make_fetch_versions("GyanD", "codexffmpeg")
 
 def download_url(ctx, version):
     os   = ctx.platform.os
-    arch = ctx.platform.arch
     if os == "windows":
         asset = "ffmpeg-{}-essentials_build.zip".format(version)
-        return github_asset_url("GyanD", "codexffmpeg", version, asset)
-    elif os == "linux":
-        arch_map = {"x64": "amd64", "arm64": "arm64"}
-        arch_str = arch_map.get(arch)
-        if not arch_str:
-            return None
-        return "https://johnvansickle.com/ffmpeg/releases/ffmpeg-release-{}-static.tar.xz".format(arch_str)
-    elif os == "macos":
-        # evermeet.cx uses its own versioning (not compatible with GyanD tags)
-        # and only provides Intel binaries. Use system_install (brew) instead.
-        return None
+        return github_asset_url("GyanD", "codex_ffmpeg", version, asset)
+    # Linux/macOS: use system_install (more reliable than personal mirrors)
     return None
 
 # ---------------------------------------------------------------------------
