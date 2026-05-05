@@ -101,10 +101,6 @@ def download_url(ctx, version):
 # ---------------------------------------------------------------------------
 
 def install_layout(ctx, _version):
-    os_str   = _OS_MAP.get(ctx.platform.os, ctx.platform.os)
-    arch_str = _ARCH_MAP.get(ctx.platform.arch, ctx.platform.arch)
-    ext      = ".zip" if ctx.platform.os == "windows" else ""
-
     source_name = "witr" + (".exe" if ctx.platform.os == "windows" else "")
     target_name = source_name
 
