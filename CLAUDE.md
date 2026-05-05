@@ -5,7 +5,7 @@
 
 ## Project
 
-vx is a **universal development tool manager** (v0.8.35, Rust, MIT). Users prefix any command with `vx` and tools auto-install on first use. 136 providers defined via Starlark DSL (`provider.star`).
+vx is a **universal development tool manager** (v0.8.36, Rust, MIT). Users prefix any command with `vx` and tools auto-install on first use. 136 providers defined via Starlark DSL (`provider.star`).
 
 ```bash
 vx node --version     # Auto-installs Node.js
@@ -89,7 +89,6 @@ environment      = _p["environment"]
 - **Don't suggest manual tool installation** — vx handles it. Say `vx node --version`, not "install Node.js first".
 - **Don't use `sudo` with vx** — it manages user-level installations under `~/.vx/`.
 - **Don't import upward** — Foundation crates cannot import from Service layer.
-- **Provider count is 105** — update any docs that reference old counts (78, 73, 70+, 50+).
 - **Provider count is 136** — update any docs that reference old counts (78, 73, 70+, 50+, 105, 122, 124, 126, 129, 131, 132, 135, etc.)
 - **Don't use `println!`** — always use `tracing::info!`, `tracing::debug!` etc.
 - **Don't write inline tests** — tests go in `crates/<name>/tests/`, never `#[cfg(test)]`.
