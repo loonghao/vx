@@ -96,26 +96,37 @@ def download_url(ctx, version):
     return github_asset_url("pranshuparmar", "witr", "v" + version, asset)
 
 # ---------------------------------------------------------------------------
-# install_layout — binary, rename witr-{os}-{arch} → witr[.exe]
-# witr .zip contains binary named witr-{os}-{arch} (Linux/macOS) or witr.exe (Windows)
+# install_layout — handle both direct binaries (Linux/macOS) and .zip (Windows)
+# - Linux/macOS: asset is direct binary (e.g., witr-linux-amd64)
+# - Windows:     asset is .zip containing witr.exe
 # ---------------------------------------------------------------------------
 
-def _binary_name(ctx):
-    """Return the binary name inside the .zip archive."""
-    if ctx.platform.os == "windows":
-        return "witr.exe"
+def _asset_name(ctx):
+    """Return the downloaded asset filename."""
     os_str = _OS_MAP.get(ctx.platform.os)
     arch_str = _ARCH_MAP.get(ctx.platform.arch)
+    if ctx.platform.os == "windows":
+        return "witr-{}-{}.zip".format(os_str, arch_str)
     return "witr-{}-{}".format(os_str, arch_str)
 
 def install_layout(ctx, _version):
-    source_name = _binary_name(ctx)
     target_name = "witr" + (".exe" if ctx.platform.os == "windows" else "")
 
-    return {
-        "__type":           "binary_install",
-        "source_name":      source_name,
-        "target_name":      target_name,
-        "target_dir":       "",
-        "executable_paths": [target_name],
-    }
+    if ctx.platform.os == "windows":
+        # .zip archive: binary inside is witr.exe
+        return {
+            "__type":           "binary_install",
+            "source_name":      "witr.exe",
+            "target_name":      target_name,
+            "target_dir":       "",
+            "executable_paths": [target_name],
+        }
+    else:
+        # Direct binary (Linux/macOS): no extraction needed
+        return {
+            "__type":           "binary_install",
+            "source_name":      _asset_name(ctx),
+            "target_name":      target_name,
+            "target_dir":       "",
+            "executable_paths": [target_name],
+        }
