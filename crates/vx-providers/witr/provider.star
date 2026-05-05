@@ -31,7 +31,7 @@ ecosystem   = "devtools"
 
 runtimes = [
     runtime_def("witr",
-        version_pattern = "witr version \\d+\\.\\d+\\.\\d+",
+        version_pattern = "witr v\\d+\\.\\d+\\.\\d+",
     ),
 ]
 
@@ -96,13 +96,21 @@ def download_url(ctx, version):
     return github_asset_url("pranshuparmar", "witr", "v" + version, asset)
 
 # ---------------------------------------------------------------------------
-# install_layout — binary, rename witr-{os}-{arch}[.zip] → witr[.exe]
-# Note: binary goes to root dir (not bin/), matching witr's .zip layout
+# install_layout — binary, rename witr-{os}-{arch} → witr[.exe]
+# witr .zip contains binary named witr-{os}-{arch} (Linux/macOS) or witr.exe (Windows)
 # ---------------------------------------------------------------------------
 
+def _binary_name(ctx):
+    """Return the binary name inside the .zip archive."""
+    if ctx.platform.os == "windows":
+        return "witr.exe"
+    os_str = _OS_MAP.get(ctx.platform.os)
+    arch_str = _ARCH_MAP.get(ctx.platform.arch)
+    return "witr-{}-{}".format(os_str, arch_str)
+
 def install_layout(ctx, _version):
-    source_name = "witr" + (".exe" if ctx.platform.os == "windows" else "")
-    target_name = source_name
+    source_name = _binary_name(ctx)
+    target_name = "witr" + (".exe" if ctx.platform.os == "windows" else "")
 
     return {
         "__type":           "binary_install",
