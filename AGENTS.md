@@ -496,6 +496,89 @@ vx is designed to be **AI-agent-first**, providing configuration files for 17+ A
    ```
 5. **For CI/CD**, use `loonghao/vx@main` GitHub Action with `cache: 'true'`
 
+## Multi-Agent Development with `vx wt`
+
+Use `vx wt` (Git worktree manager) for parallel multi-agent development workflows:
+
+```bash
+# Create a new worktree for a feature (creates branch + worktree)
+vx wt switch feat/add-new-provider
+
+# List all worktrees and their status
+vx wt list
+
+# Merge current worktree branch into target branch
+vx wt merge
+
+# Remove worktree and delete branch (if merged)
+vx wt remove
+
+# Run a single operation (for scripting)
+vx wt step
+
+# Config management
+vx wt config
+```
+
+**Typical multi-agent workflow**:
+1. Main agent creates worktrees: `vx wt switch feat/agent-a-task`, `vx wt switch feat/agent-b-task`
+2. Each agent works in isolated worktree (no file conflicts)
+3. Agents merge independently when done
+4. Main agent removes worktrees after merge
+
+## Process Introspection with `vx witr`
+
+Use `vx witr` to debug running processes and understand "why is this running?":
+
+```bash
+# Inspect a process by name
+vx witr nginx
+
+# Look up by PID
+vx witr --pid 1234
+
+# Find process listening on a port
+vx witr --port 5432
+
+# Find process holding a file lock
+vx witr --file /var/lib/dpkg/lock
+
+# Show full process ancestry
+vx witr postgres --tree
+
+# Show warnings (suspicious env, arguments, parents)
+vx witr docker --warnings
+
+# JSON output for scripting
+vx witr chrome --json
+```
+
+## Search, Build, Package Commands
+
+```bash
+# Search in project
+vx rg "pattern"              # ripgrep (fast text search)
+vx fd "filename"             # fd-find (fast file search)
+vx fzf "pattern"            # fzf (fuzzy search)
+
+# Build commands
+vx cargo build               # Rust build
+vx cmake --build .           # CMake build
+vx make                     # Make build
+vx ninja                    # Ninja build
+vx meson compile             # Meson build
+
+# Package management
+vx cargo package             # Create Rust crate package
+vx npm pack                 # Create npm package
+vx python -m build          # Python package (with build)
+vx dpkg-deb --build        # Debian package
+
+# Docker/Container
+vx podman build -t app .    # Build container image
+vx docker build -t app .    # Docker build
+```
+
 ## Quick Diagnostics for AI Agents
 
 ```bash
