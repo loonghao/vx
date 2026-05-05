@@ -333,7 +333,55 @@ vx just quick                  # format → lint → test → build (pre-commit)
 vx cargo check -p vx-cli
 vx cargo test -p vx-starlark
 vx cargo clippy -p vx-resolver -- -D warnings
+
+# Multi-agent parallel development (using vx wt worktrees)
+vx wt switch feat/agent-a-task    # Create worktree for agent A
+vx wt switch feat/agent-b-task    # Create worktree for agent B
+vx wt list                       # List all worktrees
+vx wt merge                      # Merge current worktree
+vx wt remove                     # Remove worktree after merge
+
+# Process introspection (using vx witr)
+vx witr nginx                   # Inspect process by name
+vx witr --pid 1234             # Inspect by PID
+vx witr --port 5432            # Find process on port
+vx witr postgres --tree        # Show process ancestry
+vx witr --json                 # JSON output
+
+# Search tools
+vx rg "pattern"                 # ripgrep: fast text search
+vx fd "filename"               # fd-find: fast file search
+vx fzf "pattern"              # fzf: fuzzy search
+
+# Build tools
+vx cargo build                 # Rust build
+vx cmake --build .             # CMake build
+vx make                         # Make build
+vx ninja                        # Ninja build
+vx meson compile               # Meson build
+
+# Package management
+vx cargo package               # Create Rust crate package
+vx npm pack                   # Create npm package
+vx python -m build            # Python package (with build)
+vx dpkg-deb --build          # Debian package
+
+# Container tools
+vx podman build -t app .    # Build container image (Podman)
+vx docker build -t app .    # Build container image (Docker)
 ```
+
+### Global Install Contract (Agent-Facing)
+
+When a user runs ecosystem-native global install commands through `vx`, vx should
+preserve the familiar command style while ensuring vx-managed behavior:
+
+1. Install into vx-managed package isolation directory (`~/.vx/packages/...`)
+2. Register package metadata in `~/.vx/config/global-packages.json`
+3. Create/update shims under `~/.vx/shims`
+4. Keep executables discoverable by `vx <exe>` and direct shell usage (with shims dir in `PATH`)
+
+This contract avoids ecosystem-specific drift and provides consistent behavior across languages.
 
 ## Adding a New Provider
 
