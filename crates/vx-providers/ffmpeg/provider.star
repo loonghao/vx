@@ -3,17 +3,18 @@
 # FFmpeg - A complete, cross-platform solution to record, convert and stream
 # audio and video.
 #
-# Windows: Gyan.dev releases (essentials build)
-# macOS:   evermeet.cx (Intel binary, use brew as fallback)
-# Linux:   system package manager (apt/yum)
+# Windows: vx-org/mirrors GitHub Releases (essentials build, always available)
+# macOS:   system_install (brew)
+# Linux:   system_install (apt)
 #
-# Uses stdlib templates from @vx//stdlib:provider.star
+# Mirror source: https://github.com/vx-org/mirrors
 
 load("@vx//stdlib:provider.star",
      "runtime_def", "bundled_runtime_def", "github_permissions",
      "path_fns",
      "system_install_strategies", "brew_install", "apt_install",
      "choco_install", "winget_install")
+load("@vx//stdlib:github.star", "make_fetch_versions", "github_asset_url")
 
 # ---------------------------------------------------------------------------
 # Provider metadata
@@ -58,42 +59,57 @@ runtimes = [
 # Permissions
 # ---------------------------------------------------------------------------
 
-permissions = github_permissions(extra_hosts = [])
+permissions = github_permissions()
 
 # ---------------------------------------------------------------------------
-# No fetch_versions (use system_install only)
+# fetch_versions — from vx-org/mirrors tags (format: ffmpeg-{version})
 # ---------------------------------------------------------------------------
 
-def fetch_versions(_ctx):
-    return []
+fetch_versions = make_fetch_versions("vx-org", "mirrors",
+    tag_prefix = "ffmpeg-")
 
 # ---------------------------------------------------------------------------
-# No download_url (use system_install only)
+# download_url — Windows: vx-org/mirrors; macOS/Linux: system_install
 # ---------------------------------------------------------------------------
 
-def download_url(_ctx, _version):
+def download_url(ctx, version):
+    if ctx.platform.os == "windows":
+        asset = "ffmpeg-{}-essentials_build.zip".format(version)
+        return github_asset_url("vx-org", "mirrors", "ffmpeg-" + version, asset)
+    # macOS/Linux: use system_install (brew/apt)
     return None
 
 # ---------------------------------------------------------------------------
-# No install_layout (use system_install only)
+# install_layout — Windows: .zip archive; macOS/Linux: None (system_install)
 # ---------------------------------------------------------------------------
 
-def install_layout(_ctx, _version):
+def install_layout(ctx, version):
+    if ctx.platform.os == "windows":
+        return {
+            "__type__":         "archive",
+            "strip_prefix":     "ffmpeg-{}-essentials_build".format(version),
+            "executable_paths": ["bin/ffmpeg.exe", "bin/ffprobe.exe", "bin/ffplay.exe"],
+        }
     return None
 
 # ---------------------------------------------------------------------------
-# Path + env functions (for system_install)
+# Path + env functions
 # ---------------------------------------------------------------------------
 
 paths            = path_fns("ffmpeg")
 store_root       = paths["store_root"]
 get_execute_path = paths["get_execute_path"]
 
-def environment(_ctx, _version):
+def environment(ctx, _version):
+    if ctx.platform.os == "windows":
+        return [{"op": "prepend", "key": "PATH", "value": ctx.install_dir + "/bin"}]
     return []
 
+def post_install(_ctx, _version):
+    return None
+
 # ---------------------------------------------------------------------------
-# system_install — all platforms
+# system_install — all platforms (primary on macOS/Linux, fallback on Windows)
 # ---------------------------------------------------------------------------
 
 system_install = system_install_strategies([
