@@ -52,7 +52,7 @@ permissions = github_permissions(
 # fetch_versions
 # ---------------------------------------------------------------------------
 
-fetch_versions = make_fetch_versions("vx-org", "mirrors", tag_prefix = "awscli-")
+fetch_versions = make_fetch_versions("aws", "aws-cli")
 
 # ---------------------------------------------------------------------------
 # download_url — Linux only; Windows/macOS use system_install

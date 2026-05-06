@@ -13,7 +13,7 @@
 
 load("@vx//stdlib:provider.star",
      "github_binary_provider", "runtime_def", "github_permissions")
-load("@vx//stdlib:github.star", "github_asset_url", "make_fetch_versions")
+load("@vx//stdlib:github.star", "github_asset_url")
 
 # ---------------------------------------------------------------------------
 # Provider metadata
@@ -73,7 +73,7 @@ _p = github_binary_provider(
 )
 
 # Inherit unmodified functions from template
-fetch_versions   = make_fetch_versions("vx-org", "mirrors", tag_prefix = "yq-")
+fetch_versions   = _p["fetch_versions"]
 store_root       = _p["store_root"]
 get_execute_path = _p["get_execute_path"]
 post_install     = _p["post_install"]

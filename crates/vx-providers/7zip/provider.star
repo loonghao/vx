@@ -11,7 +11,7 @@ load("@vx//stdlib:provider.star",
      "system_permissions",
      "system_install_strategies", "winget_install", "choco_install",
      "brew_install", "apt_install")
-load("@vx//stdlib:github.star", "make_fetch_versions", "github_asset_url")
+load("@vx//stdlib:github.star", "github_releases", "releases_to_versions", "github_asset_url")
 load("@vx//stdlib:env.star", "env_prepend")
 
 # ---------------------------------------------------------------------------
@@ -61,7 +61,10 @@ permissions = system_permissions(
 # fetch_versions — tags like "24.09" (no prefix)
 # ---------------------------------------------------------------------------
 
-fetch_versions = make_fetch_versions("vx-org", "mirrors", tag_prefix = "7zip-")
+def fetch_versions(ctx):
+    releases = github_releases(ctx, owner = "ip7z", repo = "7zip",
+                               include_prereleases = False)
+    return releases_to_versions(releases)
 
 # ---------------------------------------------------------------------------
 # download_url

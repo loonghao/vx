@@ -9,7 +9,6 @@
 
 load("@vx//stdlib:provider.star",
      "github_rust_provider", "runtime_def", "github_permissions")
-load("@vx//stdlib:github.star", "make_fetch_versions")
 
 # ---------------------------------------------------------------------------
 # Provider metadata
@@ -51,7 +50,7 @@ _p = github_rust_provider(
     strip_prefix = "delta-{version}-{triple}",
 )
 
-fetch_versions   = make_fetch_versions("vx-org", "mirrors", tag_prefix = "delta-")
+fetch_versions   = _p["fetch_versions"]
 download_url     = _p["download_url"]
 install_layout   = _p["install_layout"]
 store_root       = _p["store_root"]

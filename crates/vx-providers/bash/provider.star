@@ -59,7 +59,7 @@ permissions = github_permissions()
 # fetch_versions — git-for-windows (bundles bash on Windows)
 # ---------------------------------------------------------------------------
 
-fetch_versions = make_fetch_versions("vx-org", "mirrors", tag_prefix = "bash-")
+fetch_versions = make_fetch_versions("git-for-windows", "git")
 
 # ---------------------------------------------------------------------------
 # download_url — Windows: MinGit; Linux/macOS: system

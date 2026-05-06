@@ -52,7 +52,7 @@ permissions = github_permissions()
 # fetch_versions
 # ---------------------------------------------------------------------------
 
-fetch_versions = make_fetch_versions("vx-org", "mirrors", tag_prefix = "usql-")
+fetch_versions = make_fetch_versions("xo", "usql")
 
 # ---------------------------------------------------------------------------
 # Platform helpers

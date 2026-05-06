@@ -16,8 +16,8 @@ load("@vx//stdlib:system_install.star", "cross_platform_install")
 # Version source: GoogleContainerTools/skaffold releases on GitHub (tag prefix "v")
 
 load("@vx//stdlib:provider.star",
-     "runtime_def", "github_permissions", "path_fns")
-load("@vx//stdlib:github.star", "make_fetch_versions")
+     "runtime_def", "github_permissions", "path_fns",
+     "fetch_versions_with_tag_prefix")
 load("@vx//stdlib:env.star", "env_prepend")
 
 # ---------------------------------------------------------------------------
@@ -51,7 +51,8 @@ permissions = github_permissions(extra_hosts = ["storage.googleapis.com"])
 # fetch_versions - from GoogleContainerTools/skaffold releases
 # ---------------------------------------------------------------------------
 
-fetch_versions = make_fetch_versions("vx-org", "mirrors", tag_prefix = "skaffold-")
+fetch_versions = fetch_versions_with_tag_prefix(
+    "GoogleContainerTools", "skaffold", tag_prefix = "v")
 
 # ---------------------------------------------------------------------------
 # Platform helpers

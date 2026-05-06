@@ -50,7 +50,7 @@ permissions = github_permissions(exec_cmds = ["winget", "choco"])
 # fetch_versions
 # ---------------------------------------------------------------------------
 
-fetch_versions = make_fetch_versions("vx-org", "mirrors", tag_prefix = "pwsh-")
+fetch_versions = make_fetch_versions("PowerShell", "PowerShell")
 
 # ---------------------------------------------------------------------------
 # Platform helpers

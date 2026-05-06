@@ -43,7 +43,7 @@ permissions = github_permissions(extra_hosts = ["get.helm.sh"])
 # fetch_versions — GitHub releases
 # ---------------------------------------------------------------------------
 
-fetch_versions = make_fetch_versions("vx-org", "mirrors", tag_prefix = "helm-")
+fetch_versions = make_fetch_versions("helm", "helm")
 
 # ---------------------------------------------------------------------------
 # Platform helpers

@@ -53,7 +53,7 @@ permissions = github_permissions()
 # fetch_versions
 # ---------------------------------------------------------------------------
 
-fetch_versions = make_fetch_versions("vx-org", "mirrors", tag_prefix = "cosign-")
+fetch_versions = make_fetch_versions("sigstore", "cosign")
 
 # ---------------------------------------------------------------------------
 # Platform helpers

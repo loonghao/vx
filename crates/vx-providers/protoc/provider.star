@@ -44,7 +44,7 @@ permissions = github_permissions(extra_hosts = ["objects.githubusercontent.com"]
 # fetch_versions
 # ---------------------------------------------------------------------------
 
-fetch_versions = make_fetch_versions("vx-org", "mirrors", tag_prefix = "protoc-")
+fetch_versions = make_fetch_versions("protocolbuffers", "protobuf")
 
 # ---------------------------------------------------------------------------
 # Platform helpers

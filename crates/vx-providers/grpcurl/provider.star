@@ -56,7 +56,7 @@ permissions = github_permissions()
 # fetch_versions
 # ---------------------------------------------------------------------------
 
-fetch_versions = make_fetch_versions("vx-org", "mirrors", tag_prefix = "grpcurl-")
+fetch_versions = make_fetch_versions("fullstorydev", "grpcurl")
 
 # ---------------------------------------------------------------------------
 # Platform helpers

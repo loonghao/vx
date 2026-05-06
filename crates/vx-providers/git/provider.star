@@ -44,7 +44,7 @@ permissions = github_permissions()
 # fetch_versions
 # ---------------------------------------------------------------------------
 
-fetch_versions = make_fetch_versions("vx-org", "mirrors", tag_prefix = "git-")
+fetch_versions = make_fetch_versions("git-for-windows", "git")
 
 # ---------------------------------------------------------------------------
 # download_url — Windows-only portable Git (MinGit ZIP)

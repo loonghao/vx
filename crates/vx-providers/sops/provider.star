@@ -46,7 +46,7 @@ permissions = github_permissions()
 # fetch_versions
 # ---------------------------------------------------------------------------
 
-fetch_versions = make_fetch_versions("vx-org", "mirrors", tag_prefix = "sops-")
+fetch_versions = make_fetch_versions("getsops", "sops")
 
 # ---------------------------------------------------------------------------
 # Platform helpers

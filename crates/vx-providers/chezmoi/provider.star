@@ -1,5 +1,4 @@
 load("@vx//stdlib:system_install.star", "cross_platform_install")
-load("@vx//stdlib:github.star", "make_fetch_versions")
 # provider.star - chezmoi provider
 #
 # chezmoi: Manage your dotfiles across multiple machines
@@ -50,7 +49,7 @@ _p = github_go_provider(
     asset = "chezmoi_{version}_{os}_{arch}.{ext}",
 )
 
-fetch_versions   = make_fetch_versions("vx-org", "mirrors", tag_prefix = "chezmoi-")
+fetch_versions   = _p["fetch_versions"]
 download_url     = _p["download_url"]
 install_layout   = _p["install_layout"]
 store_root       = _p["store_root"]

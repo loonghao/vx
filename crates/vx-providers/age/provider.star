@@ -55,7 +55,7 @@ permissions = github_permissions()
 # fetch_versions
 # ---------------------------------------------------------------------------
 
-fetch_versions = make_fetch_versions("vx-org", "mirrors", tag_prefix = "age-")
+fetch_versions = make_fetch_versions("FiloSottile", "age")
 
 # ---------------------------------------------------------------------------
 # Platform helpers

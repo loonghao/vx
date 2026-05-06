@@ -144,7 +144,7 @@ permissions = github_permissions(
 # fetch_versions — from GitHub releases (wix v4+)
 # ---------------------------------------------------------------------------
 
-fetch_versions = make_fetch_versions("vx-org", "mirrors", tag_prefix = "wix-")
+fetch_versions = make_fetch_versions("wixtoolset", "wix")
 
 # ---------------------------------------------------------------------------
 # download_url

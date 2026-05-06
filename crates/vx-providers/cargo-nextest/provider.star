@@ -1,6 +1,6 @@
-load("@vx//stdlib:provider.star", "runtime_def", "github_permissions")
+load("@vx//stdlib:provider.star", "runtime_def", "github_permissions", "fetch_versions_with_tag_prefix")
 load("@vx//stdlib:provider_templates.star", "github_rust_provider")
-load("@vx//stdlib:github.star", "github_asset_url", "make_fetch_versions")
+load("@vx//stdlib:github.star", "github_asset_url")
 load("@vx//stdlib:system_install.star", "cross_platform_install")
 
 # ---------------------------------------------------------------------------
@@ -43,7 +43,7 @@ _p = github_rust_provider("nextest-rs", "nextest",
     tag_prefix = "cargo-nextest-",
 )
 
-fetch_versions   = make_fetch_versions("vx-org", "mirrors", tag_prefix = "cargo-nextest-")
+fetch_versions   = fetch_versions_with_tag_prefix("nextest-rs", "nextest", tag_prefix = "cargo-nextest-")
 
 def download_url(ctx, version):
     # version from fetch_versions_with_tag_prefix already has prefix removed,

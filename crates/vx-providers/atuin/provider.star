@@ -1,5 +1,4 @@
 load("@vx//stdlib:system_install.star", "cross_platform_install")
-load("@vx//stdlib:github.star", "make_fetch_versions")
 # provider.star - atuin provider
 #
 # atuin: Magical shell history with SQLite and encrypted sync
@@ -47,7 +46,7 @@ _p = github_rust_provider(
     executable = "atuin",
 )
 
-fetch_versions   = make_fetch_versions("vx-org", "mirrors", tag_prefix = "atuin-")
+fetch_versions   = _p["fetch_versions"]
 download_url     = _p["download_url"]
 install_layout   = _p["install_layout"]
 store_root       = _p["store_root"]

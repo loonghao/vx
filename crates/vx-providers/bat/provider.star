@@ -1,5 +1,4 @@
 load("@vx//stdlib:system_install.star", "cross_platform_install")
-load("@vx//stdlib:github.star", "make_fetch_versions")
 # provider.star - bat provider
 #
 # bat: A cat clone with syntax highlighting and Git integration
@@ -49,7 +48,7 @@ _p = github_rust_provider(
     strip_prefix = "bat-{vversion}-{triple}",
 )
 
-fetch_versions   = make_fetch_versions("vx-org", "mirrors", tag_prefix = "bat-")
+fetch_versions   = _p["fetch_versions"]
 download_url     = _p["download_url"]
 install_layout   = _p["install_layout"]
 store_root       = _p["store_root"]

@@ -58,7 +58,7 @@ permissions = github_permissions(extra_hosts = ["static.rust-lang.org"])
 # fetch_versions — rustup GitHub releases
 # ---------------------------------------------------------------------------
 
-fetch_versions = make_fetch_versions("vx-org", "mirrors", tag_prefix = "rustup-")
+fetch_versions = make_fetch_versions("rust-lang", "rustup")
 
 # ---------------------------------------------------------------------------
 # Platform helpers

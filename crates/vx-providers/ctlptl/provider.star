@@ -49,7 +49,7 @@ permissions = github_permissions()
 # fetch_versions
 # ---------------------------------------------------------------------------
 
-fetch_versions = make_fetch_versions("vx-org", "mirrors", tag_prefix = "ctlptl-")
+fetch_versions = make_fetch_versions("tilt-dev", "ctlptl")
 
 # ---------------------------------------------------------------------------
 # Platform helpers
