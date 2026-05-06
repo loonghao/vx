@@ -93,7 +93,7 @@ def download_url(ctx, version):
         asset = "cosign-{}-{}.exe".format(os_name, arch_name)
     else:
         asset = "cosign-{}-{}".format(os_name, arch_name)
-    return github_asset_url("vx-org", "mirrors", "cosign-" + version, asset)
+    return github_asset_url("sigstore", "cosign", "v" + version, asset)
 
 # ---------------------------------------------------------------------------
 # install_layout

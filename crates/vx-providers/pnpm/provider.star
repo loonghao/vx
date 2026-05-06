@@ -99,7 +99,7 @@ def download_url(ctx, version):
             asset = "pnpm-{}.exe".format(platform_suffix)
         else:
             asset = "pnpm-{}".format(platform_suffix)
-    return github_asset_url("vx-org", "mirrors", "pnpm-" + version, asset)
+    return github_asset_url("pnpm", "pnpm", "v" + version, asset)
 
 # ---------------------------------------------------------------------------
 # install_layout — binary

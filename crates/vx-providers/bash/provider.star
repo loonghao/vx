@@ -72,7 +72,7 @@ def download_url(ctx, version):
         asset = "MinGit-{}-arm64.zip".format(version)
     else:
         asset = "MinGit-{}-64-bit.zip".format(version)
-    return github_asset_url("vx-org", "mirrors", "bash-" + version, asset)
+    return github_asset_url("git-for-windows", "git", "v" + version, asset)
 
 # ---------------------------------------------------------------------------
 # install_layout

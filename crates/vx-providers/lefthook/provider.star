@@ -83,7 +83,7 @@ def download_url(ctx, version):
         asset = "lefthook_{}_{}_{}.exe".format(version, os_name, arch_name)
     else:
         asset = "lefthook_{}_{}_{}".format(version, os_name, arch_name)
-    return github_asset_url("vx-org", "mirrors", "lefthook-" + version, asset)
+    return github_asset_url("evilmartians", "lefthook", "v" + version, asset)
 
 # ---------------------------------------------------------------------------
 # install_layout

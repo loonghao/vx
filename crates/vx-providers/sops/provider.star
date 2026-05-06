@@ -80,7 +80,7 @@ def download_url(ctx, version):
         asset = "sops-v{}.{}.exe".format(version, arch_str)
     else:
         asset = "sops-v{}.{}.{}".format(version, os_str, arch_str)
-    return github_asset_url("vx-org", "mirrors", "sops-" + version, asset)
+    return github_asset_url("getsops", "sops", "v" + version, asset)
 
 # ---------------------------------------------------------------------------
 # install_layout

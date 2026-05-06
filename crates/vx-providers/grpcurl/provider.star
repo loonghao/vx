@@ -90,7 +90,7 @@ def download_url(ctx, version):
         return None
     os_name, arch_name, ext = platform[0], platform[1], platform[2]
     asset = "grpcurl_{}_{}_{}.{}".format(version, os_name, arch_name, ext)
-    return github_asset_url("vx-org", "mirrors", "grpcurl-" + version, asset)
+    return github_asset_url("fullstorydev", "grpcurl", "v" + version, asset)
 
 # ---------------------------------------------------------------------------
 # install_layout

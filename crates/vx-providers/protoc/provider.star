@@ -74,7 +74,7 @@ def download_url(ctx, version):
     if not platform:
         return None
     asset = "protoc-{}-{}.zip".format(version, platform)
-    return github_asset_url("vx-org", "mirrors", "protoc-" + version, asset)
+    return github_asset_url("protocolbuffers", "protobuf", "v" + version, asset)
 
 # ---------------------------------------------------------------------------
 # install_layout — archive contains bin/protoc[.exe] + include/

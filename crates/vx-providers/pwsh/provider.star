@@ -74,7 +74,7 @@ def download_url(ctx, version):
         return None
     ps_os, ps_arch, ext = platform[0], platform[1], platform[2]
     asset = "PowerShell-{}-{}-{}.{}".format(version, ps_os, ps_arch, ext)
-    return github_asset_url("vx-org", "mirrors", "pwsh-" + version, asset)
+    return github_asset_url("PowerShell", "PowerShell", "v" + version, asset)
 
 # ---------------------------------------------------------------------------
 # install_layout

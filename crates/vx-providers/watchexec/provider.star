@@ -9,7 +9,7 @@ load("@vx//stdlib:system_install.star", "cross_platform_install")
 
 load("@vx//stdlib:provider.star",
      "github_rust_provider", "runtime_def", "github_permissions")
-load("@vx//stdlib:github.star", "github_asset_url")
+load("@vx//stdlib:github.star",   "github_asset_url")
 load("@vx//stdlib:platform.star", "rust_triple")
 
 name        = "watchexec"

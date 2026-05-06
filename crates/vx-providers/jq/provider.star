@@ -71,7 +71,7 @@ def download_url(ctx, version):
         asset = "jq-{}-{}.exe".format(jq_os, jq_arch)
     else:
         asset = "jq-{}-{}".format(jq_os, jq_arch)
-    return github_asset_url("vx-org", "mirrors", "jq-" + version, asset)
+    return github_asset_url("jqlang", "jq", "jq-" + version, asset)
 
 # ---------------------------------------------------------------------------
 # Layout + path functions (from stdlib)

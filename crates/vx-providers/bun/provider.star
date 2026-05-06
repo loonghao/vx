@@ -84,7 +84,7 @@ def download_url(ctx, version):
         return None
     bun_os, bun_arch = platform[0], platform[1]
     asset = "bun-{}-{}.zip".format(bun_os, bun_arch)
-    return github_asset_url("vx-org", "mirrors", "bun-" + version, asset)
+    return github_asset_url("oven-sh", "bun", "bun-v" + version, asset)
 
 # ---------------------------------------------------------------------------
 # install_layout — strip top-level "bun-{os}-{arch}/" dir

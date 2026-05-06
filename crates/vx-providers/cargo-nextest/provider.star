@@ -64,7 +64,7 @@ def download_url(ctx, version):
     # tag = "cargo-nextest-0.9.133", asset = "cargo-nextest-0.9.133-{triple}.{ext}"
     tag = "cargo-nextest-{}".format(version)
     asset = "cargo-nextest-{}-{}.{}".format(version, triple, ext)
-    return github_asset_url("vx-org", "mirrors", tag, asset)
+    return github_asset_url("nextest-rs", "nextest", tag, asset)
 
 install_layout   = _p["install_layout"]
 store_root       = _p["store_root"]

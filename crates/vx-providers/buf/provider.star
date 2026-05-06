@@ -87,7 +87,7 @@ def download_url(ctx, version):
         return None
     os_name, arch_name, ext = platform[0], platform[1], platform[2]
     asset = "buf-{}-{}.{}".format(os_name, arch_name, ext)
-    return github_asset_url("vx-org", "mirrors", "buf-" + version, asset)
+    return github_asset_url("bufbuild", "buf", "v" + version, asset)
 
 # ---------------------------------------------------------------------------
 # install_layout

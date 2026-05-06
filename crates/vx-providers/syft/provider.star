@@ -25,7 +25,7 @@ _p = github_go_provider("anchore", "syft",
     executable = "syft",
 )
 
-fetch_versions   = _p["fetch_versions"]
+fetch_versions = _p["fetch_versions"]
 download_url = _p["download_url"]
 install_layout = _p["install_layout"]
 store_root = _p["store_root"]
