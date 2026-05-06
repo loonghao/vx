@@ -6,6 +6,37 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [0.8.37](https://github.com/loonghao/vx/compare/v0.8.36...v0.8.37) (2026-05-06)
+
+
+### Features
+
+* add witr provider (137 providers total) ([e74d708](https://github.com/loonghao/vx/commit/e74d70837ff3452ae156f463735dff779d267ad9))
+
+
+### Bug Fixes
+
+* ffmpeg use Gyan.dev mirror, witr only override download_url ([10a7a50](https://github.com/loonghao/vx/commit/10a7a5007e506a42f7a46c007c9332ae8204c2ad))
+* **ffmpeg:** use system_install only (remove unreliable GitHub downloads) ([1f8780a](https://github.com/loonghao/vx/commit/1f8780adbe1df7c4cafaf5a6213cf1a2663b7d58))
+* **ffmpeg:** use vx-org/mirrors with BtbN static builds (win64+linux64+linuxarm64) ([77d741c](https://github.com/loonghao/vx/commit/77d741c7f7f8a69358a70f9fa13d614d8bb9c81d))
+* **providers:** use vx-org/mirrors for ffmpeg and witr downloads ([ac4dc6a](https://github.com/loonghao/vx/commit/ac4dc6a82dff09cc6cb21e236d50f71d4d9ab4ce))
+* remove unused variables in witr/provider.star ([ef0d871](https://github.com/loonghao/vx/commit/ef0d87125f5d2a6c1371ae56cd6a95dfa45208da))
+* use system_install for ffmpeg Linux, fix witr install_layout ([293a4f5](https://github.com/loonghao/vx/commit/293a4f5b621312be21fd5baaf6c1b3020c11b0eb))
+* **witr:** correct __type__ key in install_layout (double underscores) ([b287fe5](https://github.com/loonghao/vx/commit/b287fe520f6c3df04a3babd887172110d50591fe))
+* **witr:** correct version pattern and binary path in provider.star ([b6683e1](https://github.com/loonghao/vx/commit/b6683e1576ee1f943f7e6f78232588e5b4545f21))
+* **witr:** override install_layout with correct type ([6bf7bbd](https://github.com/loonghao/vx/commit/6bf7bbd63a5e12730e79351f24282053e85c9e7c))
+* **witr:** rewrite provider without template to handle direct binaries correctly ([dcd08cc](https://github.com/loonghao/vx/commit/dcd08ccdd5051e4de05cc743ef8ceb33a1362be7))
+* **witr:** use 'binary' type for direct binaries (Linux/macOS) ([b37b591](https://github.com/loonghao/vx/commit/b37b591952902505e3220cfd087b9f0e79211860))
+
+
+### Documentation
+
+* add more tool examples to AGENTS.md ([358ca9f](https://github.com/loonghao/vx/commit/358ca9fb72e0d223ddfbdd2f9b61ce1747367fc9))
+* simplify AI agent configs, add vx wt/witr examples ([4479958](https://github.com/loonghao/vx/commit/4479958fdb7817f59552028a4edd1faf55cb374a))
+* update provider count to 137 (add witr) ([8afd778](https://github.com/loonghao/vx/commit/8afd778c119b992a99c0e2604fa87916783fc43a))
+* update version to v0.8.36 and provider count to 136 ([f973ff0](https://github.com/loonghao/vx/commit/f973ff02d28f2a51b2c63d83450a56c54aa56e85))
+* update version to v0.8.36 and provider count to 136 ([ebd928b](https://github.com/loonghao/vx/commit/ebd928bb2d29ce230f29ff6c505c9c0702a56ada))
+
 ## [0.8.36](https://github.com/loonghao/vx/compare/v0.8.35...v0.8.36) (2026-05-04)
 
 
