@@ -67,13 +67,51 @@ def _zig_os(ctx):
 
 # ---------------------------------------------------------------------------
 # download_url — ziglang.org
+# URL format changed at version 0.14.1:
+#   - 0.14.0 and earlier: zig-{os}-{arch}-{version}.{ext}
+#   - 0.14.1 and later:  zig-{arch}-{os}-{version}.{ext}
 # ---------------------------------------------------------------------------
+
+def _zig_use_new_url_format(version):
+    """Check if version uses NEW URL format (arch before os).
+
+    NEW format (0.14.1+): zig-{arch}-{os}-{version}
+    OLD format (0.14.0-): zig-{os}-{arch}-{version}
+    """
+    # Handle dev versions: "0.17.0-dev.256+..." → [0, 17, 0]
+    version_clean = version.split("-")[0]
+    parts = version_clean.split(".")
+
+    if len(parts) < 2:
+        return True  # Default to new format
+
+    try:
+        major = int(parts[0])
+        minor = int(parts[1])
+        patch = int(parts[2]) if len(parts) > 2 else 0
+    except (ValueError, IndexError):
+        return True  # Default to new format
+
+    # New format for 0.14.1+
+    if major > 0:
+        return True
+    if minor > 14:
+        return True
+    if minor == 14 and patch >= 1:
+        return True
+    return False
+
 
 def download_url(ctx, version):
     arch = _zig_arch(ctx)
     os   = _zig_os(ctx)
     ext  = "zip" if ctx.platform.os == "windows" else "tar.xz"
-    asset = "zig-{}-{}-{}.{}".format(arch, os, version, ext)
+
+    if _zig_use_new_url_format(version):
+        asset = "zig-{}-{}-{}.{}".format(arch, os, version, ext)
+    else:
+        asset = "zig-{}-{}-{}.{}".format(os, arch, version, ext)
+
     return "https://ziglang.org/download/{}/{}".format(version, asset)
 
 # ---------------------------------------------------------------------------
