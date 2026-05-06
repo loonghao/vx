@@ -48,7 +48,7 @@ permissions = github_permissions()
 # fetch_versions
 # ---------------------------------------------------------------------------
 
-fetch_versions = make_fetch_versions("evilmartians", "lefthook")
+fetch_versions = make_fetch_versions("vx-org", "mirrors", tag_prefix = "lefthook-")
 
 # ---------------------------------------------------------------------------
 # Platform helpers
@@ -83,7 +83,7 @@ def download_url(ctx, version):
         asset = "lefthook_{}_{}_{}.exe".format(version, os_name, arch_name)
     else:
         asset = "lefthook_{}_{}_{}".format(version, os_name, arch_name)
-    return github_asset_url("evilmartians", "lefthook", "v" + version, asset)
+    return github_asset_url("vx-org", "mirrors", "lefthook-" + version, asset)
 
 # ---------------------------------------------------------------------------
 # install_layout

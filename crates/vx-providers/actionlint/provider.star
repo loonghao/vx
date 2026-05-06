@@ -1,4 +1,5 @@
 load("@vx//stdlib:system_install.star", "cross_platform_install")
+load("@vx//stdlib:github.star", "make_fetch_versions")
 # provider.star - actionlint (GitHub Actions workflow linter)
 #
 # actionlint: Static checker for GitHub Actions workflow files
@@ -25,7 +26,7 @@ _p = github_go_provider(
     asset = "actionlint_{version}_{os}_{arch}.{ext}",
 )
 
-fetch_versions   = _p["fetch_versions"]
+fetch_versions   = make_fetch_versions("vx-org", "mirrors", tag_prefix = "actionlint-")
 download_url     = _p["download_url"]
 install_layout   = _p["install_layout"]
 store_root       = _p["store_root"]

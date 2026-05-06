@@ -7,7 +7,8 @@
 
 load("@vx//stdlib:provider.star",
      "runtime_def", "bundled_runtime_def", "github_permissions", "dep_def",
-     "fetch_versions_from_api", "path_fns")
+     "path_fns")
+load("@vx//stdlib:github.star", "make_fetch_versions")
 load("@vx//stdlib:env.star",    "env_set", "env_prepend")
 
 # ---------------------------------------------------------------------------
@@ -50,10 +51,7 @@ permissions = github_permissions(extra_hosts = ["go.dev", "dl.google.com"])
 # fetch_versions — from go.dev official API
 # ---------------------------------------------------------------------------
 
-fetch_versions = fetch_versions_from_api(
-    "https://go.dev/dl/?mode=json&include=all",
-    "go_versions",
-)
+fetch_versions = make_fetch_versions("vx-org", "mirrors", tag_prefix = "go-")
 
 # ---------------------------------------------------------------------------
 # Platform helpers

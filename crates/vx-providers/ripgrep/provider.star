@@ -1,4 +1,5 @@
 load("@vx//stdlib:system_install.star", "cross_platform_install")
+load("@vx//stdlib:github.star", "make_fetch_versions")
 # provider.star - ripgrep (rg) provider
 #
 # ripgrep: Recursively searches directories for a regex pattern
@@ -55,7 +56,7 @@ _p = github_rust_provider(
     strip_prefix = "ripgrep-{version}-{triple}",
 )
 
-fetch_versions   = _p["fetch_versions"]
+fetch_versions   = make_fetch_versions("vx-org", "mirrors", tag_prefix = "ripgrep-")
 download_url     = _p["download_url"]
 install_layout   = _p["install_layout"]
 store_root       = _p["store_root"]

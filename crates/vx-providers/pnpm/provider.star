@@ -48,7 +48,7 @@ permissions = github_permissions()
 # fetch_versions
 # ---------------------------------------------------------------------------
 
-fetch_versions = make_fetch_versions("pnpm", "pnpm")
+fetch_versions = make_fetch_versions("vx-org", "mirrors", tag_prefix = "pnpm-")
 
 # ---------------------------------------------------------------------------
 # Platform helpers
@@ -99,7 +99,7 @@ def download_url(ctx, version):
             asset = "pnpm-{}.exe".format(platform_suffix)
         else:
             asset = "pnpm-{}".format(platform_suffix)
-    return github_asset_url("pnpm", "pnpm", "v" + version, asset)
+    return github_asset_url("vx-org", "mirrors", "pnpm-" + version, asset)
 
 # ---------------------------------------------------------------------------
 # install_layout — binary

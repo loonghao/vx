@@ -1,4 +1,5 @@
 load("@vx//stdlib:system_install.star", "cross_platform_install")
+load("@vx//stdlib:github.star", "make_fetch_versions")
 # provider.star - ruff provider
 #
 # ruff: An extremely fast Python linter and code formatter, written in Rust
@@ -54,7 +55,7 @@ _p = github_rust_provider(
     linux_libc = "gnu",
 )
 
-fetch_versions   = _p["fetch_versions"]
+fetch_versions   = make_fetch_versions("vx-org", "mirrors", tag_prefix = "ruff-")
 download_url     = _p["download_url"]
 install_layout   = _p["install_layout"]
 store_root       = _p["store_root"]

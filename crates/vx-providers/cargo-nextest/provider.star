@@ -1,6 +1,6 @@
-load("@vx//stdlib:provider.star", "runtime_def", "github_permissions", "fetch_versions_with_tag_prefix")
+load("@vx//stdlib:provider.star", "runtime_def", "github_permissions")
 load("@vx//stdlib:provider_templates.star", "github_rust_provider")
-load("@vx//stdlib:github.star", "github_asset_url")
+load("@vx//stdlib:github.star", "github_asset_url", "make_fetch_versions")
 load("@vx//stdlib:system_install.star", "cross_platform_install")
 
 # ---------------------------------------------------------------------------
@@ -43,7 +43,7 @@ _p = github_rust_provider("nextest-rs", "nextest",
     tag_prefix = "cargo-nextest-",
 )
 
-fetch_versions   = fetch_versions_with_tag_prefix("nextest-rs", "nextest", tag_prefix = "cargo-nextest-")
+fetch_versions   = make_fetch_versions("vx-org", "mirrors", tag_prefix = "cargo-nextest-")
 
 def download_url(ctx, version):
     # version from fetch_versions_with_tag_prefix already has prefix removed,
@@ -64,7 +64,7 @@ def download_url(ctx, version):
     # tag = "cargo-nextest-0.9.133", asset = "cargo-nextest-0.9.133-{triple}.{ext}"
     tag = "cargo-nextest-{}".format(version)
     asset = "cargo-nextest-{}-{}.{}".format(version, triple, ext)
-    return github_asset_url("nextest-rs", "nextest", tag, asset)
+    return github_asset_url("vx-org", "mirrors", tag, asset)
 
 install_layout   = _p["install_layout"]
 store_root       = _p["store_root"]

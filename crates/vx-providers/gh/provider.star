@@ -44,7 +44,7 @@ permissions = github_permissions(extra_hosts = ["objects.githubusercontent.com"]
 # fetch_versions
 # ---------------------------------------------------------------------------
 
-fetch_versions = make_fetch_versions("cli", "cli")
+fetch_versions = make_fetch_versions("vx-org", "mirrors", tag_prefix = "gh-")
 
 # ---------------------------------------------------------------------------
 # Platform helpers
@@ -84,7 +84,7 @@ def download_url(ctx, version):
         return None
     os_name, arch_name, ext = platform[0], platform[1], platform[2]
     asset = "gh_{}_{}_{}.{}".format(version, os_name, arch_name, ext)
-    return github_asset_url("cli", "cli", "v" + version, asset)
+    return github_asset_url("vx-org", "mirrors", "gh-" + version, asset)
 
 # ---------------------------------------------------------------------------
 # install_layout

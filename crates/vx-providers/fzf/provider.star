@@ -7,6 +7,7 @@
 
 load("@vx//stdlib:provider.star",
      "github_go_provider", "runtime_def", "github_permissions")
+load("@vx//stdlib:github.star", "make_fetch_versions")
 
 # ---------------------------------------------------------------------------
 # Provider metadata
@@ -48,7 +49,7 @@ _p = github_go_provider(
     asset = "fzf-{version}-{os}_{arch}.{ext}",
 )
 
-fetch_versions   = _p["fetch_versions"]
+fetch_versions   = make_fetch_versions("vx-org", "mirrors", tag_prefix = "fzf-")
 download_url     = _p["download_url"]
 install_layout   = _p["install_layout"]
 store_root       = _p["store_root"]

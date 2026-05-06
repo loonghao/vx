@@ -43,7 +43,7 @@ permissions = github_permissions()
 # fetch_versions
 # ---------------------------------------------------------------------------
 
-fetch_versions = make_fetch_versions("actionforge", "actrun-cli")
+fetch_versions = make_fetch_versions("vx-org", "mirrors", tag_prefix = "actrun-")
 
 # ---------------------------------------------------------------------------
 # Platform helpers
@@ -71,7 +71,7 @@ def download_url(ctx, version):
         asset = "actrun-v{}.py-{}-{}.zip".format(version, act_arch, act_os)
     else:
         asset = "actrun-v{}.cli-{}-{}.{}".format(version, act_arch, act_os, ext)
-    return github_asset_url("actionforge", "actrun-cli", "v" + version, asset)
+    return github_asset_url("vx-org", "mirrors", "actrun-" + version, asset)
 
 # ---------------------------------------------------------------------------
 # Layout + path/env functions (from stdlib)

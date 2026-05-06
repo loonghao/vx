@@ -9,8 +9,7 @@ load("@vx//stdlib:system_install.star", "cross_platform_install")
 
 load("@vx//stdlib:provider.star",
      "runtime_def", "bundled_runtime_def", "github_permissions", "dep_def")
-load("@vx//stdlib:http.star",   "fetch_json_versions")
-load("@vx//stdlib:github.star", "github_asset_url")
+load("@vx//stdlib:github.star", "github_asset_url", "make_fetch_versions")
 load("@vx//stdlib:env.star",    "env_prepend")
 
 # ---------------------------------------------------------------------------
@@ -58,12 +57,7 @@ permissions = github_permissions()
 # fetch_versions — python-build-standalone GitHub releases
 # ---------------------------------------------------------------------------
 
-def fetch_versions(ctx):
-    return fetch_json_versions(
-        ctx,
-        "https://api.github.com/repos/astral-sh/python-build-standalone/releases?per_page=50",
-        "python_build_standalone",
-    )
+fetch_versions = make_fetch_versions("vx-org", "mirrors", tag_prefix = "python-")
 
 # ---------------------------------------------------------------------------
 # Platform helpers

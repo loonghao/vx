@@ -1,6 +1,7 @@
 load("@vx//stdlib:provider.star", "runtime_def", "github_permissions")
 load("@vx//stdlib:provider_templates.star", "github_rust_provider")
 load("@vx//stdlib:system_install.star", "cross_platform_install")
+load("@vx//stdlib:github.star", "make_fetch_versions")
 
 # ---------------------------------------------------------------------------
 # Provider metadata
@@ -44,7 +45,7 @@ _p = github_rust_provider("EmbarkStudios", "cargo-deny",
     tag_prefix = "",
 )
 
-fetch_versions   = _p["fetch_versions"]
+fetch_versions   = make_fetch_versions("vx-org", "mirrors", tag_prefix = "cargo-deny-")
 download_url     = _p["download_url"]
 install_layout   = _p["install_layout"]
 store_root       = _p["store_root"]
