@@ -17,7 +17,7 @@
 
 load("@vx//stdlib:provider.star",
      "github_binary_provider", "runtime_def", "github_permissions")
-load("@vx//stdlib:github.star", "github_asset_url")
+load("@vx//stdlib:github.star", "github_asset_url", "make_fetch_versions")
 
 # ---------------------------------------------------------------------------
 # Provider metadata
@@ -72,7 +72,7 @@ get_execute_path = _p["get_execute_path"]
 post_install     = _p["post_install"]
 environment      = _p["environment"]
 deps             = _p["deps"]
-fetch_versions   = _p["fetch_versions"]
+fetch_versions   = make_fetch_versions("vx-org", "mirrors", tag_prefix = "rcedit-")
 
 # ---------------------------------------------------------------------------
 # download_url — Windows-only, arch-specific binary

@@ -44,7 +44,7 @@ permissions = github_permissions(extra_hosts = ["objects.githubusercontent.com"]
 # fetch_versions
 # ---------------------------------------------------------------------------
 
-fetch_versions = make_fetch_versions("protocolbuffers", "protobuf")
+fetch_versions = make_fetch_versions("vx-org", "mirrors", tag_prefix = "protoc-")
 
 # ---------------------------------------------------------------------------
 # Platform helpers
@@ -74,7 +74,7 @@ def download_url(ctx, version):
     if not platform:
         return None
     asset = "protoc-{}-{}.zip".format(version, platform)
-    return github_asset_url("protocolbuffers", "protobuf", "v" + version, asset)
+    return github_asset_url("vx-org", "mirrors", "protoc-" + version, asset)
 
 # ---------------------------------------------------------------------------
 # install_layout — archive contains bin/protoc[.exe] + include/

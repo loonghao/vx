@@ -55,7 +55,7 @@ permissions = github_permissions()
 # fetch_versions
 # ---------------------------------------------------------------------------
 
-fetch_versions = make_fetch_versions("FiloSottile", "age")
+fetch_versions = make_fetch_versions("vx-org", "mirrors", tag_prefix = "age-")
 
 # ---------------------------------------------------------------------------
 # Platform helpers
@@ -87,7 +87,7 @@ def download_url(ctx, version):
     os_str, arch_str = platform
     ext = "zip" if ctx.platform.os == "windows" else "tar.gz"
     asset = "age-v{}-{}-{}.{}".format(version, os_str, arch_str, ext)
-    return github_asset_url("FiloSottile", "age", "v" + version, asset)
+    return github_asset_url("vx-org", "mirrors", "age-" + version, asset)
 
 # ---------------------------------------------------------------------------
 # install_layout

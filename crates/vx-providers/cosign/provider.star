@@ -53,7 +53,7 @@ permissions = github_permissions()
 # fetch_versions
 # ---------------------------------------------------------------------------
 
-fetch_versions = make_fetch_versions("sigstore", "cosign")
+fetch_versions = make_fetch_versions("vx-org", "mirrors", tag_prefix = "cosign-")
 
 # ---------------------------------------------------------------------------
 # Platform helpers
@@ -93,7 +93,7 @@ def download_url(ctx, version):
         asset = "cosign-{}-{}.exe".format(os_name, arch_name)
     else:
         asset = "cosign-{}-{}".format(os_name, arch_name)
-    return github_asset_url("sigstore", "cosign", "v" + version, asset)
+    return github_asset_url("vx-org", "mirrors", "cosign-" + version, asset)
 
 # ---------------------------------------------------------------------------
 # install_layout

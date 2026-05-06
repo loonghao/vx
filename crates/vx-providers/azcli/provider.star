@@ -56,7 +56,7 @@ permissions = github_permissions(
 # fetch_versions
 # ---------------------------------------------------------------------------
 
-fetch_versions = make_fetch_versions("Azure", "azure-cli")
+fetch_versions = make_fetch_versions("vx-org", "mirrors", tag_prefix = "azcli-")
 
 # ---------------------------------------------------------------------------
 # download_url — Linux only; Windows/macOS use system_install

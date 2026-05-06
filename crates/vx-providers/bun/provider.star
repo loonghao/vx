@@ -8,9 +8,8 @@ load("@vx//stdlib:system_install.star", "cross_platform_install")
 
 load("@vx//stdlib:provider.star",
      "runtime_def", "bundled_runtime_def", "github_permissions",
-     "fetch_versions_with_tag_prefix",
      "post_extract_shim", "pre_run_ensure_deps")
-load("@vx//stdlib:github.star", "github_asset_url")
+load("@vx//stdlib:github.star", "github_asset_url", "make_fetch_versions")
 load("@vx//stdlib:env.star",    "env_prepend")
 
 # ---------------------------------------------------------------------------
@@ -56,7 +55,7 @@ permissions = github_permissions()
 # fetch_versions — bun uses "bun-v{version}" tag format
 # ---------------------------------------------------------------------------
 
-fetch_versions = fetch_versions_with_tag_prefix("oven-sh", "bun", tag_prefix = "bun-v")
+fetch_versions = make_fetch_versions("vx-org", "mirrors", tag_prefix = "bun-")
 
 # ---------------------------------------------------------------------------
 # Platform helpers
@@ -84,7 +83,7 @@ def download_url(ctx, version):
         return None
     bun_os, bun_arch = platform[0], platform[1]
     asset = "bun-{}-{}.zip".format(bun_os, bun_arch)
-    return github_asset_url("oven-sh", "bun", "bun-v" + version, asset)
+    return github_asset_url("vx-org", "mirrors", "bun-" + version, asset)
 
 # ---------------------------------------------------------------------------
 # install_layout — strip top-level "bun-{os}-{arch}/" dir

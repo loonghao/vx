@@ -59,7 +59,7 @@ permissions = github_permissions()
 # fetch_versions — git-for-windows (bundles bash on Windows)
 # ---------------------------------------------------------------------------
 
-fetch_versions = make_fetch_versions("git-for-windows", "git")
+fetch_versions = make_fetch_versions("vx-org", "mirrors", tag_prefix = "bash-")
 
 # ---------------------------------------------------------------------------
 # download_url — Windows: MinGit; Linux/macOS: system
@@ -72,7 +72,7 @@ def download_url(ctx, version):
         asset = "MinGit-{}-arm64.zip".format(version)
     else:
         asset = "MinGit-{}-64-bit.zip".format(version)
-    return github_asset_url("git-for-windows", "git", "v" + version, asset)
+    return github_asset_url("vx-org", "mirrors", "bash-" + version, asset)
 
 # ---------------------------------------------------------------------------
 # install_layout

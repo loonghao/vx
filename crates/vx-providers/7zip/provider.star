@@ -11,7 +11,7 @@ load("@vx//stdlib:provider.star",
      "system_permissions",
      "system_install_strategies", "winget_install", "choco_install",
      "brew_install", "apt_install")
-load("@vx//stdlib:github.star", "github_releases", "releases_to_versions")
+load("@vx//stdlib:github.star", "make_fetch_versions", "github_asset_url")
 load("@vx//stdlib:env.star", "env_prepend")
 
 # ---------------------------------------------------------------------------
@@ -61,10 +61,7 @@ permissions = system_permissions(
 # fetch_versions — tags like "24.09" (no prefix)
 # ---------------------------------------------------------------------------
 
-def fetch_versions(ctx):
-    releases = github_releases(ctx, owner = "ip7z", repo = "7zip",
-                               include_prereleases = False)
-    return releases_to_versions(releases)
+fetch_versions = make_fetch_versions("vx-org", "mirrors", tag_prefix = "7zip-")
 
 # ---------------------------------------------------------------------------
 # download_url
@@ -80,12 +77,13 @@ def download_url(ctx, version):
         return None
     arch = ctx.platform.arch
     ver  = _ver_compact(version)
-    base = "https://github.com/ip7z/7zip/releases/download/{}".format(version)
     if os == "macos":
-        return "{}/7z{}-mac.tar.xz".format(base, ver)
+        asset = "7z{}-mac.tar.xz".format(ver)
     elif os == "linux":
-        return "{}/7z{}-linux-arm64.tar.xz".format(base, ver) if arch == "arm64" else "{}/7z{}-linux-x64.tar.xz".format(base, ver)
-    return None
+        asset = "7z{}-linux-arm64.tar.xz".format(ver) if arch == "arm64" else "7z{}-linux-x64.tar.xz".format(ver)
+    else:
+        return None
+    return github_asset_url("vx-org", "mirrors", "7zip-" + version, asset)
 
 # ---------------------------------------------------------------------------
 # install_layout

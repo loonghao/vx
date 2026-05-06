@@ -5,6 +5,7 @@
 load("@vx//stdlib:provider.star", "runtime_def", "github_permissions")
 load("@vx//stdlib:provider_templates.star", "github_go_provider")
 load("@vx//stdlib:system_install.star", "cross_platform_install")
+load("@vx//stdlib:github.star", "make_fetch_versions")
 
 # Provider metadata
 name        = "step-cli"
@@ -34,7 +35,7 @@ _p = github_go_provider("smallstep", "cli",
 )
 
 # Export functions from template
-fetch_versions   = _p["fetch_versions"]
+fetch_versions   = make_fetch_versions("vx-org", "mirrors", tag_prefix = "step-cli-")
 download_url     = _p["download_url"]
 install_layout   = _p["install_layout"]
 store_root       = _p["store_root"]

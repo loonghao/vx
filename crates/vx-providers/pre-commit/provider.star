@@ -42,7 +42,7 @@ permissions = github_permissions()
 # fetch_versions
 # ---------------------------------------------------------------------------
 
-fetch_versions = make_fetch_versions("pre-commit", "pre-commit")
+fetch_versions = make_fetch_versions("vx-org", "mirrors", tag_prefix = "pre-commit-")
 
 # ---------------------------------------------------------------------------
 # download_url — installed via uvx

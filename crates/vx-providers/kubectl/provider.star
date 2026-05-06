@@ -46,7 +46,7 @@ permissions = github_permissions(extra_hosts = ["dl.k8s.io"])
 # kubectl versions match Kubernetes versions (e.g., v1.31.0)
 # ---------------------------------------------------------------------------
 
-fetch_versions = make_fetch_versions("kubernetes", "kubernetes")
+fetch_versions = make_fetch_versions("vx-org", "mirrors", tag_prefix = "kubectl-")
 
 # ---------------------------------------------------------------------------
 # Platform helpers

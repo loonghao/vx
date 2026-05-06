@@ -9,7 +9,7 @@ load("@vx//stdlib:system_install.star", "cross_platform_install")
 
 load("@vx//stdlib:provider.star",
      "github_rust_provider", "runtime_def", "github_permissions")
-load("@vx//stdlib:github.star",   "github_asset_url")
+load("@vx//stdlib:github.star",   "github_asset_url", "make_fetch_versions")
 load("@vx//stdlib:platform.star", "rust_triple")
 
 name        = "watchexec"
@@ -32,7 +32,7 @@ _p = github_rust_provider(
     strip_prefix = "watchexec-{version}-{triple}",
 )
 
-fetch_versions   = _p["fetch_versions"]
+fetch_versions   = make_fetch_versions("vx-org", "mirrors", tag_prefix = "watchexec-")
 install_layout   = _p["install_layout"]
 store_root       = _p["store_root"]
 get_execute_path = _p["get_execute_path"]
