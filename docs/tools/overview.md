@@ -18,7 +18,7 @@ vx supports **137 tools** out of the box, spanning language runtimes, package ma
 | [AI/ML](#aiml-tools) | Ollama, usql | 2 |
 | [Scientific & HPC](#scientific--hpc) | Spack, Rez | 2 |
 | [Media](#media) | FFmpeg, ImageMagick | 2 |
-| [CLI Enhancements](#cli--terminal-enhancements) | jq, fzf, eza, duf, dust, sd, zoxide | 7+ |
+| [CLI Enhancements](#cli--terminal-enhancements) | jq, fzf, eza, duf, dust, sd, zoxide, witr | 8+ |
 | [System Tools](#system--terminal-tools) | curl, pwsh, NASM, x-cmd, 7zip, htop (bottom) | 6+ |
 | [Security](#security-tools) | cosign, grype, syft, trivy, git-leaks, age, sops | 7 |
 | [Windows-specific](#windows-specific) | choco, winget, rcedit, MSVC, Wix, vcpkg | 6 |
@@ -178,6 +178,7 @@ See [Build Cache Guide](./build-cache) for detailed documentation.
 | **dust** | Disk usage analyzer |
 | **sd** | Better sed (simple find & replace) |
 | **zoxide** | Smart cd replacement |
+| **witr** | Process introspection ("Why is this running?") | [Details →](./witr) |
 | **atuin** | Shell history sync |
 | **starship** | Cross-shell prompt |
 | **tealdeer** (tldr) | Simplified man pages |
