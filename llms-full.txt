@@ -356,6 +356,242 @@ migrate = "uvx alembic upgrade head"
 - [RFC 0036: Starlark Provider Support](https://github.com/loonghao/vx/blob/main/docs/rfcs/0036-starlark-provider-support.md): Starlark DSL design
 - [RFC 0038: provider.star replaces TOML](https://github.com/loonghao/vx/blob/main/docs/rfcs/0038-provider-star-replaces-toml.md): Single source of truth
 
+## Supported Tools (137 Total)
+
+vx currently ships **137 providers** across multiple ecosystems. All tools are auto-installed on first use.
+
+### JavaScript/Node.js Ecosystem
+
+| Tool | Description | Package Alias |
+|------|-------------|---------------|
+| `node` | Node.js runtime | — |
+| `npm` | Node package manager (bundled with node) | — |
+| `npx` | Node package executor (bundled with node) | — |
+| `pnpm` | Fast, disk space efficient package manager | — |
+| `yarn` | Alternative package manager | — |
+| `bun` | Fast all-in-one JavaScript runtime | — |
+| `deno` | Secure JavaScript/TypeScript runtime | — |
+| `vite` | Next-generation frontend tooling | `vx npm:vite` |
+| `nx` | Smart monorepo build system | — |
+| `turbo` | High-performance build system for monorepos | — |
+
+### Python Ecosystem
+
+| Tool | Description | Package Alias |
+|------|-------------|---------------|
+| `python` | Python runtime (managed via UV) | — |
+| `uv` | Fast Python package manager | — |
+| `uvx` | Run Python tools instantly (bundled with uv) | — |
+| `ruff` | Extremely fast Python linter/formatter | `vx uvx:ruff` |
+| `meson` | Fast build system (Python-based) | `vx uv:meson` |
+| `conan` | C/C++ package manager (Python-based) | `vx uv:conan` |
+| `pre-commit` | Git hooks framework | — |
+
+### Rust Ecosystem
+
+| Tool | Description | Package Alias |
+|------|-------------|---------------|
+| `rust` | Rust toolchain (rustc, cargo, etc.) | — |
+| `cargo-audit` | Audit Cargo.lock for vulnerabilities | — |
+| `cargo-deny` | Cargo dependency denylist/allowlist | — |
+| `cargo-nextest` | Next-generation test runner for Rust | — |
+| `ripgrep` / `rg` | Fast text search tool | — |
+| `fd` | Fast alternative to `find` | — |
+| `bat` | Cat clone with syntax highlighting | — |
+| `delta` | Syntax-highlighting pager for git | — |
+| `tokei` | Count lines of code quickly | — |
+| `sccache` | Shared compilation cache | — |
+| `maturin` | Build and publish Rust Python bindings | — |
+
+### Go Ecosystem
+
+| Tool | Description | Package Alias |
+|------|-------------|---------------|
+| `go` | Go runtime and toolchain | — |
+| `golangci-lint` | Fast Go linters runner | — |
+| `goreleaser` | Release Go projects quickly | — |
+
+### Build Tools & Compilers
+
+| Tool | Description | Package Alias |
+|------|-------------|---------------|
+| `cmake` | Cross-platform build system | — |
+| `make` | GNU Make build automation | — |
+| `ninja` | Small build system with a focus on speed | — |
+| `meson` | Fast build system (also in Python) | `vx uv:meson` |
+| `xmake` | Modern C/C++ build tool | — |
+| `llvm` | LLVM compiler toolchain | — |
+| `nasm` | Netwide Assembler | — |
+
+### System Tools (Windows)
+
+| Tool | Description | Package Alias |
+|------|-------------|---------------|
+| `msvc` | Microsoft Visual C++ Build Tools | — |
+| `msbuild` | Microsoft Build Engine | — |
+| `pwsh` | PowerShell (cross-platform) | — |
+| `winget` | Windows Package Manager | — |
+| `choco` | Chocolatey Package Manager | — |
+| `wix` | Windows Installer XML Toolset | — |
+| `rcedit` | Edit resources in Windows executables | — |
+
+### System Tools (Cross-platform)
+
+| Tool | Description | Package Alias |
+|------|-------------|---------------|
+| `bash` | Bourne Again SHell | — |
+| `zsh` | Z SHell | — |
+| `fish` | Friendly Interactive SHell | — |
+| `curl` | Command-line tool for transferring data | — |
+| `7zip` / `7z` | File archiver with high compression | — |
+
+### DevOps & CI/CD
+
+| Tool | Description | Package Alias |
+|------|-------------|---------------|
+| `gh` | GitHub CLI | — |
+| `git` | Distributed version control | — |
+| `gitleaks` | Detect secrets in git repos | — |
+| `prek` | Pre-commit hooks manager | — |
+| `release-please` | Automate releases based on conventional commits | — |
+
+### Container & Kubernetes
+
+| Tool | Description | Package Alias |
+|------|-------------|---------------|
+| `docker` | Container platform | — |
+| `podman` | Daemonless container engine | — |
+| `kubectl` | Kubernetes CLI | — |
+| `helm` | Kubernetes package manager | — |
+| `kustomize` | Kubernetes configuration customization | — |
+| `k3d` | Helper to run Rancher Lab's k3s in Docker | — |
+| `kind` | Kubernetes in Docker | — |
+| `minikube` | Local Kubernetes cluster | — |
+| `skaffold` | Easy and repeatable Kubernetes development | — |
+| `tilt` | Multi-service dev for teams on Kubernetes | — |
+| `flux` | GitOps toolkit for Kubernetes | — |
+
+### Cloud CLIs
+
+| Tool | Description | Package Alias |
+|------|-------------|---------------|
+| `awscli` | AWS Command Line Interface | — |
+| `azcli` / `az` | Azure Command Line Interface | — |
+| `gcloud` | Google Cloud SDK | — |
+| `terraform` | Infrastructure as Code | — |
+
+### Database & Data Tools
+
+| Tool | Description | Package Alias |
+|------|-------------|---------------|
+| `duckdb` | In-process SQL OLAP database | — |
+| `usql` | Universal command-line interface for SQL databases | — |
+
+### GPG & Security
+
+| Tool | Description | Package Alias |
+|------|-------------|---------------|
+| `age` | Simple, modern, and secure file encryption | — |
+| `cosign` | Container signing, verification, and storage | — |
+| `grype` | Vulnerability scanner for container images | — |
+| `syft` | CLI tool and library for generating SBOM | — |
+| `step-cli` | Command-line tool for step-ca and step-sso | — |
+| `vault` | Secure, store, and tightly control access to tokens | — |
+
+### Git Tools
+
+| Tool | Description | Package Alias |
+|------|-------------|---------------|
+| `jj` | Jujutsu: An experimental VCS | — |
+| `lazygit` | Simple terminal UI for git commands | — |
+| `gitui` | Blazing fast terminal UI for git | — |
+
+### Terminal & Shell Enhancements
+
+| Tool | Description | Package Alias |
+|------|-------------|---------------|
+| `starship` | Minimal, blazing-fast, and extremely customizable prompt | — |
+| `zoxide` | Smarter cd command | — |
+| `fzf` | Command-line fuzzy finder | — |
+| `atuin` | Magical shell history | — |
+| `helix` / `hx` | Post-modern text editor | — |
+| `eza` | Modern replacement for `ls` | — |
+| `delta` | Syntax-highlighting pager for git (also in Rust) | — |
+| `dust` | More intuitive `du` | — |
+| `duf` | Disk usage/free utility | — |
+| `bottom` / `btm` | Customizable cross-platform graphical process/system monitor | — |
+| `hyperfine` | Command-line benchmarking tool | — |
+| `gping` | Ping, but with a graph | — |
+| `trippy` | Network diagnostics tool | — |
+| `tealdeer` / `tldr` | Simplified and community-driven man pages | — |
+
+### Documentation & Static Site
+
+| Tool | Description | Package Alias |
+|------|-------------|---------------|
+| `hugo` | Fast and flexible static site generator | — |
+
+### Linters & Formatters
+
+| Tool | Description | Package Alias |
+|------|-------------|---------------|
+| `actionlint` | Static checker for GitHub Actions workflow files | — |
+| `hadolint` | Dockerfile linter | — |
+| `biome` | Format, lint, and more for web projects | — |
+| `oxlint` | Oxidation Compiler's linter | — |
+
+### Workflow & Task Runners
+
+| Tool | Description | Package Alias |
+|------|-------------|---------------|
+| `just` | Handy way to save and run project-specific commands | — |
+| `task` | Task runner / build tool | — |
+| `lefthook` | Fast and powerful Git hooks manager | — |
+| `dagu` | DAG runner for automation | — |
+| `worktrunk` | Trunk-based development workflow | — |
+
+### Media Processing
+
+| Tool | Description | Package Alias |
+|------|-------------|---------------|
+| `ffmpeg` | Complete solution to record, convert, and stream audio/video | — |
+| `imagemagick` | Image manipulation tools | — |
+
+### Misc Tools
+
+| Tool | Description | Package Alias |
+|------|-------------|---------------|
+| `jq` | Command-line JSON processor | — |
+| `yq` | YAML/XML/JSON processor | — |
+| `sd` | Intuitive find & replace CLI | — |
+| `watchexec` | Execute commands on file changes | — |
+| `lazydocker` | Simple terminal UI for docker | — |
+| `dive` | Tool for exploring each layer in a docker image | — |
+| `chezmoi` | Manage dotfiles across multiple machines | — |
+| `nushell` / `nu` | Modern shell with structured data | — |
+| `vcpkg` | C++ Library Manager | — |
+| `conan` | C/C++ package manager (also in Python) | `vx uv:conan` |
+| `spack` | HPC package manager | — |
+| `conda` | Cross-platform package and environment manager | — |
+| `mise` | Dev tool version manager (like asdf) | — |
+| `erdtree` / `erd` | Multi-threaded file tree visualizer | — |
+| `protoc` | Protocol Buffers compiler | — |
+| `grpcurl` | Command-line tool for gRPC | — |
+| `buf` | Protocol Buffers tools | — |
+| `ccache` | Compiler cache | — |
+| `buildcache` | Build cache tool | — |
+| `lima` | Linux on Mac | — |
+| `nerdctl` | Docker-compatible CLI for containerd | — |
+| `k9s` | Kubernetes CLI to manage clusters | — |
+| `openclaw` | AI coding agent | — |
+| `ollama` | Run large language models locally | — |
+| `vscode` | Visual Studio Code editor | — |
+| `witr` | Workflow automation tool | — |
+| `xh` | Friendly and fast tool for sending HTTP requests | — |
+| `xcodebuild` | Xcode build tool (macOS only) | — |
+| `yazi` | Terminal file manager | — |
+| `zellij` | Terminal workspace with batteries included | — |
+
 ## Documentation Index
 
 See [llms.txt](https://github.com/loonghao/vx/blob/main/llms.txt) for the full documentation index. Key references:
