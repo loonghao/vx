@@ -6,6 +6,12 @@ vx supports media processing tools for audio, video, and image manipulation.
 
 A complete, cross-platform solution to record, convert and stream audio and video.
 
+**Download Source:**
+- **Windows/Linux**: Downloaded from [vx-org/mirrors](https://github.com/vx-org/mirrors) GitHub Releases (static builds by BtbN)
+- **macOS**: Installed via system package managers (brew, apt, etc.)
+
+The `vx-org/mirrors` repository provides a permanent archive of FFmpeg static builds for all versions, ensuring reliable downloads.
+
 ```bash
 vx install `ffmpeg@latest
 
