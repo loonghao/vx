@@ -7,7 +7,7 @@ vx supports a wide range of tools for maintaining code quality, linting, formatt
 A framework for managing and maintaining multi-language pre-commit hooks.
 
 ```bash
-vx install pre-commit latest
+vx install pre-commit@latest
 
 vx pre-commit --version
 vx pre-commit install            # Install hooks
