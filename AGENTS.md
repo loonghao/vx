@@ -1,10 +1,29 @@
 # VX — Universal Development Tool Manager
 
-> **For AI agents**: This file is an **orientation guide and quick reference** — start here, then follow the links into dedicated docs as needed.
+> **For AI agents**: This file is an **orientation map and quick reference** — start here, then follow the links into dedicated docs as needed.
 > If you are working on a project that uses vx, **always prefix commands with `vx`** (e.g., `vx npm install`, `vx cargo build`).
 > Also see: [`CLAUDE.md`](CLAUDE.md) for Claude Code, [`llms.txt`](llms.txt) for a concise LLM-friendly project index, [`llms-full.txt`](llms-full.txt) for detailed LLM documentation.
 >
 > **Compatibility**: This file follows the [AGENTS.md](https://agents.md/) open standard (managed by Agentic AI Foundation / Linux Foundation). It is recognized by OpenAI Codex, Google Jules, GitHub Copilot, Cursor, Amp, Factory, Aider, Zed, Warp, JetBrains Junie, Devin, and other AI coding agents.
+
+## Documentation Map (Start Here)
+
+| I need to… | Read this |
+|-------------|-----------|
+| Understand what vx is | [What is vx? (below)](#what-is-vx) |
+| Learn architecture | [`docs/architecture/OVERVIEW.md`](docs/architecture/OVERVIEW.md) |
+| Read design decisions (RFCs) | [`docs/rfcs/`](docs/rfcs/) — 50+ RFCs |
+| Add a new Provider (tool) | [`docs/guide/creating-provider.md`](docs/guide/creating-provider.md) |
+| Understand provider.star DSL | [`docs/guide/provider-star-reference.md`](docs/guide/provider-star-reference.md) |
+| Run CI tasks locally | [justfile](justfile) — `vx just --list` |
+| Understand the CI pipeline | [`.github/workflows/ci.yml`](.github/workflows/ci.yml) |
+| See all CLI commands | [`docs/cli/`](docs/cli/) |
+| Follow unified syntax rules | [`docs/guide/command-syntax-rules.md`](docs/guide/command-syntax-rules.md) |
+| Check project configuration | [`Cargo.toml`](Cargo.toml) (workspace root) |
+| See all 137 providers | [`crates/vx-providers/`](crates/vx-providers/) |
+| Contribute to the project | [`docs/advanced/contributing.md`](docs/advanced/contributing.md) |
+| Understand vx.toml | [`docs/config/vx-toml.md`](docs/config/vx-toml.md) |
+| Troubleshoot issues | [`docs/appendix/troubleshooting.md`](docs/appendix/troubleshooting.md) |
 
 ## What is vx?
 
@@ -20,11 +39,11 @@ vx uv pip install flask    # Auto-installs uv if needed
 vx npx create-react-app x  # Auto-installs Node.js + runs npx
 ```
 
-### One-Sentence Summary
-
 **vx = prefix any dev tool command with `vx` → it auto-installs the tool and runs it.**
 
 ### How vx Works (Execution Flow)
+
+For detailed architecture, see [`docs/architecture/OVERVIEW.md`](docs/architecture/OVERVIEW.md).
 
 When you run `vx node --version`, this happens internally:
 
@@ -270,6 +289,8 @@ Need to add a new tool to vx?
 
 ## Common Tasks Quick Reference
 
+> For detailed command reference, see [`docs/cli/`](docs/cli/). For project setup, see [`docs/guide/getting-started.md`](docs/guide/getting-started.md).
+
 ### For agents working on vx-managed projects
 
 ```bash
@@ -277,7 +298,6 @@ Need to add a new tool to vx?
 vx node app.js
 vx cargo build --release
 vx npm install
-vx python script.py
 
 # Project setup from vx.toml
 vx setup                       # Install all project tools
@@ -287,103 +307,28 @@ vx run test                    # Run project scripts
 # Package aliases (shorter commands)
 vx vite                        # Same as: vx npm:vite
 vx meson                       # Same as: vx uv:meson
-
-# Cross-ecosystem global install (auto-register + shim generation)
-vx npm install -g @tencent-ai/codebuddy-code
-vx pnpm add -g eslint
-vx yarn global add typescript
-vx pip install --user ruff
-vx cargo install ripgrep
-vx go install golang.org/x/tools/gopls@latest
-vx gem install bundler
 ```
-
-### Global Install Contract (Agent-Facing)
-
-When a user runs ecosystem-native global install commands through `vx`, vx should
-preserve the familiar command style while ensuring vx-managed behavior:
-
-1. Install into vx-managed package isolation directory (`~/.vx/packages/...`)
-2. Register package metadata in `~/.vx/config/global-packages.json`
-3. Create/update shims under `~/.vx/shims`
-4. Keep executables discoverable by `vx <exe>` and direct shell usage (with shims dir in `PATH`)
-
-This contract avoids ecosystem-specific drift and provides consistent behavior across languages.
 
 ### For agents developing vx itself
 
+> For full development guide, see [`docs/advanced/contributing.md`](docs/advanced/contributing.md).
+
 ```bash
-# One-time setup
-vx just setup-hooks            # Install git hooks
+# Quick check (run before PR)
+vx just quick                  # format → lint → test → build
 
 # Build & test
 vx just build                  # Debug build
-vx just build-release          # Release build
 vx just test                   # All tests (nextest)
-vx just test-fast              # Unit tests only
-vx just test-pkgs "-p vx-cli"  # Test specific crate
 
-# Code quality
-vx just format                 # Format
-vx just lint                   # Clippy
-vx just check-architecture     # Verify layer deps
-vx just quick                  # format → lint → test → build (pre-commit)
-
-# Scoped (faster)
-vx cargo check -p vx-cli
-vx cargo test -p vx-starlark
-vx cargo clippy -p vx-resolver -- -D warnings
-
-# Multi-agent parallel development (using vx wt worktrees)
-vx wt switch feat/agent-a-task    # Create worktree for agent A
-vx wt switch feat/agent-b-task    # Create worktree for agent B
-vx wt list                       # List all worktrees
-vx wt merge                      # Merge current worktree
-vx wt remove                     # Remove worktree after merge
-
-# Process introspection (using vx witr)
-vx witr nginx                   # Inspect process by name
-vx witr --pid 1234             # Inspect by PID
-vx witr --port 5432            # Find process on port
-vx witr postgres --tree        # Show process ancestry
-vx witr --json                 # JSON output
-
-# Search tools
-vx rg "pattern"                 # ripgrep: fast text search
-vx fd "filename"               # fd-find: fast file search
-vx fzf "pattern"              # fzf: fuzzy search
-
-# Build tools
-vx cargo build                 # Rust build
-vx cmake --build .             # CMake build
-vx make                         # Make build
-vx ninja                        # Ninja build
-vx meson compile               # Meson build
-
-# Package management
-vx cargo package               # Create Rust crate package
-vx npm pack                   # Create npm package
-vx python -m build            # Python package (with build)
-vx dpkg-deb --build          # Debian package
-
-# Container tools
-vx podman build -t app .    # Build container image (Podman)
-vx docker build -t app .    # Build container image (Docker)
+# Scoped testing
+vx cargo test -p vx-starlark   # Test specific crate
 ```
 
-### Global Install Contract (Agent-Facing)
-
-When a user runs ecosystem-native global install commands through `vx`, vx should
-preserve the familiar command style while ensuring vx-managed behavior:
-
-1. Install into vx-managed package isolation directory (`~/.vx/packages/...`)
-2. Register package metadata in `~/.vx/config/global-packages.json`
-3. Create/update shims under `~/.vx/shims`
-4. Keep executables discoverable by `vx <exe>` and direct shell usage (with shims dir in `PATH`)
-
-This contract avoids ecosystem-specific drift and provides consistent behavior across languages.
+> For detailed provider development guide, see [`docs/guide/creating-provider.md`](docs/guide/creating-provider.md).
 
 ## Adding a New Provider
+> **Quick Start**: Most new providers can use a template (covers 90% of cases). See [`docs/guide/provider-star-reference.md`](docs/guide/provider-star-reference.md) for the full Starlark DSL reference.
 
 1. Create `crates/vx-providers/<name>/provider.star`
 2. Use a template (covers 90% of cases):
@@ -427,22 +372,22 @@ detect-changes → build-vx (multi-platform) → code-quality
 
 ## File Layout Conventions
 
+> For complete contributing guide, see [`docs/advanced/contributing.md`](docs/advanced/contributing.md).
+
 ```
-crates/vx-<name>/
+crates/vx-<name>/          # Rust crate
 ├── src/lib.rs        # Must have module-level doc comment
-├── tests/*_tests.rs  # Unit tests (NEVER inline #[cfg(test)]) — use rstest
+├── tests/*_tests.rs  # Unit tests (NEVER inline) — use rstest
 └── Cargo.toml
 
-crates/vx-providers/<name>/
-├── provider.star     # Provider definition (required, Starlark DSL)
-└── src/lib.rs        # Rust glue (required for built-in providers)
+crates/vx-providers/<name>/   # Provider definitions
+├── provider.star     # Starlark DSL (required)
+└── src/lib.rs        # Rust glue (required for built-in)
 
-crates/vx-starlark/stdlib/
-├── provider.star              # Unified facade (re-exports all 14 modules)
-├── provider_templates.star    # github_rust/go/binary_provider, system_provider
-├── platform.star, env.star, layout.star, permissions.star
-└── runtime.star, github.star, http.star, install.star, semver.star, test.star, ...
-# Full stdlib reference: docs/guide/provider-star-reference.md
+crates/vx-starlark/stdlib/   # Starlark standard library
+├── provider.star              # Unified facade
+├── provider_templates.star    # 4 high-level templates
+└── platform.star, env.star, ...  # 14 modules total
 ```
 
 ## Command Syntax Guardrails
@@ -476,25 +421,24 @@ crates/vx-starlark/stdlib/
 - **Tests**: New functionality needs tests in `crates/<name>/tests/`
 - **Docs**: Update relevant docs when changing user-facing behavior
 
-## Code Style
+## Code Style & Testing
+
+> For complete coding standards, see [`docs/advanced/contributing.md`](docs/advanced/contributing.md).
+
+### Code Style
 
 - **Language**: Rust (edition 2024, MSRV 1.93+)
-- **Formatting/Linting**: `vx cargo fmt` before committing; `clippy` with `-D warnings`
-- **Imports**: stdlib → external → internal, separated by blank lines
-- **Error handling**: `anyhow::Result` for app code, `thiserror` for library error types
-- **Async**: Tokio-based async/await for all I/O
-- **Logging**: `tracing::info!`, `tracing::debug!` — never `println!` or `eprintln!`
-- **Naming**: `PascalCase` types, `snake_case` functions/modules, `SCREAMING_SNAKE_CASE` constants
-- **Docs**: All `pub` items need doc comments; every `lib.rs` needs a module-level description
-- **File size**: Keep source files under 500 lines
+- **Formatting**: `vx cargo fmt` before committing
+- **Linting**: `clippy` with `-D warnings`
+- **Logging**: `tracing::info!` — never `println!`
+- **Docs**: All `pub` items need doc comments
 
-## Testing Conventions
+### Testing Conventions
 
-- Tests go in `crates/<name>/tests/` — **never** inline `#[cfg(test)]` modules
-- Use `rstest` for parameterized tests; name files `<feature>_tests.rs`
-- `vx just test` (all), `vx just test-pkgs "-p vx-starlark"` (single crate)
-- E2E tests use `trycmd`; provider static checks: `vx just test-providers-static`
-- Mock all network calls in unit tests; keep tests independent (no shared mutable state)
+- Tests go in `crates/<name>/tests/` — **never** inline `#[cfg(test)]`
+- Use `rstest` for parameterized tests
+- `vx just test` (all) or `vx cargo test -p <crate>` (single)
+- E2E tests: `trycmd`; provider checks: `vx just test-providers-static`
 
 ## Allowed vs. Needs-Approval Actions
 
@@ -524,81 +468,39 @@ Use `@main` for latest, or pin to a release tag. Full guide: [`docs/guides/githu
 
 ## AI Agent Ecosystem
 
-vx is designed to be **AI-agent-first**, providing configuration files for 17+ AI coding assistants. Traditional tool management creates friction for AI agents: without vx, an AI must guess if Node.js is installed, check `nvm` vs `fnm` vs system install, and handle version mismatches — all before running a single `npm install`. With vx, the AI just prefixes `vx` → tool auto-installs → command runs. Zero ambiguity, zero setup.
+> vx is **AI-agent-first**. For MCP integration, see [MCP Integration](#mcp-integration). For GitHub Actions, see [`docs/guides/github-action.md`](docs/guides/github-action.md).
 
 ### How AI Agents Should Use vx
 
-1. **Check for `vx.toml`** in the project root → if present, always use `vx` prefix
-2. **Never suggest manual installation** of any tool — `vx` handles it
-3. **Use structured output** for parsing: `vx list --json` or `vx list --format toon` (saves 40-60% tokens)
-4. **For MCP servers**, replace `npx`/`uvx` with `vx` in the config:
-   ```json
-   {
-     "mcpServers": {
-       "server": {
-         "command": "vx",
-         "args": ["npx", "-y", "@example/mcp-server@latest"]
-       }
-     }
-   }
-   ```
-5. **For CI/CD**, use `loonghao/vx@main` GitHub Action with `cache: 'true'`
+1. **Check for `vx.toml`** → if present, always use `vx` prefix
+2. **Never suggest manual installation** — `vx` handles it
+3. **Use structured output**: `vx list --json` or `vx list --format toon`
+4. **For MCP servers**, replace `npx`/`uvx` with `vx` in config
+5. **For CI/CD**, use `loonghao/vx@main` GitHub Action
 
-## Multi-Agent Development with `vx wt`
+## Multi-Agent Development (vx wt)
 
-Use `vx wt` (Git worktree manager) for parallel multi-agent development workflows:
+> For detailed worktree guide, see [`docs/guides/`](docs/guides/) (if available) or use `vx wt --help`.
 
 ```bash
-# Create a new worktree for a feature (creates branch + worktree)
-vx wt switch feat/add-new-provider
-
-# List all worktrees and their status
-vx wt list
-
-# Merge current worktree branch into target branch
-vx wt merge
-
-# Remove worktree and delete branch (if merged)
-vx wt remove
-
-# Run a single operation (for scripting)
-vx wt step
-
-# Config management
-vx wt config
+vx wt switch feat/add-new-provider   # Create worktree + branch
+vx wt list                          # List all worktrees
+vx wt merge                         # Merge current worktree
+vx wt remove                        # Remove worktree
 ```
 
-**Typical multi-agent workflow**:
-1. Main agent creates worktrees: `vx wt switch feat/agent-a-task`, `vx wt switch feat/agent-b-task`
-2. Each agent works in isolated worktree (no file conflicts)
-3. Agents merge independently when done
-4. Main agent removes worktrees after merge
+**Typical workflow**: Create worktrees → agents work in parallel → merge independently → remove worktrees.
 
-## Process Introspection with `vx witr`
+## Process Introspection (vx witr)
 
-Use `vx witr` to debug running processes and understand "why is this running?":
+> For detailed usage, see [`docs/tools/witr.md`](docs/tools/witr.md).
 
 ```bash
-# Inspect a process by name
-vx witr nginx
-
-# Look up by PID
-vx witr --pid 1234
-
-# Find process listening on a port
-vx witr --port 5432
-
-# Find process holding a file lock
-vx witr --file /var/lib/dpkg/lock
-
-# Show full process ancestry
-vx witr postgres --tree
-
-# Show warnings (suspicious env, arguments, parents)
-vx witr docker --warnings
-
-# JSON output for scripting
-vx witr chrome --json
+vx witr nginx                # Inspect by name
+vx witr --pid 1234          # Inspect by PID
+vx witr --port 5432         # Find process on port
+vx witr postgres --tree      # Show process ancestry
+vx witr --json              # JSON output for scripting
 ```
 
 ## Search, Build, Package Commands
@@ -659,37 +561,4 @@ For a full error-by-error decision tree, see [`docs/appendix/troubleshooting.md`
 vx list --json             # JSON output
 vx list --format toon      # Token-optimized (saves 40-60% tokens)
 vx analyze --json          # Project analysis
-vx ai context --json       # Full AI context
-export VX_OUTPUT=json      # Default all commands to JSON
-```
-
-## Documentation Map
-
-```
-# Root files
-AGENTS.md         # THIS FILE — primary AI agent entry point
-CLAUDE.md         # Claude Code instructions
-llms.txt          # LLM-friendly project index
-llms-full.txt     # Detailed LLM documentation
-
-# Agent config files: .github/copilot-instructions.md, .github/instructions/,
-#   .cursorrules, .cursor/rules/*.mdc, .clinerules, .windsurfrules,
-#   .kiro/steering/, .trae/rules/
-
-# Documentation site
-docs/
-├── architecture/     # System architecture (OVERVIEW.md)
-├── guide/            # User guides — getting-started, provider-star-reference, etc.
-├── cli/              # CLI command reference (17 commands)
-├── config/           # vx-toml, env-vars, etc.
-├── tools/            # Tool category docs (14 categories)
-├── advanced/         # Contributing, security, extension development
-├── guides/           # GitHub Actions, use cases
-├── rfcs/             # 50 design decision documents
-├── appendix/         # FAQ, troubleshooting
-└── zh/               # Chinese translations
-
-# AI Agent Skills (vx ai setup)
-skills/
-├── vx-usage, vx-commands, vx-project, vx-best-practices, vx-troubleshooting
 ```
