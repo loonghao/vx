@@ -41,6 +41,17 @@ vx npx create-react-app x  # Auto-installs Node.js + runs npx
 
 **vx = prefix any dev tool command with `vx` → it auto-installs the tool and runs it.**
 
+### Critical Rules for AI Agents (MUST Follow)
+
+1. **Always use `vx` prefix** — Never suggest `npm install`, always `vx npm install`
+2. **Never suggest manual tool installation** — vx handles it automatically
+3. **Use correct terminology** — Runtime (not Tool), Provider (not Plugin), provider.star (not provider config)
+4. **Check `vx.toml` first** — Understand project tool requirements before suggesting commands
+5. **Use `vx just` for tasks** — All CI tasks are in justfile, use `vx just --list` to see available tasks
+6. **Provider count is 137** — Update any docs that reference old counts (78, 73, 70+, 50+, 105, 122, 124, 126, 129, 131, 132, 135, 136, etc.)
+7. **Version syntax** — Always use `vx install <runtime>@<version>` (never `vx install <runtime> <version>`)
+8. **MCP integration** — Replace `npx`/`uvx` with `vx` in MCP server configurations
+
 ### How vx Works (Execution Flow)
 
 For detailed architecture, see [`docs/architecture/OVERVIEW.md`](docs/architecture/OVERVIEW.md).
