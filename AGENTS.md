@@ -43,6 +43,8 @@ vx npx create-react-app x  # Auto-installs Node.js + runs npx
 
 ### Critical Rules for AI Agents (MUST Follow)
 
+**For AI Agents using vx (in projects)**:
+
 1. **Always use `vx` prefix** — Never suggest `npm install`, always `vx npm install`
 2. **Never suggest manual tool installation** — vx handles it automatically
 3. **Use correct terminology** — Runtime (not Tool), Provider (not Plugin), provider.star (not provider config)
@@ -123,9 +125,9 @@ User Command: vx npm install
 
 **Key principle**: vx never modifies commands — it only ensures the right tool version is available, then transparently forwards the command.
 
-## Critical Rules for AI Agents
+## Critical Rules for AI Agents (Developing vx)
 
-**These rules MUST be followed when working on or with vx:**
+**These rules MUST be followed when working ON vx (developing vx itself):**
 
 1. **Always use `vx` prefix** — Never suggest `npm install`, always `vx npm install`
 2. **Never suggest manual tool installation** — vx handles it automatically
