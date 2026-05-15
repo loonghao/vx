@@ -5,8 +5,8 @@ Thank you for your interest in contributing to vx!
 ## Getting Started
 
 ### Prerequisites
-
-- Rust 1.80+
+:
+- Rust 1.93+ (Edition 2024)
 - Git
 
 ### Clone and Build
@@ -26,6 +26,7 @@ vx uses **rustls** (pure Rust TLS implementation) instead of OpenSSL, which enab
 - **Consistent behavior**: Same TLS implementation across all platforms
 
 The HTTP client (`reqwest`) is configured with:
+
 - `rustls-tls`: Pure Rust TLS backend
 - `rustls-tls-native-roots`: Uses system certificate store for trust roots
 
@@ -236,15 +237,15 @@ The CI pipeline is optimized with **crate-level change detection** to minimize b
 ### Crate Dependency Layers
 
 ```
-┌─────────────────────────────────────────────────────────────┐
+┌─────────────────────────────────────────────────────┐
 │                      vx-cli (Application)                    │
-├─────────────────────────────────────────────────────────────┤
+├─────────────────────────────────────────────────────┤
 │  vx-resolver │ vx-extension │ vx-project-analyzer │ ...     │
-├─────────────────────────────────────────────────────────────┤
+├─────────────────────────────────────────────────────┤
 │                    vx-runtime (Infrastructure)               │
-├─────────────────────────────────────────────────────────────┤
+├─────────────────────────────────────────────────────┤
 │              vx-core │ vx-paths (Foundation)                 │
-└─────────────────────────────────────────────────────────────┘
+└─────────────────────────────────────────────────────┘
 ```
 
 ### Impact Rules
