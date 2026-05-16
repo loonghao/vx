@@ -354,7 +354,10 @@ migrate = "uvx alembic upgrade head"
 - [RFC 0027: Implicit Package Execution](https://github.com/loonghao/vx/blob/main/docs/rfcs/0027-implicit-package-execution.md): `vx vite` → `vx npx vite`
 - [RFC 0035: AI Integration](https://github.com/loonghao/vx/blob/main/docs/rfcs/0035-ai-integration-optimization.md): AI-native workflow optimization
 - [RFC 0036: Starlark Provider Support](https://github.com/loonghao/vx/blob/main/docs/rfcs/0036-starlark-provider-support.md): Starlark DSL design
+- [RFC 0037: Provider.star Unified Facade](https://github.com/loonghao/vx/blob/main/docs/rfcs/0037-provider-star-unified-facade.md): Unified stdlib API
 - [RFC 0038: provider.star replaces TOML](https://github.com/loonghao/vx/blob/main/docs/rfcs/0038-provider-star-replaces-toml.md): Single source of truth
+- [RFC 0039: Star-only Providers](https://github.com/loonghao/vx/blob/main/docs/rfcs/0039-star-only-providers-and-dynamic-registry.md): Dynamic provider registry
+- [RFC 0040: Toolchain Version Indirection](https://github.com/loonghao/vx/blob/main/docs/rfcs/0040-toolchain-version-indirection.md): Version management design
 
 ## Supported Tools (137 Total)
 
