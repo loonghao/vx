@@ -105,7 +105,7 @@ powershell -c "irm https://raw.githubusercontent.com/loonghao/vx/main/install.ps
 
 ```bash
 # 1) Pin a stable installer version (recommended for CI and enterprise networks)
-VX_VERSION="0.8.4" curl -fsSL https://raw.githubusercontent.com/loonghao/vx/main/install.sh | bash
+VX_VERSION="0.8.36" curl -fsSL https://raw.githubusercontent.com/loonghao/vx/main/install.sh | bash
 
 # 2) Configure multi-source release mirrors (comma separated)
 VX_RELEASE_BASE_URLS="https://mirror.example.com/vx/releases,https://github.com/loonghao/vx/releases" \
@@ -591,7 +591,7 @@ Use vx in your CI/CD workflows:
 - run: vx npm test
 ```
 
-> **Note**: Use `@main` for latest, or pin to a specific release tag (e.g., `@vx-v0.8.15`). Check [releases](https://github.com/loonghao/vx/releases) for the latest version.
+> **Note**: Use `@main` for latest, or pin to a specific release tag (e.g., `@vx-v0.8.36`). Check [releases](https://github.com/loonghao/vx/releases) for the latest version.
 
 See [GitHub Action Guide](docs/guides/github-action.md) for full documentation.
 
