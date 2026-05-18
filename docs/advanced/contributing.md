@@ -6,7 +6,7 @@ Thank you for your interest in contributing to vx!
 
 ### Prerequisites
 :
-- Rust 1.93+ (Edition 2024)
+- Rust 1.95.0+ (Edition 2024)
 - Git
 
 ### Clone and Build
