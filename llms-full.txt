@@ -7,7 +7,7 @@ vx eliminates the complexity of managing multiple language runtimes (Node.js, Py
 - **Install (Linux/macOS)**: `curl -fsSL https://raw.githubusercontent.com/loonghao/vx/main/install.sh | bash`
 - **Install (Windows)**: `powershell -c "irm https://raw.githubusercontent.com/loonghao/vx/main/install.ps1 | iex"`
 - **Platforms**: Windows, macOS, Linux (x86_64, aarch64)
-- **Language**: Rust 1.93+, **License**: MIT
+- **Language**: Rust 1.95.0+, **License**: MIT
 - **Repository**: https://github.com/loonghao/vx
 - **GitHub Action**: `loonghao/vx@main`
 - **AI Agent Entry Point**: [AGENTS.md](https://github.com/loonghao/vx/blob/main/AGENTS.md)
@@ -31,7 +31,7 @@ vx eliminates the complexity of managing multiple language runtimes (Node.js, Py
 
 ## Technical Stack
 
-- **Core**: Rust 1.93+, async/await with Tokio
+- **Core**: Rust 1.95.0+, async/await with Tokio
 - **Provider DSL**: Starlark (Python-like) via `provider.star` — declarative, zero-compilation
 - **Architecture**: 5-layer system with strict downward-only dependency rule
 - **Starlark Stdlib**: 14 modules (runtime, platform, env, layout, permissions, system_install, etc.)
