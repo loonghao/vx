@@ -947,6 +947,21 @@ impl<'a> EnvironmentManager<'a> {
                 }
             }
 
+            if ProjectToolsConfig::is_toolchain_managed_runtime_version(
+                runtime_name,
+                requested_version,
+            ) {
+                let mut versions = installed_versions.to_vec();
+                versions.sort_by(|a, b| self.compare_versions(a, b));
+                if let Some(latest) = versions.last() {
+                    trace!(
+                        "Using {} store version {} for requested toolchain {} from vx.toml",
+                        runtime_name, latest, requested_version
+                    );
+                    return Some(latest.clone());
+                }
+            }
+
             let matching_version =
                 self.find_matching_version(runtime_name, requested_version, installed_versions);
 

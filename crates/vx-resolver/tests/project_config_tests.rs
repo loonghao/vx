@@ -134,6 +134,31 @@ fn test_version_with_fallback_bundled() {
     assert_eq!(config.get_version_with_fallback("pnpm"), None);
 }
 
+#[rstest]
+#[case("rust", "1.95.0")]
+#[case("cargo", "1.95.0")]
+#[case("rustc", "stable")]
+#[case("rustfmt", "beta")]
+#[case("clippy", "nightly-2026-05-18")]
+fn test_rust_compiler_versions_are_toolchain_managed(#[case] tool: &str, #[case] version: &str) {
+    assert!(ProjectToolsConfig::is_toolchain_managed_runtime_version(
+        tool, version
+    ));
+}
+
+#[rstest]
+#[case("rust", "1.29.0")]
+#[case("rustup", "1.95.0")]
+#[case("node", "24.0.0")]
+fn test_non_rust_toolchain_versions_are_not_toolchain_managed(
+    #[case] tool: &str,
+    #[case] version: &str,
+) {
+    assert!(!ProjectToolsConfig::is_toolchain_managed_runtime_version(
+        tool, version
+    ));
+}
+
 // =============================================================================
 // Version Priority tests: vx.lock > vx.toml
 // =============================================================================
