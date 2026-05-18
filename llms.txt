@@ -7,7 +7,7 @@ vx eliminates the complexity of managing multiple language runtimes (Node.js, Py
 - **Install (Linux/macOS)**: `curl -fsSL https://raw.githubusercontent.com/loonghao/vx/main/install.sh | bash`
 - **Install (Windows)**: `powershell -c "irm https://raw.githubusercontent.com/loonghao/vx/main/install.ps1 | iex"`
 - **Platforms**: Windows, macOS, Linux (x86_64, aarch64)
-- **Language**: Rust 1.93+
+- **Language**: Rust 1.95.0+
 - **License**: MIT
 - **Repository**: https://github.com/loonghao/vx
 - **Releases**: https://github.com/loonghao/vx/releases
