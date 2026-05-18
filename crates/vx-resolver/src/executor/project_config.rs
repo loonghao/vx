@@ -191,6 +191,14 @@ impl ProjectToolsConfig {
         self.get_version(primary)
     }
 
+    /// Check whether a requested version belongs to a toolchain managed by another runtime.
+    ///
+    /// Rust is installed through `rustup`, so the vx store version is the rustup installer
+    /// version while project configuration may request a Rust compiler/toolchain version.
+    pub fn is_toolchain_managed_runtime_version(tool: &str, version: &str) -> bool {
+        Self::is_rust_toolchain_runtime(tool) && Self::is_rust_toolchain_version(version)
+    }
+
     /// Get companion tools from vx.toml that should have their `prepare_environment()`
     /// called when executing any other tool.
     ///
@@ -347,5 +355,26 @@ impl ProjectToolsConfig {
             // Everything else (including pnpm, yarn, bun, uv, etc.) should NOT fall back
             _ => None,
         }
+    }
+
+    fn is_rust_toolchain_runtime(tool: &str) -> bool {
+        matches!(tool, "rust" | "cargo" | "rustc" | "rustfmt" | "clippy")
+    }
+
+    fn is_rust_toolchain_version(version: &str) -> bool {
+        if matches!(version, "stable" | "beta" | "nightly") {
+            return true;
+        }
+
+        if version.starts_with("nightly-") || version.starts_with("beta-") {
+            return true;
+        }
+
+        let trimmed = version.trim_start_matches('v');
+        let mut parts = trimmed.split(['.', '-']);
+        let major = parts.next().and_then(|part| part.parse::<u64>().ok());
+        let minor = parts.next().and_then(|part| part.parse::<u64>().ok());
+
+        matches!((major, minor), (Some(1), Some(minor)) if minor >= 30)
     }
 }
