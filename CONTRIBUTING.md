@@ -19,7 +19,7 @@ vx just quick
 
 ## Prerequisites
 
-- **Rust 1.93+** (managed by vx itself: `vx cargo --version`)
+- **Rust 1.95.0+** (managed by vx itself: `vx cargo --version`)
 - **Git**
 - **just** (task runner, managed by vx: `vx just --list`)
 
