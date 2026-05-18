@@ -26,7 +26,7 @@ futures-core = { version = "0.3" }
 futures-executor = { version = "0.3" }
 futures-sink = { version = "0.3" }
 futures-util = { version = "0.3", features = ["channel", "io", "sink"] }
-hashbrown = { version = "0.14", features = ["raw"] }
+hashbrown = { version = "0.17", features = ["raw"] }
 indexmap = { version = "2", features = ["serde"] }
 lalrpop-util = { version = "0.19", features = ["lexer"] }
 log = { version = "0.4", default-features = false, features = ["std"] }
@@ -71,7 +71,7 @@ futures-core = { version = "0.3" }
 futures-executor = { version = "0.3" }
 futures-sink = { version = "0.3" }
 futures-util = { version = "0.3", features = ["channel", "io", "sink"] }
-hashbrown = { version = "0.14", features = ["raw"] }
+hashbrown = { version = "0.17", features = ["raw"] }
 indexmap = { version = "2", features = ["serde"] }
 lalrpop-util = { version = "0.19", features = ["lexer"] }
 log = { version = "0.4", default-features = false, features = ["std"] }
