@@ -52,7 +52,7 @@ runs:
           ~/.vx
           ~/.local/bin/vx
           ~/.local/bin/vx.exe
-        key: ${{ inputs.cache-key-prefix }}-${{ runner.os }}-${{ inputs.version }}-${{ inputs.tools }}
+        key: ${{ inputs.cache-key-prefix }}-${{ runner.os }}-${{ inputs.version }}-${{ inputs.tools }}-${{ hashFiles('vx.toml', '.vx.toml', 'vx.lock') }}
         restore-keys: |
           ${{ inputs.cache-key-prefix }}-${{ runner.os }}-${{ inputs.version }}-
           ${{ inputs.cache-key-prefix }}-${{ runner.os }}-
