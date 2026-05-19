@@ -43,6 +43,7 @@ PROVIDERS_DIR="${VX_PROVIDERS_DIR:-crates/vx-providers}"
 # - swift, swiftc: requires Xcode toolchain
 # - make: no download URL available (system tool only) - TODO: add system_install
 # - awscli, azcli: use MSI installer format, can't be extracted in CI
+# - conda, mamba: Miniforge installer layout is not extractable by provider E2E
 # - curl: only has manifest, no implementation
 # - nasm: not registered in provider registry
 # - magick: Ubuntu apt provides ImageMagick 6.x which only has 'convert', not 'magick' (IM7+ only)
@@ -56,7 +57,7 @@ PROVIDERS_DIR="${VX_PROVIDERS_DIR:-crates/vx-providers}"
 # - wix: Windows-only, winget install doesn't update PATH in CI; get_execute_path returns None
 # - xmake: winget install on Windows doesn't update PATH in CI; functional test fails
 # - gws: Google Workspace CLI requires OAuth authentication; incomplete crate scaffolding (star-only provider)
-SKIP_ALWAYS="msbuild,msvc,systemctl,journalctl,systemd-analyze,loginctl,choco,xcodebuild,xcrun,xcode-select,swift,swiftc,make,awscli,aws,azcli,az,curl,nasm,rust,rustc,cargo,rustup,ollama,brew,homebrew,magick,convert,actrun,code,vscode,pwsh,powershell,wix,candle,light,heat,torch,smoke,xmake,gws"
+SKIP_ALWAYS="msbuild,msvc,systemctl,journalctl,systemd-analyze,loginctl,choco,xcodebuild,xcrun,xcode-select,swift,swiftc,make,awscli,aws,azcli,az,conda,mamba,miniforge,miniconda,curl,nasm,rust,rustc,cargo,rustup,ollama,brew,homebrew,magick,convert,actrun,code,vscode,pwsh,powershell,wix,candle,light,heat,torch,smoke,xmake,gws"
 
 # Parse arguments
 while [[ $# -gt 0 ]]; do
