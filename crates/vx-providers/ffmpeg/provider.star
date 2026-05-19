@@ -16,8 +16,8 @@ load("@vx//stdlib:provider.star",
      "runtime_def", "bundled_runtime_def", "github_permissions",
      "path_fns",
      "system_install_strategies", "brew_install", "apt_install",
-     "choco_install", "winget_install")
-load("@vx//stdlib:github.star", "make_fetch_versions", "github_asset_url")
+     "choco_install", "winget_install", "fetch_versions_with_tag_prefix")
+load("@vx//stdlib:github.star", "github_asset_url")
 
 # ---------------------------------------------------------------------------
 # Provider metadata
@@ -70,16 +70,16 @@ permissions = github_permissions()
 
 _ASSET_MAP = {
     # (os, arch): (asset_name, archive_subdir)
-    "windows/x64":  ("ffmpeg-{v}-win64-lgpl.zip",          "ffmpeg-{v}-win64-lgpl"),
-    "linux/x64":    ("ffmpeg-{v}-linux64-lgpl.tar.xz",     "ffmpeg-{v}-linux64-lgpl"),
-    "linux/arm64":  ("ffmpeg-{v}-linuxarm64-lgpl.tar.xz",  "ffmpeg-{v}-linuxarm64-lgpl"),
+    "windows/x64":  ("ffmpeg-{v}-win64-lgpl.zip",          "ffmpeg-n{v}-latest-win64-lgpl-{v}"),
+    "linux/x64":    ("ffmpeg-{v}-linux64-lgpl.tar.xz",     "ffmpeg-n{v}-latest-linux64-lgpl-{v}"),
+    "linux/arm64":  ("ffmpeg-{v}-linuxarm64-lgpl.tar.xz",  "ffmpeg-n{v}-latest-linuxarm64-lgpl-{v}"),
 }
 
 # ---------------------------------------------------------------------------
 # fetch_versions — from vx-org/mirrors tags (format: ffmpeg-{version})
 # ---------------------------------------------------------------------------
 
-fetch_versions = make_fetch_versions("vx-org", "mirrors", tag_prefix = "ffmpeg-")
+fetch_versions = fetch_versions_with_tag_prefix("vx-org", "mirrors", tag_prefix = "ffmpeg-")
 
 # ---------------------------------------------------------------------------
 # download_url — Windows/Linux: vx-org/mirrors; macOS: system_install
