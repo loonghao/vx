@@ -12,7 +12,7 @@
 |-------------|-----------|
 | Understand what vx is | [What is vx? (below)](#what-is-vx) |
 | Learn architecture | [`docs/architecture/OVERVIEW.md`](docs/architecture/OVERVIEW.md) |
-| Read design decisions (RFCs) | [`docs/rfcs/`](docs/rfcs/) — 40+ RFCs |
+| Read design decisions (RFCs) | [`docs/rfcs/`](docs/rfcs/) — 50+ RFCs |
 | Add a new Provider (tool) | [`docs/guide/creating-provider.md`](docs/guide/creating-provider.md) |
 | Understand provider.star DSL | [`docs/guide/provider-star-reference.md`](docs/guide/provider-star-reference.md) |
 | Run CI tasks locally | [justfile](justfile) — `vx just --list` |
@@ -76,7 +76,7 @@ This entire flow is **automatic** — the user never needs to know about it.
 | If you need to…                    | Start here                                       |
 |-------------------------------------|--------------------------------------------------|
 | Understand the architecture          | [`docs/architecture/OVERVIEW.md`](docs/architecture/OVERVIEW.md) |
-| Read design decisions (RFCs)         | [`docs/rfcs/`](docs/rfcs/) — 40 RFCs             |
+| Read design decisions (RFCs)         | [`docs/rfcs/`](docs/rfcs/) — 50+ RFCs             |
 | Learn coding conventions             | [`docs/CONVENTIONS.md`](docs/CONVENTIONS.md)     |
 | Add a new Provider (tool)            | [`docs/guide/creating-provider.md`](docs/guide/creating-provider.md) |
 | Understand provider.star DSL fully   | [`docs/guide/provider-star-reference.md`](docs/guide/provider-star-reference.md) |
