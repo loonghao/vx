@@ -36,6 +36,7 @@ jobs:
         uses: ./
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
+          cache: "false"
 
       - name: Cache vx tools
         uses: actions/cache@v5
