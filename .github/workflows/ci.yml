@@ -476,12 +476,14 @@ jobs:
 
       - name: Commit workspace-hack changes
         if: steps.hakari.outputs.changed == 'true' && github.event_name == 'pull_request'
+        env:
+          HEAD_REF: ${{ github.head_ref }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add crates/workspace-hack/Cargo.toml Cargo.lock
           git commit -m "chore: regenerate workspace-hack (cargo-hakari) [skip ci]"
-          git push origin HEAD:${{ github.head_ref }}
+          git push origin "HEAD:${HEAD_REF}"
 
       - name: Fail if workspace-hack is outdated (non-PR)
         if: steps.hakari.outputs.changed == 'true' && github.event_name != 'pull_request'
@@ -792,6 +794,7 @@ jobs:
         uses: ./
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
+          cache: "false"
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
@@ -805,7 +808,7 @@ jobs:
         run: vx just security-audit-ci
 
   # ============================================================================
-  # Stage 7: Code coverage (PR only, skip on main to save resources)
+  # Stage 7: Code coverage (manual full CI only; Codecov is informational)
   # ============================================================================
   coverage:
     name: Code Coverage (via vx)
@@ -813,7 +816,8 @@ jobs:
     needs: [detect-changes, build-vx]
     if: |
       needs.detect-changes.outputs.should_build == 'true' &&
-      needs.detect-changes.outputs.is_main != 'true'
+      github.event_name == 'workflow_dispatch' &&
+      github.event.inputs.force_full_ci == 'true'
     timeout-minutes: 45
     env:
       RUSTC_WRAPPER: sccache
