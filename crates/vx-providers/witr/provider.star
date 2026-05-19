@@ -10,8 +10,9 @@
 # Mirror source: https://github.com/vx-org/mirrors
 
 load("@vx//stdlib:provider.star",
-     "runtime_def", "github_permissions", "path_fns")
-load("@vx//stdlib:github.star", "make_fetch_versions", "github_asset_url")
+     "runtime_def", "github_permissions", "path_fns",
+     "fetch_versions_with_tag_prefix")
+load("@vx//stdlib:github.star", "github_asset_url")
 
 # ---------------------------------------------------------------------------
 # Provider metadata
@@ -58,7 +59,7 @@ _ARCH_MAP = {
 # fetch_versions — from vx-org/mirrors tags (format: witr-{version})
 # ---------------------------------------------------------------------------
 
-fetch_versions = make_fetch_versions("vx-org", "mirrors",
+fetch_versions = fetch_versions_with_tag_prefix("vx-org", "mirrors",
     tag_prefix = "witr-")
 
 # ---------------------------------------------------------------------------
