@@ -14,7 +14,7 @@ vx supports **137 tools** out of the box, spanning language runtimes, package ma
 | [Kubernetes Tools](#kubernetes-tools) | k9s, kind, k3d, minikube, nerdctl | 7 |
 | [Cloud CLI](#cloud-cli) | AWS CLI, Azure CLI, Google Cloud CLI | 3 |
 | [Code Quality](#code-quality) | pre-commit, ruff, ripgrep, fd, bat, biome, golangci-lint | 7+ |
-| [Git Tools](#git-tools) | lazygit, jj, delta, gitleaks, lefthook | 7 |
+| [Git Tools](#git-tools) | lazygit, jj, delta, gitleaks, lefthook, worktrunk | 8 |
 | [AI/ML](#aiml-tools) | Ollama, usql | 2 |
 | [Scientific & HPC](#scientific--hpc) | Spack, Rez | 2 |
 | [Media](#media) | FFmpeg, ImageMagick | 2 |
@@ -135,15 +135,16 @@ See [Build Cache Guide](./build-cache) for detailed documentation.
 
 ## Git Tools
 
-| Tool | Description |
-|------|-------------|
-| **Git** | Version control (MinGit on Windows) |
-| **gh** | GitHub CLI |
-| **lazygit** | Terminal UI for Git |
-| **jj** (jujutsu) | Version control system (Git-compatible) |
-| **delta** | Syntax-highlighted git diff |
-| **gitleaks** | Git secret/history scanner |
-| **lefthook** | Git hooks manager |
+| Tool | Description | Documentation |
+|------|-------------|---------------|
+| **Git** | Version control (MinGit on Windows) | — |
+| **gh** | GitHub CLI | — |
+| **lazygit** | Terminal UI for Git | — |
+| **jj** (jujutsu) | Version control system (Git-compatible) | — |
+| **delta** | Syntax-highlighted git diff | — |
+| **gitleaks** | Git secret/history scanner | — |
+| **lefthook** | Git hooks manager | — |
+| **worktrunk** (wt) | Git worktree manager for parallel AI workflows | [Details →](./worktrunk) |
 
 ## AI/ML Tools
 
