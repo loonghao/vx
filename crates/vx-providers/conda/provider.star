@@ -131,6 +131,9 @@ def download_url(ctx, version, runtime_name = "micromamba"):
         Download URL string, or None if platform is unsupported
     """
     if runtime_name == "micromamba":
+        # mamba-org/micromamba-releases 2.6.1-0 exits with 0xC0000135 on Windows.
+        if ctx.platform.os == "windows" and version == "2.6.1-0":
+            return None
         plat = _micromamba_platform(ctx)
         if not plat:
             return None
