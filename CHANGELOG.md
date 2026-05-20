@@ -6,6 +6,55 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [0.8.37](https://github.com/loonghao/vx/compare/v0.8.36...v0.8.37) (2026-05-20)
+
+
+### Features
+
+* add witr provider (137 providers total) ([e74d708](https://github.com/loonghao/vx/commit/e74d70837ff3452ae156f463735dff779d267ad9))
+
+
+### Bug Fixes
+
+* correct RFC count (40+ -&gt; 50+) and update Rust version badge (1.93+ -&gt; 1.95.0+) ([#879](https://github.com/loonghao/vx/issues/879)) ([a400f57](https://github.com/loonghao/vx/commit/a400f57db7fcd01763f1d15656b5da9dd1e6f404))
+* ffmpeg use Gyan.dev mirror, witr only override download_url ([10a7a50](https://github.com/loonghao/vx/commit/10a7a5007e506a42f7a46c007c9332ae8204c2ad))
+* **ffmpeg:** use system_install only (remove unreliable GitHub downloads) ([1f8780a](https://github.com/loonghao/vx/commit/1f8780adbe1df7c4cafaf5a6213cf1a2663b7d58))
+* **ffmpeg:** use vx-org/mirrors with BtbN static builds (win64+linux64+linuxarm64) ([77d741c](https://github.com/loonghao/vx/commit/77d741c7f7f8a69358a70f9fa13d614d8bb9c81d))
+* handle rust toolchain versions in path selection ([585353e](https://github.com/loonghao/vx/commit/585353ea73647b1a4c05d1c6fe02cc5e729fc25c))
+* **providers:** use vx-org/mirrors for ffmpeg and witr downloads ([ac4dc6a](https://github.com/loonghao/vx/commit/ac4dc6a82dff09cc6cb21e236d50f71d4d9ab4ce))
+* remove unused variables in witr/provider.star ([ef0d871](https://github.com/loonghao/vx/commit/ef0d87125f5d2a6c1371ae56cd6a95dfa45208da))
+* use system_install for ffmpeg Linux, fix witr install_layout ([293a4f5](https://github.com/loonghao/vx/commit/293a4f5b621312be21fd5baaf6c1b3020c11b0eb))
+* **witr:** correct __type__ key in install_layout (double underscores) ([b287fe5](https://github.com/loonghao/vx/commit/b287fe520f6c3df04a3babd887172110d50591fe))
+* **witr:** correct version pattern and binary path in provider.star ([b6683e1](https://github.com/loonghao/vx/commit/b6683e1576ee1f943f7e6f78232588e5b4545f21))
+* **witr:** override install_layout with correct type ([6bf7bbd](https://github.com/loonghao/vx/commit/6bf7bbd63a5e12730e79351f24282053e85c9e7c))
+* **witr:** rewrite provider without template to handle direct binaries correctly ([dcd08cc](https://github.com/loonghao/vx/commit/dcd08ccdd5051e4de05cc743ef8ceb33a1362be7))
+* **witr:** use 'binary' type for direct binaries (Linux/macOS) ([b37b591](https://github.com/loonghao/vx/commit/b37b591952902505e3220cfd087b9f0e79211860))
+
+
+### Documentation
+
+* add complete Supported Tools section to llms-full.txt ([19c656d](https://github.com/loonghao/vx/commit/19c656dfaf612ab3a1ce6d0d6ed404231d04f8dd))
+* add critical rules section to AGENTS.md for AI agents ([#869](https://github.com/loonghao/vx/issues/869)) ([c0e1470](https://github.com/loonghao/vx/commit/c0e14703c83c61f5e68ea67093de3094a81d0bce))
+* add latest RFCs (0037, 0039, 0040) to llms-full.txt ([#873](https://github.com/loonghao/vx/issues/873)) ([6fecbd6](https://github.com/loonghao/vx/commit/6fecbd653ac6b4994e3e06c2f0ce8d5f3d539ab3))
+* add more tool examples to AGENTS.md ([358ca9f](https://github.com/loonghao/vx/commit/358ca9fb72e0d223ddfbdd2f9b61ce1747367fc9))
+* add self-update command documentation with channel support ([c8c413e](https://github.com/loonghao/vx/commit/c8c413ef488d6e75a0ca0c83129a9d654978bda3))
+* add worktrunk (wt) tool documentation ([721a00b](https://github.com/loonghao/vx/commit/721a00b964c4616ae64d66f82286eda2617fd92d))
+* fix duplicate Critical Rules sections in AGENTS.md ([#870](https://github.com/loonghao/vx/issues/870)) ([3c0fac2](https://github.com/loonghao/vx/commit/3c0fac2787788431a928019082dc7e3769372fba))
+* fix syntax errors in other.md and quality.md ([#866](https://github.com/loonghao/vx/issues/866)) ([779b15c](https://github.com/loonghao/vx/commit/779b15cc4fd78259a1388beb5119202b44812b65))
+* optimize AGENTS.md as progressive disclosure map ([#868](https://github.com/loonghao/vx/issues/868)) ([abf8fbc](https://github.com/loonghao/vx/commit/abf8fbc33bbcfba7f81c33b528eb918af26c85d3))
+* simplify AI agent configs, add vx wt/witr examples ([4479958](https://github.com/loonghao/vx/commit/4479958fdb7817f59552028a4edd1faf55cb374a))
+* update documentation for self-update and worktrunk ([137941f](https://github.com/loonghao/vx/commit/137941f05bcae3d146bb3b70ad46cba67092c5e0))
+* update media.md and witr.md with vx-org/mirrors download source ([#864](https://github.com/loonghao/vx/issues/864)) ([4a11abe](https://github.com/loonghao/vx/commit/4a11abe77d0c8bbfb10755aa3e2d166f67c726c5))
+* update outdated version numbers in README.md ([#874](https://github.com/loonghao/vx/issues/874)) ([39b4c71](https://github.com/loonghao/vx/commit/39b4c71781a958483f59df32d2afec0d4349b0fb))
+* update provider count 136 -&gt; 137 (add witr) ([#859](https://github.com/loonghao/vx/issues/859)) ([075a973](https://github.com/loonghao/vx/commit/075a973e4a92afa5d93820e86f96a650aba1b8b6))
+* update provider count from 136 to 137 across documentation ([#865](https://github.com/loonghao/vx/issues/865)) ([c60f84d](https://github.com/loonghao/vx/commit/c60f84d90f4b41046222bfac2c587350d5371973))
+* update provider count to 137 (add witr) ([8afd778](https://github.com/loonghao/vx/commit/8afd778c119b992a99c0e2604fa87916783fc43a))
+* update Rust version requirement in contributing.md ([160dcdd](https://github.com/loonghao/vx/commit/160dcdd0be3b99bc12b8e18beb92602ad2f09f0f))
+* update Rust version requirement to 1.93+ (Edition 2024) in contributing.md ([e8e85d0](https://github.com/loonghao/vx/commit/e8e85d00f26e733a1eef81c860e10c5c50f33b90))
+* update Rust version to 1.95.0+ and fix RFC count ([#875](https://github.com/loonghao/vx/issues/875)) ([843f734](https://github.com/loonghao/vx/commit/843f734cde9bc232759662039ab92d49270e4706))
+* update version to v0.8.36 and provider count to 136 ([f973ff0](https://github.com/loonghao/vx/commit/f973ff02d28f2a51b2c63d83450a56c54aa56e85))
+* update version to v0.8.36 and provider count to 136 ([ebd928b](https://github.com/loonghao/vx/commit/ebd928bb2d29ce230f29ff6c505c9c0702a56ada))
+
 ## [0.8.36](https://github.com/loonghao/vx/compare/v0.8.35...v0.8.36) (2026-05-04)
 
 
