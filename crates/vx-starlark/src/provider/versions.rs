@@ -269,6 +269,7 @@ impl StarlarkProvider {
     /// - `"pypi"`               — PyPI JSON: `{"info": {"version": "..."}, "releases": {...}}`
     /// - `"npm_registry"`       — npm registry: `{"versions": {"1.0.0": {...}}}`
     /// - `"hashicorp_releases"` — HashiCorp: `{"versions": {"1.0.0": {"status": "supported"}}}`
+    /// - `"hashicorp_releases_cross_platform"` — HashiCorp CE releases with Linux/macOS/Windows builds
     /// - `"adoptium"`           — Eclipse Adoptium Java API
     /// - `"github_tags"`        — GitHub tags API
     /// - `"vscode_releases"`    — VS Code update API
@@ -318,6 +319,9 @@ impl StarlarkProvider {
                     "pypi" => Self::transform_pypi(raw)?,
                     "npm_registry" => Self::transform_npm_registry(raw)?,
                     "hashicorp_releases" => Self::transform_hashicorp_releases(raw)?,
+                    "hashicorp_releases_cross_platform" => {
+                        Self::transform_hashicorp_releases_cross_platform(raw)?
+                    }
                     "adoptium" => Self::transform_adoptium(raw)?,
                     "github_tags" => Self::transform_github_tags(raw)?,
                     "vscode_releases" => Self::transform_vscode_releases(raw)?,
@@ -819,6 +823,59 @@ impl StarlarkProvider {
 
         #[allow(clippy::unnecessary_sort_by)]
         versions.sort_by(|a, b| b.version.cmp(&a.version));
+        Ok(versions)
+    }
+
+    /// Transform HashiCorp releases API and keep only CE versions that have
+    /// Linux, macOS, and Windows builds.
+    fn transform_hashicorp_releases_cross_platform(
+        raw: &serde_json::Value,
+    ) -> Result<Vec<VersionInfo>> {
+        let versions_obj = raw
+            .get("versions")
+            .and_then(|v| v.as_object())
+            .ok_or_else(|| {
+                Error::EvalError(
+                    "hashicorp_releases_cross_platform: expected 'versions' object".into(),
+                )
+            })?;
+
+        let mut versions: Vec<VersionInfo> = versions_obj
+            .iter()
+            .filter_map(|(version, info)| {
+                if version.contains('-') || version.contains('+') {
+                    return None;
+                }
+
+                let builds = info.get("builds").and_then(|b| b.as_array())?;
+                let has_os = |target_os: &str| {
+                    builds
+                        .iter()
+                        .any(|build| build.get("os").and_then(|os| os.as_str()) == Some(target_os))
+                };
+
+                if !(has_os("linux") && has_os("darwin") && has_os("windows")) {
+                    return None;
+                }
+
+                let status = info.get("status").and_then(|s| s.as_str()).unwrap_or("");
+                Some(VersionInfo {
+                    version: version.clone(),
+                    lts: status == "supported",
+                    stable: status != "deprecated",
+                    date: None,
+                })
+            })
+            .collect();
+
+        versions.sort_by(|a, b| {
+            let a_semver = semver::Version::parse(&a.version);
+            let b_semver = semver::Version::parse(&b.version);
+            match (a_semver, b_semver) {
+                (Ok(a_version), Ok(b_version)) => b_version.cmp(&a_version),
+                _ => b.version.cmp(&a.version),
+            }
+        });
         Ok(versions)
     }
 
