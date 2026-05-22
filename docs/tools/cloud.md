@@ -65,6 +65,26 @@ vx gcloud container clusters list
 - Multiple project support
 - Cloud SDK components
 
+### Google Workspace CLI (gws)
+
+Google Workspace CLI — one command-line tool for Drive, Gmail, Calendar, Sheets, Docs, Chat, Admin, and more.
+
+```bash
+vx install gws@latest
+
+vx gws --version
+vx gws drive list
+vx gws gmail list
+vx gws calendar list
+```
+
+**Key Features:**
+
+- Unified CLI for Google Workspace services
+- Supports Drive, Gmail, Calendar, Sheets, Docs, Chat, Admin
+- Dynamically built from Google Discovery Service
+- Includes AI agent skills
+
 ## Multi-Cloud Configuration
 
 ```toml
