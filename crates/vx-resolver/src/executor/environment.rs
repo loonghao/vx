@@ -8,7 +8,7 @@
 use crate::{Resolver, ResolverConfig, Result};
 use std::collections::HashMap;
 use std::path::PathBuf;
-use tracing::{debug, info, trace, warn};
+use tracing::{debug, trace, warn};
 use vx_runtime::{ProviderRegistry, RuntimeContext};
 
 use super::bin_dir_cache;
@@ -446,19 +446,23 @@ impl<'a> EnvironmentManager<'a> {
             }
         }
 
-        // Inject companion tools' prepare_environment() from vx.toml
+        // Inject companion tools' prepare_environment() from vx.toml when they
+        // are already available.
         //
-        // When vx.toml specifies tools like [tools.msvc], ALL other tool executions
-        // (vx node, vx cmake, vx cargo, vx dotnet, etc.) will have MSVC's marker
-        // environment variables (VCINSTALLDIR, VCToolsInstallDir, VX_MSVC_*, etc.)
-        // injected. This enables any tool that needs a C/C++ compiler to discover
-        // the vx-managed MSVC installation — including node-gyp, cmake, meson,
-        // cargo (for C dependencies via cc crate), dotnet native AOT, etc.
+        // When vx.toml specifies tools like [tools.msvc], other executions can
+        // have MSVC's marker environment variables (VCINSTALLDIR,
+        // VCToolsInstallDir, VX_MSVC_*, etc.) injected. This enables tools that
+        // need a C/C++ compiler to discover an existing vx-managed MSVC
+        // installation.
         //
         // This only calls prepare_environment() (not execution_environment()), so it
         // injects discovery/marker variables without polluting LIB/INCLUDE/PATH.
+        // It must not install or repair companions while preparing an unrelated
+        // command: a successful `vx git --version` should not emit MSVC repair
+        // failures just because the project declares msvc.
         //
         // See: https://github.com/loonghao/vx/issues/573
+        // See: https://github.com/loonghao/vx/issues/889
         if let Some(project_config) = self.project_config {
             let companion_tools = project_config.get_companion_tools(runtime_name);
             debug!(
@@ -481,7 +485,10 @@ impl<'a> EnvironmentManager<'a> {
                     }
                 };
 
-                // Check if the companion tool is installed
+                // Check if the companion tool is installed. Environment
+                // preparation is intentionally side-effect-free for companions:
+                // missing or broken companions are skipped instead of
+                // auto-installed/repaired here.
                 let companion_installed_version = match companion_runtime
                     .installed_versions(context)
                     .await
@@ -499,120 +506,39 @@ impl<'a> EnvironmentManager<'a> {
                             .find_matching_version(companion_name, companion_version, &versions)
                             .unwrap_or_else(|| versions[0].clone());
 
-                        // Check if the companion tool has component requirements (e.g., MSVC Spectre)
-                        // that might be missing from the existing installation.
-                        // If so, go through ensure_version_installed to trigger component installation.
-                        let has_components = self
+                        // Component requirements (for example MSVC Spectre) are
+                        // honored when the companion is installed explicitly or
+                        // invoked directly. Do not repair them from the
+                        // unrelated command's environment preparation path.
+                        let has_install_options = self
                             .project_config
                             .and_then(|pc| {
                                 pc.get_install_options(companion_name)
-                                    .map(|opts| opts.contains_key("VX_MSVC_COMPONENTS"))
+                                    .map(|opts| !opts.is_empty())
                             })
                             .unwrap_or(false);
 
-                        if has_components {
-                            // Fast-path: check if component installation was already attempted.
-                            // If so, skip the expensive ensure_version_installed call entirely.
-                            // The marker file is written by MsvcRuntime::install() after the
-                            // first installation attempt, preventing repeated downloads/extractions.
-                            let component_already_attempted = self
-                                .context
-                                .map(|ctx| {
-                                    let store_dir = ctx
-                                        .paths
-                                        .version_store_dir(companion_name, &matched_version);
-                                    store_dir.join(".component-install-attempted").exists()
-                                })
-                                .unwrap_or(false);
-
-                            if component_already_attempted {
-                                debug!(
-                                    "Companion {} component installation already attempted, skipping integrity check",
-                                    companion_name
-                                );
-                                matched_version
-                            } else {
-                                debug!(
-                                    "Companion {} has component requirements, verifying installation integrity...",
-                                    companion_name
-                                );
-                                let mut install_mgr = super::installation::InstallationManager::new(
-                                    self.config,
-                                    self.resolver,
-                                    self.registry,
-                                    self.context,
-                                );
-                                if let Some(project_config) = self.project_config {
-                                    install_mgr = install_mgr.with_project_config(project_config);
-                                }
-                                match install_mgr
-                                    .ensure_version_installed(companion_name, &matched_version)
-                                    .await
-                                {
-                                    Ok(Some(result)) => {
-                                        debug!(
-                                            "Companion {} component check complete (version: {})",
-                                            companion_name, result.version
-                                        );
-                                        result.version
-                                    }
-                                    Ok(None) => matched_version,
-                                    Err(e) => {
-                                        warn!(
-                                            "Failed to verify companion {} components: {}",
-                                            companion_name, e
-                                        );
-                                        matched_version
-                                    }
-                                }
-                            }
-                        } else {
-                            matched_version
+                        if has_install_options {
+                            debug!(
+                                "Companion {} has install options; deferring install/repair until it is invoked directly",
+                                companion_name
+                            );
                         }
+                        matched_version
                     }
-                    Ok(_) | Err(_) => {
-                        // Companion not installed — try auto-install
-                        info!(
-                            "Companion {} is not installed. Auto-installing {}@{} ...",
-                            companion_name, companion_name, companion_version
+                    Ok(_) => {
+                        debug!(
+                            "Companion {} is not installed; skipping environment injection for primary {}",
+                            companion_name, runtime_name
                         );
-                        let mut install_mgr = super::installation::InstallationManager::new(
-                            self.config,
-                            self.resolver,
-                            self.registry,
-                            self.context,
+                        continue;
+                    }
+                    Err(e) => {
+                        debug!(
+                            "Could not inspect companion {} installation state: {}; skipping environment injection for primary {}",
+                            companion_name, e, runtime_name
                         );
-                        // Pass project_config so install_options (e.g., MSVC components)
-                        // from vx.toml are injected into RuntimeContext during installation
-                        if let Some(project_config) = self.project_config {
-                            install_mgr = install_mgr.with_project_config(project_config);
-                        }
-                        // Use ensure_version_installed which goes through the unified
-                        // version resolution path (runtime.resolve_version()), checks
-                        // if already installed, and returns a consistent version string.
-                        match install_mgr
-                            .ensure_version_installed(companion_name, companion_version)
-                            .await
-                        {
-                            Ok(Some(result)) => {
-                                info!(
-                                    "Auto-installed companion {}@{}",
-                                    companion_name, result.version
-                                );
-                                result.version
-                            }
-                            Ok(None) => {
-                                debug!(
-                                    "  Companion {} could not be installed (no registry/context), skipping",
-                                    companion_name
-                                );
-                                continue;
-                            }
-                            Err(e) => {
-                                warn!("Failed to auto-install companion {}: {}", companion_name, e);
-                                continue;
-                            }
-                        }
+                        continue;
                     }
                 };
 

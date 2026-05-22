@@ -1,20 +1,24 @@
 //! Tests for PrepareStage proxy execution fallback behavior.
 
+use std::collections::HashMap;
 use std::fs;
 use std::path::PathBuf;
-use std::sync::Arc;
+use std::sync::{
+    Arc,
+    atomic::{AtomicUsize, Ordering},
+};
 
 use anyhow::Result;
 use async_trait::async_trait;
 use tempfile::tempdir;
 use vx_manifest::ProviderManifest;
 use vx_resolver::{
-    ExecutionConfig, ExecutionPlan, PlannedRuntime, PrepareStage, Resolver, ResolverConfig,
-    RuntimeMap, Stage,
+    ExecutionConfig, ExecutionPlan, PlannedRuntime, PrepareStage, ProjectToolsConfig, Resolver,
+    ResolverConfig, RuntimeMap, Stage,
 };
 use vx_runtime::{
-    ExecutionContext, ExecutionPrep, Provider, ProviderRegistry, Runtime, RuntimeContext,
-    VersionInfo,
+    ExecutionContext, ExecutionPrep, InstallResult, Provider, ProviderRegistry, Runtime,
+    RuntimeContext, VersionInfo, mock_context,
 };
 
 struct BundledRuntime {
@@ -44,6 +48,54 @@ impl Runtime for BundledRuntime {
         Ok(ExecutionPrep::proxy_ready()
             .with_prefix("tool")
             .with_prefix("run"))
+    }
+}
+
+struct CountingRuntime {
+    name: &'static str,
+    executable: &'static str,
+    installed_versions: Vec<String>,
+    install_count: Arc<AtomicUsize>,
+    prepare_count: Arc<AtomicUsize>,
+}
+
+#[async_trait]
+impl Runtime for CountingRuntime {
+    fn name(&self) -> &str {
+        self.name
+    }
+
+    fn executable_name(&self) -> &str {
+        self.executable
+    }
+
+    async fn fetch_versions(&self, _ctx: &RuntimeContext) -> Result<Vec<VersionInfo>> {
+        Ok(vec![VersionInfo::new("system")])
+    }
+
+    async fn installed_versions(&self, _ctx: &RuntimeContext) -> Result<Vec<String>> {
+        Ok(self.installed_versions.clone())
+    }
+
+    async fn install(&self, version: &str, _ctx: &RuntimeContext) -> Result<InstallResult> {
+        self.install_count.fetch_add(1, Ordering::SeqCst);
+        Ok(InstallResult::success(
+            PathBuf::from("unused-install"),
+            PathBuf::from("unused-executable"),
+            version.to_string(),
+        ))
+    }
+
+    async fn prepare_environment(
+        &self,
+        version: &str,
+        _ctx: &RuntimeContext,
+    ) -> Result<HashMap<String, String>> {
+        self.prepare_count.fetch_add(1, Ordering::SeqCst);
+        Ok(HashMap::from([(
+            "VX_COMPANION_MARKER".to_string(),
+            version.to_string(),
+        )]))
     }
 }
 
@@ -138,4 +190,97 @@ async fn prepare_stage_uses_runtime_executable_name_for_system_path_fallback() {
 
     assert_eq!(prepared.executable, mock_executable);
     assert_eq!(prepared.command_prefix, vec!["tool", "run"]);
+}
+
+#[tokio::test]
+async fn prepare_stage_skips_missing_companion_without_auto_installing() {
+    let config = ResolverConfig::default();
+    let runtime_map = RuntimeMap::empty();
+    let resolver = Resolver::new(config.clone(), runtime_map).expect("resolver should build");
+    let registry = ProviderRegistry::new();
+    let context = mock_context();
+    let install_count = Arc::new(AtomicUsize::new(0));
+    let prepare_count = Arc::new(AtomicUsize::new(0));
+
+    registry.register(Arc::new(TestProvider {
+        runtimes: vec![
+            Arc::new(BundledRuntime {
+                name: "git",
+                executable: "git",
+            }),
+            Arc::new(CountingRuntime {
+                name: "msvc",
+                executable: "cl",
+                installed_versions: Vec::new(),
+                install_count: install_count.clone(),
+                prepare_count: prepare_count.clone(),
+            }),
+        ],
+    }));
+
+    let project_config =
+        ProjectToolsConfig::from_tools(HashMap::from([("msvc".to_string(), "14.42".to_string())]));
+    let stage = PrepareStage::new(&resolver, &config, Some(&registry), Some(&context))
+        .with_project_config(&project_config);
+    let plan = ExecutionPlan::new(
+        PlannedRuntime::installed("git", "2.51.0".to_string(), PathBuf::from("/usr/bin/git")),
+        ExecutionConfig::default(),
+    );
+
+    let prepared = stage
+        .execute(plan)
+        .await
+        .expect("missing companion should not fail unrelated command preparation");
+
+    assert_eq!(install_count.load(Ordering::SeqCst), 0);
+    assert_eq!(prepare_count.load(Ordering::SeqCst), 0);
+    assert!(!prepared.env.contains_key("VX_COMPANION_MARKER"));
+}
+
+#[tokio::test]
+async fn prepare_stage_injects_already_installed_companion_environment() {
+    let config = ResolverConfig::default();
+    let runtime_map = RuntimeMap::empty();
+    let resolver = Resolver::new(config.clone(), runtime_map).expect("resolver should build");
+    let registry = ProviderRegistry::new();
+    let context = mock_context();
+    let install_count = Arc::new(AtomicUsize::new(0));
+    let prepare_count = Arc::new(AtomicUsize::new(0));
+
+    registry.register(Arc::new(TestProvider {
+        runtimes: vec![
+            Arc::new(BundledRuntime {
+                name: "git",
+                executable: "git",
+            }),
+            Arc::new(CountingRuntime {
+                name: "msvc",
+                executable: "cl",
+                installed_versions: vec!["system".to_string()],
+                install_count: install_count.clone(),
+                prepare_count: prepare_count.clone(),
+            }),
+        ],
+    }));
+
+    let project_config =
+        ProjectToolsConfig::from_tools(HashMap::from([("msvc".to_string(), "14.42".to_string())]));
+    let stage = PrepareStage::new(&resolver, &config, Some(&registry), Some(&context))
+        .with_project_config(&project_config);
+    let plan = ExecutionPlan::new(
+        PlannedRuntime::installed("git", "2.51.0".to_string(), PathBuf::from("/usr/bin/git")),
+        ExecutionConfig::default(),
+    );
+
+    let prepared = stage
+        .execute(plan)
+        .await
+        .expect("installed companion should inject environment");
+
+    assert_eq!(install_count.load(Ordering::SeqCst), 0);
+    assert_eq!(prepare_count.load(Ordering::SeqCst), 1);
+    assert_eq!(
+        prepared.env.get("VX_COMPANION_MARKER").map(String::as_str),
+        Some("system")
+    );
 }
