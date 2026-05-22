@@ -6,6 +6,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [0.8.39](https://github.com/loonghao/vx/compare/v0.8.38...v0.8.39) (2026-05-22)
+
+
+### Bug Fixes
+
+* **deps:** update rust crate starlark_derive to 0.14 ([82c274b](https://github.com/loonghao/vx/commit/82c274b29d5dd4deb80e2318dba7cdf97fea83e7))
+
 ## [0.8.38](https://github.com/loonghao/vx/compare/v0.8.37...v0.8.38) (2026-05-22)
 
 
