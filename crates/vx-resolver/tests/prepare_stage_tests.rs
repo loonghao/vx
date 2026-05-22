@@ -8,7 +8,7 @@ use std::sync::{
     atomic::{AtomicUsize, Ordering},
 };
 
-use anyhow::Result;
+use anyhow::{Result, anyhow};
 use async_trait::async_trait;
 use tempfile::tempdir;
 use vx_manifest::ProviderManifest;
@@ -55,6 +55,7 @@ struct CountingRuntime {
     name: &'static str,
     executable: &'static str,
     installed_versions: Vec<String>,
+    installed_error: Option<&'static str>,
     install_count: Arc<AtomicUsize>,
     prepare_count: Arc<AtomicUsize>,
 }
@@ -74,6 +75,9 @@ impl Runtime for CountingRuntime {
     }
 
     async fn installed_versions(&self, _ctx: &RuntimeContext) -> Result<Vec<String>> {
+        if let Some(message) = self.installed_error {
+            return Err(anyhow!(message));
+        }
         Ok(self.installed_versions.clone())
     }
 
@@ -212,6 +216,7 @@ async fn prepare_stage_skips_missing_companion_without_auto_installing() {
                 name: "msvc",
                 executable: "cl",
                 installed_versions: Vec::new(),
+                installed_error: None,
                 install_count: install_count.clone(),
                 prepare_count: prepare_count.clone(),
             }),
@@ -257,6 +262,7 @@ async fn prepare_stage_injects_already_installed_companion_environment() {
                 name: "msvc",
                 executable: "cl",
                 installed_versions: vec!["system".to_string()],
+                installed_error: None,
                 install_count: install_count.clone(),
                 prepare_count: prepare_count.clone(),
             }),
@@ -283,4 +289,55 @@ async fn prepare_stage_injects_already_installed_companion_environment() {
         prepared.env.get("VX_COMPANION_MARKER").map(String::as_str),
         Some("system")
     );
+}
+
+#[tokio::test]
+async fn prepare_stage_skips_broken_companion_with_install_options_without_repairing() {
+    let config = ResolverConfig::default();
+    let runtime_map = RuntimeMap::empty();
+    let resolver = Resolver::new(config.clone(), runtime_map).expect("resolver should build");
+    let registry = ProviderRegistry::new();
+    let context = mock_context();
+    let install_count = Arc::new(AtomicUsize::new(0));
+    let prepare_count = Arc::new(AtomicUsize::new(0));
+
+    registry.register(Arc::new(TestProvider {
+        runtimes: vec![
+            Arc::new(BundledRuntime {
+                name: "git",
+                executable: "git",
+            }),
+            Arc::new(CountingRuntime {
+                name: "msvc",
+                executable: "cl",
+                installed_versions: Vec::new(),
+                installed_error: Some("msvc system directory exists but executable not found"),
+                install_count: install_count.clone(),
+                prepare_count: prepare_count.clone(),
+            }),
+        ],
+    }));
+
+    let project_config = ProjectToolsConfig::from_tools_with_install_options(
+        HashMap::from([("msvc".to_string(), "14.42".to_string())]),
+        HashMap::from([(
+            "msvc".to_string(),
+            HashMap::from([("VX_MSVC_COMPONENTS".to_string(), "spectre".to_string())]),
+        )]),
+    );
+    let stage = PrepareStage::new(&resolver, &config, Some(&registry), Some(&context))
+        .with_project_config(&project_config);
+    let plan = ExecutionPlan::new(
+        PlannedRuntime::installed("git", "2.51.0".to_string(), PathBuf::from("/usr/bin/git")),
+        ExecutionConfig::default(),
+    );
+
+    let prepared = stage
+        .execute(plan)
+        .await
+        .expect("broken companion should not fail unrelated command preparation");
+
+    assert_eq!(install_count.load(Ordering::SeqCst), 0);
+    assert_eq!(prepare_count.load(Ordering::SeqCst), 0);
+    assert!(!prepared.env.contains_key("VX_COMPANION_MARKER"));
 }
