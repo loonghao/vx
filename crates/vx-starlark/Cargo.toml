@@ -19,7 +19,7 @@ tracing = { workspace = true }
 
 # Starlark runtime (Facebook's Rust implementation)
 starlark = { version = "0.13" }
-starlark_derive = { version = "0.13" }
+starlark_derive = { version = "0.14" }
 
 # Serialization
 serde = { workspace = true }
