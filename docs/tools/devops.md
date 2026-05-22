@@ -74,6 +74,25 @@ vx helm upgrade my-release chart/
 vx helm list
 ```
 
+### ctlptl
+
+Making local Kubernetes clusters fun and easy to set up.
+
+```bash
+vx install ctlptl@latest
+
+vx ctlptl version
+vx ctlptl create cluster my-cluster
+vx ctlptl get clusters
+vx ctlptl delete cluster my-cluster
+```
+
+**Key Features:**
+
+- Easy local Kubernetes cluster setup
+- Supports multiple cluster lifecycle management
+- Integrates with Docker for containerized clusters
+
 ## Workflow Engines
 
 ### Dagu

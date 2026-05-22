@@ -473,6 +473,7 @@ vx currently ships **137 providers** across multiple ecosystems. All tools are a
 | `skaffold` | Easy and repeatable Kubernetes development | — |
 | `tilt` | Multi-service dev for teams on Kubernetes | — |
 | `flux` | GitOps toolkit for Kubernetes | — |
+| `ctlptl` | Making local Kubernetes clusters fun and easy to set up | — |
 
 ### Cloud CLIs
 
@@ -481,6 +482,7 @@ vx currently ships **137 providers** across multiple ecosystems. All tools are a
 | `awscli` | AWS Command Line Interface | — |
 | `azcli` / `az` | Azure Command Line Interface | — |
 | `gcloud` | Google Cloud SDK | — |
+| `gws` | Google Workspace CLI (Drive, Gmail, Calendar, Sheets, Docs, Chat, Admin) | — |
 | `terraform` | Infrastructure as Code | — |
 
 ### Database & Data Tools
@@ -552,6 +554,7 @@ vx currently ships **137 providers** across multiple ecosystems. All tools are a
 | `lefthook` | Fast and powerful Git hooks manager | — |
 | `dagu` | DAG runner for automation | — |
 | `worktrunk` | Trunk-based development workflow | — |
+| `actrun` | Actionforge workflow runner CLI for executing GitHub Actions-compatible workflows locally | — |
 
 ### Media Processing
 
