@@ -146,10 +146,15 @@ sdk_version = "10.0.22621"
 
 **Using MSVC with other tools (companion tool injection):**
 
-When `vx.toml` includes MSVC, vx automatically injects MSVC discovery environment variables
-(`VCINSTALLDIR`, `VCToolsInstallDir`, `GYP_MSVS_VERSION`, etc.) into **all** subprocess
-environments — not just MSVC tools. This allows any tool that needs a C/C++ compiler to
-discover the vx-managed MSVC installation without a full Visual Studio installation.
+When `vx.toml` includes MSVC and the MSVC companion runtime is already installed/available,
+vx injects MSVC discovery environment variables (`VCINSTALLDIR`, `VCToolsInstallDir`,
+`GYP_MSVS_VERSION`, etc.) into subprocess environments, not just MSVC tools. This allows
+tools that need a C/C++ compiler to discover the vx-managed MSVC installation without a
+full Visual Studio installation.
+
+If MSVC is missing or the existing installation needs repair, unrelated commands skip this
+companion injection instead of installing or repairing MSVC during command startup. Run
+`vx setup` or `vx install msvc@14.42` first when those discovery variables are required.
 
 Supported scenarios include:
 - **node-gyp** / **Electron**: `vx npx node-gyp rebuild`
@@ -159,7 +164,7 @@ Supported scenarios include:
 - **Meson**: `vx meson setup build`
 
 ```toml
-# vx.toml — MSVC env vars are injected for ALL tools listed here
+# vx.toml - MSVC env vars are injected when the companion is installed
 [tools]
 node = "22"
 cmake = "3.28"
@@ -180,17 +185,18 @@ vx cmake -B build -G "Ninja"
 # Cargo cc crate finds MSVC for C dependencies
 vx cargo build
 
-# Verify environment variables are set from any tool
+# After vx setup or vx install msvc@14.42, verify the variables from any tool
 vx node -e "console.log('VCINSTALLDIR:', process.env.VCINSTALLDIR)"
-# Output: VCINSTALLDIR: C:\Users\you\.vx\store\msvc\14.42\VC\
+# Output when MSVC is available: VCINSTALLDIR: C:\Users\you\.vx\store\msvc\14.42\VC\
 ```
 
 **How companion tool injection works:**
 
 vx uses a "companion tools" mechanism: when executing any tool (e.g., `vx node`, `vx cmake`),
-vx also calls `prepare_environment()` for all other tools defined in `vx.toml`.
-This injects discovery/marker environment variables without polluting the full
-compilation environment (LIB/INCLUDE/PATH).
+vx also calls `prepare_environment()` for available companion tools defined in `vx.toml`.
+This injects discovery/marker environment variables without polluting the full compilation
+environment (LIB/INCLUDE/PATH). Missing or broken companions are skipped for unrelated
+commands; install or repair them explicitly with `vx setup` or `vx install msvc@14.42`.
 
 Environment variables injected by MSVC companion:
 
