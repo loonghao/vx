@@ -3607,7 +3607,7 @@ dependencies = [
  "rustyline",
  "serde",
  "serde_json",
- "starlark_derive",
+ "starlark_derive 0.13.0",
  "starlark_map",
  "starlark_syntax",
  "static_assertions",
@@ -3621,6 +3621,18 @@ name = "starlark_derive"
 version = "0.13.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fe58bc6c8b7980a1fe4c9f8f48200c3212db42ebfe21ae6a0336385ab53f082a"
+dependencies = [
+ "dupe",
+ "proc-macro2",
+ "quote",
+ "syn 2.0.117",
+]
+
+[[package]]
+name = "starlark_derive"
+version = "0.14.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "90121b6c93025704cf056fc88025b0b668bd2c6023403857f027059bd4362ca1"
 dependencies = [
  "dupe",
  "proc-macro2",
@@ -5003,7 +5015,7 @@ dependencies = [
  "serde",
  "serde_json",
  "starlark",
- "starlark_derive",
+ "starlark_derive 0.14.0",
  "tempfile",
  "thiserror 2.0.18",
  "tokio",
