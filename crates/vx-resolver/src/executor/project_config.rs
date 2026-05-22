@@ -58,6 +58,18 @@ impl ProjectToolsConfig {
         }
     }
 
+    /// Create a ProjectToolsConfig with install options (for testing)
+    pub fn from_tools_with_install_options(
+        tools: HashMap<String, String>,
+        tool_install_options: HashMap<String, InstallEnvVars>,
+    ) -> Self {
+        Self {
+            tools,
+            locked_tools: HashMap::new(),
+            tool_install_options,
+        }
+    }
+
     /// Load project configuration from vx.toml and vx.lock in current directory or parent directories
     ///
     /// This loads both files from the same directory where vx.toml is found.
