@@ -144,5 +144,5 @@ auto_cleanup = true
 
 ## Related
 
-- [`AGENTS.md`](../AGENTS) - Multi-Agent Development section
+- [`AGENTS.md`](https://github.com/loonghao/vx/blob/main/AGENTS.md#multi-agent-development-vx-wt) - Multi-Agent Development section
 - [Git Worktree Documentation](https://git-scm.com/docs/git-worktree)
