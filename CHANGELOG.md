@@ -6,6 +6,23 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [0.8.38](https://github.com/loonghao/vx/compare/v0.8.37...v0.8.38) (2026-05-22)
+
+
+### Bug Fixes
+
+* avoid msvc repair for unrelated commands ([bb6b292](https://github.com/loonghao/vx/commit/bb6b29289687a620b4aa6a56ce9bf5f549aef6d1))
+* **deps:** update rust crate toon-format to 0.5 ([bb23093](https://github.com/loonghao/vx/commit/bb23093796635b88b8de85cc5db526952664ee9e))
+
+
+### Documentation
+
+* add missing tools (actrun, ctlptl, gws) to documentation ([b8cf5ac](https://github.com/loonghao/vx/commit/b8cf5ac01c8b2e2a3f77c1a3a54955fb76f1d0b0))
+* add missing tools to documentation ([da73262](https://github.com/loonghao/vx/commit/da73262c8fa9efbcf59c4ada715b1ea4e82772c4))
+* fix dead links in docs build ([c18fa9b](https://github.com/loonghao/vx/commit/c18fa9b98737a67bb751a28729b96058b48458d0))
+* update version to v0.8.37 ([149b0ba](https://github.com/loonghao/vx/commit/149b0ba0b988c1606de0a2406466cb83c30a5852))
+* update version to v0.8.37 in AGENTS.md and README.md ([4a323eb](https://github.com/loonghao/vx/commit/4a323ebc10d21e0c2aef4bbdd8b7fb62c04506f0))
+
 ## [0.8.37](https://github.com/loonghao/vx/compare/v0.8.36...v0.8.37) (2026-05-20)
 
 
