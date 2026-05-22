@@ -70,4 +70,4 @@ export VX_NO_UPDATE_CHECK=1
 
 - [`overview`](./overview) - CLI overview
 - [`install`](./install) - Install tools
-- [`version`](../commands) - Show vx version
+- [`version`](./commands#version) - Show vx version
