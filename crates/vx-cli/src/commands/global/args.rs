@@ -68,7 +68,7 @@ pub struct ListGlobalArgs {
 /// Output format for global list command
 ///
 /// Note: This is a local format enum for the global list command.
-/// The global --json/--format flags (RFC 0031) take precedence when specified.
+/// The global --json/--output-format flags (RFC 0031) take precedence when specified.
 #[derive(Clone, Debug, Default, clap::ValueEnum)]
 pub enum GlobalListFormat {
     #[default]

@@ -176,14 +176,16 @@ pub async fn main() -> anyhow::Result<()> {
 async fn try_execute_lightweight_command(cli: &Cli) -> Option<Result<()>> {
     use crate::cli::{Commands, ConfigCommand};
 
+    let output_format = GlobalOptions::from(cli).output_format;
+
     match &cli.command {
         // `vx version` only prints the compiled-in version string.
-        Some(Commands::Version) => Some(commands::version::handle().await),
+        Some(Commands::Version) => Some(commands::version::handle(output_format).await),
 
         // `vx config show` is used in benchmark parse tests and only needs local config I/O.
         Some(Commands::Config {
             command: Some(ConfigCommand::Show) | None,
-        }) => Some(commands::config::handle().await),
+        }) => Some(commands::config::handle(output_format).await),
 
         // `vx config validate` is also benchmarked and does not require runtime/provider init.
         Some(Commands::Config {
@@ -205,11 +207,17 @@ async fn try_execute_lightweight_command(cli: &Cli) -> Option<Result<()>> {
 
         // `vx metrics` reads JSON files from disk, no registry needed.
         Some(Commands::Metrics {
+            command: None,
             last,
             json,
             html,
             clean,
         }) => Some(commands::metrics::handle(*last, *json, html.clone(), *clean).await),
+
+        Some(Commands::Metrics {
+            command: Some(crate::cli::MetricsCommand::Tokens { last, json }),
+            ..
+        }) => Some(commands::metrics::handle_tokens(*last, *json).await),
 
         _ => None,
     }

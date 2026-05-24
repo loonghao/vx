@@ -10,6 +10,7 @@ fn test_command_metrics_new() {
     assert!(metrics.exit_code.is_none());
     assert_eq!(metrics.total_duration_ms, 0.0);
     assert!(metrics.stages.is_empty());
+    assert!(metrics.token_savings.is_empty());
     assert!(metrics.spans.is_empty());
 }
 

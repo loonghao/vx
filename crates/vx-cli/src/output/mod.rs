@@ -6,14 +6,14 @@
 //! ## Agent DX: TTY Detection
 //!
 //! When stdout is NOT a TTY (e.g. piped to a script or AI agent), the renderer
-//! automatically switches to **TOON** (token-optimised) format rather than text.
-//! TOON saves 40-60% tokens compared to JSON, making it the ideal default for
-//! AI agents and automated pipelines.
+//! automatically switches to **TOON** (token-oriented) format rather than text.
+//! Token deltas are recorded in metrics so agents can see when TOON or compact
+//! output actually helps for a command shape.
 //!
 //! Override with:
 //! - `VX_OUTPUT=text` to force text output even in pipelines
 //! - `VX_OUTPUT=json` to get JSON (structured, but more verbose)
-//! - `VX_OUTPUT=compact` for RTK-style ultra-compact one-liners (60-80% savings)
+//! - `VX_OUTPUT=compact` for RTK-style ultra-compact one-liners
 
 use crate::cli::OutputFormat;
 use anyhow::Result;
@@ -23,6 +23,21 @@ use std::collections::HashMap;
 /// Serialize a value to TOON format using the official toon-format library.
 fn to_toon<T: Serialize>(value: &T) -> Result<String> {
     toon_format::encode_default(value).map_err(|e| anyhow::anyhow!("TOON encoding error: {}", e))
+}
+
+fn record_token_savings<T>(
+    output_format: &str,
+    baseline_format: &str,
+    baseline: &str,
+    actual: &str,
+) {
+    vx_metrics::record_token_savings(vx_metrics::build_token_savings_record(
+        std::any::type_name::<T>(),
+        output_format,
+        baseline_format,
+        baseline,
+        actual,
+    ));
 }
 
 /// Detect whether stdout is a TTY.
@@ -77,7 +92,7 @@ pub fn stdout_is_tty() -> bool {
 pub trait CommandOutput: Serialize {
     /// Render human-readable text output to the given writer.
     ///
-    /// This is called when `--format text` (default) is used.
+    /// This is called when `--output-format text` (default) is used.
     /// Output should include colors, emoji, and formatting for human consumption.
     fn render_text(&self, writer: &mut dyn std::io::Write) -> Result<()>;
 
@@ -109,8 +124,8 @@ pub trait CommandOutput: Serialize {
 ///    (unless `VX_OUTPUT=text` env var is set)
 ///
 /// This implements the "Agent DX" principle: machines get token-efficient
-/// TOON output by default without needing extra flags, saving 40-60% tokens
-/// compared to JSON. Use `VX_OUTPUT=json` to opt-in to JSON when needed.
+/// TOON output by default without needing extra flags. Use `VX_OUTPUT=json`
+/// to opt-in to JSON when needed.
 pub struct OutputRenderer {
     format: OutputFormat,
 }
@@ -164,6 +179,11 @@ impl OutputRenderer {
         self.format == OutputFormat::Json
     }
 
+    /// Check if structured machine-readable output is active.
+    pub fn is_structured(&self) -> bool {
+        matches!(self.format, OutputFormat::Json | OutputFormat::Toon)
+    }
+
     /// Check if text output is active.
     pub fn is_text(&self) -> bool {
         self.format == OutputFormat::Text
@@ -199,13 +219,25 @@ impl OutputRenderer {
                 Ok(())
             }
             OutputFormat::Toon => {
+                let baseline = serde_json::to_string(output)?;
                 let toon = to_toon(output)?;
+                record_token_savings::<T>("toon", "json", &baseline, &toon);
                 println!("{toon}");
                 Ok(())
             }
             OutputFormat::Compact => {
-                let mut stdout = std::io::stdout().lock();
-                output.render_compact(&mut stdout)?;
+                use std::io::Write as _;
+
+                let mut baseline_buf = Vec::new();
+                output.render_text(&mut baseline_buf)?;
+                let baseline = String::from_utf8(baseline_buf)?;
+
+                let mut actual_buf = Vec::new();
+                output.render_compact(&mut actual_buf)?;
+                let actual = String::from_utf8(actual_buf)?;
+
+                record_token_savings::<T>("compact", "text", &baseline, &actual);
+                std::io::stdout().lock().write_all(actual.as_bytes())?;
                 Ok(())
             }
         }

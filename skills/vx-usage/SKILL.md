@@ -1,6 +1,6 @@
 ---
 name: vx-usage
-description: "Teaches AI agents how to use vx, the universal dev tool manager. Use when the project has vx.toml or .vx/, or when the user mentions vx, tool version management, or cross-platform setup. vx auto-manages Node.js, Python, Go, Rust, and 129 tools via Starlark DSL providers. Also covers MCP integration patterns and GitHub Actions."
+description: "Teaches AI agents how to use vx, the universal dev tool manager. Use when the project has vx.toml or .vx/, or when the user mentions vx, tool version management, Git/GitHub operations, or cross-platform setup. vx auto-manages Node.js, Python, Go, Rust, and 137 tools via Starlark DSL providers. Also covers MCP integration patterns and GitHub Actions."
 ---
 
 # VX - Universal Development Tool Manager
@@ -36,7 +36,101 @@ vx npx create-react-app app   # Run npx
 vx cargo test                 # Run cargo
 vx just build                 # Run just (task runner)
 vx git status                 # Run git
+vx gh pr status               # Run GitHub CLI
 ```
+
+### Git and GitHub for Codex
+
+When Codex or another AI agent works in a vx-managed repository, use vx-managed
+Git and GitHub CLI commands. Do not run bare `git` or bare `gh`.
+
+```bash
+vx git status --short --branch
+vx git fetch origin main
+vx git checkout -B fix/example origin/main
+vx git diff --stat
+vx git add path/to/file
+vx git commit -m "fix: example"
+
+vx gh issue view 123
+vx gh pr view 456 --json title,state,headRefName
+vx gh pr checks 456
+vx gh run view 789 --log
+```
+
+### Token-Efficient Agent Workflows
+
+vx is not just an installation wrapper. For agents, it is the stable way to use
+fast search, structured GitHub queries, JSON filters, and scoped diffs without
+spending tokens on irrelevant output.
+
+Prefer narrow, structured commands before broad dumps:
+
+```bash
+# Search and file discovery
+vx rg -n --glob '!target/**' --glob '!node_modules/**' "OutputRenderer"
+vx rg --files -g '*.rs' -g '!target/**'
+vx fd provider.star crates/vx-providers
+
+# Git context with small output first
+vx git status --short --branch
+vx git diff --stat
+vx git diff --name-only origin/main...HEAD
+vx git grep -n "CommandOutput" origin/main -- crates/vx-cli
+
+# GitHub context with selected fields
+vx gh issue view 123 --json title,state,labels,body
+vx gh pr view 456 --json title,state,headRefName,baseRefName,files
+vx gh pr checks 456 --json name,state,conclusion,link
+vx gh run view 789 --log | vx rg -n "error|failed|panic|warning"
+
+# Structured filtering
+vx jq -r '.files[].path' pr.json
+vx yq '.jobs | keys' .github/workflows/ci.yml
+```
+
+Token-saving defaults for agents:
+- Start with `vx rg`, `vx fd`, `vx git diff --stat`, and `vx git diff --name-only`; open full files or full diffs only after locating the relevant surface.
+- Use `vx gh --json ...` with selected fields, and add `--jq` when a small projection is enough.
+- Use vx structured output flags when the vx command supports them: `--json`, `--fields`, `--toon`, or `--output-format toon`.
+- For forwarded runtimes like `vx node`, `vx cargo`, or `vx npm`, use that tool's own quiet, JSON, or filtering flags when available.
+- Pipe large logs through vx-managed filters such as `vx rg`, `vx jq`, or `vx yq` before reading them.
+
+### Agent Operating Principles
+
+vx skills should help agents make small, correct, maintainable changes with
+bounded context. Treat vx as a token-aware execution layer, not just a command
+prefix.
+
+Use this loop for coding tasks:
+1. Inspect the narrowest relevant file, symbol, diff, log, or test output first.
+2. Prefer existing project patterns over new helpers or abstractions.
+3. Make the smallest maintainable change that solves the actual request.
+4. Validate with the cheapest useful scoped command for the risk involved.
+5. Summarize only what changed, what was checked, and any remaining risk.
+
+Context discipline:
+- Scope before printing. Search paths first, then open focused file sections.
+- Avoid dumping full files, broad diffs, generated output, or full CI logs unless the task truly requires them.
+- For unknown or potentially huge output, cap and filter with vx-managed tools.
+- Do not cap instruction files, skill files, or agent policy files; read the relevant one fully unless it is unexpectedly huge.
+- If capped output is insufficient, narrow the query before increasing the cap.
+
+Examples:
+
+```bash
+vx rg -n -m 20 "render_token_savings|OutputRenderer" crates/vx-cli crates/vx-metrics
+vx git diff --stat origin/main...HEAD
+vx git diff --name-only origin/main...HEAD
+vx gh run view 789 --log | vx rg -n -m 50 "error|failed|panic"
+vx metrics tokens --last 20 --json
+```
+
+Validation discipline:
+- Use focused checks first, such as `vx cargo test -p vx-cli --test cli_parsing_tests <case>`.
+- Run broader checks only when the touched surface or release risk justifies it.
+- Prefer evidence from the actual failing command, CI job, or runtime behavior over speculative fixes.
+- Do not add wrappers, maps, helper files, or validation layers unless they clearly reduce real complexity.
 
 ### Tool Management
 ```bash
@@ -82,14 +176,14 @@ rust = "1.80"       # Specific version
 just = "*"          # Any version
 
 [scripts]
-dev = "npm run dev"
-test = "cargo test"
-lint = "npm run lint && cargo clippy"
-build = "just build"
+dev = "vx npm run dev"
+test = "vx cargo test"
+lint = "vx npm run lint && vx cargo clippy"
+build = "vx just build"
 
 [hooks]
 pre_commit = ["vx run lint"]
-post_setup = ["npm install"]
+post_setup = ["vx npm install"]
 ```
 
 ## Using `--with` for Multi-Runtime
@@ -195,7 +289,7 @@ vx msvc@14.40 cl main.cpp
 | lib | `vx msvc lib` | Library manager |
 | nmake | `vx msvc nmake` | Make utility |
 
-## Supported Tools (129 Providers)
+## Supported Tools (137 Providers)
 
 | Category | Tools |
 |----------|-------|
@@ -224,7 +318,7 @@ vx msvc@14.40 cl main.cpp
 
 ## Provider System (Starlark DSL)
 
-All 129 providers are defined using **provider.star** (Starlark DSL) — a declarative, zero-compilation approach. Each provider lives in `crates/vx-providers/<name>/provider.star`.
+All 137 providers are defined using **provider.star** (Starlark DSL) — a declarative, zero-compilation approach. Each provider lives in `crates/vx-providers/<name>/provider.star`.
 
 vx uses a **two-phase execution model** (inspired by Buck2):
 1. **Analysis Phase (Starlark)**: `provider.star` runs as pure computation, returning descriptor dicts. No I/O.
@@ -305,13 +399,17 @@ Key modules:
 2. **Use `vx just`** instead of `just` for task runner commands
 3. **Use `vx npm`** instead of `npm` directly
 4. **Use `vx cargo`** instead of `cargo` directly
-5. **Check `vx.toml`** first to understand project tool requirements
-6. **Use `vx run <script>`** for project-defined scripts
-7. **Never suggest manual tool installation** - vx handles it automatically
-8. Commands like `vx install` are for explicit pre-installation; normal usage auto-installs
-9. **Use correct terminology**: Runtime (not Tool), Provider (not Plugin), provider.star (not provider config)
-10. **Provider development**: New tools are added via `provider.star` Starlark DSL in `crates/vx-providers/<name>/`
-11. **Tests go in `tests/` dirs** — never inline `#[cfg(test)]` in source files
+5. **Use `vx git`** instead of `git` for repository operations
+6. **Use `vx gh`** instead of `gh` for GitHub issue, PR, checks, and workflow operations
+7. **Use `vx rg`, `vx fd`, `vx jq`, and `vx yq`** for scoped search and structured filtering
+8. **Prefer token-efficient output**: `--json`, selected fields, `--jq`, `--toon`, `--output-format toon`, and narrow globs
+9. **Check `vx.toml`** first to understand project tool requirements
+10. **Use `vx run <script>`** for project-defined scripts
+11. **Never suggest manual tool installation** - vx handles it automatically
+12. Commands like `vx install` are for explicit pre-installation; normal usage auto-installs
+13. **Use correct terminology**: Runtime (not Tool), Provider (not Plugin), provider.star (not provider config)
+14. **Provider development**: New tools are added via `provider.star` Starlark DSL in `crates/vx-providers/<name>/`
+15. **Tests go in `tests/` dirs** — never inline `#[cfg(test)]` in source files
 
 ## Version Resolution Priority
 

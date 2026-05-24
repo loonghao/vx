@@ -69,11 +69,11 @@ pub async fn handle(
 
             if !quiet {
                 let renderer = OutputRenderer::new(format);
-                if renderer.is_json() {
-                    renderer.render(&output)?;
-                } else {
+                if renderer.is_text() {
                     UI::warn("No vx.toml found in current directory or parents");
                     UI::hint("Run 'vx init' to create a project configuration");
+                } else {
+                    renderer.render(&output)?;
                 }
             }
             std::process::exit(1);
@@ -94,10 +94,10 @@ pub async fn handle(
 
         if !quiet {
             let renderer = OutputRenderer::new(format);
-            if renderer.is_json() {
-                renderer.render(&output)?;
-            } else {
+            if renderer.is_text() {
                 UI::info("No tools configured in vx.toml");
+            } else {
+                renderer.render(&output)?;
             }
         }
         return Ok(());
@@ -252,11 +252,11 @@ pub async fn handle(
     // Render output
     if !quiet {
         let renderer = OutputRenderer::new(format);
-        if renderer.is_json() {
-            renderer.render(&output)?;
-        } else {
+        if renderer.is_text() {
             // Text mode with optional details
             render_text_output(&output, detailed)?;
+        } else {
+            renderer.render(&output)?;
         }
     }
 

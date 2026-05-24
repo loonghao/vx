@@ -56,10 +56,15 @@
 pub mod exporter;
 pub mod init;
 pub mod report;
+pub mod token_savings;
 pub mod visualize;
 
 pub use init::{MetricsConfig, MetricsGuard, fmt_filter_directive, init, otel_filter_directive};
-pub use report::{CommandMetrics, StageMetrics};
+pub use report::{CommandMetrics, StageMetrics, TokenSavingsRecord};
+pub use token_savings::{
+    build_token_savings_record, drain_token_savings, estimate_tokens, record_token_savings,
+    render_token_savings, summarize_token_savings,
+};
 pub use visualize::{
     generate_ai_summary, generate_html_report, load_metrics, render_comparison, render_insights,
     render_summary,

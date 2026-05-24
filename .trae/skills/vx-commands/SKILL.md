@@ -1,15 +1,15 @@
 ---
 name: vx-commands
-description: "Complete vx CLI command reference. Use when looking up specific vx command syntax, flags, or output formats. All commands support --json for structured output and --format toon for token-optimized output."
+description: "Complete vx CLI command reference. Use when looking up specific vx command syntax, flags, or output formats. All commands support --json for structured output and --output-format toon for token-optimized output."
 ---
 
 # VX Command Reference
 
-> **Quick rule**: All vx commands support `--json` for structured output and `--format toon` for token-optimized output (saves 40-60% tokens). Set `VX_OUTPUT=json` to default all commands to JSON.
+> **Quick rule**: All vx commands support `--json` for structured output and `--output-format toon` for token-optimized output (saves 40-60% tokens). Set `VX_OUTPUT=json` to default all commands to JSON.
 
 ## Structured Output Commands (AI-Optimized)
 
-All commands support `--json` for structured output and `--format toon` for token-optimized output (saves 40-60% tokens).
+All commands support `--json` for structured output and `--output-format toon` for token-optimized output (saves 40-60% tokens).
 
 ### Project Analysis
 
@@ -108,7 +108,7 @@ vx list --json
 
 ### TOON Format (Token-Optimized)
 ```bash
-vx list --format toon
+vx list --output-format toon
 # Output:
 # runtimes[50]{name,installed,description}:
 #   node,true,Node.js runtime
@@ -190,7 +190,7 @@ vx cache clean              # Clean cache
 
 ```bash
 --json                      # JSON output
---format <text|json|toon>   # Output format
+--output-format <text|json|toon>   # Output format
 --verbose                   # Verbose output
 --debug                     # Debug output
 --use-system-path           # Use system PATH

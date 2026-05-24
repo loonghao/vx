@@ -75,9 +75,10 @@ impl MetricsGuard {
         let _ = self.provider.force_flush();
 
         let spans = self.exporter.take_spans();
+        let token_savings = crate::drain_token_savings();
 
-        // Skip writing if no spans were collected (e.g., --help, list)
-        if spans.is_empty() {
+        // Skip writing if no spans or token savings were collected (e.g., --help)
+        if spans.is_empty() && token_savings.is_empty() {
             return Ok(());
         }
 
@@ -88,6 +89,7 @@ impl MetricsGuard {
         metrics.exit_code = Some(exit_code);
         metrics.total_duration_ms = elapsed.as_secs_f64() * 1000.0;
         metrics.spans = spans;
+        metrics.token_savings = token_savings;
         metrics.extract_stages_from_spans();
 
         // Ensure metrics directory exists

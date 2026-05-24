@@ -30,7 +30,7 @@ mod version_tests {
     #[tokio::test]
     async fn test_version_command_executes() {
         init_test_env();
-        let result = version::handle().await;
+        let result = version::handle(vx_cli::OutputFormat::Text).await;
         assert!(result.is_ok(), "Version command should succeed");
         cleanup_test_env();
     }
@@ -312,7 +312,7 @@ mod config_tests {
     #[tokio::test]
     async fn test_config_show() {
         init_test_env();
-        let result = config::handle().await;
+        let result = config::handle(vx_cli::OutputFormat::Text).await;
         assert!(result.is_ok(), "Config show should succeed");
         cleanup_test_env();
     }

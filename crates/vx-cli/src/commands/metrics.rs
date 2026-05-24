@@ -78,6 +78,30 @@ pub async fn handle(last: usize, json: bool, html: Option<String>, clean: bool) 
     Ok(())
 }
 
+/// Handle `vx metrics tokens`.
+pub async fn handle_tokens(last: usize, json: bool) -> Result<()> {
+    let metrics_dir = vx_paths::VxPaths::default().base_dir.join("metrics");
+
+    if !metrics_dir.exists() {
+        println!("No metrics data found at {}", metrics_dir.display());
+        println!(
+            "Run a command with `--toon`, `--output-format toon`, or `--compact` to generate token savings."
+        );
+        return Ok(());
+    }
+
+    let runs = vx_metrics::load_metrics(&metrics_dir, last)?;
+    let summary = vx_metrics::summarize_token_savings(&runs);
+
+    if json {
+        println!("{}", serde_json::to_string_pretty(&summary)?);
+    } else {
+        print!("{}", vx_metrics::render_token_savings(&summary));
+    }
+
+    Ok(())
+}
+
 async fn handle_clean(metrics_dir: &std::path::Path) -> Result<()> {
     if !metrics_dir.exists() {
         println!("No metrics directory to clean.");
