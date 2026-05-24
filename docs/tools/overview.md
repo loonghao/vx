@@ -1,6 +1,6 @@
 # Supported Tools Overview
 
-vx supports **137 tools** out of the box, spanning language runtimes, package managers, DevOps tools, build systems, code quality tools, and more. All tools are managed through the same unified interface.
+vx supports **138 tools** out of the box, spanning language runtimes, package managers, DevOps tools, build systems, code quality tools, and more. All tools are managed through the same unified interface.
 
 ## At a Glance
 
@@ -15,7 +15,7 @@ vx supports **137 tools** out of the box, spanning language runtimes, package ma
 | [Cloud CLI](#cloud-cli) | AWS CLI, Azure CLI, Google Cloud CLI | 3 |
 | [Code Quality](#code-quality) | pre-commit, ruff, ripgrep, fd, bat, biome, golangci-lint | 7+ |
 | [Git Tools](#git-tools) | lazygit, jj, delta, gitleaks, lefthook, worktrunk | 8 |
-| [AI/ML](#aiml-tools) | Ollama, usql | 2 |
+| [AI/ML](#aiml-tools) | Ollama, mcpcall, usql | 3 |
 | [Scientific & HPC](#scientific--hpc) | Spack, Rez | 2 |
 | [Media](#media) | FFmpeg, ImageMagick | 2 |
 | [CLI Enhancements](#cli--terminal-enhancements) | jq, fzf, eza, duf, dust, sd, zoxide, witr | 8+ |
@@ -151,6 +151,7 @@ See [Build Cache Guide](./build-cache) for detailed documentation.
 | Tool | Description | Documentation |
 |------|-------------|---------------|
 | **Ollama** | Run LLMs locally (Llama, Mistral, Gemma) | [Details →](./ai) |
+| **mcpcall** | Scriptable MCP client for smoke tests and CI | [Details →](./ai) |
 | **usql** | Universal SQL CLI (AI-enhanced) | — |
 
 ## Scientific & HPC
@@ -273,11 +274,11 @@ vx install <tool>@<version>
 <tool> = "<version>"
 ```
 
-## Complete Tool List (137 Total)
+## Complete Tool List (138 Total)
 
 > **Note**: For detailed documentation, click the links above. For undocumented tools, please refer to the tool's official documentation.
 
-All 137 tools are immediately available with `vx <tool>`. No manual installation required — vx handles everything automatically.
+All 138 tools are immediately available with `vx <tool>`. No manual installation required — vx handles everything automatically.
 
 ## Custom Tools
 

@@ -19,7 +19,7 @@
 # Security:
 # - `pull_request_target` runs in the context of the base branch (main)
 # - We do NOT checkout or execute any code from the PR branch
-# - We only validate PR metadata (branch name, author)
+# - We only validate PR metadata (branch name, author) and changed file names
 # - This is safe per GitHub's security guidelines for `pull_request_target`
 
 name: CI (Release PR)
@@ -31,6 +31,7 @@ on:
 
 permissions:
   contents: read
+  pull-requests: read
   statuses: write
 
 jobs:
@@ -41,15 +42,18 @@ jobs:
     if: startsWith(github.head_ref, 'release-please--')
     steps:
       - name: Validate release PR
+        env:
+          RELEASE_HEAD_REF: ${{ github.head_ref }}
+          RELEASE_AUTHOR: ${{ github.event.pull_request.user.login }}
         run: |
           echo "## Release PR CI Gate" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Branch:** ${{ github.head_ref }}" >> $GITHUB_STEP_SUMMARY
-          echo "**Author:** ${{ github.event.pull_request.user.login }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Branch:** ${RELEASE_HEAD_REF}" >> $GITHUB_STEP_SUMMARY
+          echo "**Author:** ${RELEASE_AUTHOR}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
 
           # Verify this is from the expected bot
-          AUTHOR="${{ github.event.pull_request.user.login }}"
+          AUTHOR="${RELEASE_AUTHOR}"
           if [[ "$AUTHOR" != "github-actions[bot]" && "$AUTHOR" != "release-please[bot]" ]]; then
             echo "::error::Unexpected PR author: $AUTHOR (expected github-actions[bot] or release-please[bot])"
             echo "❌ **Unexpected author** - this workflow only gates release-please PRs." >> $GITHUB_STEP_SUMMARY
@@ -62,6 +66,52 @@ jobs:
           echo "- \`.release-please-manifest.json\` (version bump)" >> $GITHUB_STEP_SUMMARY
           echo "- \`CHANGELOG.md\` (release notes)" >> $GITHUB_STEP_SUMMARY
           echo "- \`Cargo.toml\` (version field)" >> $GITHUB_STEP_SUMMARY
+          echo "- \`Cargo.lock\` (workspace package versions)" >> $GITHUB_STEP_SUMMARY
+
+      - name: Validate release PR files
+        uses: actions/github-script@v9
+        with:
+          script: |
+            const pull = context.payload.pull_request;
+            const files = await github.paginate(github.rest.pulls.listFiles, {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: pull.number,
+              per_page: 100
+            });
+
+            const names = files.map((file) => file.filename).sort();
+            const allowed = new Set([
+              '.release-please-manifest.json',
+              'CHANGELOG.md',
+              'Cargo.toml',
+              'Cargo.lock'
+            ]);
+            const disallowed = names.filter((name) => !allowed.has(name));
+            if (disallowed.length > 0) {
+              core.setFailed(`Release PR touches unexpected files: ${disallowed.join(', ')}`);
+              return;
+            }
+
+            const required = [
+              '.release-please-manifest.json',
+              'CHANGELOG.md',
+              'Cargo.toml',
+              'Cargo.lock'
+            ];
+            const missing = required.filter((name) => !names.includes(name));
+            if (missing.length > 0) {
+              core.setFailed(
+                `Release PR is incomplete (${missing.join(', ')} missing). ` +
+                'Refusing changelog-only or version-only release PRs.'
+              );
+              return;
+            }
+
+            await core.summary
+              .addHeading('Release PR file validation', 2)
+              .addList(names.map((name) => `\`${name}\``))
+              .write();
 
       - name: Report CI Success status
         uses: actions/github-script@v9
