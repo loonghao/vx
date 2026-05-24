@@ -8,6 +8,7 @@ fn test_estimate_tokens_uses_stable_char_heuristic() {
     assert_eq!(estimate_tokens(""), 0);
     assert_eq!(estimate_tokens("abcd"), 1);
     assert_eq!(estimate_tokens("abcde"), 2);
+    assert_eq!(estimate_tokens("你好"), 2);
 }
 
 #[test]
@@ -72,6 +73,30 @@ fn test_summarize_token_savings_by_command() {
     assert_eq!(summary.net_saved_tokens, 65);
     assert_eq!(summary.commands.len(), 2);
     assert_eq!(summary.commands[0].command, "vx --output-format toon list");
+}
+
+#[test]
+fn test_summarize_token_savings_reports_contributing_and_inspected_runs() {
+    let mut first = CommandMetrics::new("vx --output-format toon list".to_string());
+    first.token_savings = vec![TokenSavingsRecord {
+        output_type: "ListOutput".to_string(),
+        output_format: "toon".to_string(),
+        baseline_format: "json".to_string(),
+        baseline_bytes: 400,
+        actual_bytes: 200,
+        baseline_tokens: 100,
+        actual_tokens: 50,
+        token_delta: 50,
+        savings_ratio: 0.5,
+    }];
+
+    let empty = CommandMetrics::new("vx metrics --json".to_string());
+
+    let summary = summarize_token_savings(&[first, empty]);
+
+    assert_eq!(summary.inspected_runs, 2);
+    assert_eq!(summary.runs, 1);
+    assert_eq!(summary.records, 1);
 }
 
 #[test]

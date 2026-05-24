@@ -208,13 +208,24 @@ pub fn render_comparison(runs: &[CommandMetrics]) -> String {
         // Per-stage averages
         out.push_str("\n  Stage Averages:\n");
         for &stage in STAGE_ORDER {
-            let vals: Vec<f64> = runs
+            let vals: Vec<(f64, f64)> = runs
                 .iter()
-                .filter_map(|r| r.stages.get(stage).map(|s| s.duration_ms))
+                .filter_map(|r| {
+                    r.stages
+                        .get(stage)
+                        .map(|s| (s.duration_ms, r.total_duration_ms))
+                })
                 .collect();
             if !vals.is_empty() {
-                let stage_avg = vals.iter().sum::<f64>() / vals.len() as f64;
-                let stage_pct = stage_avg / avg * 100.0;
+                let stage_avg =
+                    vals.iter().map(|(duration, _)| *duration).sum::<f64>() / vals.len() as f64;
+                let total_avg =
+                    vals.iter().map(|(_, total)| *total).sum::<f64>() / vals.len() as f64;
+                let stage_pct = if total_avg > 0.0 {
+                    stage_avg / total_avg * 100.0
+                } else {
+                    0.0
+                };
                 out.push_str(&format!(
                     "    {:<10} avg={:>8.1}ms  ({:>5.1}% of total)\n",
                     stage, stage_avg, stage_pct
@@ -450,18 +461,31 @@ pub fn generate_ai_summary(runs: &[CommandMetrics]) -> serde_json::Value {
 
     let mut stage_avgs = HashMap::new();
     for &stage in STAGE_ORDER {
-        let vals: Vec<f64> = runs
+        let vals: Vec<(f64, f64)> = runs
             .iter()
-            .filter_map(|r| r.stages.get(stage).map(|s| s.duration_ms))
+            .filter_map(|r| {
+                r.stages
+                    .get(stage)
+                    .map(|s| (s.duration_ms, r.total_duration_ms))
+            })
             .collect();
         if !vals.is_empty() {
+            let avg_ms =
+                vals.iter().map(|(duration, _)| *duration).sum::<f64>() / vals.len() as f64;
+            let avg_total_ms =
+                vals.iter().map(|(_, total)| *total).sum::<f64>() / vals.len() as f64;
+            let pct_of_total = if avg_total_ms > 0.0 {
+                avg_ms / avg_total_ms * 100.0
+            } else {
+                0.0
+            };
             stage_avgs.insert(
                 stage.to_string(),
                 serde_json::json!({
-                    "avg_ms": vals.iter().sum::<f64>() / vals.len() as f64,
-                    "min_ms": vals.iter().cloned().fold(f64::INFINITY, f64::min),
-                    "max_ms": vals.iter().cloned().fold(f64::NEG_INFINITY, f64::max),
-                    "pct_of_total": vals.iter().sum::<f64>() / vals.len() as f64 / avg * 100.0,
+                    "avg_ms": avg_ms,
+                    "min_ms": vals.iter().map(|(duration, _)| *duration).fold(f64::INFINITY, f64::min),
+                    "max_ms": vals.iter().map(|(duration, _)| *duration).fold(f64::NEG_INFINITY, f64::max),
+                    "pct_of_total": pct_of_total,
                 }),
             );
         }
@@ -543,6 +567,17 @@ fn percentile(sorted: &[f64], p: f64) -> f64 {
     if sorted.is_empty() {
         return 0.0;
     }
-    let idx = ((p / 100.0) * (sorted.len() as f64 - 1.0)).round() as usize;
-    sorted[idx.min(sorted.len() - 1)]
+    if sorted.len() == 1 {
+        return sorted[0];
+    }
+
+    let rank = (p.clamp(0.0, 100.0) / 100.0) * (sorted.len() - 1) as f64;
+    let lower = rank.floor() as usize;
+    let upper = rank.ceil() as usize;
+    if lower == upper {
+        sorted[lower]
+    } else {
+        let weight = rank - lower as f64;
+        sorted[lower] + (sorted[upper] - sorted[lower]) * weight
+    }
 }

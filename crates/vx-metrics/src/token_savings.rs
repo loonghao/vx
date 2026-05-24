@@ -16,13 +16,14 @@ fn records() -> &'static Mutex<Vec<TokenSavingsRecord>> {
 ///
 /// This intentionally uses a small dependency-free heuristic for metrics. It is
 /// stable and cheap enough to run for every command, while still making savings
-/// trends visible during debugging.
+/// trends visible during debugging. UTF-8 bytes are used rather than scalar
+/// values so non-ASCII output is not dramatically under-counted.
 pub fn estimate_tokens(text: &str) -> u64 {
     if text.is_empty() {
         return 0;
     }
 
-    text.chars().count().div_ceil(4) as u64
+    text.len().div_ceil(4) as u64
 }
 
 /// Build a token savings record from baseline and actual output strings.
@@ -74,6 +75,8 @@ pub fn drain_token_savings() -> Vec<TokenSavingsRecord> {
 #[derive(Debug, Clone, Serialize)]
 pub struct TokenSavingsSummary {
     /// Number of metrics runs inspected.
+    pub inspected_runs: usize,
+    /// Number of metrics runs that contributed token savings data.
     pub runs: usize,
     /// Number of render records that included token savings data.
     pub records: usize,
@@ -119,17 +122,20 @@ struct CommandAccumulator {
 
 /// Summarize token savings in newest-first metrics runs.
 pub fn summarize_token_savings(runs: &[CommandMetrics]) -> TokenSavingsSummary {
+    let inspected_runs = runs.len();
     let mut by_command: BTreeMap<String, CommandAccumulator> = BTreeMap::new();
     let mut baseline_tokens = 0_u64;
     let mut actual_tokens = 0_u64;
     let mut net_saved_tokens = 0_i64;
     let mut records = 0_usize;
+    let mut contributing_runs = 0_usize;
 
     for run in runs {
         if run.token_savings.is_empty() {
             continue;
         }
 
+        contributing_runs += 1;
         let entry = by_command.entry(run.command.clone()).or_default();
         entry.runs += 1;
 
@@ -162,7 +168,8 @@ pub fn summarize_token_savings(runs: &[CommandMetrics]) -> TokenSavingsSummary {
     commands.sort_by_key(|command| Reverse(command.net_saved_tokens));
 
     TokenSavingsSummary {
-        runs: runs.len(),
+        inspected_runs,
+        runs: contributing_runs,
         records,
         baseline_tokens,
         actual_tokens,
@@ -181,15 +188,28 @@ pub fn render_token_savings(summary: &TokenSavingsSummary) -> String {
 
     let mut out = String::new();
     out.push_str("Token savings summary\n");
-    out.push_str(&format!(
-        "runs:{} records:{} baseline:{} actual:{} net_saved:{} ({:.1}%)\n\n",
-        summary.runs,
-        summary.records,
-        summary.baseline_tokens,
-        summary.actual_tokens,
-        summary.net_saved_tokens,
-        summary.savings_ratio * 100.0
-    ));
+    if summary.inspected_runs == summary.runs {
+        out.push_str(&format!(
+            "runs:{} records:{} baseline:{} actual:{} net_saved:{} ({:.1}%)\n\n",
+            summary.runs,
+            summary.records,
+            summary.baseline_tokens,
+            summary.actual_tokens,
+            summary.net_saved_tokens,
+            summary.savings_ratio * 100.0
+        ));
+    } else {
+        out.push_str(&format!(
+            "runs:{} inspected:{} records:{} baseline:{} actual:{} net_saved:{} ({:.1}%)\n\n",
+            summary.runs,
+            summary.inspected_runs,
+            summary.records,
+            summary.baseline_tokens,
+            summary.actual_tokens,
+            summary.net_saved_tokens,
+            summary.savings_ratio * 100.0
+        ));
+    }
     out.push_str(&format!(
         "{:<36} {:>6} {:>8} {:>8} {:>10} {:>8}\n",
         "Command", "Runs", "Before", "After", "Net saved", "Saved%"
