@@ -19,6 +19,7 @@ pub async fn handle(
     interactive: bool,
     format: OutputFormat,
 ) -> Result<()> {
+    let renderer = OutputRenderer::new(format);
     let runtime = match registry.get_runtime(tool_name) {
         Some(r) => r,
         None => {
@@ -29,9 +30,13 @@ pub async fn handle(
         }
     };
 
-    let spinner = ProgressSpinner::new(&format!("Fetching versions for {}...", tool_name));
+    let spinner = renderer
+        .is_text()
+        .then(|| ProgressSpinner::new(&format!("Fetching versions for {}...", tool_name)));
     let mut versions = runtime.fetch_versions(context).await?;
-    spinner.finish_and_clear();
+    if let Some(spinner) = spinner {
+        spinner.finish_and_clear();
+    }
 
     // Filter out prereleases if not requested
     if !include_prerelease {
@@ -47,7 +52,6 @@ pub async fn handle(
             lts: None,
         };
 
-        let renderer = OutputRenderer::new(format);
         renderer.render(&output)?;
         return Ok(());
     }
@@ -86,19 +90,15 @@ pub async fn handle(
         lts: lts_version,
     };
 
-    let renderer = OutputRenderer::new(format);
-
-    if renderer.is_json() {
-        renderer.render(&output)?;
-    } else {
-        // Text mode: use UI for header, then render results
+    if renderer.is_text() {
         UI::success(&format!("Found {} versions:", versions.len()));
-        renderer.render(&output)?;
+    }
 
-        if interactive {
-            UI::hint("Interactive version selection not yet implemented");
-            UI::hint(&format!("Use: vx install {}@<version>", tool_name));
-        }
+    renderer.render(&output)?;
+
+    if interactive && renderer.is_text() {
+        UI::hint("Interactive version selection not yet implemented");
+        UI::hint(&format!("Use: vx install {}@<version>", tool_name));
     }
 
     Ok(())

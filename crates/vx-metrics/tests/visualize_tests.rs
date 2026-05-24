@@ -55,6 +55,7 @@ fn sample_metrics(
         exit_code: Some(0),
         total_duration_ms: total,
         stages,
+        token_savings: Vec::new(),
         spans: Vec::new(),
     }
 }

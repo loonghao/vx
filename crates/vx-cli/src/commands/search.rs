@@ -73,13 +73,10 @@ pub async fn handle(
 
     // Use unified output renderer
     let renderer = OutputRenderer::new(format);
-    if renderer.is_json() {
-        renderer.render(&output)?;
-    } else {
-        // Text mode: use existing UI for header, then render results
+    if renderer.is_text() {
         UI::header(&format!("Searching for '{}'...", query));
-        renderer.render(&output)?;
     }
+    renderer.render(&output)?;
 
     Ok(())
 }

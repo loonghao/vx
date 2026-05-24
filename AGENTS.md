@@ -487,7 +487,7 @@ Use `@main` for latest, or pin to a release tag. Full guide: [`docs/guides/githu
 
 1. **Check for `vx.toml`** → if present, always use `vx` prefix
 2. **Never suggest manual installation** — `vx` handles it
-3. **Use structured output**: `vx list --json` or `vx list --format toon`
+3. **Use structured output**: `vx list --json` or `vx list --output-format toon`
 4. **For MCP servers**, replace `npx`/`uvx` with `vx` in config
 5. **For CI/CD**, use `loonghao/vx@main` GitHub Action
 
@@ -572,6 +572,6 @@ For a full error-by-error decision tree, see [`docs/appendix/troubleshooting.md`
 
 ```bash
 vx list --json             # JSON output
-vx list --format toon      # Token-optimized (saves 40-60% tokens)
+vx list --output-format toon      # Token-optimized (saves 40-60% tokens)
 vx analyze --json          # Project analysis
 ```

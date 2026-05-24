@@ -282,9 +282,7 @@ pub async fn handle(
             all_paths: vec![],
         };
 
-        if renderer.is_json() {
-            renderer.render(&output)?;
-        } else {
+        if renderer.is_text() {
             let available_tools = registry.runtime_names();
             let suggestions = suggestions::get_tool_suggestions(&request.name, &available_tools);
 
@@ -329,6 +327,8 @@ pub async fn handle(
                 "💡".cyan(),
                 format!("Use 'vx install {}' to install this tool", request.name).dimmed()
             );
+        } else {
+            renderer.render(&output)?;
         }
         std::process::exit(1);
     }

@@ -9,12 +9,41 @@ These skills are the **single source of truth** shared across:
 - **ClawHub** — published automatically via CI when changes merge to main
 - **Agent config directories** — `.codebuddy/skills/`, `.claude/skills/`, `.cursor/skills/`, etc.
 
+## Management Model
+
+Edit `skills/` first. Treat project-level agent directories (`.agents/`, `.claude/`,
+`.cursor/`, and friends) as compatibility snapshots generated from the canonical
+skills, not as independently maintained sources.
+
+When a skill changes:
+
+1. Update the canonical file under `skills/<name>/SKILL.md`.
+2. Re-run or refresh the `vx ai setup` distribution path for agent-specific copies.
+3. Keep embedded skills and ClawHub publishing aligned through the existing
+   `crates/vx-cli/src/commands/ai.rs` embedding and `.github/workflows/sync-skills.yml`.
+
+This keeps the repository from becoming a maze of divergent skill copies while
+still supporting agents that require project-local skill folders.
+
+## Skill Authoring Principles
+
+vx skills should teach agents to be precise, scoped, and token-aware:
+
+- Prefer the smallest maintainable change that solves the actual request.
+- Read the narrowest relevant file, symbol, diff, log, or test output first.
+- Scope command output before printing it; use `vx rg`, `vx fd`, `vx gh --json`,
+  `vx jq`, and `vx metrics tokens` to keep context useful.
+- Avoid broad repo dumps, full logs, unrelated cleanup, and single-use wrappers.
+- Validate according to risk with the cheapest useful focused check first.
+- Treat `skills/` as the canonical source and project-level skill directories as
+  generated compatibility snapshots.
+
 ## Available Skills
 
 | Skill | Description | Size | Best for |
 |-------|-------------|------|----------|
 | **vx-usage** | Core usage guide — commands, vx.toml, providers, GitHub Actions, MCP integration | ~15 KB | First-time users, general questions |
-| **vx-commands** | CLI command reference — all flags, output formats (`--json`, `--format toon`) | ~6 KB | Looking up specific command syntax |
+| **vx-commands** | CLI command reference — all flags, output formats (`--json`, `--output-format toon`) | ~6 KB | Looking up specific command syntax |
 | **vx-project** | Project management — init, sync, setup, vx.toml configuration, monorepo | ~6 KB | Setting up or configuring projects |
 | **vx-best-practices** | Best practices — version strategy, cross-platform, security, provider development | ~10 KB | Team workflows, provider creation |
 | **vx-troubleshooting** | Troubleshooting — installation failures, PATH issues, diagnostics, recovery | ~8 KB | Fixing errors, diagnosing issues |

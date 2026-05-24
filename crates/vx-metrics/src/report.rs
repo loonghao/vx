@@ -22,10 +22,36 @@ pub struct CommandMetrics {
     /// Total wall-clock duration in milliseconds
     pub total_duration_ms: f64,
     /// Per-stage timing breakdown
-    #[serde(skip_serializing_if = "HashMap::is_empty")]
+    #[serde(default, skip_serializing_if = "HashMap::is_empty")]
     pub stages: HashMap<String, StageMetrics>,
+    /// Token savings from machine-readable output rendering.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub token_savings: Vec<TokenSavingsRecord>,
     /// All collected OpenTelemetry spans
     pub spans: Vec<SpanRecord>,
+}
+
+/// Token savings for one rendered command output.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TokenSavingsRecord {
+    /// Rust output type rendered by the command.
+    pub output_type: String,
+    /// Actual output format written to stdout.
+    pub output_format: String,
+    /// Baseline format used for comparison.
+    pub baseline_format: String,
+    /// Baseline output size in bytes.
+    pub baseline_bytes: usize,
+    /// Actual output size in bytes.
+    pub actual_bytes: usize,
+    /// Estimated baseline token count.
+    pub baseline_tokens: u64,
+    /// Estimated actual token count.
+    pub actual_tokens: u64,
+    /// Positive means tokens saved; negative means extra tokens.
+    pub token_delta: i64,
+    /// Fraction saved vs baseline. Negative means the actual output used more tokens.
+    pub savings_ratio: f64,
 }
 
 /// Metrics for a single pipeline stage.
@@ -50,6 +76,7 @@ impl CommandMetrics {
             exit_code: None,
             total_duration_ms: 0.0,
             stages: HashMap::new(),
+            token_savings: Vec::new(),
             spans: Vec::new(),
         }
     }
