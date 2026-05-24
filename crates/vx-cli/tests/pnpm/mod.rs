@@ -387,6 +387,15 @@ fn test_pnpm_dlx_cowsay() {
     skip_if_no_vx!();
     skip_if_no_network!();
 
+    if cfg!(windows)
+        && std::env::var("CI")
+            .map(|value| value == "true")
+            .unwrap_or(false)
+    {
+        eprintln!("Skipping: pnpm dlx cowsay is too slow on Windows CI");
+        return;
+    }
+
     let output = run_vx(&["pnpm", "dlx", "cowsay", "hello"]).expect("Failed to run pnpm dlx");
 
     if is_success(&output) {
