@@ -1,6 +1,6 @@
 # 支持的工具概览
 
-vx 开箱即支持 **137 个工具**，涵盖语言运行时、包管理器、DevOps 工具、构建系统等。所有工具通过相同的统一接口管理。
+vx 开箱即支持 **138 个工具**，涵盖语言运行时、包管理器、DevOps 工具、构建系统等。所有工具通过相同的统一接口管理。
 
 ## 一览
 
@@ -13,7 +13,7 @@ vx 开箱即支持 **137 个工具**，涵盖语言运行时、包管理器、De
 | [云 CLI](#云-cli) | AWS CLI, Azure CLI, Google Cloud CLI | 3 |
 | [构建工具](#构建工具) | CMake, Ninja, Just, Task, Make, Meson, protoc, MSBuild | 8 |
 | [代码质量](#代码质量) | pre-commit, Vite | 2 |
-| [AI](#ai) | Ollama | 1 |
+| [AI](#ai) | Ollama, mcpcall | 2 |
 | [科学计算 & HPC](#科学计算--hpc) | Spack, Rez | 2 |
 | [媒体](#媒体) | FFmpeg, ImageMagick | 2 |
 | [系统工具](#系统工具) | jq, gh, curl, pwsh, Git, NASM, x-cmd | 7+ |
@@ -92,6 +92,7 @@ vx 开箱即支持 **137 个工具**，涵盖语言运行时、包管理器、De
 | 工具 | 描述 | 文档 |
 |------|------|------|
 | **Ollama** | 本地运行 LLM（Llama、Mistral、Gemma） | [详情 →](./ai) |
+| **mcpcall** | 面向脚本和 CI 的 MCP 客户端 | [详情 →](./ai) |
 
 ## 科学计算 & HPC
 
@@ -173,4 +174,3 @@ environment      = _p["environment"]
 ```
 
 参见 [Provider Star 参考文档](/zh/guide/provider-star-reference) 了解完整的 Starlark DSL 文档。
-

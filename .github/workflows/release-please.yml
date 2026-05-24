@@ -124,7 +124,32 @@ jobs:
       releases_created: ${{ steps.release.outputs.releases_created }}
       tag_name: ${{ steps.release.outputs.tag_name }}
     steps:
+      - name: Check current main head
+        id: current-main
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          current_sha="$(gh api "repos/${{ github.repository }}/git/ref/heads/main" --jq '.object.sha')"
+          echo "current_sha=${current_sha}" >> "$GITHUB_OUTPUT"
+          if [ "$current_sha" = "$GITHUB_SHA" ]; then
+            echo "is_current=true" >> "$GITHUB_OUTPUT"
+            echo "This push is the current main head (${current_sha})."
+          else
+            echo "is_current=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::Skipping release-please update because this push is stale."
+            echo "Run SHA: ${GITHUB_SHA}"
+            echo "Current main: ${current_sha}"
+            {
+              echo "## Release Please update skipped"
+              echo ""
+              echo "This push run is stale; main has already advanced to \`${current_sha}\`."
+              echo "Skipping release-please prevents delayed jobs from recreating already-merged release PRs."
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
+
       - uses: googleapis/release-please-action@v5
+        if: steps.current-main.outputs.is_current == 'true'
         id: release
         with:
           token: ${{ secrets.GITHUB_TOKEN }}

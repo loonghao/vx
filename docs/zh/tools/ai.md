@@ -61,6 +61,28 @@ ai-chat = "ollama run llama3.2"
 
 vx 非常适合 AI 开发，因为它可以从单一配置管理你的整个工具链 — Python、Node.js 和 AI 工具。
 
+### 使用 mcpcall 做 MCP 冒烟测试
+
+`mcpcall` 是面向 CI 和本地适配器冒烟测试的脚本化 MCP 客户端。AI agent
+或 CI 需要精简、机器可读日志时，优先把 vx compact 模式和 mcpcall JSON
+输出一起使用：
+
+```bash
+vx install mcpcall@0.3.0
+vx --compact mcpcall list --url http://127.0.0.1:8765/mcp --json
+vx --compact mcpcall doctor --url http://127.0.0.1:8765/mcp --json
+vx --compact mcpcall call --url http://127.0.0.1:8765/mcp dcc_status --json
+```
+
+```toml
+[tools]
+mcpcall = "0.3.0"
+
+[scripts]
+mcp-tools = "vx --compact mcpcall list --url http://127.0.0.1:8765/mcp --json"
+mcp-doctor = "vx --compact mcpcall doctor --url http://127.0.0.1:8765/mcp --json"
+```
+
 ### 本地 LLM + Python AI 技术栈
 
 搭建完整的本地 AI 开发环境：

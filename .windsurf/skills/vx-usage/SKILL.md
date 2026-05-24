@@ -1,6 +1,6 @@
 ---
 name: vx-usage
-description: "Teaches AI agents how to use vx, the universal dev tool manager. Use when the project has vx.toml or .vx/, or when the user mentions vx, tool version management, Git/GitHub operations, or cross-platform setup. vx auto-manages Node.js, Python, Go, Rust, and 137 tools via Starlark DSL providers. Also covers MCP integration patterns and GitHub Actions."
+description: "Teaches AI agents how to use vx, the universal dev tool manager. Use when the project has vx.toml or .vx/, or when the user mentions vx, tool version management, Git/GitHub operations, or cross-platform setup. vx auto-manages Node.js, Python, Go, Rust, and 138 tools via Starlark DSL providers. Also covers MCP integration patterns and GitHub Actions."
 ---
 
 # VX - Universal Development Tool Manager
@@ -289,7 +289,7 @@ vx msvc@14.40 cl main.cpp
 | lib | `vx msvc lib` | Library manager |
 | nmake | `vx msvc nmake` | Make utility |
 
-## Supported Tools (137 Providers)
+## Supported Tools (138 Providers)
 
 | Category | Tools |
 |----------|-------|
@@ -308,7 +308,7 @@ vx msvc@14.40 cl main.cpp
 | **C/C++** | msvc, llvm, nasm, ccache, buildcache, sccache, rcedit |
 | **Media** | ffmpeg, imagemagick |
 | **Java** | java |
-| **AI** | ollama, openclaw |
+| **AI** | ollama, openclaw, mcpcall |
 | **Other Langs** | zig |
 | **Container** | dive |
 | **Config Mgmt** | chezmoi, mise |
@@ -318,7 +318,7 @@ vx msvc@14.40 cl main.cpp
 
 ## Provider System (Starlark DSL)
 
-All 137 providers are defined using **provider.star** (Starlark DSL) — a declarative, zero-compilation approach. Each provider lives in `crates/vx-providers/<name>/provider.star`.
+All 138 providers are defined using **provider.star** (Starlark DSL) — a declarative, zero-compilation approach. Each provider lives in `crates/vx-providers/<name>/provider.star`.
 
 vx uses a **two-phase execution model** (inspired by Buck2):
 1. **Analysis Phase (Starlark)**: `provider.star` runs as pure computation, returning descriptor dicts. No I/O.
@@ -463,6 +463,18 @@ This eliminates the "install Node.js/Python first" requirement for all MCP serve
     }
   }
 }
+```
+
+### Testing MCP Servers with mcpcall
+
+Use the built-in `mcpcall` provider for scriptable MCP smoke tests. Prefer
+compact vx output plus mcpcall JSON output when agents need concise logs:
+
+```bash
+vx install mcpcall@0.3.0
+vx --compact mcpcall list --url http://127.0.0.1:8765/mcp --json
+vx --compact mcpcall doctor --url http://127.0.0.1:8765/mcp --json
+vx --compact mcpcall call --url http://127.0.0.1:8765/mcp dcc_status --json
 ```
 
 ### Migration Pattern
