@@ -41,7 +41,7 @@ pub enum FilterLevelArg {
 ///
 /// **TTY auto-selection:** when stdout is a TTY the renderer defaults to `text`.
 /// When stdout is NOT a TTY (pipe, script, AI agent) the renderer defaults to
-/// `toon` — token-optimised output that saves 40-60% tokens vs JSON.
+/// `toon` — token-oriented output for LLM prompts.
 /// Override with `VX_OUTPUT=json` to get JSON, or `VX_OUTPUT=compact` for RTK-style.
 #[derive(ValueEnum, Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum OutputFormat {
@@ -50,7 +50,7 @@ pub enum OutputFormat {
     Text,
     /// JSON structured output (for scripts/CI/AI parsing)
     Json,
-    /// TOON format output — token-optimised for LLM prompts, saves 40-60% tokens.
+    /// TOON format output — token-oriented for LLM prompts.
     ///
     /// **Automatic default for non-TTY** (pipes, scripts, AI agents).
     /// Prefer over JSON for AI agent consumption; use `VX_OUTPUT=json` when
@@ -59,7 +59,7 @@ pub enum OutputFormat {
     /// Compact RTK-style one-liner output (ASCII icons, minimal tokens)
     ///
     /// Inspired by rtk (rtk-ai/rtk). Reduces token usage 60-80% vs text format.
-    /// Use with `VX_OUTPUT=compact` or `--format compact` / `-u`.
+    /// Use with `VX_OUTPUT=compact`, `--output-format compact`, or `-u`.
     /// Example: `ok node@22` instead of verbose install messages.
     Compact,
 }
@@ -207,9 +207,14 @@ pub struct Cli {
     /// Output format: text, json, toon, compact (RFC 0031).
     ///
     /// In an interactive TTY the default is `text`. When stdout is piped/redirected
-    /// the renderer automatically uses `toon` (token-optimised, saves 40-60% tokens).
+    /// the renderer automatically uses `toon` (token-oriented for LLM prompts).
     /// Set `VX_OUTPUT=json` to force JSON, or `VX_OUTPUT=compact` for RTK-style.
-    #[arg(long = "output-format", global = true, value_enum, default_value_t = OutputFormat::Text)]
+    #[arg(
+        long = "output-format",
+        global = true,
+        value_enum,
+        default_value_t = OutputFormat::Text
+    )]
     pub output_format: OutputFormat,
 
     /// JSON output shortcut (equivalent to --output-format json)
@@ -829,6 +834,8 @@ pub enum Commands {
 
     /// View execution performance metrics and reports
     Metrics {
+        #[command(subcommand)]
+        command: Option<MetricsCommand>,
         /// Number of recent runs to show (default: 10)
         #[arg(long, short = 'n', default_value = "10")]
         last: usize,
@@ -1118,6 +1125,19 @@ pub enum ConfigCommand {
     },
     /// Show configuration directory path
     Dir,
+}
+
+#[derive(Subcommand, Clone)]
+pub enum MetricsCommand {
+    /// Show estimated token savings from TOON and compact output
+    Tokens {
+        /// Number of recent runs to inspect (default: 100)
+        #[arg(long, short = 'n', default_value = "100")]
+        last: usize,
+        /// Output as JSON
+        #[arg(long)]
+        json: bool,
+    },
 }
 
 #[derive(Subcommand, Clone)]
@@ -1566,7 +1586,7 @@ impl CommandHandler for Commands {
 
     async fn execute(&self, ctx: &CommandContext) -> Result<()> {
         match self {
-            Commands::Version => commands::version::handle().await,
+            Commands::Version => commands::version::handle(ctx.output_format()).await,
 
             Commands::Analyze { json, verbose } => commands::analyze::handle(*json, *verbose).await,
 
@@ -1696,7 +1716,9 @@ impl CommandHandler for Commands {
             }
 
             Commands::Config { command } => match command {
-                Some(ConfigCommand::Show) | None => commands::config::handle().await,
+                Some(ConfigCommand::Show) | None => {
+                    commands::config::handle(ctx.output_format()).await
+                }
                 Some(ConfigCommand::Set { key, value }) => {
                     commands::config::handle_set(key, value).await
                 }
@@ -2181,11 +2203,17 @@ impl CommandHandler for Commands {
             }
 
             Commands::Metrics {
+                command,
                 last,
                 json,
                 html,
                 clean,
-            } => commands::metrics::handle(*last, *json, html.clone(), *clean).await,
+            } => match command {
+                Some(MetricsCommand::Tokens { last, json }) => {
+                    commands::metrics::handle_tokens(*last, *json).await
+                }
+                None => commands::metrics::handle(*last, *json, html.clone(), *clean).await,
+            },
 
             Commands::Auth { command } => match command {
                 AuthCommand::Login { service, token } => {

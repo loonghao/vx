@@ -447,7 +447,7 @@ fn test_cli_search_command() {
 
 #[test]
 fn test_cli_search_json_format() {
-    // After RFC 0031, search uses global --json/--format instead of local --format
+    // After RFC 0031, search uses global --json/--output-format instead of local --format
     let args = vec!["vx", "--json", "search"];
     let cli = Cli::try_parse_from(args).unwrap();
 
@@ -993,6 +993,31 @@ fn test_output_format_enum() {
     assert!(matches!(OutputFormat::Text, OutputFormat::Text));
     assert!(matches!(OutputFormat::Json, OutputFormat::Json));
     assert!(matches!(OutputFormat::Toon, OutputFormat::Toon));
+}
+
+#[test]
+fn test_output_format_option() {
+    let cli = Cli::try_parse_from(vec!["vx", "--output-format", "toon", "list"]).unwrap();
+    let options = GlobalOptions::from(&cli);
+
+    assert_eq!(options.output_format, OutputFormat::Toon);
+}
+
+#[test]
+fn test_cli_metrics_tokens_subcommand() {
+    let cli =
+        Cli::try_parse_from(vec!["vx", "metrics", "tokens", "--last", "20", "--json"]).unwrap();
+
+    match cli.command {
+        Some(Commands::Metrics {
+            command: Some(MetricsCommand::Tokens { last, json }),
+            ..
+        }) => {
+            assert_eq!(last, 20);
+            assert!(json);
+        }
+        _ => panic!("Expected metrics tokens command"),
+    }
 }
 
 // ============================================
