@@ -28,3 +28,11 @@ slow-timeout = { period = "60s", terminate-after = 2 }
 filter = 'package(vx-cli) & test(/e2e/)'
 test-group = 'vx-slow-e2e'
 slow-timeout = { period = "120s", terminate-after = 2 }
+
+# The tool E2E suite's binary name includes "e2e", but individual tests are
+# named by runtime module (for example pnpm::test_pnpm_dlx_cowsay). Match the
+# binary explicitly so a stuck external command cannot hold CI until job timeout.
+[[profile.default.overrides]]
+filter = 'package(vx-cli) & binary(tool_e2e_tests)'
+test-group = 'vx-slow-e2e'
+slow-timeout = { period = "120s", terminate-after = 2 }
