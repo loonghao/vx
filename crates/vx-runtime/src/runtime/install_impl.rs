@@ -13,6 +13,9 @@
 //! - Final verification
 
 use std::collections::HashMap;
+use std::fs::{File, OpenOptions};
+use std::path::{Path, PathBuf};
+use std::time::{Duration, SystemTime};
 
 use anyhow::Result;
 use tracing::{debug, info};
@@ -23,6 +26,9 @@ use crate::platform::{Os, Platform};
 use crate::types::InstallResult;
 
 use super::verify::verify_installation_default;
+
+const INSTALL_LOCK_STALE_AFTER: Duration = Duration::from_secs(30 * 60);
+const INSTALL_LOCK_RETRY_DELAY: Duration = Duration::from_millis(100);
 
 /// Check if a download URL is plausible for the given platform.
 ///
@@ -93,31 +99,25 @@ pub async fn default_install_inner(
     debug!("Executable relative path: {}", params.exe_relative);
 
     // Check if already installed
+    if let Some(result) = already_installed_result(&params, version, &install_path, ctx) {
+        return Ok(result);
+    }
+
+    let _install_lock = InstallLock::acquire(&install_path).await?;
+
+    // Another vx process may have completed the install while this process was
+    // waiting for the lock. Re-check before cleaning or downloading.
+    if let Some(result) = already_installed_result(&params, version, &install_path, ctx) {
+        return Ok(result);
+    }
+
     if ctx.fs.exists(&install_path) {
-        let verification = verify_installation_default(
-            &params.exe_relative,
-            &install_path,
-            params.exe_name,
-            params.exe_extensions,
+        debug!(
+            "Install directory exists but executable missing, cleaning up: {}",
+            install_path.display()
         );
-        if verification.valid {
-            let exe_path = verification
-                .executable_path
-                .unwrap_or_else(|| install_path.join(&params.exe_relative));
-            debug!("Already installed: {}", exe_path.display());
-            return Ok(InstallResult::already_installed(
-                install_path,
-                exe_path,
-                version.to_string(),
-            ));
-        } else {
-            debug!(
-                "Install directory exists but executable missing, cleaning up: {}",
-                install_path.display()
-            );
-            if let Err(e) = std::fs::remove_dir_all(&install_path) {
-                debug!("Failed to clean up directory: {}", e);
-            }
+        if let Err(e) = std::fs::remove_dir_all(&install_path) {
+            debug!("Failed to clean up directory: {}", e);
         }
     }
 
@@ -246,6 +246,120 @@ pub async fn default_install_inner(
         verified_exe_path,
         version.to_string(),
     ))
+}
+
+fn already_installed_result(
+    params: &InstallParams<'_>,
+    version: &str,
+    install_path: &Path,
+    ctx: &RuntimeContext,
+) -> Option<InstallResult> {
+    if !ctx.fs.exists(install_path) {
+        return None;
+    }
+
+    let verification = verify_installation_default(
+        &params.exe_relative,
+        install_path,
+        params.exe_name,
+        params.exe_extensions,
+    );
+
+    if !verification.valid {
+        return None;
+    }
+
+    let exe_path = verification
+        .executable_path
+        .unwrap_or_else(|| install_path.join(&params.exe_relative));
+    debug!("Already installed: {}", exe_path.display());
+    Some(InstallResult::already_installed(
+        install_path.to_path_buf(),
+        exe_path,
+        version.to_string(),
+    ))
+}
+
+struct InstallLock {
+    path: PathBuf,
+    file: Option<File>,
+}
+
+impl InstallLock {
+    async fn acquire(install_path: &Path) -> Result<Self> {
+        let lock_path = install_lock_path(install_path);
+        if let Some(parent) = lock_path.parent() {
+            std::fs::create_dir_all(parent)?;
+        }
+
+        loop {
+            match OpenOptions::new()
+                .write(true)
+                .create_new(true)
+                .open(&lock_path)
+            {
+                Ok(file) => {
+                    debug!("Acquired install lock: {}", lock_path.display());
+                    return Ok(Self {
+                        path: lock_path,
+                        file: Some(file),
+                    });
+                }
+                Err(err) if err.kind() == std::io::ErrorKind::AlreadyExists => {
+                    remove_stale_install_lock(&lock_path)?;
+                    tokio::time::sleep(INSTALL_LOCK_RETRY_DELAY).await;
+                }
+                Err(err) => return Err(err.into()),
+            }
+        }
+    }
+}
+
+impl Drop for InstallLock {
+    fn drop(&mut self) {
+        drop(self.file.take());
+        if let Err(err) = std::fs::remove_file(&self.path) {
+            debug!(
+                "Failed to remove install lock {}: {}",
+                self.path.display(),
+                err
+            );
+        }
+    }
+}
+
+fn install_lock_path(install_path: &Path) -> PathBuf {
+    let Some(version_dir) = install_path.file_name() else {
+        return install_path.with_extension("install.lock");
+    };
+    let lock_name = format!("{}.install.lock", version_dir.to_string_lossy());
+    install_path.with_file_name(lock_name)
+}
+
+fn remove_stale_install_lock(lock_path: &Path) -> Result<()> {
+    let Ok(metadata) = std::fs::metadata(lock_path) else {
+        return Ok(());
+    };
+
+    let Ok(modified) = metadata.modified() else {
+        return Ok(());
+    };
+
+    let Ok(age) = SystemTime::now().duration_since(modified) else {
+        return Ok(());
+    };
+
+    if age < INSTALL_LOCK_STALE_AFTER {
+        return Ok(());
+    }
+
+    match std::fs::remove_file(lock_path) {
+        Ok(()) => debug!("Removed stale install lock: {}", lock_path.display()),
+        Err(err) if err.kind() == std::io::ErrorKind::NotFound => {}
+        Err(err) => return Err(err.into()),
+    }
+
+    Ok(())
 }
 
 /// Build layout metadata HashMap from the runtime's `executable_layout()`.
