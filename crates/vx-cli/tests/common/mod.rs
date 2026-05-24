@@ -2,12 +2,20 @@
 
 #![allow(dead_code)]
 
+use std::io::{self, ErrorKind};
 use std::path::{Path, PathBuf};
-use std::process::{Command, Output};
+use std::process::{Command, Output, Stdio};
 use std::sync::Once;
+use std::thread;
+use std::time::{Duration, Instant};
+
+#[cfg(unix)]
+use std::os::unix::process::CommandExt;
+
 use vx_runtime::{ProviderRegistry, RuntimeContext, mock_context};
 
 static INIT: Once = Once::new();
+const DEFAULT_E2E_TIMEOUT_SECS: u64 = 300;
 
 // ============================================================================
 // Environment Setup
@@ -94,15 +102,16 @@ pub fn vx_available() -> bool {
 
 /// Run vx with given arguments
 pub fn run_vx(args: &[&str]) -> std::io::Result<Output> {
-    Command::new(vx_binary()).args(args).output()
+    let mut cmd = Command::new(vx_binary());
+    cmd.args(args);
+    run_command_with_timeout(cmd, e2e_timeout())
 }
 
 /// Run vx in a specific directory
 pub fn run_vx_in_dir(dir: &Path, args: &[&str]) -> std::io::Result<Output> {
-    Command::new(vx_binary())
-        .args(args)
-        .current_dir(dir)
-        .output()
+    let mut cmd = Command::new(vx_binary());
+    cmd.args(args).current_dir(dir);
+    run_command_with_timeout(cmd, e2e_timeout())
 }
 
 /// Run vx with environment variables
@@ -112,8 +121,111 @@ pub fn run_vx_with_env(args: &[&str], env: &[(&str, &str)]) -> std::io::Result<O
     for (key, value) in env {
         cmd.env(key, value);
     }
-    cmd.output()
+    run_command_with_timeout(cmd, e2e_timeout())
 }
+
+/// Run a command with a timeout so external tools cannot hang the whole E2E suite.
+pub fn run_command_with_timeout(mut cmd: Command, timeout: Duration) -> io::Result<Output> {
+    let command_debug = format!("{cmd:?}");
+    cmd.stdin(Stdio::null())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped());
+
+    configure_timeout_child(&mut cmd);
+
+    let mut child = cmd.spawn()?;
+    let child_id = child.id();
+    let start = Instant::now();
+
+    loop {
+        if child.try_wait()?.is_some() {
+            return child.wait_with_output();
+        }
+
+        if start.elapsed() >= timeout {
+            terminate_process_tree(child_id, &mut child);
+            let mut message = format!(
+                "command timed out after {:.1}s: {command_debug}",
+                timeout.as_secs_f64()
+            );
+
+            if let Err(err) = wait_after_timeout(&mut child, Duration::from_secs(2)) {
+                message.push_str(&format!("\nfailed to reap child after timeout: {err}"));
+            }
+
+            return Err(io::Error::new(ErrorKind::TimedOut, message));
+        }
+
+        thread::sleep(Duration::from_millis(100));
+    }
+}
+
+fn e2e_timeout() -> Duration {
+    std::env::var("VX_E2E_TIMEOUT_SECS")
+        .ok()
+        .and_then(|raw| raw.parse::<u64>().ok())
+        .filter(|seconds| *seconds > 0)
+        .map(Duration::from_secs)
+        .unwrap_or_else(|| Duration::from_secs(DEFAULT_E2E_TIMEOUT_SECS))
+}
+
+fn terminate_process_tree(_pid: u32, child: &mut std::process::Child) {
+    #[cfg(windows)]
+    {
+        let _ = Command::new("taskkill")
+            .args(["/PID", &_pid.to_string(), "/T", "/F"])
+            .stdin(Stdio::null())
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .status();
+        let _ = child.kill();
+    }
+
+    #[cfg(not(windows))]
+    {
+        let process_group = format!("-{_pid}");
+        let _ = Command::new("kill")
+            .args(["-TERM", "--", &process_group])
+            .stdin(Stdio::null())
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .status();
+        thread::sleep(Duration::from_millis(100));
+        let _ = Command::new("kill")
+            .args(["-KILL", "--", &process_group])
+            .stdin(Stdio::null())
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .status();
+        let _ = child.kill();
+    }
+}
+
+fn wait_after_timeout(child: &mut std::process::Child, timeout: Duration) -> io::Result<()> {
+    let start = Instant::now();
+    loop {
+        if child.try_wait()?.is_some() {
+            return Ok(());
+        }
+
+        if start.elapsed() >= timeout {
+            return Err(io::Error::new(
+                ErrorKind::TimedOut,
+                "child did not exit after timeout termination",
+            ));
+        }
+
+        thread::sleep(Duration::from_millis(50));
+    }
+}
+
+#[cfg(unix)]
+fn configure_timeout_child(cmd: &mut Command) {
+    cmd.process_group(0);
+}
+
+#[cfg(not(unix))]
+fn configure_timeout_child(_cmd: &mut Command) {}
 
 // ============================================================================
 // Output Helpers
