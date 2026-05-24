@@ -1047,8 +1047,14 @@ impl RuntimeTester {
         let program = &parts[0];
         let args: Vec<&str> = parts[1..].iter().map(|s| s.as_str()).collect();
 
-        // Execute command with timeout
-        let output = match run_command_with_timeout(program, &args, self.timeout) {
+        // Execute command with timeout. Per-command timeout_ms from provider.star
+        // overrides the runtime-level default for slow first-run CLIs.
+        let timeout = cmd
+            .timeout_ms
+            .filter(|timeout_ms| *timeout_ms > 0)
+            .map(Duration::from_millis)
+            .unwrap_or(self.timeout);
+        let output = match run_command_with_timeout(program, &args, timeout) {
             Ok(output) => output,
             Err(e) => {
                 return TestCaseResult::failed(
