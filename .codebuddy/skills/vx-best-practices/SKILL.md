@@ -46,6 +46,29 @@ git add vx.lock
 git commit -m "chore: update dependencies"
 ```
 
+### 4. Keep Agent Work Small and Observable
+
+When an AI agent uses vx, optimize for correctness, speed, judgment, and token
+efficiency:
+
+- Read enough surrounding code to understand the local pattern, then stop exploring.
+- Prefer targeted searches, focused file sections, scoped diffs, selected JSON fields, and capped logs.
+- Make the smallest maintainable change that solves the request.
+- Reuse existing project helpers before creating new abstractions.
+- Avoid single-use wrappers, speculative architecture, and unrelated cleanup.
+- Validate according to risk: focused tests for narrow changes, broader checks for shared behavior.
+- Preserve evidence from the actual command, CI job, or runtime surface when debugging.
+
+For large or unknown output, scope first and filter through vx-managed tools:
+
+```bash
+vx rg -n -m 20 "SearchTerm" src
+vx git diff --stat
+vx git diff --name-only origin/main...HEAD
+vx gh pr view 123 --json title,state,files
+vx gh run view 456 --log | vx rg -n -m 50 "error|failed|panic"
+```
+
 ## Project Setup
 
 ### Initial Setup

@@ -65,6 +65,14 @@ fn test_renderer_is_json() {
 }
 
 #[test]
+fn test_renderer_is_structured() {
+    assert!(OutputRenderer::json().is_structured());
+    assert!(OutputRenderer::new_exact(OutputFormat::Toon).is_structured());
+    assert!(!OutputRenderer::text().is_structured());
+    assert!(!OutputRenderer::compact().is_structured());
+}
+
+#[test]
 fn test_renderer_format() {
     // Use new_exact() to bypass TTY detection — OutputRenderer::new(Text) may
     // auto-upgrade to Json in non-TTY environments (e.g. CI). This test only
