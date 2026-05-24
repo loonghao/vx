@@ -20,14 +20,14 @@
 | See all CLI commands | [`docs/cli/`](docs/cli/) |
 | Follow unified syntax rules | [`docs/guide/command-syntax-rules.md`](docs/guide/command-syntax-rules.md) |
 | Check project configuration | [`Cargo.toml`](Cargo.toml) (workspace root) |
-| See all 137 providers | [`crates/vx-providers/`](crates/vx-providers/) |
+| See all 138 providers | [`crates/vx-providers/`](crates/vx-providers/) |
 | Contribute to the project | [`docs/advanced/contributing.md`](docs/advanced/contributing.md) |
 | Understand vx.toml | [`docs/config/vx-toml.md`](docs/config/vx-toml.md) |
 | Troubleshoot issues | [`docs/appendix/troubleshooting.md`](docs/appendix/troubleshooting.md) |
 
 ## What is vx?
 
-vx is a **zero-config universal development tool manager** (v0.8.39, MIT-licensed, written in Rust). Users prefix any command with `vx` (e.g., `vx node --version`, `vx cargo build`) and vx automatically installs, manages, and forwards to the correct tool version. vx currently ships **137 providers** covering language runtimes, build tools, DevOps CLIs, cloud platforms, and more — all defined via Starlark DSL (`provider.star`).
+vx is a **zero-config universal development tool manager** (v0.8.39, MIT-licensed, written in Rust). Users prefix any command with `vx` (e.g., `vx node --version`, `vx cargo build`) and vx automatically installs, manages, and forwards to the correct tool version. vx currently ships **138 providers** covering language runtimes, build tools, DevOps CLIs, cloud platforms, and more — all defined via Starlark DSL (`provider.star`).
 
 **Key insight for agents**: vx is a transparent proxy. The user writes the exact same commands they already know — just prepended with `vx`. There is **no new syntax to learn** for tool execution.
 
@@ -50,7 +50,7 @@ vx npx create-react-app x  # Auto-installs Node.js + runs npx
 3. **Use correct terminology** — Runtime (not Tool), Provider (not Plugin), provider.star (not provider config)
 4. **Check `vx.toml` first** — Understand project tool requirements before suggesting commands
 5. **Use `vx just` for tasks** — All CI tasks are in justfile, use `vx just --list` to see available tasks
-6. **Provider count is 137** — Update any docs that reference old counts (78, 73, 70+, 50+, 105, 122, 124, 126, 129, 131, 132, 135, 136, etc.)
+6. **Provider count is 138** — Update any docs that reference old counts (78, 73, 70+, 50+, 105, 122, 124, 126, 129, 131, 132, 135, 136, 137, etc.)
 7. **Version syntax** — Always use `vx install <runtime>@<version>` (never `vx install <runtime> <version>`)
 8. **MCP integration** — Replace `npx`/`uvx` with `vx` in MCP server configurations
 
@@ -85,7 +85,7 @@ This entire flow is **automatic** — the user never needs to know about it.
 | See all CLI commands                 | [`docs/cli/`](docs/cli/)                         |
 | Follow unified syntax rules          | [`docs/guide/command-syntax-rules.md`](docs/guide/command-syntax-rules.md) |
 | Check project configuration          | [`Cargo.toml`](Cargo.toml) (workspace root)      |
-| See all 137 providers                | [`crates/vx-providers/`](crates/vx-providers/)   |
+| See all 138 providers                | [`crates/vx-providers/`](crates/vx-providers/)   |
 | Contribute to the project            | [`docs/advanced/contributing.md`](docs/advanced/contributing.md) |
 | Understand vx.toml configuration     | [`docs/config/vx-toml.md`](docs/config/vx-toml.md) |
 | Troubleshoot issues                  | [`docs/appendix/troubleshooting.md`](docs/appendix/troubleshooting.md) |
@@ -138,7 +138,7 @@ User Command: vx npm install
 7. **Check `vx.toml`** first to understand project tool requirements
 8. **New providers use Starlark DSL only** — No Rust code required for new tool definitions
 9. **Layer dependencies go downward only** — Never import from a higher architectural layer
-10. **Provider count is 137** — Update any docs that reference old counts (78, 73, 70+, 50+, 105, 122, 124, 126, 129, 131, 132, 135, 136, etc.)
+10. **Provider count is 138** — Update any docs that reference old counts (78, 73, 70+, 50+, 105, 122, 124, 126, 129, 131, 132, 135, 136, 137, etc.)
 
 ### Setup Commands
 
@@ -218,7 +218,7 @@ vx dev                         # Enter dev environment
 │  vx-manifest       (Provider manifest parsing)          │
 │  vx-args           (Argument parsing)                   │
 ├─────────────────────────────────────────────────────────┤
-│  vx-providers/*    (137 Providers — provider.star DSL)  │
+│  vx-providers/*    (138 Providers — provider.star DSL)  │
 │  vx-bridge         (Generic command bridge)             │
 └─────────────────────────────────────────────────────────┘
 ```
@@ -254,7 +254,7 @@ For the complete DSL reference — stdlib modules, context object fields, templa
 
 ## All Providers
 
-vx supports 137 providers across JavaScript, Python, Rust, Go, system tools, DevOps, security, cloud, .NET, C/C++, media, and more. See [`docs/tools/overview.md`](docs/tools/overview.md) for the complete list.
+vx supports 138 providers across JavaScript, Python, Rust, Go, system tools, DevOps, security, cloud, .NET, C/C++, media, and more. See [`docs/tools/overview.md`](docs/tools/overview.md) for the complete list.
 
 ## Decision Framework for AI Agents
 
