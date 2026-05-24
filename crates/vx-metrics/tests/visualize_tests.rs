@@ -164,6 +164,34 @@ fn test_generate_ai_summary_structure() {
 }
 
 #[test]
+fn test_generate_ai_summary_percentiles_interpolate() {
+    let runs = vec![
+        sample_metrics(20.0, 2.0, 1.0, 3.0, 4.0),
+        sample_metrics(10.0, 1.0, 1.0, 2.0, 3.0),
+    ];
+    let summary = generate_ai_summary(&runs);
+
+    assert_eq!(summary["total_ms"]["p50"].as_f64().unwrap(), 15.0);
+    assert_eq!(summary["total_ms"]["p95"].as_f64().unwrap(), 19.5);
+}
+
+#[test]
+fn test_generate_ai_summary_stage_percentage_uses_stage_runs_only() {
+    let with_stage = sample_metrics(200.0, 100.0, 0.0, 0.0, 0.0);
+    let mut without_stage = sample_metrics(1000.0, 0.0, 0.0, 0.0, 0.0);
+    without_stage.stages.clear();
+
+    let summary = generate_ai_summary(&[with_stage, without_stage]);
+
+    assert_eq!(
+        summary["stages"]["resolve"]["pct_of_total"]
+            .as_f64()
+            .unwrap(),
+        50.0
+    );
+}
+
+#[test]
 fn test_generate_ai_summary_detects_bottlenecks() {
     // prepare > 100ms should trigger bottleneck
     let runs = vec![sample_metrics(500.0, 50.0, 1.0, 200.0, 200.0)];
