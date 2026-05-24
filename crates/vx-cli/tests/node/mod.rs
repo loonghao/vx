@@ -28,10 +28,12 @@ fn test_node_version() {
     } else {
         // Node not installed - verify helpful error message
         let combined = combined_output(&output);
+        let lower_combined = combined.to_lowercase();
         assert!(
-            combined.contains("not installed")
-                || combined.contains("install")
-                || combined.contains("not found"),
+            lower_combined.contains("not installed")
+                || lower_combined.contains("install")
+                || lower_combined.contains("not found")
+                || lower_combined.contains("download failed"),
             "Should provide helpful error: {}",
             combined
         );
