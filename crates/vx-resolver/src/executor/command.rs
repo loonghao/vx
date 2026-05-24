@@ -117,7 +117,13 @@ fn build_command_inner(
         }
     };
 
-    #[cfg(not(windows))]
+    #[cfg(unix)]
+    let mut cmd = {
+        ensure_vx_store_executable_permission(executable)?;
+        Command::new(executable)
+    };
+
+    #[cfg(all(not(windows), not(unix)))]
     let mut cmd = Command::new(executable);
 
     // Add command prefix if any (e.g., "msbuild" for dotnet)
@@ -136,6 +142,39 @@ fn build_command_inner(
         resolution,
         use_filter,
     )
+}
+
+#[cfg(unix)]
+fn ensure_vx_store_executable_permission(executable: &std::path::Path) -> Result<()> {
+    use std::os::unix::fs::PermissionsExt;
+
+    if !executable.is_absolute() || !executable.is_file() {
+        return Ok(());
+    }
+
+    let Ok(paths) = vx_paths::VxPaths::new() else {
+        return Ok(());
+    };
+
+    if !executable.starts_with(&paths.store_dir) {
+        return Ok(());
+    }
+
+    let metadata = std::fs::metadata(executable)?;
+    let mode = metadata.permissions().mode();
+    if mode & 0o111 != 0 {
+        return Ok(());
+    }
+
+    let mut permissions = metadata.permissions();
+    permissions.set_mode(mode | 0o111);
+    std::fs::set_permissions(executable, permissions)?;
+    trace!(
+        "Restored execute permissions for vx-managed executable: {}",
+        executable.display()
+    );
+
+    Ok(())
 }
 
 /// Resolve a Windows executable path, handling bare Unix scripts.
