@@ -61,6 +61,28 @@ ai-chat = "ollama run llama3.2"
 
 vx is uniquely suited for AI development because it manages your entire toolchain — Python, Node.js, and AI tools — from a single configuration.
 
+### MCP Smoke Tests with mcpcall
+
+`mcpcall` is a scriptable MCP client for CI and local adapter smoke tests. Use
+vx compact mode with mcpcall's JSON output when agents or CI need concise,
+machine-readable logs:
+
+```bash
+vx install mcpcall@0.3.0
+vx --compact mcpcall list --url http://127.0.0.1:8765/mcp --json
+vx --compact mcpcall doctor --url http://127.0.0.1:8765/mcp --json
+vx --compact mcpcall call --url http://127.0.0.1:8765/mcp dcc_status --json
+```
+
+```toml
+[tools]
+mcpcall = "0.3.0"
+
+[scripts]
+mcp-tools = "vx --compact mcpcall list --url http://127.0.0.1:8765/mcp --json"
+mcp-doctor = "vx --compact mcpcall doctor --url http://127.0.0.1:8765/mcp --json"
+```
+
 ### Local LLM + Python AI Stack
 
 Set up a complete local AI development environment:
