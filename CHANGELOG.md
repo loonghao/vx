@@ -6,6 +6,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [0.9.2](https://github.com/loonghao/vx/compare/v0.9.1...v0.9.2) (2026-05-25)
+
+
+### Features
+
+* add rust wasm providers ([caa7afd](https://github.com/loonghao/vx/commit/caa7afd606701d23fff8a94883f2444ce79d64a4))
+
 ## [0.9.1](https://github.com/loonghao/vx/compare/v0.9.0...v0.9.1) (2026-05-25)
 
 
