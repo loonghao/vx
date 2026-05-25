@@ -1,6 +1,6 @@
 # Supported Tools Overview
 
-vx supports **138 tools** out of the box, spanning language runtimes, package managers, DevOps tools, build systems, code quality tools, and more. All tools are managed through the same unified interface.
+vx supports **140 tools** out of the box, spanning language runtimes, package managers, DevOps tools, build systems, code quality tools, and more. All tools are managed through the same unified interface.
 
 ## At a Glance
 
@@ -8,7 +8,7 @@ vx supports **138 tools** out of the box, spanning language runtimes, package ma
 |----------|-------|-------|
 | [Language Runtimes](#language-runtimes) | Node.js, Python, Go, Rust, Deno, Zig, Java, .NET | 8 |
 | [Package Managers](#package-managers) | npm, pnpm, yarn, bun, uv, pip, cargo, nuget | 8 |
-| [Build Tools](#build-tools) | CMake, Ninja, Just, Task, Make, Meson, protoc, MSBuild, Vite, xmake | 10 |
+| [Build Tools](#build-tools) | CMake, Ninja, Just, Task, Make, Meson, protoc, MSBuild, Vite, Trunk, wasm-pack, xmake | 12 |
 | [Build Cache](#build-cache-tools) | sccache, ccache, buildcache, Nx, Turborepo | 7 |
 | [DevOps](#devops--kubernetes) | Terraform, kubectl, Helm, Podman, Flux, kustomize | 6+ |
 | [Kubernetes Tools](#kubernetes-tools) | k9s, kind, k3d, minikube, nerdctl | 7 |
@@ -70,6 +70,8 @@ vx supports **138 tools** out of the box, spanning language runtimes, package ma
 | **protoc** | Protocol Buffers compiler | [Details →](./build-tools) |
 | **MSBuild** | Microsoft Build Engine | [Details →](./build-tools) |
 | **Vite** | Frontend build tool | [Details →](./build-tools) |
+| **Trunk** | Rust WASM web app build and bundling tool | [Details →](./build-tools) |
+| **wasm-pack** | Build and package Rust-generated WebAssembly | [Details →](./build-tools) |
 | **xmake** | C/C++ build system | — |
 | **Nx** | Monorepo build system (package alias) | [Details →](./build-cache) |
 | **Turborepo** | Monorepo build cache (package alias) | [Details →](./build-cache) |
@@ -274,11 +276,11 @@ vx install <tool>@<version>
 <tool> = "<version>"
 ```
 
-## Complete Tool List (138 Total)
+## Complete Tool List (140 Total)
 
 > **Note**: For detailed documentation, click the links above. For undocumented tools, please refer to the tool's official documentation.
 
-All 138 tools are immediately available with `vx <tool>`. No manual installation required — vx handles everything automatically.
+All 140 tools are immediately available with `vx <tool>`. No manual installation required — vx handles everything automatically.
 
 ## Custom Tools
 

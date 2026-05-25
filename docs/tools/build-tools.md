@@ -464,6 +464,32 @@ vx vite build             # Build for production
 vx vite preview           # Preview production build
 ```
 
+## Rust WebAssembly Build Tools
+
+### Trunk
+
+Build, bundle, and ship Rust WASM web applications.
+
+```bash
+vx install trunk@latest
+
+vx trunk --version
+vx trunk serve            # Start dev server
+vx trunk build --release  # Build optimized app
+```
+
+### wasm-pack
+
+Build and package Rust-generated WebAssembly for JavaScript consumers.
+
+```bash
+vx install wasm-pack@latest
+
+vx wasm-pack --version
+vx wasm-pack build
+vx wasm-pack test --headless --firefox
+```
+
 ## Project Configuration Example
 
 ```toml
@@ -474,6 +500,8 @@ cmake = "3.28"
 ninja = "latest"
 protoc = "latest"
 vite = "latest"
+trunk = "latest"
+wasm-pack = "latest"
 
 [scripts]
 build = "just build"
