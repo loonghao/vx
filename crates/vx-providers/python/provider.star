@@ -77,8 +77,22 @@ _PBS_TRIPLES = {
     "linux/arm64":  "aarch64-unknown-linux-gnu",
 }
 
+_LEGACY_37_ASSETS = {
+    # python-build-standalone's 20200822 release predates the modern
+    # cpython-{version}+{build_tag}-{triple}-install_only_stripped naming.
+    "windows/x64": "cpython-3.7.9-x86_64-pc-windows-msvc-shared-pgo-20200823T0118.tar.zst",
+    "macos/x64":   "cpython-3.7.9-x86_64-apple-darwin-pgo-20200823T0123.tar.zst",
+    "linux/x64":   "cpython-3.7.9-x86_64-unknown-linux-gnu-pgo-20200823T0036.tar.zst",
+}
+
 def _pbs_triple(ctx):
     return _PBS_TRIPLES.get("{}/{}".format(ctx.platform.os, ctx.platform.arch))
+
+def _platform_key(ctx):
+    return "{}/{}".format(ctx.platform.os, ctx.platform.arch)
+
+def _is_legacy_37(version, build_tag):
+    return version == "3.7.9" and build_tag == "20200822"
 
 # ---------------------------------------------------------------------------
 # download_url — python-build-standalone asset
@@ -91,6 +105,11 @@ def download_url(ctx, version):
     build_tag = ctx.version_date
     if not build_tag:
         return None
+    if _is_legacy_37(version, build_tag):
+        asset = _LEGACY_37_ASSETS.get(_platform_key(ctx))
+        if not asset:
+            return None
+        return github_asset_url("astral-sh", "python-build-standalone", build_tag, asset)
     asset = "cpython-{}+{}-{}-install_only_stripped.tar.gz".format(version, build_tag, triple)
     return github_asset_url("astral-sh", "python-build-standalone", build_tag, asset)
 
@@ -98,7 +117,20 @@ def download_url(ctx, version):
 # install_layout
 # ---------------------------------------------------------------------------
 
-def install_layout(ctx, _version):
+def install_layout(ctx, version):
+    if version == "3.7.9":
+        if _LEGACY_37_ASSETS.get(_platform_key(ctx)) == None:
+            return None
+        if ctx.platform.os == "windows":
+            exe_paths = ["python.exe"]
+        else:
+            exe_paths = ["bin/python3", "bin/python3.7", "bin/python"]
+        return {
+            "type":             "archive",
+            "strip_prefix":     "python/install",
+            "executable_paths": exe_paths,
+        }
+
     # The python-build-standalone tarball has a top-level "python/" directory.
     # We explicitly strip it so the install dir contains bin/, lib/, etc. directly.
     # This avoids the auto-flatten heuristic which caused PYTHONHOME mismatches (#696).
