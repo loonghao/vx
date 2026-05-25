@@ -6,6 +6,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [0.9.3](https://github.com/loonghao/vx/compare/v0.9.2...v0.9.3) (2026-05-25)
+
+
+### Features
+
+* add python 3.7 and wasm runtimes ([4e5f011](https://github.com/loonghao/vx/commit/4e5f01140b2b8d1c392416eb73e7223ae56d417e))
+
 ## [0.9.2](https://github.com/loonghao/vx/compare/v0.9.1...v0.9.2) (2026-05-25)
 
 
