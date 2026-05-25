@@ -83,6 +83,27 @@ impl<'a> EnvironmentManager<'a> {
                         path_parts.push(expanded);
                     }
 
+                    // For Node.js ecosystem tools (npm, npx), prepend the local
+                    // node_modules/.bin directory to PATH. This mirrors what npm
+                    // does internally when running scripts (`npm run`) but acts
+                    // as a safety net: on Windows, npm's own PATH prepend can
+                    // fail when the environment is set explicitly via
+                    // Command::env(), causing locally-installed binaries (tsc,
+                    // vite, etc.) to not be found.
+                    if matches!(runtime_name, "npm" | "npx")
+                        && let Ok(cwd) = std::env::current_dir()
+                    {
+                        let local_bin = cwd.join("node_modules").join(".bin");
+                        if local_bin.is_dir() {
+                            let bin_str = local_bin.to_string_lossy().to_string();
+                            debug!(
+                                "Prepending local node_modules/.bin to PATH for {}: {}",
+                                runtime_name, bin_str
+                            );
+                            path_parts.push(bin_str);
+                        }
+                    }
+
                     // Get current PATH
                     let isolate_env = if inherit_env { false } else { advanced.isolate };
                     let current_path = if !isolate_env {
