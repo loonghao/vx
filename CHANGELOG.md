@@ -6,6 +6,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [0.9.1](https://github.com/loonghao/vx/compare/v0.9.0...v0.9.1) (2026-05-25)
+
+
+### Bug Fixes
+
+* correct metrics calculations ([05c35f1](https://github.com/loonghao/vx/commit/05c35f12e7dedcfb87f88b43f650b649176b3fc8))
+* harden release-please and add mcpcall ([e62080b](https://github.com/loonghao/vx/commit/e62080b95d78e68ab63816368e8e3962b070527d))
+* repair vx store executable permissions ([63e190a](https://github.com/loonghao/vx/commit/63e190a38302c5b2c2b3e4dd197caff144e2fe80))
+* serialize runtime installs ([0b33913](https://github.com/loonghao/vx/commit/0b3391333f9de350fc84ca9fa78d3eb8e2fb3a96))
+
 ## [0.9.0](https://github.com/loonghao/vx/compare/v0.8.39...v0.9.0) (2026-05-24)
 
 
