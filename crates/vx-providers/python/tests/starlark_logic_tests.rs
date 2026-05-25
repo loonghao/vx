@@ -422,6 +422,51 @@ url = download_url(ctx, "3.13.4")
     ));
 }
 
+#[test]
+fn test_download_url_python37_uses_legacy_windows_asset() {
+    let mut a = Assert::new();
+    a.dialect(&Dialect::Standard);
+    a.is_true(&format!(
+        r#"
+{}
+ctx = struct(platform = struct(os = "windows", arch = "x64", target = ""), version_date = "20200822")
+url = download_url(ctx, "3.7.9")
+url == "https://github.com/astral-sh/python-build-standalone/releases/download/20200822/cpython-3.7.9-x86_64-pc-windows-msvc-shared-pgo-20200823T0118.tar.zst"
+"#,
+        provider_star_prefix()
+    ));
+}
+
+#[test]
+fn test_download_url_python37_uses_legacy_linux_asset() {
+    let mut a = Assert::new();
+    a.dialect(&Dialect::Standard);
+    a.is_true(&format!(
+        r#"
+{}
+ctx = struct(platform = struct(os = "linux", arch = "x64", target = ""), version_date = "20200822")
+url = download_url(ctx, "3.7.9")
+url == "https://github.com/astral-sh/python-build-standalone/releases/download/20200822/cpython-3.7.9-x86_64-unknown-linux-gnu-pgo-20200823T0036.tar.zst"
+"#,
+        provider_star_prefix()
+    ));
+}
+
+#[test]
+fn test_download_url_python37_unsupported_arm64_returns_none() {
+    let mut a = Assert::new();
+    a.dialect(&Dialect::Standard);
+    a.is_true(&format!(
+        r#"
+{}
+ctx = struct(platform = struct(os = "linux", arch = "arm64", target = ""), version_date = "20200822")
+url = download_url(ctx, "3.7.9")
+url == None
+"#,
+        provider_star_prefix()
+    ));
+}
+
 // ── install_layout logic ──────────────────────────────────────────────────────
 
 #[test]
@@ -464,6 +509,35 @@ fn test_install_layout_windows_has_exe_extension() {
 ctx = struct(platform = struct(os = "windows", arch = "x64", target = ""))
 layout = install_layout(ctx, "3.13.4")
 any([p.endswith(".exe") for p in layout["executable_paths"]])
+"#,
+        provider_star_prefix()
+    ));
+}
+
+#[test]
+fn test_install_layout_python37_strips_legacy_install_directory() {
+    let mut a = Assert::new();
+    a.dialect(&Dialect::Standard);
+    a.is_true(&format!(
+        r#"
+{}
+ctx = struct(platform = struct(os = "linux", arch = "x64", target = ""))
+layout = install_layout(ctx, "3.7.9")
+layout["strip_prefix"] == "python/install" and layout["executable_paths"][0] == "bin/python3"
+"#,
+        provider_star_prefix()
+    ));
+}
+
+#[test]
+fn test_install_layout_python37_unsupported_arm64_returns_none() {
+    let mut a = Assert::new();
+    a.dialect(&Dialect::Standard);
+    a.is_true(&format!(
+        r#"
+{}
+ctx = struct(platform = struct(os = "linux", arch = "arm64", target = ""))
+install_layout(ctx, "3.7.9") == None
 "#,
         provider_star_prefix()
     ));
