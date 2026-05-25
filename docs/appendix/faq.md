@@ -12,7 +12,7 @@ vx is a universal development tool manager that provides a zero learning curve e
 |---------|-----|------|------|-------|
 | Zero learning curve | ✅ | ❌ | ❌ | ❌ |
 | Auto-install on use | ✅ | ❌ | ✅ | ✅ |
-| 48+ built-in tools | ✅ | Plugins | ✅ | Limited |
+| 140 built-in tools | ✅ | Plugins | ✅ | Limited |
 | Declarative config | ✅ | ✅ | ✅ | ✅ |
 | Native Windows | ✅ | ❌ | ✅ | ✅ |
 | Script system | ✅ | ❌ | ✅ | ❌ |

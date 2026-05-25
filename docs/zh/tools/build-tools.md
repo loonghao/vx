@@ -429,6 +429,32 @@ vx vite build             # 生产构建
 vx vite preview           # 预览生产构建
 ```
 
+## Rust WebAssembly 构建工具
+
+### Trunk
+
+构建、打包并发布 Rust WASM Web 应用。
+
+```bash
+vx install trunk@latest
+
+vx trunk --version
+vx trunk serve            # 启动开发服务器
+vx trunk build --release  # 构建优化后的应用
+```
+
+### wasm-pack
+
+为 JavaScript 消费者构建和打包 Rust 生成的 WebAssembly。
+
+```bash
+vx install wasm-pack@latest
+
+vx wasm-pack --version
+vx wasm-pack build
+vx wasm-pack test --headless --firefox
+```
+
 ## 项目配置示例
 
 ```toml
@@ -439,6 +465,8 @@ cmake = "3.28"
 ninja = "latest"
 protoc = "latest"
 vite = "latest"
+trunk = "latest"
+wasm-pack = "latest"
 
 [scripts]
 build = "just build"
