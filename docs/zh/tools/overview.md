@@ -1,6 +1,6 @@
 # 支持的工具概览
 
-vx 开箱即支持 **140 个工具**，涵盖语言运行时、包管理器、DevOps 工具、构建系统等。所有工具通过相同的统一接口管理。
+vx 开箱即支持 **142 个工具**，涵盖语言运行时、包管理器、DevOps 工具、构建系统等。所有工具通过相同的统一接口管理。
 
 ## 一览
 
@@ -12,6 +12,7 @@ vx 开箱即支持 **140 个工具**，涵盖语言运行时、包管理器、De
 
 | [云 CLI](#云-cli) | AWS CLI, Azure CLI, Google Cloud CLI | 3 |
 | [构建工具](#构建工具) | CMake, Ninja, Just, Task, Make, Meson, protoc, MSBuild, Trunk, wasm-pack | 10 |
+| [WebAssembly 运行时](#webassembly-运行时) | Wasmtime, Wasmer | 2 |
 | [代码质量](#代码质量) | pre-commit, Vite | 2 |
 | [AI](#ai) | Ollama, mcpcall | 2 |
 | [科学计算 & HPC](#科学计算--hpc) | Spack, Rez | 2 |
@@ -82,6 +83,13 @@ vx 开箱即支持 **140 个工具**，涵盖语言运行时、包管理器、De
 | **Vite** | 前端构建工具 | [详情 →](./build-tools) |
 | **Trunk** | Rust WASM Web 应用构建与打包工具 | [详情 →](./build-tools) |
 | **wasm-pack** | Rust 生成的 WebAssembly 构建与打包工具 | [详情 →](./build-tools) |
+
+## WebAssembly 运行时
+
+| 工具 | 描述 | 文档 |
+|------|------|------|
+| **Wasmtime** | Bytecode Alliance 的快速安全 WebAssembly 运行时 | — |
+| **Wasmer** | 通用 WebAssembly 运行时与包运行器 | — |
 
 ## 代码质量
 

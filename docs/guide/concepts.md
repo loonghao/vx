@@ -55,7 +55,7 @@ Each provider handles:
 
 ### Built-in Providers
 
-vx ships with **140 built-in providers** covering major ecosystems:
+vx ships with **142 built-in providers** covering major ecosystems:
 
 | Ecosystem | Providers |
 |-----------|-----------|
@@ -67,6 +67,7 @@ vx ships with **140 built-in providers** covering major ecosystems:
 | **DevOps** | terraform, kubectl, helm, podman |
 | **Cloud** | awscli, azcli, gcloud |
 | **Build** | cmake, ninja, just, task, make, meson, protoc, trunk, wasm-pack |
+| **WebAssembly** | wasmtime, wasmer |
 | **Media** | ffmpeg, imagemagick |
 | **AI** | ollama, mcpcall |
 | **Other** | git, jq, deno, zig, java, gh, curl, pwsh... |

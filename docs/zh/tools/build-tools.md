@@ -455,6 +455,30 @@ vx wasm-pack build
 vx wasm-pack test --headless --firefox
 ```
 
+## WebAssembly 运行时
+
+### Wasmtime
+
+Bytecode Alliance 的快速安全 WebAssembly 运行时。
+
+```bash
+vx install wasmtime@latest
+
+vx wasmtime --version
+vx wasmtime run app.wasm
+```
+
+### Wasmer
+
+通用 WebAssembly 运行时与包运行器。
+
+```bash
+vx install wasmer@latest
+
+vx wasmer --version
+vx wasmer run app.wasm
+```
+
 ## 项目配置示例
 
 ```toml
@@ -467,6 +491,8 @@ protoc = "latest"
 vite = "latest"
 trunk = "latest"
 wasm-pack = "latest"
+wasmtime = "latest"
+wasmer = "latest"
 
 [scripts]
 build = "just build"

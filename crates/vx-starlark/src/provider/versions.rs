@@ -541,8 +541,10 @@ impl StarlarkProvider {
             ("3.9.20", "20241016", false),
             // Python 3.8.x (LTS - even minor, EOL but still available)
             ("3.8.20", "20241016", true),
-            // Note: Python 3.7.x is NOT available in python-build-standalone.
-            // The project never included 3.7 builds. Minimum supported version is 3.8.
+            // Python 3.7.x (EOL legacy build). python-build-standalone used
+            // a pre-install_only asset layout for this release, so the Python
+            // provider has a matching legacy download/layout branch.
+            ("3.7.9", "20200822", false),
         ];
 
         let mut result: Vec<VersionInfo> = versions
