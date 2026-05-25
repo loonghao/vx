@@ -490,6 +490,30 @@ vx wasm-pack build
 vx wasm-pack test --headless --firefox
 ```
 
+## WebAssembly Runtimes
+
+### Wasmtime
+
+Fast and secure WebAssembly runtime from the Bytecode Alliance.
+
+```bash
+vx install wasmtime@latest
+
+vx wasmtime --version
+vx wasmtime run app.wasm
+```
+
+### Wasmer
+
+Universal WebAssembly runtime and package runner.
+
+```bash
+vx install wasmer@latest
+
+vx wasmer --version
+vx wasmer run app.wasm
+```
+
 ## Project Configuration Example
 
 ```toml
@@ -502,6 +526,8 @@ protoc = "latest"
 vite = "latest"
 trunk = "latest"
 wasm-pack = "latest"
+wasmtime = "latest"
+wasmer = "latest"
 
 [scripts]
 build = "just build"

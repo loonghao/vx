@@ -55,7 +55,7 @@ Provider (例如 NodeProvider)
 
 ### 内置 Provider
 
-vx 内置了 **140 个 Provider**，覆盖主要生态系统：
+vx 内置了 **142 个 Provider**，覆盖主要生态系统：
 
 | 生态系统 | Provider |
 |----------|----------|
@@ -67,6 +67,7 @@ vx 内置了 **140 个 Provider**，覆盖主要生态系统：
 | **DevOps** | terraform, kubectl, helm, podman |
 | **云** | awscli, azcli, gcloud |
 | **构建** | cmake, ninja, just, task, make, meson, protoc, trunk, wasm-pack |
+| **WebAssembly** | wasmtime, wasmer |
 | **媒体** | ffmpeg, imagemagick |
 | **AI** | ollama, mcpcall |
 | **其他** | git, jq, deno, zig, java, gh, curl, pwsh... |

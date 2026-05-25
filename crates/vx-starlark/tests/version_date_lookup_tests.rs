@@ -154,7 +154,7 @@ fn test_wellknown_versions_all_have_date() {
     // Instead, test the format contract: build tags must be 8-digit date strings
     let sample_build_tags = [
         "20260325", "20260303", "20260127", "20260114", "20250317", "20250212", "20250115",
-        "20241016",
+        "20241016", "20200822",
     ];
 
     for tag in &sample_build_tags {
