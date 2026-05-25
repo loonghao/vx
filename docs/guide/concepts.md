@@ -55,7 +55,7 @@ Each provider handles:
 
 ### Built-in Providers
 
-vx ships with **48+ built-in providers** covering major ecosystems:
+vx ships with **140 built-in providers** covering major ecosystems:
 
 | Ecosystem | Providers |
 |-----------|-----------|
@@ -66,9 +66,9 @@ vx ships with **48+ built-in providers** covering major ecosystems:
 | **.NET** | dotnet, msbuild, nuget |
 | **DevOps** | terraform, kubectl, helm, podman |
 | **Cloud** | awscli, azcli, gcloud |
-| **Build** | cmake, ninja, just, task, make, meson, protoc |
+| **Build** | cmake, ninja, just, task, make, meson, protoc, trunk, wasm-pack |
 | **Media** | ffmpeg, imagemagick |
-| **AI** | ollama |
+| **AI** | ollama, mcpcall |
 | **Other** | git, jq, deno, zig, java, gh, curl, pwsh... |
 
 ### Starlark-Driven Providers
