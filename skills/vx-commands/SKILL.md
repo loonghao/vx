@@ -1,15 +1,19 @@
 ---
 name: vx-commands
-description: "Complete vx CLI command reference. Use when looking up specific vx command syntax, flags, or output formats. All commands support --json for structured output and --output-format toon for token-optimized output."
+description: "Complete vx CLI command reference. Use when looking up specific vx command syntax, flags, output formats, or token-efficient forwarding. vx-native commands support --json, --toon, --compact, and --output-format; forwarded tools keep native output unless compact mode is explicitly requested."
 ---
 
 # VX Command Reference
 
-> **Quick rule**: All vx commands support `--json` for structured output and `--output-format toon` for token-optimized output (saves 40-60% tokens). Set `VX_OUTPUT=json` to default all commands to JSON.
+> **Quick rule**: Prefer semantic reduction first: `--json` with selected fields, then `--jq`/`vx rg` filtering, then `--compact` for broad logs. Set `VX_OUTPUT=json`, `VX_OUTPUT=toon`, or `VX_OUTPUT=compact` only when you want that default for the whole invocation.
 
 ## Structured Output Commands (AI-Optimized)
 
-All commands support `--json` for structured output and `--output-format toon` for token-optimized output (saves 40-60% tokens).
+vx-native commands support `--json`, `--toon`, `--compact`, and
+`--output-format <text|json|toon|compact>`. Forwarded tools such as `vx git`,
+`vx gh`, `vx cargo`, or `vx npm` keep their native stdout by default; use the
+tool's own structured flags first, or add `vx --compact ...` when broad
+subprocess output must be filtered.
 
 ### Project Analysis
 
@@ -68,7 +72,7 @@ vx sync --json              # Sync from vx.toml
 ```
 
 **Output fields (install)**:
-- `runtime` - Tool name
+- `runtime` - Runtime name
 - `version` - Installed version
 - `path` - Installation path
 - `duration_ms` - Installation duration
@@ -109,6 +113,7 @@ vx list --json
 ### TOON Format (Token-Optimized)
 ```bash
 vx list --output-format toon
+vx list --toon
 # Output:
 # runtimes[50]{name,installed,description}:
 #   node,true,Node.js runtime
@@ -118,10 +123,43 @@ vx list --output-format toon
 
 TOON format is recommended for AI agents - it saves 40-60% tokens compared to JSON.
 
+### Compact Format and Forwarded Logs
+```bash
+# vx-native compact summary
+vx --compact list node
+vx list --output-format compact
+
+# Forwarded subprocess filtering
+vx --compact gh run view 789 --log
+vx --compact --filter-level aggressive cargo test
+```
+
+Compact mode is RTK-inspired: it strips ANSI noise, collapses repeated lines,
+keeps error-looking lines, and enforces a line budget for subprocess output.
+Use it after semantic options like `gh --json --jq` or `vx rg` filters.
+
+### GitHub and CI Triage
+```bash
+# Smallest useful status view
+vx gh run view 789 --json status,conclusion,jobs --jq '.jobs[] | {name,conclusion}'
+
+# Failure search with capped matches
+vx gh run view 789 --log | vx rg -n -m 80 "error|failed|panic|Traceback|FAILED|warning"
+
+# Broad fallback without raw-log token cost
+vx --compact gh run view 789 --log
+```
+
+Do not rely on default `vx gh` or `vx git` output to save tokens. Their default
+behavior is transparent forwarding; savings come from selected fields, `--jq`,
+search filters, or explicit `--compact`.
+
 ### Environment Variable
 ```bash
 export VX_OUTPUT=json       # Default to JSON output
 export VX_OUTPUT=toon       # Default to TOON output
+export VX_OUTPUT=compact    # Default to compact output/filtering
+export VX_FILTER_LEVEL=normal  # light, normal, aggressive
 ```
 
 ## Command Groups
@@ -190,7 +228,11 @@ vx cache clean              # Clean cache
 
 ```bash
 --json                      # JSON output
---output-format <text|json|toon>   # Output format
+--toon                      # TOON output
+--compact, -u               # Compact RTK-style output / subprocess filter
+--output-format <text|json|toon|compact>   # Output format
+--fields <a,b,c>            # Field mask for JSON-capable vx commands
+--filter-level <light|normal|aggressive>   # Compact subprocess filter level
 --verbose                   # Verbose output
 --debug                     # Debug output
 --use-system-path           # Use system PATH

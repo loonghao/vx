@@ -83,6 +83,25 @@ mcp-tools = "vx --compact mcpcall list --url http://127.0.0.1:8765/mcp --json"
 mcp-doctor = "vx --compact mcpcall doctor --url http://127.0.0.1:8765/mcp --json"
 ```
 
+### Token-Efficient CI Inspection
+
+For GitHub Actions or other large logs, reduce semantically before reading raw
+output:
+
+```bash
+# Status and job conclusions first
+vx gh run view <run-id> --json status,conclusion,jobs --jq '.jobs[] | {name,conclusion}'
+
+# Focused log search with a match cap
+vx gh run view <run-id> --log | vx rg -n -m 80 "error|failed|panic|Traceback|FAILED|warning"
+
+# Broad fallback with compact subprocess filtering
+vx --compact gh run view <run-id> --log
+```
+
+Default `vx gh` and `vx git` stay transparent. Use `--compact` explicitly when
+the native tool does not offer a smaller structured view.
+
 ### Local LLM + Python AI Stack
 
 Set up a complete local AI development environment:

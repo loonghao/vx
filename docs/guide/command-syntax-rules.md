@@ -65,12 +65,15 @@ These flags are cross-cutting syntax contracts and apply consistently to runtime
 |---|---|---|
 | Structured output (JSON) | `--json` | Shortcut for `--output-format json`; overrides `--output-format` when both are provided. |
 | LLM-friendly output (TOON) | `--toon` | Shortcut for `--output-format toon`; overrides `--output-format` when both are provided. |
-| Explicit output mode | `--output-format <text|json|toon>` | Canonical explicit form when shortcut flags are not used. |
+| Compact output / filtering | `--compact` / `-u` | Shortcut for `--output-format compact`; for forwarded subprocesses, opt in to compact filtering. |
+| Explicit output mode | `--output-format <text|json|toon|compact>` | Canonical explicit form when shortcut flags are not used. |
+| Compact filter level | `--filter-level <light|normal|aggressive>` | Tunes subprocess output filtering when compact mode is active. |
 | Cache strategy | `--cache-mode <normal|refresh|offline|no-cache>` | Unified cache control for all execution paths. |
 
 Resolution notes:
 
-- Output option precedence: shortcut flags (`--json` / `--toon`) > `--output-format` > environment defaults.
+- Output option precedence: shortcut flags (`--json` / `--toon` / `--compact`) > `--output-format` > environment defaults.
+- Forwarded commands such as `vx git` and `vx gh` keep native stdout by default; compact filtering is an explicit opt-in.
 - Cache mode must be interpreted uniformly by parser/executor and documented examples.
 
 ## Capability Coverage Matrix (Core Scenarios)

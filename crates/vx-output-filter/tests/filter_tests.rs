@@ -7,6 +7,16 @@ fn compact_config() -> OutputFilterConfig {
     OutputFilterConfig::compact_defaults()
 }
 
+fn filter_lines(level: FilterLevel, lines: &[String]) -> Vec<String> {
+    let mut filter = OutputFilter::new(OutputFilterConfig::for_level(level));
+    let mut output = Vec::new();
+    for line in lines {
+        output.extend(filter.filter_line(line));
+    }
+    output.extend(filter.finalize());
+    output
+}
+
 // ── ANSI stripping ────────────────────────────────────────────────────────────
 
 #[test]
@@ -221,5 +231,47 @@ fn test_light_level_no_dedup() {
     assert!(
         !summary.iter().any(|l| l.contains("omitted")),
         "Light level should not suppress any lines"
+    );
+}
+
+#[test]
+fn test_filter_level_comparison_reduces_tokens_and_keeps_errors() {
+    let mut raw = Vec::new();
+    raw.extend((0..60).map(|_| "building dependency graph".to_string()));
+    raw.extend((0..5).map(|_| "error: failed to compile crate".to_string()));
+    raw.extend((0..160).map(|i| format!("progress step {i}")));
+    raw.extend((0..140).map(|_| "warning: retrying download".to_string()));
+    raw.extend((0..160).map(|i| format!("trace detail {i}")));
+
+    let normal = filter_lines(FilterLevel::Normal, &raw);
+    let aggressive = filter_lines(FilterLevel::Aggressive, &raw);
+
+    let raw_chars = raw.join("\n").len();
+    let normal_chars = normal.join("\n").len();
+    let aggressive_chars = aggressive.join("\n").len();
+
+    assert!(
+        normal_chars < raw_chars,
+        "normal compact output should be smaller than raw output"
+    );
+    assert!(
+        aggressive_chars < normal_chars,
+        "aggressive compact output should be smaller than normal compact output"
+    );
+    assert!(
+        normal.iter().any(|line| line.contains("error: failed")),
+        "normal filtering must preserve error-looking lines"
+    );
+    assert!(
+        aggressive.iter().any(|line| line.contains("error: failed")),
+        "aggressive filtering must preserve early error-looking lines"
+    );
+    assert!(
+        normal.iter().any(|line| line.contains("omitted")),
+        "normal filtering should explain omitted repeated lines"
+    );
+    assert!(
+        aggressive.iter().any(|line| line.contains("omitted")),
+        "aggressive filtering should explain omitted or truncated lines"
     );
 }
