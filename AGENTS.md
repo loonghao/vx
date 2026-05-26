@@ -2,7 +2,7 @@
 
 > **For AI agents**: This file is an **orientation map and quick reference** — start here, then follow the links into dedicated docs as needed.
 > If you are working on a project that uses vx, **always prefix commands with `vx`** (e.g., `vx npm install`, `vx cargo build`).
-> Also see: [`CLAUDE.md`](CLAUDE.md) for Claude Code, [`llms.txt`](llms.txt) for a concise LLM-friendly project index, [`llms-full.txt`](llms-full.txt) for detailed LLM documentation.
+> Also see: [`CLAUDE.md`](CLAUDE.md) for Claude Code, [`GEMINI.md`](GEMINI.md) for Google Gemini, [`llms.txt`](llms.txt) for a concise LLM-friendly project index, [`llms-full.txt`](llms-full.txt) for detailed LLM documentation.
 >
 > **Compatibility**: This file follows the [AGENTS.md](https://agents.md/) open standard (managed by Agentic AI Foundation / Linux Foundation). It is recognized by OpenAI Codex, Google Jules, GitHub Copilot, Cursor, Amp, Factory, Aider, Zed, Warp, JetBrains Junie, Devin, and other AI coding agents.
 
@@ -27,7 +27,7 @@
 
 ## What is vx?
 
-vx is a **zero-config universal development tool manager** (v0.8.39, MIT-licensed, written in Rust). Users prefix any command with `vx` (e.g., `vx node --version`, `vx cargo build`) and vx automatically installs, manages, and forwards to the correct tool version. vx currently ships **142 providers** covering language runtimes, build tools, DevOps CLIs, cloud platforms, and more — all defined via Starlark DSL (`provider.star`).
+vx is a **zero-config universal development tool manager** (v0.9.5, MIT-licensed, written in Rust). Users prefix any command with `vx` (e.g., `vx node --version`, `vx cargo build`) and vx automatically installs, manages, and forwards to the correct tool version. vx currently ships **142 providers** covering language runtimes, build tools, DevOps CLIs, cloud platforms, and more — all defined via Starlark DSL (`provider.star`).
 
 **Key insight for agents**: vx is a transparent proxy. The user writes the exact same commands they already know — just prepended with `vx`. There is **no new syntax to learn** for tool execution.
 
