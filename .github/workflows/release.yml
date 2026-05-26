@@ -173,8 +173,22 @@ jobs:
           path: target/distrib/
           merge-multiple: true
       - name: Install dependencies
+        shell: bash
         run: |
+          set -euo pipefail
+          install_script="$(mktemp)"
+          cat > "$install_script" <<'PACKAGES_INSTALL'
           ${{ matrix.packages_install }}
+          PACKAGES_INSTALL
+
+          if [ ! -s "$install_script" ]; then
+            echo "No extra system packages required for this target."
+            exit 0
+          fi
+
+          # cargo-dist emits apt-get install without -y; keep release jobs non-interactive.
+          sed -i -E 's/^([[:space:]]*sudo[[:space:]]+)?apt-get[[:space:]]+install[[:space:]]+/\1apt-get install -y /' "$install_script"
+          DEBIAN_FRONTEND=noninteractive bash -euxo pipefail "$install_script"
       - name: Build artifacts
         run: |
           # Actually do builds and make zips and whatnot
