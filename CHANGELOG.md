@@ -6,6 +6,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [0.9.5](https://github.com/loonghao/vx/compare/v0.9.4...v0.9.5) (2026-05-26)
+
+
+### Bug Fixes
+
+* harden release workflow reruns ([631ad08](https://github.com/loonghao/vx/commit/631ad08419077d68573431151656e31aaf03054c))
+
+
+### Documentation
+
+* teach token-efficient vx agent workflows ([06c3558](https://github.com/loonghao/vx/commit/06c35585517f1de8709393c3361c8819de241cd9))
+
 ## [0.9.4](https://github.com/loonghao/vx/compare/v0.9.3...v0.9.4) (2026-05-26)
 
 
