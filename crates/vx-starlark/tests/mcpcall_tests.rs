@@ -1,7 +1,7 @@
 //! Tests for the `mcpcall` provider.
 //!
 //! Verifies the component-prefixed GitHub release layout and direct-binary
-//! install descriptors used by the loonghao/mcpcall v0.3.0 assets.
+//! install descriptors used by the loonghao/mcpcall v0.4.0 assets.
 
 use vx_starlark::{StarlarkEngine, StarlarkProvider};
 
@@ -39,13 +39,13 @@ async fn test_mcpcall_download_url_windows() {
             &content,
             "download_url",
             &ctx,
-            &[serde_json::json!("0.3.0")],
+            &[serde_json::json!("0.4.0")],
         )
         .unwrap();
 
     assert_eq!(
         result.as_str().unwrap(),
-        "https://github.com/loonghao/mcpcall/releases/download/mcpcall-v0.3.0/mcpcall-windows-x86_64.exe"
+        "https://github.com/loonghao/mcpcall/releases/download/mcpcall-v0.4.0/mcpcall-windows-x86_64.exe"
     );
 }
 
@@ -64,13 +64,13 @@ async fn test_mcpcall_download_url_linux_arm64() {
             &content,
             "download_url",
             &ctx,
-            &[serde_json::json!("0.3.0")],
+            &[serde_json::json!("0.4.0")],
         )
         .unwrap();
 
     assert_eq!(
         result.as_str().unwrap(),
-        "https://github.com/loonghao/mcpcall/releases/download/mcpcall-v0.3.0/mcpcall-linux-aarch64"
+        "https://github.com/loonghao/mcpcall/releases/download/mcpcall-v0.4.0/mcpcall-linux-aarch64"
     );
 }
 
@@ -89,7 +89,7 @@ async fn test_mcpcall_install_layout_normalizes_binary_name() {
             &content,
             "install_layout",
             &ctx,
-            &[serde_json::json!("0.3.0")],
+            &[serde_json::json!("0.4.0")],
         )
         .unwrap();
     let layout = result.as_object().unwrap();

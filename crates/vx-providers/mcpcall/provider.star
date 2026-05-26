@@ -6,7 +6,7 @@
 #   macOS:   mcpcall-macos-x86_64, mcpcall-macos-aarch64
 #   Windows: mcpcall-windows-x86_64.exe
 #
-# Tags use the component prefix "mcpcall-v", for example mcpcall-v0.3.0.
+# Tags use the component prefix "mcpcall-v", for example mcpcall-v0.4.0.
 
 load("@vx//stdlib:provider.star",
      "runtime_def", "github_permissions", "fetch_versions_with_tag_prefix")

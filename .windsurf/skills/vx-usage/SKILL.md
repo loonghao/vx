@@ -471,7 +471,7 @@ Use the built-in `mcpcall` provider for scriptable MCP smoke tests. Prefer
 compact vx output plus mcpcall JSON output when agents need concise logs:
 
 ```bash
-vx install mcpcall@0.3.0
+vx install mcpcall@0.4.0
 vx --compact mcpcall list --url http://127.0.0.1:8765/mcp --json
 vx --compact mcpcall doctor --url http://127.0.0.1:8765/mcp --json
 vx --compact mcpcall call --url http://127.0.0.1:8765/mcp dcc_status --json
