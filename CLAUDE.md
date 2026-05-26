@@ -5,10 +5,12 @@
 
 ## Claude Code Specifics
 
-- Follow `AGENTS.md` exactly.
+- Follow [AGENTS.md](AGENTS.md) exactly — it is the single source of truth for vx.
+- Also reference [`llms.txt`](llms.txt) for concise LLM-friendly index, [`llms-full.txt`](llms-full.txt) for full documentation.
 - Use Conventional Commits: `feat:`, `fix:`, `docs:`, `chore:`, `refactor:`, `test:`
 - Run `vx just quick` before submitting PR.
 - PRs target `main` branch.
+- Project version: **v0.9.5** with **142 providers**.
 
 ## Quick Reference
 
@@ -30,3 +32,11 @@ vx-runtime     → Tool installation & management
 vx-starlark    → Starlark DSL engine
 vx-providers/*  → Tool definitions (provider.star)
 ```
+
+## Claude Code Agent-Specific Notes
+
+- **Claude Code MCP**: When configuring MCP servers in `~/.vscode/mcp.json` or `.vscode/mcp.json`, use `vx` as the command: `"command": "vx", "args": ["npx", ...]`
+- **Claude CLI**: Use `vx claude <prompt>` for CLI interaction (if available).
+- **Token optimization**: Use `vx list --format toon` for token-optimized output (saves 40-60% tokens).
+- **Worktree workflow**: Use `vx wt` commands for parallel agent worktrees.
+- **Diagnostics**: Run `vx doctor` first when encountering errors.
