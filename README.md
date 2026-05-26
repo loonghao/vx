@@ -1,12 +1,12 @@
-# 🚀 vx - Universal Development Tool Manager
+# vx - Universal Development Tool Manager
 
 <div align="center">
 
-**One command to rule them all — Zero setup, Zero learning curve**
+**One command to rule them all -- Zero setup, Zero learning curve**
 
 *Built for the AI-native era: Unix Philosophy meets Scriptability*
 
-[中文文档](README_zh.md) | [📖 Documentation](https://docs.rs/vx) | [🚀 Quick Start](#-quick-start) | [💡 Examples](#-real-world-examples)
+[中文文档](README_zh.md) | [Documentation](https://docs.rs/vx) | [Quick Start](#quick-start) | [Examples](#real-world-examples)
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Rust](https://img.shields.io/badge/rust-1.95.0+-blue.svg)](https://www.rust-lang.org)
@@ -20,21 +20,16 @@
 
 ---
 
-## 🤖 Built for AI-Native Development
+## Built for AI-Native Development
 
-> *"Claude Code is designed as a low-level, unopinionated tool... creating a flexible, customizable, scriptable, and safe power tool."*
-> — [Anthropic Engineering: Claude Code Best Practices](https://www.anthropic.com/engineering/claude-code-best-practices)
-
-vx follows the same **Unix Philosophy** and **Scriptability** principles that Anthropic recommends for AI-native development tools:
+vx follows the **Unix Philosophy** and **Scriptability** principles recommended by Anthropic for AI-native development tools:
 
 | Principle | How vx Implements It |
 |-----------|---------------------|
-| **Unix Philosophy** | One tool, one job — `vx` manages all runtimes transparently |
+| **Unix Philosophy** | One tool, one job -- `vx` manages all runtimes transparently |
 | **Scriptability** | Full bash integration, CI/CD ready, headless mode support |
 | **Composability** | Works with any AI coding assistant (Claude Code, Cursor, Copilot) |
 | **Zero Configuration** | AI agents can use any tool without environment setup |
-
-### Why This Matters for AI Coding Assistants
 
 When AI agents like Claude Code need to execute commands across different ecosystems:
 
@@ -44,7 +39,7 @@ When AI agents like Claude Code need to execute commands across different ecosys
 
 # With vx: AI just runs commands directly
 vx npx create-react-app my-app  # Works immediately
-vx uvx ruff check .             # Works immediately  
+vx uvx ruff check .             # Works immediately
 vx cargo build --release        # Works immediately
 ```
 
@@ -52,9 +47,9 @@ vx cargo build --release        # Works immediately
 
 ---
 
-## 💡 Design Philosophy
+## Design Philosophy
 
-### The Problem We Solve
+### The Problem
 
 Every time we start a new development project, we face the same frustrating cycle:
 
@@ -65,9 +60,9 @@ Every time we start a new development project, we face the same frustrating cycl
 - Deal with version conflicts and PATH issues
 - Repeat this process across different machines and environments
 
-**With the rise of MCP (Model Context Protocol)**, this problem has become even more pronounced. Many MCP servers require `uvx` for Python tools and `npx` for Node.js packages, forcing developers to manage multiple tool ecosystems just to get AI assistance working.
+With the rise of **MCP (Model Context Protocol)**, this problem has become even more pronounced. Many MCP servers require `uvx` for Python tools and `npx` for Node.js packages, forcing developers to manage multiple tool ecosystems just to get AI assistance working.
 
-### Our Solution: Zero Learning Curve
+### The Solution: Zero Learning Curve
 
 vx eliminates this complexity while maintaining **zero learning curve**:
 
@@ -85,7 +80,7 @@ vx go run main.go               # Auto-installs Go if needed
 
 ---
 
-## 🚀 Quick Start
+## Quick Start
 
 ### Installation
 
@@ -105,7 +100,7 @@ powershell -c "irm https://raw.githubusercontent.com/loonghao/vx/main/install.ps
 
 ```bash
 # 1) Pin a stable installer version (recommended for CI and enterprise networks)
-VX_VERSION="0.8.36" curl -fsSL https://raw.githubusercontent.com/loonghao/vx/main/install.sh | bash
+VX_VERSION="0.9.6" curl -fsSL https://raw.githubusercontent.com/loonghao/vx/main/install.sh | bash
 
 # 2) Configure multi-source release mirrors (comma separated)
 VX_RELEASE_BASE_URLS="https://mirror.example.com/vx/releases,https://github.com/loonghao/vx/releases" \
@@ -122,7 +117,6 @@ powershell -c "irm https://raw.githubusercontent.com/loonghao/vx/main/install.ps
 
 ### Start Using Immediately
 
-
 ```bash
 # No setup needed - just prefix your commands with 'vx'
 vx node --version               # Auto-installs Node.js
@@ -133,11 +127,11 @@ vx cargo --version              # Auto-installs Rust
 
 ---
 
-## 🎯 Two Ways to Use vx
+## Two Ways to Use vx
 
-### 1️⃣ Direct Execution (For Quick Tasks)
+### 1. Direct Execution (For Quick Tasks)
 
-Just prefix any command with `vx` — tools are auto-installed on first use:
+Just prefix any command with `vx` -- tools are auto-installed on first use:
 
 ```bash
 # Run any tool instantly
@@ -147,7 +141,7 @@ vx go run main.go
 vx cargo build --release
 ```
 
-### 2️⃣ Project Development Environment (For Teams)
+### 2. Project Development Environment (For Teams)
 
 Create a `vx.toml` file to define your project's tool requirements:
 
@@ -192,7 +186,7 @@ vx sync                         # Sync tools with vx.toml
 
 ---
 
-## 📋 Command Reference
+## Command Reference
 
 ### Tool Execution
 
@@ -210,7 +204,7 @@ vx sync                         # Sync tools with vx.toml
 | `vx list` | List all supported runtimes |
 | `vx search <query>` | Search available runtimes |
 
-### Shell & Environment
+### Shell and Environment
 
 | Command | Description |
 |---------|-------------|
@@ -252,7 +246,7 @@ vx sync                         # Sync tools with vx.toml
 
 ---
 
-## 📁 Project Configuration (`vx.toml`)
+## Project Configuration (`vx.toml`)
 
 ```toml
 # VX Project Configuration
@@ -279,15 +273,15 @@ dev = "npm run dev"
 test = "npm test && cargo test"
 build = "npm run build"
 lint = "uvx ruff check . && npm run lint"
-format = "uvx black . && npm run format"
+format = "uvx ruff format . && npm run format"
 # Enhanced: Use {{args}} for complex tool arguments
 test-pkgs = "cargo test {{args}}"
 lint-fix = "eslint {{args}}"
 ```
 
-### 🚀 Enhanced Script System
+### Enhanced Script System
 
-vx now supports **advanced argument passing** for complex tool workflows:
+vx supports **advanced argument passing** for complex tool workflows:
 
 ```bash
 # Pass complex arguments directly to tools
@@ -302,14 +296,14 @@ vx run --list
 ```
 
 **Key Features:**
-- ✅ **Zero conflicts**: Pass `-p`, `--lib`, `--fix` directly to scripts
-- ✅ **Script help**: Use `-H` for script-specific documentation
-- ✅ **Flexible arguments**: Use `{{args}}` in script definitions for maximum flexibility
-- ✅ **Backward compatible**: Existing scripts continue to work
+- **Zero conflicts**: Pass `-p`, `--lib`, `--fix` directly to scripts
+- **Script help**: Use `-H` for script-specific documentation
+- **Flexible arguments**: Use `{{args}}` in script definitions for maximum flexibility
+- **Backward compatible**: Existing scripts continue to work
 
 ---
 
-## 🔌 MCP Integration
+## MCP Integration
 
 vx was designed with MCP (Model Context Protocol) in mind. Just change the command from the tool name to `vx`:
 
@@ -349,7 +343,7 @@ vx was designed with MCP (Model Context Protocol) in mind. Just change the comma
 
 ---
 
-## 🎯 Real-World Examples
+## Real-World Examples
 
 ### Team Onboarding
 
@@ -396,7 +390,7 @@ vx run migrate
 vx uv init my-python-app
 cd my-python-app
 vx uv add fastapi uvicorn
-vx uv add --dev pytest black ruff
+vx uv add --dev pytest ruff
 vx uv run uvicorn main:app --reload
 vx uvx ruff check .
 ```
@@ -429,7 +423,9 @@ vx cargo run
 
 ---
 
-## 📖 Supported Tools
+## Supported Tools (142 providers)
+
+vx manages 142 tools via Starlark DSL providers. Below are some highlights:
 
 ### Language Runtimes
 
@@ -442,6 +438,8 @@ vx cargo run
 | **Rust** | `cargo`, `rustc`, `rustup` | Rust toolchain |
 | **Java** | `java`, `javac` | Java Development Kit |
 | **Zig** | `zig` | Zig programming language |
+| **Python** | `python` (via UV) | Python runtime |
+| **.NET** | `dotnet` | .NET SDK and runtime |
 
 ### Package Managers
 
@@ -450,19 +448,21 @@ vx cargo run
 | **UV** | `uv`, `uvx` | Fast Python package manager |
 | **pnpm** | `pnpm`, `pnpx` | Fast, disk-efficient package manager |
 | **Yarn** | `yarn` | JavaScript package manager |
+| **Conda** | `conda` | Cross-platform package manager |
 
 ### Build Tools
 
 | Tool | Commands | Description |
 |------|----------|-------------|
-| **Vite** | `vite` | Next generation frontend tooling |
 | **Just** | `just` | Command runner for project tasks |
 | **Task** | `task` | Task runner / build tool (go-task) |
 | **CMake** | `cmake` | Cross-platform build system generator |
 | **Ninja** | `ninja` | Small build system focused on speed |
+| **Meson** | `meson` | High-productivity build system |
+| **xmake** | `xmake` | Cross-platform build utility |
 | **protoc** | `protoc` | Protocol Buffers compiler |
 
-### DevOps Tools
+### DevOps and Cloud Tools
 
 | Tool | Commands | Description |
 |------|----------|-------------|
@@ -470,46 +470,64 @@ vx cargo run
 | **Terraform** | `terraform` | Infrastructure as Code |
 | **kubectl** | `kubectl` | Kubernetes CLI |
 | **Helm** | `helm` | Kubernetes package manager |
-
-### Cloud CLI Tools
-
-| Tool | Commands | Description |
-|------|----------|-------------|
 | **AWS CLI** | `aws` | Amazon Web Services CLI |
 | **Azure CLI** | `az` | Microsoft Azure CLI |
 | **gcloud** | `gcloud` | Google Cloud Platform CLI |
+| **k3d** | `k3d` | Lightweight Kubernetes in Docker |
+| **Skaffold** | `skaffold` | Continuous development for Kubernetes |
 
-### Code Quality Tools
-
-| Tool | Commands | Description |
-|------|----------|-------------|
-| **pre-commit** | `pre-commit` | Pre-commit hook framework |
-
-### Other Tools
+### Code Quality and Security
 
 | Tool | Commands | Description |
 |------|----------|-------------|
-| **VS Code** | `code` | Visual Studio Code editor |
-| **Rez** | `rez` | Package management system |
-| **rcedit** | `rcedit` | Windows resource editor |
+| **Ruff** | `ruff` | Fast Python linter and formatter |
+| **Biome** | `biome` | Fast formatter and linter for web |
+| **oxlint** | `oxlint` | Oxidized JavaScript linter |
+| **golangci-lint** | `golangci-lint` | Go linters aggregator |
+| **Trivy** | `trivy` | Security scanner |
+| **Grype** | `grype` | Vulnerability scanner |
+| **gitleaks** | `gitleaks` | Secret scanning |
+
+### CLI Utilities
+
+| Tool | Commands | Description |
+|------|----------|-------------|
+| **ripgrep** | `rg` | Fast regex search |
+| **fd** | `fd` | Fast file finder |
+| **bat** | `bat` | Cat with syntax highlighting |
+| **fzf** | `fzf` | Fuzzy finder |
+| **jq** | `jq` | JSON processor |
+| **yq** | `yq` | YAML/JSON/XML processor |
+| **delta** | `delta` | Better git diff |
+| **lazygit** | `lazygit` | Git terminal UI |
+
+### AI Tools
+
+| Tool | Commands | Description |
+|------|----------|-------------|
+| **Ollama** | `ollama` | Run LLMs locally |
+| **mcpcall** | `mcpcall` | MCP client for CI/smoke tests |
+
+> Run `vx list` to see all 142 supported tools, or `vx search <query>` to find a specific tool.
 
 ---
 
-## 🌟 Why vx?
+## Why vx?
 
 | Feature | vx | nvm/pyenv/etc. |
 |---------|-----|----------------|
-| **Zero Learning Curve** | ✅ Same commands you know | ❌ New commands to learn |
-| **Multi-Language** | ✅ One tool for all | ❌ One tool per language |
-| **Auto-Install** | ✅ On first use | ❌ Manual installation |
-| **Project Config** | ✅ `vx.toml` | ❌ Varies by tool |
-| **Team Sync** | ✅ `vx setup` | ❌ Manual coordination |
-| **MCP Ready** | ✅ Just add `vx` | ❌ Complex setup |
-| **Cross-Platform** | ✅ Windows/macOS/Linux | ⚠️ Varies |
+| **Zero Learning Curve** | Same commands you know | New commands to learn |
+| **Multi-Language** | One tool for all | One tool per language |
+| **Auto-Install** | On first use | Manual installation |
+| **Project Config** | `vx.toml` | Varies by tool |
+| **Team Sync** | `vx setup` | Manual coordination |
+| **MCP Ready** | Just add `vx` | Complex setup |
+| **Cross-Platform** | Windows/macOS/Linux | Varies |
+| **AI Agent DX** | Structured output, schema introspection | No agent support |
 
 ---
 
-## ⚙️ Advanced Configuration
+## Advanced Configuration
 
 ### Global Configuration
 
@@ -550,7 +568,7 @@ vx self-update
 
 ---
 
-## 📦 Installation Options
+## Installation Options
 
 ### Package Managers
 
@@ -570,13 +588,6 @@ yay -S vx-bin
 cargo install --git https://github.com/loonghao/vx
 ```
 
-### Container Image
-
-```bash
-podman pull loonghao/vx:latest
-podman run --rm loonghao/vx --version
-```
-
 ### GitHub Actions
 
 Use vx in your CI/CD workflows:
@@ -591,42 +602,13 @@ Use vx in your CI/CD workflows:
 - run: vx npm test
 ```
 
-> **Note**: Use `@main` for latest, or pin to a specific release tag (e.g., `@vx-v0.8.39`). Check [releases](https://github.com/loonghao/vx/releases) for the latest version.
+> **Note**: Use `@main` for latest, or pin to a specific release tag (e.g., `@vx-v0.9.6`). Check [releases](https://github.com/loonghao/vx/releases) for the latest version.
 
 See [GitHub Action Guide](docs/guides/github-action.md) for full documentation.
 
 ---
 
-## 🧪 Testing
-
-vx includes a comprehensive test suite for all providers:
-
-```bash
-# Test all providers in a clean temporary environment
-vx just test-providers
-
-# Test with verbose output
-vx just test-providers-verbose
-
-# Test specific providers only
-vx just test-providers-filter "node"
-
-# Keep cache for inspection
-vx just test-providers-keep
-```
-
-The test suite:
-- ✅ Uses temporary VX_HOME (auto-cleaned after tests)
-- ✅ Auto-discovers all providers from source
-- ✅ Tests command execution and auto-installation
-- ✅ Generates detailed test reports
-- ✅ CI/CD ready with exit codes and JSON output
-
-See [scripts/README.md](scripts/README.md) for detailed documentation.
-
----
-
-## 🤝 Contributing
+## Contributing
 
 We welcome contributions! See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 
@@ -636,21 +618,13 @@ We welcome contributions! See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 
 ---
 
-## 📄 License
+## License
 
 MIT License - see [LICENSE](LICENSE) for details.
 
-## 📞 Support
+## Support
 
-- 📖 **Documentation**: [GitHub Wiki](https://github.com/loonghao/vx/wiki)
-- 💬 **Discussions**: [GitHub Discussions](https://github.com/loonghao/vx/discussions)
-- 🐛 **Issues**: [Bug Reports](https://github.com/loonghao/vx/issues)
-- 📧 **Contact**: <hal.long@outlook.com>
-
----
-
-<div align="center">
-
-**Made with ❤️ for developers, by developers**
-
-</div>
+- **Documentation**: [GitHub Wiki](https://github.com/loonghao/vx/wiki)
+- **Discussions**: [GitHub Discussions](https://github.com/loonghao/vx/discussions)
+- **Issues**: [Bug Reports](https://github.com/loonghao/vx/issues)
+- **Contact**: <hal.long@outlook.com>
