@@ -5,10 +5,12 @@
 
 ## Gemini Specifics
 
-- Follow `AGENTS.md` exactly.
+- Follow [AGENTS.md](AGENTS.md) exactly — it is the single source of truth for vx.
+- Also reference [`llms.txt`](llms.txt) for concise LLM-friendly index, [`llms-full.txt`](llms-full.txt) for full documentation.
 - Use Conventional Commits: `feat:`, `fix:`, `docs:`, `chore:`, `refactor:`, `test:`
 - Run `vx just quick` before submitting PR.
 - PRs target `main` branch.
+- Project version: **v0.9.5** with **142 providers**.
 
 ## Quick Reference
 
@@ -30,3 +32,11 @@ vx-runtime     → Tool installation & management
 vx-starlark    → Starlark DSL engine
 vx-providers/*  → Tool definitions (provider.star)
 ```
+
+## Google Gemini Agent-Specific Notes
+
+- **Long context window**: Gemini's 1M+ token context enables full project analysis.
+- **Structured reasoning**: Use `vx list --json` or `vx list --output-format toon` for AI-parseable output.
+- **MCP integration**: Replace `npx`/`uvx` with `vx` in MCP configs — `"command": "vx", "args": ["npx", ...]`.
+- **Worktree workflow**: Use `vx wt switch/swtich <branch>` for parallel agent worktrees.
+- **When uncertain**: Read `AGENTS.md` first, then consult `docs/` for deeper details.
