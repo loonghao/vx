@@ -302,7 +302,7 @@ This condition:
 - `.github/workflows/benchmark.yml` - `benchmark` job
 
 **Not affected** (intentionally):
-- `.github/workflows/release-please.yml` - Must still run on release commits to detect `releases_created` and trigger the Release workflow
+- `.github/workflows/release-please.yml` - Must still run on release commits to create or detect the GitHub Release, then trigger the Release workflow only when artifacts still need publishing
 
 ## Best Practices
 
