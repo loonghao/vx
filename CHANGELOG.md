@@ -6,6 +6,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [0.9.7](https://github.com/loonghao/vx/compare/v0.9.6...v0.9.7) (2026-05-26)
+
+
+### Bug Fixes
+
+* **ci:** replace dorny/paths-filter with native git diff ([aab8f2b](https://github.com/loonghao/vx/commit/aab8f2b0f009ab466aa21175d94af65afb4acc93))
+
+
+### Documentation
+
+* remove emojis from README and update descriptions ([8499fb0](https://github.com/loonghao/vx/commit/8499fb059bacafb5807e34e8e02cdbf090198e7e))
+
 ## [0.9.6](https://github.com/loonghao/vx/compare/v0.9.5...v0.9.6) (2026-05-26)
 
 
