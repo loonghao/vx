@@ -84,70 +84,46 @@ jobs:
       - uses: actions/checkout@v6
 
       - name: Detect file changes
-        uses: dorny/paths-filter@v4
         id: filter
-        with:
-          filters: |
-            rust:
-              - 'crates/**'
-              - 'src/**'
-              - 'Cargo.toml'
-              - 'Cargo.lock'
-              - 'tests/**'
-              - 'examples/**'
-              - 'clippy.toml'
-              - 'rust-toolchain.toml'
-              - '.config/hakari.toml'
-            docs:
-              - 'docs/**'
-            ci:
-              - '.github/workflows/**'
-              - 'action.yml'
-            scripts:
-              - 'scripts/**'
-              - 'install*.sh'
-              - 'install*.ps1'
+        shell: bash
+        run: |
+          # Get changed files compared to base branch
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            BASE="${{ github.event.pull_request.base.sha }}"
+          else
+            BASE="${{ github.event.before }}"
+          fi
+          # Fallback to HEAD~1 if BASE is empty or zero commit
+          if [ -z "$BASE" ] || [ "$BASE" = "0000000000000000000000000000000000000000" ]; then
+            BASE="HEAD~1"
+          fi
+          CHANGED=$(git diff --name-only "$BASE" HEAD 2>/dev/null || echo "")
 
-            # Core crates (foundation layer)
-            core:
-              - 'crates/vx-core/**'
-            paths:
-              - 'crates/vx-paths/**'
+          check_pattern() {
+            local pattern="$1"
+            echo "$CHANGED" | grep -qE "$pattern" && echo "true" || echo "false"
+          }
 
-            # Infrastructure crates
-            runtime:
-              - 'crates/vx-runtime/**'
-            resolver:
-              - 'crates/vx-resolver/**'
-            installer:
-              - 'crates/vx-installer/**'
-            config:
-              - 'crates/vx-config/**'
-            env:
-              - 'crates/vx-env/**'
-            setup:
-              - 'crates/vx-setup/**'
-            migration:
-              - 'crates/vx-migration/**'
-            extension:
-              - 'crates/vx-extension/**'
-            args:
-              - 'crates/vx-args/**'
-            project_analyzer:
-              - 'crates/vx-project-analyzer/**'
-            console:
-              - 'crates/vx-console/**'
-            starlark:
-              - 'crates/vx-starlark/**'
-
-            # Application layer
-            cli:
-              - 'crates/vx-cli/**'
-              - 'src/**'
-
-            # All providers (grouped)
-            providers:
-              - 'crates/vx-providers/**'
+          echo "rust=$(check_pattern '^(crates/|src/|Cargo\.(toml|lock)|tests/|examples/|clippy\.toml|rust-toolchain\.toml|\.config/hakari\.toml)')" >> $GITHUB_OUTPUT
+          echo "docs=$(check_pattern '^docs/')" >> $GITHUB_OUTPUT
+          echo "ci=$(check_pattern '^(\.github/workflows/|action\.yml)')" >> $GITHUB_OUTPUT
+          echo "scripts=$(check_pattern '^(scripts/|install.*\.(sh|ps1))')" >> $GITHUB_OUTPUT
+          echo "core=$(check_pattern '^crates/vx-core/')" >> $GITHUB_OUTPUT
+          echo "paths=$(check_pattern '^crates/vx-paths/')" >> $GITHUB_OUTPUT
+          echo "runtime=$(check_pattern '^crates/vx-runtime/')" >> $GITHUB_OUTPUT
+          echo "resolver=$(check_pattern '^crates/vx-resolver/')" >> $GITHUB_OUTPUT
+          echo "installer=$(check_pattern '^crates/vx-installer/')" >> $GITHUB_OUTPUT
+          echo "config=$(check_pattern '^crates/vx-config/')" >> $GITHUB_OUTPUT
+          echo "env=$(check_pattern '^crates/vx-env/')" >> $GITHUB_OUTPUT
+          echo "setup=$(check_pattern '^crates/vx-setup/')" >> $GITHUB_OUTPUT
+          echo "migration=$(check_pattern '^crates/vx-migration/')" >> $GITHUB_OUTPUT
+          echo "extension=$(check_pattern '^crates/vx-extension/')" >> $GITHUB_OUTPUT
+          echo "args=$(check_pattern '^crates/vx-args/')" >> $GITHUB_OUTPUT
+          echo "project_analyzer=$(check_pattern '^crates/vx-project-analyzer/')" >> $GITHUB_OUTPUT
+          echo "console=$(check_pattern '^crates/vx-console/')" >> $GITHUB_OUTPUT
+          echo "starlark=$(check_pattern '^crates/vx-starlark/')" >> $GITHUB_OUTPUT
+          echo "cli=$(check_pattern '^(crates/vx-cli/|src/)')" >> $GITHUB_OUTPUT
+          echo "providers=$(check_pattern '^crates/vx-providers/')" >> $GITHUB_OUTPUT
 
       - name: Compute affected crates
         id: compute-affected
