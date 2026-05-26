@@ -256,6 +256,28 @@ vx --trace node --version
 vx --verbose install node
 ```
 
+### Noisy CI and Log Triage
+
+When debugging GitHub Actions, do not start by reading the full log. Use
+structured status first, then capped searches, then compact mode if the failure
+still needs broad context:
+
+```bash
+# Job status without logs
+vx gh run view <run-id> --json status,conclusion,jobs --jq '.jobs[] | {name,conclusion}'
+
+# Focused failure search
+vx gh run view <run-id> --log | vx rg -n -m 80 "error|failed|panic|Traceback|FAILED|warning"
+
+# Broad fallback with compact filtering
+vx --compact gh run view <run-id> --log
+```
+
+Interpret keyword searches carefully. Passing tests may contain names like
+`returns_failure_envelope PASSED`, and build commands may include flags such as
+`--warnings-as-errors`; confirm the job conclusion and surrounding lines before
+treating a match as the root cause.
+
 ### Cache Inspection
 
 ```bash
@@ -393,6 +415,7 @@ When a user reports a vx issue, follow this decision tree:
    → Ensure the GitHub Action is used: loonghao/vx@main
    → Add github-token for rate limit avoidance
    → Use cache: 'true' for faster CI runs
+   → Inspect logs in order: `--json --jq`, capped `vx rg`, then `vx --compact`
 
 8. General error (exit code 1)
    → Run: vx doctor for full diagnostics

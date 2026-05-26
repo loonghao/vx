@@ -83,6 +83,24 @@ mcp-tools = "vx --compact mcpcall list --url http://127.0.0.1:8765/mcp --json"
 mcp-doctor = "vx --compact mcpcall doctor --url http://127.0.0.1:8765/mcp --json"
 ```
 
+### 省 token 的 CI 检查
+
+查看 GitHub Actions 或其他大日志时，先做语义压缩，再读原始输出：
+
+```bash
+# 先看状态和 job 结论
+vx gh run view <run-id> --json status,conclusion,jobs --jq '.jobs[] | {name,conclusion}'
+
+# 再做带上限的日志搜索
+vx gh run view <run-id> --log | vx rg -n -m 80 "error|failed|panic|Traceback|FAILED|warning"
+
+# 仍需要大范围上下文时，用 compact 子进程过滤兜底
+vx --compact gh run view <run-id> --log
+```
+
+默认 `vx gh` 和 `vx git` 保持透明转发。只有在原生命令没有更小的结构化视图时，
+才显式加 `--compact`。
+
 ### 本地 LLM + Python AI 技术栈
 
 搭建完整的本地 AI 开发环境：

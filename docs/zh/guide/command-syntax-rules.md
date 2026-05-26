@@ -65,12 +65,15 @@
 |---|---|---|
 | JSON 结构化输出 | `--json` | `--output-format json` 的快捷方式；与 `--output-format` 同时出现时优先。 |
 | TOON（LLM 友好）输出 | `--toon` | `--output-format toon` 的快捷方式；与 `--output-format` 同时出现时优先。 |
-| 显式输出模式 | `--output-format <text|json|toon>` | 未使用快捷参数时的显式主写法。 |
+| Compact 输出 / 过滤 | `--compact` / `-u` | `--output-format compact` 的快捷方式；对转发子进程输出显式启用压缩过滤。 |
+| 显式输出模式 | `--output-format <text|json|toon|compact>` | 未使用快捷参数时的显式主写法。 |
+| Compact 过滤级别 | `--filter-level <light|normal|aggressive>` | compact 模式生效时调节子进程输出过滤强度。 |
 | 缓存策略 | `--cache-mode <normal|refresh|offline|no-cache>` | 所有执行路径统一缓存控制语义。 |
 
 决策说明：
 
-- 输出参数优先级：快捷参数（`--json` / `--toon`）> `--output-format` > 环境默认值。
+- 输出参数优先级：快捷参数（`--json` / `--toon` / `--compact`）> `--output-format` > 环境默认值。
+- `vx git`、`vx gh` 这类转发命令默认保持原生命令输出；compact 过滤必须显式开启。
 - `cache-mode` 的解析和执行语义必须在解析器、执行器、文档示例中保持一致。
 
 ## 能力覆盖矩阵（核心场景）

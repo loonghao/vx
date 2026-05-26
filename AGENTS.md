@@ -487,7 +487,7 @@ Use `@main` for latest, or pin to a release tag. Full guide: [`docs/guides/githu
 
 1. **Check for `vx.toml`** → if present, always use `vx` prefix
 2. **Never suggest manual installation** — `vx` handles it
-3. **Use structured output**: `vx list --json` or `vx list --output-format toon`
+3. **Use token-efficient output**: prefer `--json` with selected fields, `--jq`, `--toon`, and explicit `--compact` for broad logs
 4. **For MCP servers**, replace `npx`/`uvx` with `vx` in config
 5. **For CI/CD**, use `loonghao/vx@main` GitHub Action
 
@@ -572,6 +572,13 @@ For a full error-by-error decision tree, see [`docs/appendix/troubleshooting.md`
 
 ```bash
 vx list --json             # JSON output
-vx list --output-format toon      # Token-optimized (saves 40-60% tokens)
+vx list --output-format toon      # Token-oriented structured output
+vx --compact gh run view 123 --log # Compact forwarded subprocess output
 vx analyze --json          # Project analysis
 ```
+
+For CI and other huge logs, use this order: `vx gh ... --json --jq` for status,
+`vx gh ... --log | vx rg -n -m 80 "error|failed|panic|Traceback"` for focused
+matches, then `vx --compact ...` when broad context is still needed. Default
+`vx git` and `vx gh` remain transparent forwarded commands; compacting is an
+explicit opt-in.

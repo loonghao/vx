@@ -1,6 +1,6 @@
 # vx — AI Agent Skills
 
-This directory contains AI agent skills for **[vx](https://github.com/loonghao/vx)** — the universal development tool manager (v0.8.25).
+This directory contains AI agent skills for **[vx](https://github.com/loonghao/vx)** — the universal development tool manager (v0.9.4).
 
 > **Core concept**: vx = prefix any dev tool command with `vx` → it auto-installs the tool and runs it.
 
@@ -32,7 +32,10 @@ vx skills should teach agents to be precise, scoped, and token-aware:
 - Prefer the smallest maintainable change that solves the actual request.
 - Read the narrowest relevant file, symbol, diff, log, or test output first.
 - Scope command output before printing it; use `vx rg`, `vx fd`, `vx gh --json`,
-  `vx jq`, and `vx metrics tokens` to keep context useful.
+  `vx gh --jq`, `vx jq`, `vx --compact`, and `vx metrics tokens` to keep context useful.
+- Prefer semantic reduction first (`--json`, selected fields, `--jq`, `--toon`);
+  use explicit `--compact` for broad subprocess logs after structured and grep-style
+  views are insufficient.
 - Avoid broad repo dumps, full logs, unrelated cleanup, and single-use wrappers.
 - Validate according to risk with the cheapest useful focused check first.
 - Treat `skills/` as the canonical source and project-level skill directories as
@@ -43,7 +46,7 @@ vx skills should teach agents to be precise, scoped, and token-aware:
 | Skill | Description | Size | Best for |
 |-------|-------------|------|----------|
 | **vx-usage** | Core usage guide — commands, vx.toml, providers, GitHub Actions, MCP integration | ~15 KB | First-time users, general questions |
-| **vx-commands** | CLI command reference — all flags, output formats (`--json`, `--output-format toon`) | ~6 KB | Looking up specific command syntax |
+| **vx-commands** | CLI command reference — flags, forwarding, and output formats (`--json`, `--toon`, `--compact`) | ~6 KB | Looking up specific command syntax |
 | **vx-project** | Project management — init, sync, setup, vx.toml configuration, monorepo | ~6 KB | Setting up or configuring projects |
 | **vx-best-practices** | Best practices — version strategy, cross-platform, security, provider development | ~10 KB | Team workflows, provider creation |
 | **vx-troubleshooting** | Troubleshooting — installation failures, PATH issues, diagnostics, recovery | ~8 KB | Fixing errors, diagnosing issues |
