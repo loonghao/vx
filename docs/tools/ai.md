@@ -68,7 +68,7 @@ vx compact mode with mcpcall's JSON output when agents or CI need concise,
 machine-readable logs:
 
 ```bash
-vx install mcpcall@0.3.0
+vx install mcpcall@0.4.0
 vx --compact mcpcall list --url http://127.0.0.1:8765/mcp --json
 vx --compact mcpcall doctor --url http://127.0.0.1:8765/mcp --json
 vx --compact mcpcall call --url http://127.0.0.1:8765/mcp dcc_status --json
@@ -76,7 +76,7 @@ vx --compact mcpcall call --url http://127.0.0.1:8765/mcp dcc_status --json
 
 ```toml
 [tools]
-mcpcall = "0.3.0"
+mcpcall = "0.4.0"
 
 [scripts]
 mcp-tools = "vx --compact mcpcall list --url http://127.0.0.1:8765/mcp --json"
