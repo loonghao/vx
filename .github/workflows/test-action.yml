@@ -44,19 +44,24 @@ jobs:
       should_run: ${{ steps.filter.outputs.should_run }}
     steps:
       - uses: actions/checkout@v6
-      - uses: dorny/paths-filter@v4
+      - name: Detect file changes
         id: filter
-        with:
-          filters: |
-            should_run:
-              - 'action.yml'
-              - '.github/workflows/test-action.yml'
-              - 'install.sh'
-              - 'install.ps1'
-              - 'crates/vx-resolver/**'
-              - 'crates/vx-runtime/**'
-              - 'crates/vx-installer/**'
-              - 'crates/vx-providers/**'
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            BASE="${{ github.event.pull_request.base.sha }}"
+          else
+            BASE="${{ github.event.before }}"
+          fi
+          if [ -z "$BASE" ] || [ "$BASE" = "0000000000000000000000000000000000000000" ]; then
+            BASE="HEAD~1"
+          fi
+          CHANGED=$(git diff --name-only "$BASE" HEAD 2>/dev/null || echo "")
+          if echo "$CHANGED" | grep -qE '^(action\.yml|\.github/workflows/test-action\.yml|install\.(sh|ps1)|crates/vx-(resolver|runtime|installer|providers)/)'; then
+            echo "should_run=true" >> $GITHUB_OUTPUT
+          else
+            echo "should_run=false" >> $GITHUB_OUTPUT
+          fi
 
   # ============================================================================
   # Stage 1: Build vx from current source
