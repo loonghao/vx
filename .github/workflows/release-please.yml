@@ -35,10 +35,11 @@
 # is skipped — so cargo-dist never runs for that version.
 #
 # Fix: Both jobs trigger the Release workflow when their release-please step
-# reports releases_created=true. Additionally, the `release` job has a fallback
-# that dispatches Release based on the tag derived from
-# .release-please-manifest.json when the release already exists (i.e. it was
-# created by a prior run), ensuring cargo-dist always runs once per release.
+# reports releases_created=true. Additionally, the `release` job checks whether
+# the manifest tag already has a GitHub Release before invoking release-please.
+# If it does, skip release-please to avoid duplicate tag/release failures, then
+# dispatch cargo-dist only when the release has no assets and no Release workflow
+# is already active.
 
 name: Release Please
 
@@ -61,10 +62,43 @@ jobs:
     if: >-
       startsWith(github.event.head_commit.message, 'chore: release')
     outputs:
-      releases_created: ${{ steps.release.outputs.releases_created }}
-      tag_name: ${{ steps.release.outputs.tag_name }}
+      releases_created: ${{ steps.release.outputs.releases_created || 'false' }}
+      tag_name: ${{ steps.release.outputs.tag_name || steps.release-state.outputs.tag }}
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Check existing release state
+        id: release-state
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          version=$(jq -r '."."' .release-please-manifest.json)
+          if [ -z "$version" ] || [ "$version" = "null" ]; then
+            echo "::warning::Could not read version from .release-please-manifest.json."
+            echo "tag=" >> "$GITHUB_OUTPUT"
+            echo "release_exists=false" >> "$GITHUB_OUTPUT"
+            echo "asset_count=0" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          tag="v${version}"
+          echo "tag=${tag}" >> "$GITHUB_OUTPUT"
+          echo "Release commit targets ${tag}."
+
+          if asset_count=$(gh release view "$tag" --repo "${{ github.repository }}" --json assets --jq '.assets | length' 2>/dev/null); then
+            echo "release_exists=true" >> "$GITHUB_OUTPUT"
+            echo "asset_count=${asset_count}" >> "$GITHUB_OUTPUT"
+            echo "Release ${tag} already exists with ${asset_count} asset(s); skipping release-please create path."
+          else
+            echo "release_exists=false" >> "$GITHUB_OUTPUT"
+            echo "asset_count=0" >> "$GITHUB_OUTPUT"
+            echo "Release ${tag} does not exist yet; release-please will create it."
+          fi
+
       - uses: googleapis/release-please-action@v5
+        if: ${{ steps.release-state.outputs.release_exists != 'true' }}
         id: release
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
@@ -83,33 +117,39 @@ jobs:
             --repo "${{ github.repository }}" \
             --field "tag=${{ steps.release.outputs.tag_name }}"
 
-      # Fallback: the release may have been created by a prior `update-pr`
-      # run (race condition — see workflow header). In that case
-      # releases_created is 'false' but the release still needs cargo-dist
-      # to publish artifacts. Derive the tag from the manifest, verify the
-      # release exists, and dispatch Release if it does.
-      - name: Checkout repository
-        if: ${{ steps.release.outputs.releases_created != 'true' }}
-        uses: actions/checkout@v6
-
-      - name: Trigger Release workflow (fallback)
-        if: ${{ steps.release.outputs.releases_created != 'true' }}
+      # Fallback: the release may already exist because an earlier run created
+      # it before this release commit's workflow started. If assets are still
+      # missing and no Release workflow is active, dispatch cargo-dist once.
+      - name: Trigger Release workflow (existing release fallback)
+        if: >-
+          ${{
+            steps.release.outputs.releases_created != 'true' &&
+            steps.release-state.outputs.release_exists == 'true' &&
+            steps.release-state.outputs.asset_count == '0'
+          }}
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
-          version=$(jq -r '."."' .release-please-manifest.json)
-          if [ -z "$version" ] || [ "$version" = "null" ]; then
-            echo "::warning::Could not read version from .release-please-manifest.json; skipping fallback dispatch."
+          tag="${{ steps.release-state.outputs.tag }}"
+          if [ -z "$tag" ]; then
+            echo "::warning::No release tag available; skipping fallback dispatch."
             exit 0
           fi
-          tag="v${version}"
-          echo "releases_created=false but commit is 'chore: release'; checking tag ${tag}..."
-          if ! gh release view "$tag" --repo "${{ github.repository }}" >/dev/null 2>&1; then
-            echo "::warning::Release ${tag} does not exist yet; nothing to dispatch."
+
+          active_release_runs="$(gh run list \
+            --repo "${{ github.repository }}" \
+            --workflow release.yml \
+            --limit 20 \
+            --json status \
+            --jq '[.[] | select(.status != "completed")] | length')"
+
+          if [ "$active_release_runs" != "0" ]; then
+            echo "Release workflow is already active (${active_release_runs} run(s)); skipping fallback dispatch for ${tag}."
             exit 0
           fi
-          echo "Release ${tag} already exists (likely created by a prior run). Dispatching Release workflow..."
+
+          echo "Release ${tag} exists without assets and no Release workflow is active. Dispatching Release workflow..."
           gh workflow run release.yml \
             --repo "${{ github.repository }}" \
             --field "tag=${tag}"

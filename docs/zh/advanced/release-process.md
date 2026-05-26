@@ -300,7 +300,7 @@ if: >-
 - `.github/workflows/benchmark.yml` - `benchmark` 作业
 
 **不受影响**（有意为之）：
-- `.github/workflows/release-please.yml` - 必须在发布提交时继续运行，以检测 `releases_created` 并触发 Release 工作流
+- `.github/workflows/release-please.yml` - 必须在发布提交时继续运行，以创建或检测 GitHub Release，并且只在发布资源仍需上传时触发 Release 工作流
 
 ## 最佳实践
 
