@@ -6,6 +6,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [0.9.6](https://github.com/loonghao/vx/compare/v0.9.5...v0.9.6) (2026-05-26)
+
+
+### Documentation
+
+* update AGENTS.md, GEMINI.md, CLAUDE.md, add SECURITY.md and CODE_OF_CONDUCT.md ([7547b20](https://github.com/loonghao/vx/commit/7547b200e1afd18ed225d8ef3f410d4e0b4e903e))
+* update AGENTS.md, GEMINI.md, CLAUDE.md, add SECURITY.md and CODE_OF_CONDUCT.md ([#915](https://github.com/loonghao/vx/issues/915)) ([7547b20](https://github.com/loonghao/vx/commit/7547b200e1afd18ed225d8ef3f410d4e0b4e903e))
+
 ## [0.9.5](https://github.com/loonghao/vx/compare/v0.9.4...v0.9.5) (2026-05-26)
 
 
