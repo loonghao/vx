@@ -17,24 +17,18 @@ hero:
       link: https://github.com/loonghao/vx
 
 features:
-  - icon: "\U0001F680"
-    title: Zero Configuration
+  - title: Zero Configuration
     details: Works out of the box, no setup required. Just prefix your commands with vx.
-  - icon: "\U0001F527"
-    title: Auto-Installation
+  - title: Auto-Installation
     details: Tools are installed automatically on first use. No manual installation needed.
-  - icon: "\U0001F4E6"
-    title: Version Management
+  - title: Version Management
     details: Pin specific versions per project with vx.toml configuration.
-  - icon: "\U0001F310"
-    title: Cross-Platform
+  - title: Cross-Platform
     details: Works seamlessly on Windows, macOS, and Linux.
-  - icon: "\u26A1"
-    title: Blazing Fast
+  - title: Blazing Fast
     details: Written in Rust for maximum performance and minimal overhead.
-  - icon: "\U0001F529"
-    title: Extensible
-    details: Plugin system for adding custom tools and workflows.
+  - title: Extensible
+    details: 142 tools via Starlark DSL providers. Add custom tools declaratively.
 ---
 
 ## The Problem We Solve
