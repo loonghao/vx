@@ -60,20 +60,24 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - uses: dorny/paths-filter@v4
+      - name: Detect file changes
         id: filter
-        with:
-          filters: |
-            should_run:
-              - 'crates/vx-providers/**'
-              - 'crates/vx-runtime/**'
-              - 'crates/vx-installer/**'
-              - 'crates/vx-starlark/**'
-              - 'crates/vx-star-metadata/**'
-              - 'crates/vx-manifest/**'
-              - '.github/workflows/test-providers.yml'
-              - '.github/scripts/discover-providers.sh'
-              - '.github/scripts/summarize-test-results.sh'
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            BASE="${{ github.event.pull_request.base.sha }}"
+          else
+            BASE="${{ github.event.before }}"
+          fi
+          if [ -z "$BASE" ] || [ "$BASE" = "0000000000000000000000000000000000000000" ]; then
+            BASE="HEAD~1"
+          fi
+          CHANGED=$(git diff --name-only "$BASE" HEAD 2>/dev/null || echo "")
+          if echo "$CHANGED" | grep -qE '^(crates/vx-(providers|runtime|installer|starlark|star-metadata|manifest)/|\.github/(workflows/test-providers\.yml|scripts/(discover-providers|summarize-test-results)\.sh))'; then
+            echo "should_run=true" >> $GITHUB_OUTPUT
+          else
+            echo "should_run=false" >> $GITHUB_OUTPUT
+          fi
 
       - name: Determine provider scope
         id: scope

@@ -43,17 +43,24 @@ jobs:
       should_run: ${{ steps.filter.outputs.should_run }}
     steps:
       - uses: actions/checkout@v6
-      - uses: dorny/paths-filter@v4
+      - name: Detect file changes
         id: filter
-        with:
-          filters: |
-            should_run:
-              - 'pkg/docker/**'
-              - 'Dockerfile'
-              - '.github/workflows/test-docker.yml'
-              - 'crates/**'
-              - 'Cargo.toml'
-              - 'Cargo.lock'
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            BASE="${{ github.event.pull_request.base.sha }}"
+          else
+            BASE="${{ github.event.before }}"
+          fi
+          if [ -z "$BASE" ] || [ "$BASE" = "0000000000000000000000000000000000000000" ]; then
+            BASE="HEAD~1"
+          fi
+          CHANGED=$(git diff --name-only "$BASE" HEAD 2>/dev/null || echo "")
+          if echo "$CHANGED" | grep -qE '^(pkg/docker/|Dockerfile|\.github/workflows/test-docker\.yml|crates/|Cargo\.(toml|lock))'; then
+            echo "should_run=true" >> $GITHUB_OUTPUT
+          else
+            echo "should_run=false" >> $GITHUB_OUTPUT
+          fi
 
   test-dockerfile-syntax:
     name: Validate Dockerfile syntax
