@@ -1471,7 +1471,7 @@ pub enum AuthCommand {
 pub enum AiCommand {
     /// Install vx skills to AI agent configuration directories
     ///
-    /// Copies the built-in vx-usage skill to each agent's skills directory,
+    /// Copies the built-in vx skills to each agent's skills directory,
     /// so AI coding agents can better understand and use vx.
     Setup {
         /// Target specific agents (default: all supported agents)

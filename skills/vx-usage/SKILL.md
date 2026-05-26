@@ -1,6 +1,6 @@
 ---
 name: vx-usage
-description: "Teaches AI agents how to use vx, the universal dev tool manager. Use when the project has vx.toml or .vx/, or when the user mentions vx, tool version management, Git/GitHub operations, or cross-platform setup. vx auto-manages Node.js, Python, Go, Rust, and 138 tools via Starlark DSL providers. Also covers MCP integration patterns and GitHub Actions."
+description: "Teaches AI agents how to use vx, the universal dev tool manager. Use when the project has vx.toml or .vx/, or when the user mentions vx, tool version management, Git/GitHub operations, or cross-platform setup. vx auto-manages Node.js, Python, Go, Rust, and 142 providers via Starlark DSL provider.star files. Also covers MCP integration patterns and GitHub Actions."
 ---
 
 # VX - Universal Development Tool Manager
@@ -55,7 +55,7 @@ vx git commit -m "fix: example"
 vx gh issue view 123
 vx gh pr view 456 --json title,state,headRefName
 vx gh pr checks 456
-vx gh run view 789 --log
+vx gh run view 789 --json status,conclusion,jobs
 ```
 
 ### Token-Efficient Agent Workflows
@@ -82,7 +82,9 @@ vx git grep -n "CommandOutput" origin/main -- crates/vx-cli
 vx gh issue view 123 --json title,state,labels,body
 vx gh pr view 456 --json title,state,headRefName,baseRefName,files
 vx gh pr checks 456 --json name,state,conclusion,link
-vx gh run view 789 --log | vx rg -n "error|failed|panic|warning"
+vx gh run view 789 --json status,conclusion,jobs
+vx gh run view 789 --json jobs --jq '.jobs[] | {name,conclusion,startedAt,completedAt}'
+vx gh run view 789 --log | vx rg -n -m 80 "error|failed|panic|Traceback|warning"
 
 # Structured filtering
 vx jq -r '.files[].path' pr.json
@@ -92,9 +94,23 @@ vx yq '.jobs | keys' .github/workflows/ci.yml
 Token-saving defaults for agents:
 - Start with `vx rg`, `vx fd`, `vx git diff --stat`, and `vx git diff --name-only`; open full files or full diffs only after locating the relevant surface.
 - Use `vx gh --json ...` with selected fields, and add `--jq` when a small projection is enough.
-- Use vx structured output flags when the vx command supports them: `--json`, `--fields`, `--toon`, or `--output-format toon`.
+- Use vx structured output flags when the vx command supports them: `--json`, `--fields`, `--toon`, `--compact`, or `--output-format toon|compact`.
 - For forwarded runtimes like `vx node`, `vx cargo`, or `vx npm`, use that tool's own quiet, JSON, or filtering flags when available.
 - Pipe large logs through vx-managed filters such as `vx rg`, `vx jq`, or `vx yq` before reading them.
+- Use `vx --compact <tool> ...` only when you still need broad subprocess output after structured fields and grep-style filters are not enough. It preserves vx transparency unless explicitly requested.
+- Do not expect default `vx git` or `vx gh` forwarding to shrink output; explicit `--json`, `--jq`, filtering, or `--compact` is what saves tokens.
+
+Compression decision tree for CI/log triage:
+1. Status only: `vx gh run view <run> --json status,conclusion,jobs --jq '.jobs[] | {name,conclusion}'`.
+2. Suspected failure: `vx gh run view <run> --log | vx rg -n -m 80 "error|failed|panic|Traceback|FAILED|warning"`.
+3. Broad but bounded context: `vx --compact gh run view <run> --log`.
+4. Last resort: full raw logs, preferably saved to a file and searched locally before being pasted into an agent prompt.
+
+Observed on a successful 5,589-line GitHub Actions run: selected `gh --json --jq`
+projection was about 500 tokens, raw `gh --log` output was about 226k tokens,
+and `vx --compact gh --log` was about 15.9k tokens. That makes semantic
+selection the default, compact mode the fallback for broad context, and raw logs
+the exception.
 
 ### Agent Operating Principles
 
@@ -122,7 +138,9 @@ Examples:
 vx rg -n -m 20 "render_token_savings|OutputRenderer" crates/vx-cli crates/vx-metrics
 vx git diff --stat origin/main...HEAD
 vx git diff --name-only origin/main...HEAD
-vx gh run view 789 --log | vx rg -n -m 50 "error|failed|panic"
+vx gh run view 789 --json status,conclusion,jobs --jq '.jobs[] | {name,conclusion}'
+vx gh run view 789 --log | vx rg -n -m 50 "error|failed|panic|Traceback|FAILED"
+vx --compact gh run view 789 --log
 vx metrics tokens --last 20 --json
 ```
 
@@ -289,7 +307,7 @@ vx msvc@14.40 cl main.cpp
 | lib | `vx msvc lib` | Library manager |
 | nmake | `vx msvc nmake` | Make utility |
 
-## Supported Tools (138 Providers)
+## Supported Tools (142 Providers)
 
 | Category | Tools |
 |----------|-------|
@@ -318,7 +336,7 @@ vx msvc@14.40 cl main.cpp
 
 ## Provider System (Starlark DSL)
 
-All 138 providers are defined using **provider.star** (Starlark DSL) — a declarative, zero-compilation approach. Each provider lives in `crates/vx-providers/<name>/provider.star`.
+All 142 providers are defined using **provider.star** (Starlark DSL) — a declarative, zero-compilation approach. Each provider lives in `crates/vx-providers/<name>/provider.star`.
 
 vx uses a **two-phase execution model** (inspired by Buck2):
 1. **Analysis Phase (Starlark)**: `provider.star` runs as pure computation, returning descriptor dicts. No I/O.
@@ -402,7 +420,7 @@ Key modules:
 5. **Use `vx git`** instead of `git` for repository operations
 6. **Use `vx gh`** instead of `gh` for GitHub issue, PR, checks, and workflow operations
 7. **Use `vx rg`, `vx fd`, `vx jq`, and `vx yq`** for scoped search and structured filtering
-8. **Prefer token-efficient output**: `--json`, selected fields, `--jq`, `--toon`, `--output-format toon`, and narrow globs
+8. **Prefer token-efficient output**: `--json`, selected fields, `--jq`, `--toon`, `--compact`, `--output-format toon|compact`, and narrow globs
 9. **Check `vx.toml`** first to understand project tool requirements
 10. **Use `vx run <script>`** for project-defined scripts
 11. **Never suggest manual tool installation** - vx handles it automatically

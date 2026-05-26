@@ -20,18 +20,19 @@ vx addresses all of these.
 
 ---
 
-## 1. Auto Machine-Readable Output (TTY Detection)
+## 1. Auto Token-Oriented Output (TTY Detection)
 
 When stdout is **not a TTY** (piped to an agent, script, or CI pipeline), vx
-automatically switches from human-readable text to compact NDJSON — no flags needed.
+automatically switches from human-readable text to TOON — a token-oriented
+structured format for LLM prompts.
 
 ```bash
 # Human (TTY): rich text with emoji
 vx list
 
-# Agent (pipe): compact JSON, one object per line
+# Agent (pipe): token-oriented TOON
 vx list | cat
-# {"runtimes":[{"name":"node","installed":true,"version":"20.0.0",...}],...}
+# runtimes[...]{name,installed,description}:
 ```
 
 ### Override
@@ -43,6 +44,11 @@ VX_OUTPUT=text vx list | cat
 # Force JSON even in terminal
 vx list --json
 vx list --output-format json
+
+# Force TOON or compact output
+vx list --toon
+vx list --output-format toon
+vx --compact list node
 ```
 
 ---
@@ -66,7 +72,30 @@ The `--fields` flag is global and applies to all JSON-outputting commands.
 
 ---
 
-## 3. Schema Introspection (`vx schema`)
+## 3. Compact Subprocess Output
+
+Forwarded tools keep their native stdout by default. When a command can produce
+huge logs and no better structured output is available, opt in to compact mode:
+
+```bash
+# GitHub Actions status first, without logs
+vx gh run view 123 --json status,conclusion,jobs --jq '.jobs[] | {name,conclusion}'
+
+# Capped log search next
+vx gh run view 123 --log | vx rg -n -m 80 "error|failed|panic|Traceback|FAILED|warning"
+
+# Broad fallback with RTK-style filtering
+vx --compact gh run view 123 --log
+vx --compact --filter-level aggressive cargo test
+```
+
+Compact mode strips ANSI noise, collapses repeated lines, preserves
+error-looking lines, and applies a line budget. Use `--filter-level light`,
+`normal`, or `aggressive` to tune how much output is suppressed.
+
+---
+
+## 4. Schema Introspection (`vx schema`)
 
 Agents can discover what vx accepts at runtime — no static docs, no hallucinations:
 
@@ -102,7 +131,7 @@ Example output for `vx schema node`:
 
 ---
 
-## 4. Input Validation (Defense Against Hallucinations)
+## 5. Input Validation (Defense Against Hallucinations)
 
 vx treats all CLI inputs as untrusted — agents can hallucinate adversarial values.
 The `input_validation` module rejects:
@@ -123,7 +152,7 @@ Error: Invalid runtime name 'node?version=20': embedded query parameters not all
 
 ---
 
-## 5. Disable Auto-Install (`--no-auto-install`)
+## 6. Disable Auto-Install (`--no-auto-install`)
 
 Agents in CI/CD pipelines should have explicit install steps. Use this to prevent
 silent auto-installation:
@@ -138,7 +167,7 @@ VX_NO_AUTO_INSTALL=1 vx node --version
 
 ---
 
-## 6. Dry-Run Mode (`--dry-run`)
+## 7. Dry-Run Mode (`--dry-run`)
 
 Agents can validate operations before executing them, preventing data loss from
 hallucinated parameters:
@@ -156,7 +185,7 @@ vx init --dry-run
 
 ---
 
-## 7. Environment Variable Authentication
+## 8. Environment Variable Authentication
 
 Agents cannot perform browser-based OAuth flows. Use environment variables to
 inject credentials:
@@ -171,7 +200,7 @@ vx auth login github --token ghp_xxx
 
 ---
 
-## 8. AI Context (`vx ai context`)
+## 9. AI Context (`vx ai context`)
 
 Get a structured project context dump optimized for AI agents:
 
@@ -185,7 +214,7 @@ vx ai context --minimal --json
 
 ---
 
-## 9. Cross-Language Global Install Contract
+## 10. Cross-Language Global Install Contract
 
 vx preserves ecosystem-native global install syntax while keeping installs inside
 vx-managed isolation and shim workflows:
@@ -236,7 +265,8 @@ vx ai context --minimal --json
 
 | Variable | Values | Description |
 |----------|--------|-------------|
-| `VX_OUTPUT` | `json`, `text`, `toon` | Override output format |
+| `VX_OUTPUT` | `json`, `text`, `toon`, `compact` | Override output format |
+| `VX_FILTER_LEVEL` | `light`, `normal`, `aggressive` | Tune compact subprocess filtering |
 | `VX_NO_AUTO_INSTALL` | `1`, `true`, `yes` | Disable auto-installation |
 | `VX_OUTPUT_JSON` | `1` | Legacy: force JSON (prefer `VX_OUTPUT=json`) |
 | `GITHUB_TOKEN` | `ghp_...` | GitHub API token for version fetching |

@@ -5,7 +5,7 @@ description: "Best practices for using vx effectively. Use when following recomm
 
 # VX Best Practices
 
-> **Golden rule**: Always prefix tool commands with `vx` in vx-managed projects. Use `vx.toml` for project-level tool versions, commit `vx.lock` for reproducibility, and prefer templates over custom code when creating providers.
+> **Golden rule**: Always prefix tool commands with `vx` in vx-managed projects. Use `vx.toml` for project-level tool versions, commit `vx.lock` for reproducibility, prefer templates over custom code when creating providers, and prefer structured or compact output before reading large logs.
 
 ## General Principles
 
@@ -42,8 +42,8 @@ vx install node@22
 Always commit `vx.lock` to ensure reproducible builds:
 
 ```bash
-git add vx.lock
-git commit -m "chore: update dependencies"
+vx git add vx.lock
+vx git commit -m "chore: update dependencies"
 ```
 
 ### 4. Keep Agent Work Small and Observable
@@ -66,8 +66,23 @@ vx rg -n -m 20 "SearchTerm" src
 vx git diff --stat
 vx git diff --name-only origin/main...HEAD
 vx gh pr view 123 --json title,state,files
-vx gh run view 456 --log | vx rg -n -m 50 "error|failed|panic"
+vx gh run view 456 --json status,conclusion,jobs --jq '.jobs[] | {name,conclusion}'
+vx gh run view 456 --log | vx rg -n -m 50 "error|failed|panic|Traceback|FAILED"
+vx --compact gh run view 456 --log
 ```
+
+Use this priority order for token-heavy surfaces:
+1. Ask for semantic data: `--json`, selected fields, `--jq`, `--fields`, `--toon`.
+2. Search the raw source with caps: `vx rg -n -m 80 ...`, `vx jq`, `vx yq`.
+3. Use `vx --compact <tool> ...` for broad subprocess output that still needs context.
+4. Read full raw output only after the smaller views fail to explain the issue.
+
+The compact filter follows RTK-style principles: preserve high-signal lines,
+strip presentation noise, collapse repetition, cap volume, and measure savings
+with `vx metrics tokens --json` when comparing approaches. Do not make
+transparent forwarding commands (`vx git`, `vx gh`, `vx cargo`, `vx npm`) compact
+by default; agents should opt in explicitly with `--compact` so scripts and
+humans keep the native tool contract.
 
 ## Project Setup
 
@@ -86,7 +101,7 @@ vx add just
 vx lock
 
 # 4. Commit configuration
-git add vx.toml vx.lock
+vx git add vx.toml vx.lock
 ```
 
 ### Team Onboarding
