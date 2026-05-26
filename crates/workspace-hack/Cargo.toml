@@ -111,9 +111,11 @@ zerocopy = { version = "0.8", default-features = false, features = ["derive", "s
 
 [target.x86_64-pc-windows-msvc.dependencies]
 flate2 = { version = "1", features = ["zlib-rs"] }
+getrandom = { version = "0.4", default-features = false, features = ["std", "sys_rng"] }
 hyper = { version = "1", features = ["client", "http1", "http2"] }
 hyper-rustls = { version = "0.27", default-features = false, features = ["aws-lc-rs", "http1", "http2", "tls12"] }
 hyper-util = { version = "0.1", features = ["client-legacy", "client-proxy", "http1", "http2"] }
+ipnet = { version = "2", features = ["serde"] }
 rustls = { version = "0.23", default-features = false, features = ["aws-lc-rs", "aws_lc_rs", "logging", "ring", "std", "tls12"] }
 rustls-webpki = { version = "0.103", default-features = false, features = ["aws-lc-rs", "ring", "std"] }
 simd-adler32 = { version = "0.3", default-features = false, features = ["std"] }
@@ -128,9 +130,11 @@ windows-sys-d4189bed749088b6 = { package = "windows-sys", version = "0.61", feat
 
 [target.x86_64-pc-windows-msvc.build-dependencies]
 flate2 = { version = "1", features = ["zlib-rs"] }
+getrandom = { version = "0.4", default-features = false, features = ["std", "sys_rng"] }
 hyper = { version = "1", features = ["client", "http1", "http2"] }
 hyper-rustls = { version = "0.27", default-features = false, features = ["aws-lc-rs", "http1", "http2", "tls12"] }
 hyper-util = { version = "0.1", features = ["client-legacy", "client-proxy", "http1", "http2"] }
+ipnet = { version = "2", features = ["serde"] }
 rustls = { version = "0.23", default-features = false, features = ["aws-lc-rs", "aws_lc_rs", "logging", "ring", "std", "tls12"] }
 rustls-webpki = { version = "0.103", default-features = false, features = ["aws-lc-rs", "ring", "std"] }
 simd-adler32 = { version = "0.3", default-features = false, features = ["std"] }
@@ -145,9 +149,11 @@ windows-sys-d4189bed749088b6 = { package = "windows-sys", version = "0.61", feat
 
 [target.x86_64-unknown-linux-gnu.dependencies]
 flate2 = { version = "1", features = ["zlib-rs"] }
+getrandom = { version = "0.4", default-features = false, features = ["std", "sys_rng"] }
 hyper = { version = "1", features = ["client", "http1", "http2"] }
 hyper-rustls = { version = "0.27", default-features = false, features = ["aws-lc-rs", "http1", "http2", "tls12"] }
 hyper-util = { version = "0.1", features = ["client-legacy", "client-proxy", "http1", "http2"] }
+ipnet = { version = "2", features = ["serde"] }
 libc = { version = "0.2", features = ["extra_traits"] }
 rustix = { version = "1", features = ["fs", "termios"] }
 rustls = { version = "0.23", default-features = false, features = ["aws-lc-rs", "aws_lc_rs", "logging", "ring", "std", "tls12"] }
@@ -161,9 +167,11 @@ tower-http = { version = "0.6", default-features = false, features = ["decompres
 
 [target.x86_64-unknown-linux-gnu.build-dependencies]
 flate2 = { version = "1", features = ["zlib-rs"] }
+getrandom = { version = "0.4", default-features = false, features = ["std", "sys_rng"] }
 hyper = { version = "1", features = ["client", "http1", "http2"] }
 hyper-rustls = { version = "0.27", default-features = false, features = ["aws-lc-rs", "http1", "http2", "tls12"] }
 hyper-util = { version = "0.1", features = ["client-legacy", "client-proxy", "http1", "http2"] }
+ipnet = { version = "2", features = ["serde"] }
 libc = { version = "0.2", features = ["extra_traits"] }
 rustix = { version = "1", features = ["fs", "termios"] }
 rustls = { version = "0.23", default-features = false, features = ["aws-lc-rs", "aws_lc_rs", "logging", "ring", "std", "tls12"] }
@@ -178,9 +186,11 @@ tower-http = { version = "0.6", default-features = false, features = ["decompres
 [target.x86_64-apple-darwin.dependencies]
 errno = { version = "0.3" }
 flate2 = { version = "1", features = ["zlib-rs"] }
+getrandom = { version = "0.4", default-features = false, features = ["std", "sys_rng"] }
 hyper = { version = "1", features = ["client", "http1", "http2"] }
 hyper-rustls = { version = "0.27", default-features = false, features = ["aws-lc-rs", "http1", "http2", "tls12"] }
 hyper-util = { version = "0.1", features = ["client-legacy", "client-proxy", "http1", "http2"] }
+ipnet = { version = "2", features = ["serde"] }
 libc = { version = "0.2", features = ["extra_traits"] }
 rustix = { version = "1", features = ["fs", "termios"] }
 rustls = { version = "0.23", default-features = false, features = ["aws-lc-rs", "aws_lc_rs", "logging", "ring", "std", "tls12"] }
@@ -195,9 +205,11 @@ tower-http = { version = "0.6", default-features = false, features = ["decompres
 [target.x86_64-apple-darwin.build-dependencies]
 errno = { version = "0.3" }
 flate2 = { version = "1", features = ["zlib-rs"] }
+getrandom = { version = "0.4", default-features = false, features = ["std", "sys_rng"] }
 hyper = { version = "1", features = ["client", "http1", "http2"] }
 hyper-rustls = { version = "0.27", default-features = false, features = ["aws-lc-rs", "http1", "http2", "tls12"] }
 hyper-util = { version = "0.1", features = ["client-legacy", "client-proxy", "http1", "http2"] }
+ipnet = { version = "2", features = ["serde"] }
 libc = { version = "0.2", features = ["extra_traits"] }
 rustix = { version = "1", features = ["fs", "termios"] }
 rustls = { version = "0.23", default-features = false, features = ["aws-lc-rs", "aws_lc_rs", "logging", "ring", "std", "tls12"] }
@@ -212,9 +224,11 @@ tower-http = { version = "0.6", default-features = false, features = ["decompres
 [target.aarch64-apple-darwin.dependencies]
 errno = { version = "0.3" }
 flate2 = { version = "1", features = ["zlib-rs"] }
+getrandom = { version = "0.4", default-features = false, features = ["std", "sys_rng"] }
 hyper = { version = "1", features = ["client", "http1", "http2"] }
 hyper-rustls = { version = "0.27", default-features = false, features = ["aws-lc-rs", "http1", "http2", "tls12"] }
 hyper-util = { version = "0.1", features = ["client-legacy", "client-proxy", "http1", "http2"] }
+ipnet = { version = "2", features = ["serde"] }
 libc = { version = "0.2", features = ["extra_traits"] }
 rustix = { version = "1", features = ["fs", "termios"] }
 rustls = { version = "0.23", default-features = false, features = ["aws-lc-rs", "aws_lc_rs", "logging", "ring", "std", "tls12"] }
@@ -229,9 +243,11 @@ tower-http = { version = "0.6", default-features = false, features = ["decompres
 [target.aarch64-apple-darwin.build-dependencies]
 errno = { version = "0.3" }
 flate2 = { version = "1", features = ["zlib-rs"] }
+getrandom = { version = "0.4", default-features = false, features = ["std", "sys_rng"] }
 hyper = { version = "1", features = ["client", "http1", "http2"] }
 hyper-rustls = { version = "0.27", default-features = false, features = ["aws-lc-rs", "http1", "http2", "tls12"] }
 hyper-util = { version = "0.1", features = ["client-legacy", "client-proxy", "http1", "http2"] }
+ipnet = { version = "2", features = ["serde"] }
 libc = { version = "0.2", features = ["extra_traits"] }
 rustix = { version = "1", features = ["fs", "termios"] }
 rustls = { version = "0.23", default-features = false, features = ["aws-lc-rs", "aws_lc_rs", "logging", "ring", "std", "tls12"] }
