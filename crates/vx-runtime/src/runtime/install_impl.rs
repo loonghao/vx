@@ -98,15 +98,11 @@ pub async fn default_install_inner(
     );
     debug!("Executable relative path: {}", params.exe_relative);
 
-    // Check if already installed
-    if let Some(result) = already_installed_result(&params, version, &install_path, ctx) {
-        return Ok(result);
-    }
-
     let _install_lock = InstallLock::acquire(&install_path).await?;
 
-    // Another vx process may have completed the install while this process was
-    // waiting for the lock. Re-check before cleaning or downloading.
+    // Hold the lock before trusting files in the install directory. Another vx
+    // process may have created the executable path while extraction is still in
+    // progress, especially on Windows archive installs.
     if let Some(result) = already_installed_result(&params, version, &install_path, ctx) {
         return Ok(result);
     }

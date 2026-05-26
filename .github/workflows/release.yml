@@ -173,6 +173,7 @@ jobs:
           path: target/distrib/
           merge-multiple: true
       - name: Install dependencies
+        if: ${{ matrix.packages_install != null && matrix.packages_install != '' }}
         shell: bash
         run: |
           set -euo pipefail
@@ -187,7 +188,24 @@ jobs:
           fi
 
           # cargo-dist emits apt-get install without -y; keep release jobs non-interactive.
-          sed -i -E 's/^([[:space:]]*sudo[[:space:]]+)?apt-get[[:space:]]+install[[:space:]]+/\1apt-get install -y /' "$install_script"
+          awk '
+            /^[[:space:]]*sudo[[:space:]]+apt-get[[:space:]]+install([[:space:]]|$)/ {
+              if ($0 !~ /(^|[[:space:]])(-y|--yes)([[:space:]]|$)/) {
+                sub(/sudo[[:space:]]+apt-get[[:space:]]+install[[:space:]]+/, "sudo apt-get install -y ")
+              }
+              print
+              next
+            }
+            /^[[:space:]]*apt-get[[:space:]]+install([[:space:]]|$)/ {
+              if ($0 !~ /(^|[[:space:]])(-y|--yes)([[:space:]]|$)/) {
+                sub(/apt-get[[:space:]]+install[[:space:]]+/, "apt-get install -y ")
+              }
+              print
+              next
+            }
+            { print }
+          ' "$install_script" > "${install_script}.normalized"
+          mv "${install_script}.normalized" "$install_script"
           DEBIAN_FRONTEND=noninteractive bash -euxo pipefail "$install_script"
       - name: Build artifacts
         run: |

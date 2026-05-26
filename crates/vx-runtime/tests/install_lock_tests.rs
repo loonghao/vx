@@ -3,7 +3,7 @@
 use std::path::Path;
 use std::sync::{
     Arc,
-    atomic::{AtomicUsize, Ordering},
+    atomic::{AtomicBool, AtomicUsize, Ordering},
 };
 use std::time::Duration;
 
@@ -66,15 +66,41 @@ impl Installer for SlowInstaller {
         tokio::time::sleep(Duration::from_millis(200)).await;
 
         let exe_path = bin_dir.join(exe_file_name());
-        std::fs::write(&exe_path, b"#!/bin/sh\nexit 0\n")?;
+        write_test_executable(&exe_path)?;
 
-        #[cfg(unix)]
-        {
-            use std::os::unix::fs::PermissionsExt;
-            let mut permissions = std::fs::metadata(&exe_path)?.permissions();
-            permissions.set_mode(0o755);
-            std::fs::set_permissions(&exe_path, permissions)?;
+        Ok(())
+    }
+}
+
+#[derive(Debug)]
+struct EarlyExecutableInstaller {
+    executable_created: AtomicBool,
+}
+
+impl EarlyExecutableInstaller {
+    fn new() -> Self {
+        Self {
+            executable_created: AtomicBool::new(false),
         }
+    }
+}
+
+#[async_trait]
+impl Installer for EarlyExecutableInstaller {
+    async fn extract(&self, _archive: &Path, _dest: &Path) -> Result<()> {
+        bail!("not used")
+    }
+
+    async fn download_and_extract(&self, _url: &str, dest: &Path) -> Result<()> {
+        let bin_dir = dest.join("bin");
+        std::fs::create_dir_all(&bin_dir)?;
+
+        let exe_path = bin_dir.join(exe_file_name());
+        write_test_executable(&exe_path)?;
+        self.executable_created.store(true, Ordering::SeqCst);
+
+        tokio::time::sleep(Duration::from_millis(300)).await;
+        std::fs::write(dest.join("install-complete"), b"ok")?;
 
         Ok(())
     }
@@ -123,6 +149,51 @@ async fn concurrent_installs_wait_for_the_first_completed_install() {
     assert!(!lock_path.exists(), "install lock should be removed");
 }
 
+#[tokio::test]
+async fn install_waits_for_lock_before_trusting_existing_executable() {
+    let temp_dir = tempfile::tempdir().expect("temp dir should be created");
+    let installer = Arc::new(EarlyExecutableInstaller::new());
+    let ctx = RuntimeContext::new(
+        Arc::new(RealPathProvider::with_base_dir(temp_dir.path())),
+        Arc::new(NoopHttpClient),
+        Arc::new(RealFileSystem::new()),
+        installer.clone(),
+    );
+
+    let ctx_a = ctx.clone();
+    let first = tokio::spawn(async move {
+        default_install_inner(make_params(), "1.0.0", &ctx_a, |_, _| Ok(())).await
+    });
+
+    tokio::time::timeout(Duration::from_secs(2), async {
+        while !installer.executable_created.load(Ordering::SeqCst) {
+            tokio::time::sleep(Duration::from_millis(10)).await;
+        }
+    })
+    .await
+    .expect("first install should create executable");
+
+    let second = default_install_inner(make_params(), "1.0.0", &ctx, |_, _| Ok(()))
+        .await
+        .expect("second install should wait for the first install");
+
+    let complete_marker = ctx
+        .paths
+        .version_store_dir("race-tool", "1.0.0")
+        .join("install-complete");
+    assert!(
+        complete_marker.exists(),
+        "second install returned before the first install finished"
+    );
+
+    let first = first
+        .await
+        .expect("first task should not panic")
+        .expect("first install should succeed");
+
+    assert_eq!(first.executable_path, second.executable_path);
+}
+
 fn make_params() -> InstallParams<'static> {
     InstallParams {
         name: "race-tool",
@@ -146,4 +217,18 @@ fn exe_file_name() -> &'static str {
 
 fn exe_extensions() -> &'static [&'static str] {
     if cfg!(windows) { &[".exe"] } else { &[] }
+}
+
+fn write_test_executable(exe_path: &Path) -> Result<()> {
+    std::fs::write(exe_path, b"#!/bin/sh\nexit 0\n")?;
+
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let mut permissions = std::fs::metadata(exe_path)?.permissions();
+        permissions.set_mode(0o755);
+        std::fs::set_permissions(exe_path, permissions)?;
+    }
+
+    Ok(())
 }
