@@ -315,7 +315,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * add more tool examples to AGENTS.md ([38b188c](https://github.com/loonghao/vx/commit/38b188c813420849d7bb1bf2431dd5ded40ca41b))
 * add Package Alias documentation (EN + ZH) ([eaf81e3](https://github.com/loonghao/vx/commit/eaf81e39067540c7af3dd4541f14c9fcee357730))
 * add pre-commit hooks documentation (EN/ZH) and update contributing guides ([274aec5](https://github.com/loonghao/vx/commit/274aec5a0e85be9dc6f266437ee0077b31bf845d))
-* add RFC 0032 and RFC 0033, add opencode skills ([805aa5f](https://github.com/loonghao/vx/commit/805aa5f28d250f94f544611668eb5495c8472331))
 * add self-update command documentation with channel support ([e46ad5c](https://github.com/loonghao/vx/commit/e46ad5c4270a9f3b4e7dea6377443854aabb5d96))
 * add Starlark Providers advanced guide (bilingual) ([38739c0](https://github.com/loonghao/vx/commit/38739c09be752fdf2cc460f3e2cd8938fc29651a))
 * add worktrunk (wt) tool documentation ([d4dfae6](https://github.com/loonghao/vx/commit/d4dfae6a364128ac1edd9612466f6aeedd43e958))
