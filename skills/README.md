@@ -50,6 +50,7 @@ vx skills should teach agents to be precise, scoped, and token-aware:
 | **vx-project** | Project management — init, sync, setup, vx.toml configuration, monorepo | ~6 KB | Setting up or configuring projects |
 | **vx-best-practices** | Best practices — version strategy, cross-platform, security, provider development | ~10 KB | Team workflows, provider creation |
 | **vx-troubleshooting** | Troubleshooting — installation failures, PATH issues, diagnostics, recovery | ~8 KB | Fixing errors, diagnosing issues |
+| **vx-agent-workflow** | Token-efficient command execution — cross-platform filtering with `vx rg`, output reduction patterns | ~8 KB | Agents running builds/tests/lints |
 
 ## Structure
 
@@ -60,7 +61,9 @@ skills/
 ├── vx-commands/SKILL.md              # CLI command reference (~6 KB)
 ├── vx-project/SKILL.md               # Project management (~6 KB)
 ├── vx-best-practices/SKILL.md        # Best practices (~10 KB)
-└── vx-troubleshooting/SKILL.md       # Troubleshooting (~8 KB)
+├── vx-troubleshooting/SKILL.md       # Troubleshooting (~8 KB)
+├── vx-agent-workflow/SKILL.md        # Token-efficient execution (~8 KB)
+└── worktrunk/SKILL.md                # Git worktree manager
 ```
 
 ## Install
@@ -108,6 +111,8 @@ User's question:
 │  → vx-best-practices
 ├─ "Error: ..." / "not working" / "failed"
 │  → vx-troubleshooting
+├─ "How to filter build/test output?" / "save tokens" / "cross-platform command"
+│  → vx-agent-workflow
 ├─ "MCP integration" / "GitHub Actions"
 │  → vx-usage (has dedicated sections)
 └─ "Add a new tool to vx"
@@ -121,6 +126,8 @@ User's question:
 | "Set up my project with vx" | vx-project |
 | "What's the best way to...?" | vx-best-practices |
 | "vx install failed" / "command not found" | vx-troubleshooting |
+| "How do I filter test output?" / "save tokens" | vx-agent-workflow |
+| "Cross-platform command syntax" | vx-agent-workflow |
 | "How do I add a new tool to vx?" | vx-best-practices (provider dev section) |
 | "Set up MCP with vx" | vx-usage (MCP integration section) |
 | "Use vx in GitHub Actions" | vx-usage (GitHub Actions section) |
