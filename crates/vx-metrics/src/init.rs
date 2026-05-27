@@ -229,14 +229,9 @@ pub fn fmt_filter_directive(config: &MetricsConfig) -> String {
 /// Build the OTel layer filter string.
 ///
 /// The OTel filter always captures all vx spans (trace level) for metrics
-/// collection, regardless of the user's verbosity preference.
-/// Only overridden if RUST_LOG is explicitly set.
+/// collection, regardless of the user's verbosity preference or `RUST_LOG`.
 pub fn otel_filter_directive() -> String {
-    if std::env::var("RUST_LOG").is_ok() {
-        std::env::var("RUST_LOG").unwrap_or_default()
-    } else {
-        "vx=trace,warn,error".to_string()
-    }
+    "vx=trace,warn,error".to_string()
 }
 
 /// Clean up old metrics files, keeping only the most recent `keep` files.

@@ -124,6 +124,20 @@ fn test_otel_filter_always_captures_vx_trace() {
     assert!(filter.contains("error"));
 }
 
+#[test]
+fn test_otel_filter_ignores_rust_log_for_metrics_collection() {
+    unsafe {
+        std::env::set_var("RUST_LOG", "warn");
+    }
+    let filter = vx_metrics::otel_filter_directive();
+
+    unsafe {
+        std::env::remove_var("RUST_LOG");
+    }
+
+    assert_eq!(filter, "vx=trace,warn,error");
+}
+
 #[rstest]
 #[case(false, false, "warn,error")]
 #[case(true, false, "vx=debug,info")]
