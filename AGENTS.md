@@ -53,6 +53,12 @@ vx npx create-react-app x  # Auto-installs Node.js + runs npx
 6. **Provider count is 142** — Update any docs that reference old counts (78, 73, 70+, 50+, 105, 122, 124, 126, 129, 131, 132, 135, 136, 137, 138, 139, 140, 141, etc.)
 7. **Version syntax** — Always use `vx install <runtime>@<version>` (never `vx install <runtime> <version>`)
 8. **MCP integration** — Replace `npx`/`uvx` with `vx` in MCP server configurations
+9. **MUST use `vx git`** — Never use bare `git` commands; always use `vx git` (e.g., `vx git commit`, `vx git push`)
+10. **MUST use `vx gh` (HIGH PRIORITY)** — Never use bare `gh` commands; always use `vx gh` for all GitHub CLI operations (e.g., `vx gh pr create`, `vx gh issue list`)
+11. **Efficient output** — Use output filtering to minimize token consumption in agent contexts:
+    - PowerShell: `vx git status 2>&1 | Select-Object -Last 3`
+    - Unix: `vx git status 2>&1 | tail -3`
+    - Cross-platform: prefer `vx --compact` or `--json` with `--fields` for structured data
 
 ### How vx Works (Execution Flow)
 
@@ -139,6 +145,8 @@ User Command: vx npm install
 8. **New providers use Starlark DSL only** — No Rust code required for new tool definitions
 9. **Layer dependencies go downward only** — Never import from a higher architectural layer
 10. **Provider count is 142** — Update any docs that reference old counts (78, 73, 70+, 50+, 105, 122, 124, 126, 129, 131, 132, 135, 136, 137, 138, 139, 140, 141, etc.)
+11. **MUST use `vx git` for all git operations** — Never use bare `git`; always `vx git status`, `vx git commit`, `vx git push`, etc.
+12. **MUST use `vx gh` for all GitHub operations** — Never use bare `gh`; always `vx gh pr create`, `vx gh run list`, etc.
 
 ### Setup Commands
 
@@ -185,6 +193,10 @@ vx dev                         # Enter dev environment
 | `npm install` | `vx npm install` |
 | `pip install flask` | `vx uv pip install flask` |
 | `go build` | `vx go build` |
+| `git commit -m "..."` | `vx git commit -m "..."` |
+| `git push` | `vx git push` |
+| `gh pr create` | `vx gh pr create` |
+| `gh issue list` | `vx gh issue list` |
 | Tell user to "install Node.js first" | Just run `vx node --version` (auto-installs) |
 | Suggest `nvm use 22` | Suggest `vx switch node@22` or set in `vx.toml` |
 | Write `#[cfg(test)] mod tests {}` | Create tests in `crates/<name>/tests/` directory |
@@ -582,3 +594,26 @@ For CI and other huge logs, use this order: `vx gh ... --json --jq` for status,
 matches, then `vx --compact ...` when broad context is still needed. Default
 `vx git` and `vx gh` remain transparent forwarded commands; compacting is an
 explicit opt-in.
+
+### Efficient Git/GitHub Patterns for Agents
+
+When running multi-step git/gh operations, minimize token output:
+
+```powershell
+# PowerShell (Windows) — keep only last N lines
+vx git checkout main 2>&1 | Select-Object -Last 3
+vx git pull --ff-only 2>&1 | Select-Object -Last 2
+vx git checkout -b feat/my-feature 2>&1 | Select-Object -Last 2
+
+# Unix (bash/zsh) — keep only last N lines
+vx git checkout main 2>&1 | tail -3
+vx git pull --ff-only 2>&1 | tail -2
+vx git checkout -b feat/my-feature 2>&1 | tail -2
+
+# Cross-platform (using vx-managed tools)
+vx git log --oneline -5    # concise history
+vx gh pr list --json number,title,state --jq '.[:5]'  # structured, minimal
+vx gh run list --json status,conclusion,name --jq '.[:3]'  # CI status
+```
+
+**Key principle**: Always pipe verbose git/gh output through tail/Select-Object or use `--json --jq` to reduce token consumption. Agents should never dump full git log or gh output into context.

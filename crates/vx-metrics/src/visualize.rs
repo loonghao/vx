@@ -134,14 +134,14 @@ pub fn render_comparison(runs: &[CommandMetrics]) -> String {
 
     out.push_str("  Performance History (newest first):\n");
     out.push_str(
-        "  ═══════════════════════════════════════════════════════════════════════════════\n",
+        "  ════════════════════════════════════════════════════════════════════════════════════════════\n",
     );
     out.push_str(&format!(
-        "  {:<22} {:<30} {:>8} {:>8} {:>8} {:>8} {:>8}\n",
-        "Timestamp", "Command", "Total", "Resolve", "Ensure", "Prepare", "Execute"
+        "  {:<22} {:<30} {:>8} {:>8} {:>8} {:>8} {:>8} {:>8}\n",
+        "Timestamp", "Command", "Total", "Resolve", "Ensure", "Prepare", "Execute", "Overhead"
     ));
     out.push_str(
-        "  ───────────────────────────────────────────────────────────────────────────────\n",
+        "  ────────────────────────────────────────────────────────────────────────────────────────────\n",
     );
 
     for (i, m) in runs.iter().enumerate() {
@@ -156,6 +156,15 @@ pub fn render_comparison(runs: &[CommandMetrics]) -> String {
         let ensure = stage_ms(&m.stages, "ensure");
         let prepare = stage_ms(&m.stages, "prepare");
         let execute = stage_ms(&m.stages, "execute");
+
+        // Compute overhead (total - sum of stages)
+        let stage_sum: f64 = m.stages.values().map(|s| s.duration_ms).sum();
+        let overhead_ms = m.total_duration_ms - stage_sum;
+        let overhead_str = if overhead_ms > 0.5 {
+            format!("{:.0}", overhead_ms)
+        } else {
+            "-".to_string()
+        };
 
         // Show trend arrows comparing to previous run
         let trend = if i + 1 < runs.len() {
@@ -172,16 +181,14 @@ pub fn render_comparison(runs: &[CommandMetrics]) -> String {
         };
 
         out.push_str(&format!(
-            "  {:<22} {:<30} {:>6.0}ms{} {:>6}ms {:>6}ms {:>6}ms {:>6}ms\n",
-            ts, cmd, m.total_duration_ms, trend, resolve, ensure, prepare, execute
+            "  {:<22} {:<30} {:>6.0}ms{} {:>6}ms {:>6}ms {:>6}ms {:>6}ms {:>6}ms\n",
+            ts, cmd, m.total_duration_ms, trend, resolve, ensure, prepare, execute, overhead_str
         ));
     }
 
     out.push_str(
-        "  ═══════════════════════════════════════════════════════════════════════════════\n",
+        "  ════════════════════════════════════════════════════════════════════════════════════════════\n",
     );
-
-    // Summary statistics
     if runs.len() > 1 {
         let totals: Vec<f64> = runs.iter().map(|r| r.total_duration_ms).collect();
         let avg = totals.iter().sum::<f64>() / totals.len() as f64;
@@ -231,6 +238,28 @@ pub fn render_comparison(runs: &[CommandMetrics]) -> String {
                     stage, stage_avg, stage_pct
                 ));
             }
+        }
+
+        // Overhead average (total - sum of stages)
+        let overhead_vals: Vec<f64> = runs
+            .iter()
+            .map(|r| {
+                let stage_sum: f64 = r.stages.values().map(|s| s.duration_ms).sum();
+                r.total_duration_ms - stage_sum
+            })
+            .collect();
+        let overhead_avg = overhead_vals.iter().sum::<f64>() / overhead_vals.len() as f64;
+        let total_avg = runs.iter().map(|r| r.total_duration_ms).sum::<f64>() / runs.len() as f64;
+        let overhead_pct = if total_avg > 0.0 {
+            overhead_avg / total_avg * 100.0
+        } else {
+            0.0
+        };
+        if overhead_avg > 0.5 {
+            out.push_str(&format!(
+                "    {:<10} avg={:>8.1}ms  ({:>5.1}% of total)\n",
+                "overhead", overhead_avg, overhead_pct
+            ));
         }
     }
 
@@ -300,14 +329,25 @@ pub fn render_insights(runs: &[CommandMetrics]) -> String {
         ));
     }
 
-    // Overhead analysis
-    let stage_total: f64 = latest.stages.values().map(|s| s.duration_ms).sum();
-    let overhead = latest.total_duration_ms - stage_total;
-    if overhead > 50.0 {
-        let pct = overhead / latest.total_duration_ms * 100.0;
+    // Overhead analysis (average across all runs)
+    let overhead_vals: Vec<f64> = runs
+        .iter()
+        .map(|r| {
+            let stage_sum: f64 = r.stages.values().map(|s| s.duration_ms).sum();
+            r.total_duration_ms - stage_sum
+        })
+        .collect();
+    let avg_overhead = overhead_vals.iter().sum::<f64>() / overhead_vals.len() as f64;
+    let avg_total = runs.iter().map(|r| r.total_duration_ms).sum::<f64>() / runs.len() as f64;
+    if avg_overhead > 50.0 {
+        let pct = if avg_total > 0.0 {
+            avg_overhead / avg_total * 100.0
+        } else {
+            0.0
+        };
         out.push_str(&format!(
-            "  📊 Overhead (CLI init, provider loading): {:.0}ms ({:.1}%)\n",
-            overhead, pct
+            "  📊 Avg overhead (CLI init, provider loading): {:.0}ms ({:.1}% of avg total {:.0}ms)\n",
+            avg_overhead, pct, avg_total
         ));
     }
 

@@ -40,3 +40,24 @@ vx-providers/*  → Tool definitions (provider.star)
 - **Token optimization**: Use `vx list --format toon` for token-optimized output (saves 40-60% tokens).
 - **Worktree workflow**: Use `vx wt` commands for parallel agent worktrees.
 - **Diagnostics**: Run `vx doctor` first when encountering errors.
+
+## Mandatory: Always Use `vx` Prefix for Git and GitHub
+
+**CRITICAL**: All git and GitHub CLI operations MUST use the `vx` prefix:
+
+| ❌ Never | ✅ Always |
+|----------|-----------|
+| `git status` | `vx git status` |
+| `git commit -m "..."` | `vx git commit -m "..."` |
+| `git push` | `vx git push` |
+| `gh pr create` | `vx gh pr create` |
+| `gh run list` | `vx gh run list` |
+| `gh issue create` | `vx gh issue create` |
+
+**Efficient output patterns** (minimize tokens in agent context):
+```powershell
+# PowerShell
+vx git checkout main 2>&1 | Select-Object -Last 3
+vx git pull --ff-only 2>&1 | Select-Object -Last 2
+vx gh pr list --json number,title,state --jq '.[:5]'
+```
