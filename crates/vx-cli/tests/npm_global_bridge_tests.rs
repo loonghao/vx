@@ -82,6 +82,7 @@ fn test_parse_cross_ecosystem_global_install(
 #[rstest]
 #[case("pip", &["install", "ruff"])]
 #[case("cargo", &["build"])]
+#[case("cargo", &["install", "--path", "crates/aion-cli"])]
 #[case("yarn", &["add", "eslint"])]
 #[case("gem", &["install", "--verbose"])]
 #[case("go", &["install"])]

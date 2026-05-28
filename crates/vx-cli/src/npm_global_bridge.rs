@@ -265,6 +265,10 @@ fn parse_cargo_install_args(args: &[String]) -> Option<NpmGlobalInstallRequest> 
             continue;
         }
 
+        if arg == "--path" {
+            return None;
+        }
+
         if arg == "--verbose" || arg == "-v" {
             verbose = true;
             continue;
