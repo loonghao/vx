@@ -265,7 +265,7 @@ fn parse_cargo_install_args(args: &[String]) -> Option<NpmGlobalInstallRequest> 
             continue;
         }
 
-        if arg == "--path" {
+        if is_cargo_external_source_arg(arg) {
             return None;
         }
 
@@ -311,6 +311,14 @@ fn parse_cargo_install_args(args: &[String]) -> Option<NpmGlobalInstallRequest> 
         force: false,
         verbose,
     })
+}
+
+fn is_cargo_external_source_arg(arg: &str) -> bool {
+    matches!(arg, "--path" | "--git" | "--registry" | "--index")
+        || arg.starts_with("--path=")
+        || arg.starts_with("--git=")
+        || arg.starts_with("--registry=")
+        || arg.starts_with("--index=")
 }
 
 fn parse_go_install_args(args: &[String]) -> Option<NpmGlobalInstallRequest> {
