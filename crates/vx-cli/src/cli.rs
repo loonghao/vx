@@ -137,21 +137,29 @@ USAGE MODES:
        vx --with bun@1.1.0 --with deno node app.js
 
   6. Shell launch (canonical):
-       vx shell <runtime>[@version] [shell_name]
-       vx shell node@22 powershell
-       vx shell git git-bash
+       vx shell launch <runtime>[@version] [shell_name]
+       vx shell launch node@22 powershell
+       vx shell launch git git-bash
      Compatibility alias: vx <runtime>::<shell_name>
 
-  7. Globally installed package shims:
-       vx tsc --version        (from: vx pkg install npm:typescript)
-       vx ruff check .         (from: vx pkg install uvx:ruff)
+  7. Environment assembly:
+       vx env <create|use|list|show|add|remove|sync|shell|delete> ...
+       vx dev
 
-  8. Global package management:
-       vx pkg <install|uninstall|list|info|update> ...
+  8. Project script execution:
+       vx run <script> [-- <args...>]
+       vx run test -- --nocapture
+
+  9. Project state sync:
+       vx sync [--check]
+       vx lock [--check]
+
+ 10. Global package management:
+       vx pkg <install|uninstall|list|info|shim-update> ...
        vx pkg install npm:typescript
      Compatibility alias: vx global ...
 
-  9. Project toolchain management:
+ 11. Project toolchain management:
        vx project <init|add|rm|sync|lock|check> ...
      Compatibility aliases: vx init, vx add, vx sync, etc.
 
@@ -166,6 +174,13 @@ SUPPORTED ECOSYSTEMS:
   Ruby:     gem (aliases: ruby, rubygems)
   Windows:  choco (chocolatey)
 
+GLOBAL OPTIONS:
+  --json              JSON structured output (shortcut for --output-format json)
+  --toon              Token-oriented output for LLM prompts (shortcut for --output-format toon)
+  --compact / -u      Ultra-compact output (shortcut for --output-format compact)
+  --output-format     Explicit output mode: text|json|toon|compact
+  --cache-mode        Cache strategy: normal|refresh|offline|no-cache
+
 EXAMPLES:
   vx node --version
   vx npx@20 create-react-app my-app
@@ -173,12 +188,14 @@ EXAMPLES:
   vx npm:create-react-app my-app
   vx uvx:ruff check .
   vx cargo:ripgrep::rg --version
-  vx shell git git-bash
+  vx shell launch git git-bash
   vx --with bun npm:opencode-ai::opencode
-  vx pkg install npm:typescript")]
+  vx pkg install npm:typescript
+  vx run test
+  vx sync --check")]
 #[command(version)]
 #[command(
-    after_help = "Run 'vx <command> --help' for more information on a command.\nRun 'vx pkg --help' for global package management.\nRun 'vx shell launch --help' for runtime shell launching.\nRun 'vx versions <tool>' to see available versions."
+    after_help = "Run 'vx <command> --help' for more information on a command.\nRun 'vx pkg --help' for global package management.\nRun 'vx shell launch --help' for runtime shell launching.\nRun 'vx run --list' to see available project scripts.\nRun 'vx versions <tool>' to see available versions."
 )]
 pub struct Cli {
     #[command(subcommand)]
