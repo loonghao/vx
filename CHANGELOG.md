@@ -6,6 +6,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [0.9.10](https://github.com/loonghao/vx/compare/v0.9.9...v0.9.10) (2026-05-28)
+
+
+### Bug Fixes
+
+* **metrics:** improve statistics display and align CLI help with contract ([a4f7156](https://github.com/loonghao/vx/commit/a4f71563a7698639eb0e0b9c354d4942f09e0e3e))
+
 ## [0.9.9](https://github.com/loonghao/vx/compare/v0.9.8...v0.9.9) (2026-05-27)
 
 
