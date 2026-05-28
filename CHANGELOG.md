@@ -6,6 +6,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [0.9.11](https://github.com/loonghao/vx/compare/v0.9.10...v0.9.11) (2026-05-28)
+
+
+### Bug Fixes
+
+* pass through cargo install path ([bdd4dc2](https://github.com/loonghao/vx/commit/bdd4dc2baab37ee25c0fbe52fd4797416a380ada))
+* skip cargo external source installs ([22cafd5](https://github.com/loonghao/vx/commit/22cafd5c425e7894aefa50ab167bbecb014b06b4))
+
 ## [0.9.10](https://github.com/loonghao/vx/compare/v0.9.9...v0.9.10) (2026-05-28)
 
 
