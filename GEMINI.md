@@ -38,5 +38,5 @@ vx-providers/*  → Tool definitions (provider.star)
 - **Long context window**: Gemini's 1M+ token context enables full project analysis.
 - **Structured reasoning**: Use `vx list --json` or `vx list --output-format toon` for AI-parseable output.
 - **MCP integration**: Replace `npx`/`uvx` with `vx` in MCP configs — `"command": "vx", "args": ["npx", ...]`.
-- **Worktree workflow**: Use `vx wt switch/swtich <branch>` for parallel agent worktrees.
+- **Worktree workflow**: Use `vx wt switch <branch>` for parallel agent worktrees.
 - **When uncertain**: Read `AGENTS.md` first, then consult `docs/` for deeper details.
