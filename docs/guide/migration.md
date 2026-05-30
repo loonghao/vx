@@ -42,10 +42,11 @@ vx migrate --rollback v1.0.0
 
 | Version | Release | Key Changes |
 |---------|---------|-------------|
-| v0.5.x | Current | Basic tools, scripts, env |
-| v0.6.0 | Upcoming | Hooks, services, dependencies |
-| v0.7.0 | Planned | AI integration, docs generation |
-| v0.8.0 | Planned | Team collaboration, remote dev |
+| v0.9.x | Current | Starlark DSL providers, MCP integration, AI-native workflows |
+| v0.8.x | Released | Team collaboration, remote dev, enhanced scripts |
+| v0.7.x | Released | AI integration, docs generation, project analyzer |
+| v0.6.x | Released | Hooks, services, dependencies, migration framework |
+| v0.5.x | Released | Basic tools, scripts, env |
 
 ## Quick Migration
 

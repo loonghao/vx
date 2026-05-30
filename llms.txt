@@ -134,6 +134,7 @@ This eliminates the need for users to pre-install Node.js, Python, or any runtim
 - [Pre-commit Hooks](https://github.com/loonghao/vx/blob/main/docs/advanced/pre-commit-hooks.md): cargo-hakari and justfile checks
 - [Security](https://github.com/loonghao/vx/blob/main/docs/advanced/security.md): Security model and best practices
 - [Contributing](https://github.com/loonghao/vx/blob/main/docs/advanced/contributing.md): Development setup and contribution guide
+- [Metrics Analysis](https://github.com/loonghao/vx/blob/main/docs/advanced/metrics-analysis.md): Telemetry implementation and usage
 
 ## Optional
 
