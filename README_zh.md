@@ -602,7 +602,7 @@ cargo install --git https://github.com/loonghao/vx
 - run: vx npm test
 ```
 
-> **注意**: 请使用 `@main` 获取最新版本，或使用具体的版本标签（如 `@vx-v0.9.6`）。查看 [releases](https://github.com/loonghao/vx/releases) 获取最新版本。
+> **注意**: 请使用 `@main` 获取最新版本，或使用具体的版本标签（如 `@vx-v0.9.11`）。查看 [releases](https://github.com/loonghao/vx/releases) 获取最新版本。
 
 详细文档请参阅 [GitHub Action 指南](docs/guides/github-action.md)。
 

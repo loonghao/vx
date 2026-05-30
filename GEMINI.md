@@ -10,7 +10,7 @@
 - Use Conventional Commits: `feat:`, `fix:`, `docs:`, `chore:`, `refactor:`, `test:`
 - Run `vx just quick` before submitting PR.
 - PRs target `main` branch.
-- Project version: **v0.9.5** with **142 providers**.
+- Project version: **v0.9.11** with **142 providers**.
 
 ## Quick Reference
 

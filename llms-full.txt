@@ -619,3 +619,4 @@ See [llms.txt](https://github.com/loonghao/vx/blob/main/llms.txt) for the full d
 - [Troubleshooting](https://github.com/loonghao/vx/blob/main/docs/appendix/troubleshooting.md): Common issues and solutions
 - [GitHub Actions Guide](https://github.com/loonghao/vx/blob/main/docs/guides/github-action.md): CI/CD integration
 - [AGENTS.md](https://github.com/loonghao/vx/blob/main/AGENTS.md): Primary AI agent entry point with rules and decision trees
+- [Metrics Analysis](https://github.com/loonghao/vx/blob/main/docs/advanced/metrics-analysis.md): Telemetry implementation and detailed metrics command analysis

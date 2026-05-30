@@ -16,7 +16,7 @@ vx self-update [OPTIONS] [VERSION]
 
 | Argument | Description |
 |----------|-------------|
-| `[VERSION]` | Specific version to install (e.g., `v0.8.36`) |
+| `[VERSION]` | Specific version to install (e.g., `v0.9.11`) |
 
 ## Options
 
@@ -47,7 +47,7 @@ vx self-update
 vx self-update --check
 
 # Update to a specific version
-vx self-update v0.8.36
+vx self-update v0.9.11
 
 # Use beta channel
 vx self-update --channel beta
