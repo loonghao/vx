@@ -6,6 +6,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [0.9.12](https://github.com/loonghao/vx/compare/v0.9.11...v0.9.12) (2026-05-31)
+
+
+### Bug Fixes
+
+* **deps:** update rust crate windows-sys-73dcd821b1037cfd to 0.61 ([9eb4fe3](https://github.com/loonghao/vx/commit/9eb4fe31f745f8d4b163bd31457deebc827abf89))
+
+
+### Documentation
+
+* fix typo in GEMINI.md (swtich → switch) ([60b3c17](https://github.com/loonghao/vx/commit/60b3c177251f5a2e90eb333e8c881aef6193bac7))
+* update outdated documentation references and add metrics-analysis ([3d52403](https://github.com/loonghao/vx/commit/3d524039a7d66a7b39f038c8698f6f0bd7bfa000))
+* update version references and documentation indexes (2026-05-30) ([d7ce068](https://github.com/loonghao/vx/commit/d7ce0680187a89d2b3e8de277ed4a7c648e438c2))
+
 ## [0.9.11](https://github.com/loonghao/vx/compare/v0.9.10...v0.9.11) (2026-05-28)
 
 
