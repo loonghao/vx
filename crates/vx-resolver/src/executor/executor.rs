@@ -277,6 +277,12 @@ impl<'a> Executor<'a> {
                 .map_err(PipelineError::from)?
         };
 
+        let mut plan = plan;
+        if let Some(exit_code) = self.try_handle_legacy_python_uv_venv(&plan).await? {
+            return Ok(exit_code);
+        }
+        self.rewrite_uv_python_args(&mut plan).await?;
+
         // Stage 3: Prepare environment
         let mut prepared = {
             let _span = tracing::info_span!("prepare", runtime = %runtime_name).entered();
@@ -817,6 +823,114 @@ impl<'a> Executor<'a> {
         debug!("  Prepended {} paths to PATH", path_prepend.len());
     }
 
+    async fn rewrite_uv_python_args(
+        &self,
+        plan: &mut super::pipeline::plan::ExecutionPlan,
+    ) -> Result<()> {
+        if !plan.primary.name.eq_ignore_ascii_case("uv") {
+            return Ok(());
+        }
+
+        let Some(registry) = self.registry else {
+            return Ok(());
+        };
+        let Some(context) = self.context else {
+            return Ok(());
+        };
+        let Some(python) = registry.get_runtime("python") else {
+            return Ok(());
+        };
+
+        let mut rewritten = plan.config.args.clone();
+        let mut index = 0;
+        while index < rewritten.len() {
+            if rewritten[index] == "--python" || rewritten[index] == "-p" {
+                if let Some(value) = rewritten.get(index + 1).cloned()
+                    && let Some(version_spec) = simple_python_version_spec(&value)
+                {
+                    let executable =
+                        resolve_python_executable_for_uv(python.as_ref(), context, version_spec)
+                            .await?;
+                    debug!(
+                        "Resolved uv --python {} to vx-managed interpreter {}",
+                        version_spec,
+                        executable.display()
+                    );
+                    rewritten[index + 1] = executable.to_string_lossy().to_string();
+                }
+                index += 2;
+                continue;
+            }
+
+            if let Some(value) = rewritten[index].strip_prefix("--python=")
+                && let Some(version_spec) = simple_python_version_spec(value)
+            {
+                let executable =
+                    resolve_python_executable_for_uv(python.as_ref(), context, version_spec)
+                        .await?;
+                debug!(
+                    "Resolved uv --python={} to vx-managed interpreter {}",
+                    version_spec,
+                    executable.display()
+                );
+                rewritten[index] = format!("--python={}", executable.to_string_lossy());
+            }
+
+            index += 1;
+        }
+
+        plan.config.args = rewritten;
+        Ok(())
+    }
+
+    async fn try_handle_legacy_python_uv_venv(
+        &self,
+        plan: &super::pipeline::plan::ExecutionPlan,
+    ) -> Result<Option<i32>> {
+        if !plan.primary.name.eq_ignore_ascii_case("uv") {
+            return Ok(None);
+        }
+
+        let Some(request) = parse_legacy_python_uv_venv(&plan.config.args) else {
+            return Ok(None);
+        };
+
+        let Some(registry) = self.registry else {
+            return Ok(None);
+        };
+        let Some(context) = self.context else {
+            return Ok(None);
+        };
+        let Some(python) = registry.get_runtime("python") else {
+            return Ok(None);
+        };
+
+        let python_executable =
+            resolve_python_executable_for_uv(python.as_ref(), context, &request.python_spec)
+                .await?;
+        let virtualenv_pyz = ensure_python27_virtualenv_pyz(context).await?;
+
+        info!(
+            "Creating Python {} virtual environment at {} with legacy virtualenv",
+            request.python_spec,
+            request.target_dir.display()
+        );
+
+        let mut cmd = tokio::process::Command::new(python_executable);
+        cmd.arg(virtualenv_pyz);
+        if request.clear {
+            cmd.arg("--clear");
+        }
+        cmd.arg(&request.target_dir)
+            .stdin(std::process::Stdio::null())
+            .stdout(std::process::Stdio::inherit())
+            .stderr(std::process::Stdio::inherit())
+            .kill_on_drop(true);
+
+        let status = cmd.status().await?;
+        Ok(Some(vx_runtime_core::exit_code_from_status(&status)))
+    }
+
     /// Get the resolver (for inspection)
     pub fn resolver(&self) -> &Resolver {
         &self.resolver
@@ -825,5 +939,176 @@ impl<'a> Executor<'a> {
     /// Get the configuration
     pub fn config(&self) -> &ResolverConfig {
         &self.config
+    }
+}
+
+fn simple_python_version_spec(value: &str) -> Option<&str> {
+    let value = value.strip_prefix("python@").unwrap_or(value);
+    if value.is_empty()
+        || value.contains('/')
+        || value.contains('\\')
+        || value.contains(':')
+        || value.starts_with('.')
+    {
+        return None;
+    }
+
+    let total = value.split('.').count();
+    let valid = value
+        .split('.')
+        .all(|part| !part.is_empty() && part.chars().all(|c| c.is_ascii_digit()));
+    (valid && (1..=3).contains(&total)).then_some(value)
+}
+
+async fn resolve_python_executable_for_uv(
+    python: &dyn vx_runtime::Runtime,
+    context: &RuntimeContext,
+    version_spec: &str,
+) -> Result<PathBuf> {
+    let version = if let Some(installed) = python
+        .resolve_installed_version(version_spec, context)
+        .await?
+    {
+        installed
+    } else {
+        python.resolve_version(version_spec, context).await?
+    };
+
+    if !python.is_installed(&version, context).await? {
+        python.install(&version, context).await?;
+    }
+
+    python
+        .get_executable_path_for_version(&version, context)
+        .await?
+        .ok_or_else(|| {
+            anyhow::anyhow!(
+                "Python {} was installed for uv --python {}, but no executable was found",
+                version,
+                version_spec
+            )
+        })
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct LegacyPythonUvVenvRequest {
+    python_spec: String,
+    target_dir: PathBuf,
+    clear: bool,
+}
+
+fn parse_legacy_python_uv_venv(args: &[String]) -> Option<LegacyPythonUvVenvRequest> {
+    if args.first().map(|arg| arg.as_str()) != Some("venv") {
+        return None;
+    }
+
+    let mut python_spec = None;
+    let mut target_dir = None;
+    let mut clear = false;
+    let mut index = 1;
+
+    while index < args.len() {
+        let arg = &args[index];
+        if arg == "--python" || arg == "-p" {
+            python_spec = args.get(index + 1).cloned();
+            index += 2;
+            continue;
+        }
+        if let Some(value) = arg.strip_prefix("--python=") {
+            python_spec = Some(value.to_string());
+            index += 1;
+            continue;
+        }
+        if arg == "--clear" {
+            clear = true;
+            index += 1;
+            continue;
+        }
+        if arg.starts_with('-') {
+            return None;
+        }
+        if target_dir.is_none() {
+            target_dir = Some(PathBuf::from(arg));
+            index += 1;
+            continue;
+        }
+        return None;
+    }
+
+    let python_spec = python_spec?;
+    let version = simple_python_version_spec(&python_spec)?;
+    if !version.starts_with("2.7") {
+        return None;
+    }
+
+    Some(LegacyPythonUvVenvRequest {
+        python_spec: version.to_string(),
+        target_dir: target_dir.unwrap_or_else(|| PathBuf::from(".venv")),
+        clear,
+    })
+}
+
+async fn ensure_python27_virtualenv_pyz(context: &RuntimeContext) -> Result<PathBuf> {
+    const URL: &str = "https://bootstrap.pypa.io/virtualenv/2.7/virtualenv.pyz";
+
+    let cache_dir = context.paths.cache_dir().join("virtualenv").join("2.7");
+    let pyz = cache_dir.join("virtualenv.pyz");
+    if pyz.exists() {
+        return Ok(pyz);
+    }
+
+    std::fs::create_dir_all(&cache_dir)?;
+    context.http.download(URL, &pyz).await?;
+    Ok(pyz)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{
+        LegacyPythonUvVenvRequest, parse_legacy_python_uv_venv, simple_python_version_spec,
+    };
+    use std::path::PathBuf;
+
+    #[test]
+    fn simple_python_version_spec_accepts_versions() {
+        assert_eq!(simple_python_version_spec("2.7"), Some("2.7"));
+        assert_eq!(simple_python_version_spec("3.7.9"), Some("3.7.9"));
+        assert_eq!(simple_python_version_spec("python@3.12"), Some("3.12"));
+    }
+
+    #[test]
+    fn simple_python_version_spec_rejects_paths_and_names() {
+        assert_eq!(simple_python_version_spec(r"C:\Python37\python.exe"), None);
+        assert_eq!(simple_python_version_spec("/usr/bin/python3.7"), None);
+        assert_eq!(simple_python_version_spec("pypy3"), None);
+        assert_eq!(simple_python_version_spec(">=3.8"), None);
+    }
+
+    #[test]
+    fn parse_legacy_python_uv_venv_accepts_python27() {
+        let args = vec![
+            "venv".to_string(),
+            ".venv27".to_string(),
+            "--python".to_string(),
+            "2.7".to_string(),
+        ];
+        assert_eq!(
+            parse_legacy_python_uv_venv(&args),
+            Some(LegacyPythonUvVenvRequest {
+                python_spec: "2.7".to_string(),
+                target_dir: PathBuf::from(".venv27"),
+                clear: false,
+            })
+        );
+    }
+
+    #[test]
+    fn parse_legacy_python_uv_venv_ignores_python37() {
+        let args = vec![
+            "venv".to_string(),
+            ".venv37".to_string(),
+            "--python=3.7".to_string(),
+        ];
+        assert_eq!(parse_legacy_python_uv_venv(&args), None);
     }
 }

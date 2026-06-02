@@ -73,6 +73,122 @@ pre_commit = ["vx run lint"]
 post_setup = ["npm install", "cargo fetch"]
 ```
 
+### Multi-Python Legacy Projects
+
+For projects that need modern Python plus legacy Python 3.7 or 2.7, keep the
+runtime requirements in `vx.toml` and the environment/test matrix in `justfile`:
+
+```toml
+[tools]
+uv = "latest"
+python = "3.12"
+just = "latest"
+
+[scripts]
+test = "vx just test"
+test-legacy = "vx just test-legacy"
+```
+
+```makefile
+venv312:
+    vx uv venv .venv312 --python 3.12
+    vx uv pip install --python .venv312 -r requirements.txt
+
+venv37:
+    vx uv venv .venv37 --python 3.7
+    vx uv pip install --python .venv37 -r requirements-py37.txt
+
+venv27:
+    vx uv venv .venv27 --python 2.7
+    .venv27/bin/python -m pip install -r requirements-py27.txt
+
+test312: venv312
+    .venv312/bin/python -m pytest
+
+test37: venv37
+    .venv37/bin/python -m pytest
+
+test27: venv27
+    .venv27/bin/python -m pytest
+
+test-legacy: test37 test27
+test: test312 test-legacy
+```
+
+Agents should use `vx uv venv ... --python 3.7` and
+`vx uv venv ... --python 2.7`; vx resolves those versions to managed
+interpreters. Python 2.7 is a legacy compatibility path using PyPy2.7 and
+PyPA's Python 2.7 `virtualenv.pyz`, so flag CPython-only extension risks early.
+
+### Multi-Version Runtime Test Matrices
+
+When a project promises compatibility across several runtime lines, record the
+baseline runtime in `vx.toml` and put every compatibility lane in `justfile`.
+This keeps local developer testing, CI, and AI-agent verification aligned.
+
+```toml
+[tools]
+node = "22"
+python = "3.12"
+uv = "latest"
+just = "latest"
+
+[scripts]
+test = "vx just test"
+test-matrix = "vx just test-matrix"
+
+[ai]
+skills_hash = "<recorded by vx ai setup --project>"
+```
+
+```makefile
+test-node18:
+    vx node@18 npm test
+
+test-node20:
+    vx node@20 npm test
+
+test-node22:
+    vx node@22 npm test
+
+venv37:
+    vx uv venv .venv37 --python 3.7
+    vx uv pip install --python .venv37 -r requirements-py37.txt
+
+venv312:
+    vx uv venv .venv312 --python 3.12
+    vx uv pip install --python .venv312 -r requirements.txt
+
+test-py37: venv37
+    .venv37/bin/python -m pytest tests/py37
+
+test-py312: venv312
+    .venv312/bin/python -m pytest tests/py312
+
+test-matrix: test-node18 test-node20 test-node22 test-py37 test-py312
+test: test-matrix
+```
+
+Agents should use the matrix recipe (`vx just test-matrix` or
+`vx run test-matrix`) when changing shared code. Add the smallest missing lane
+when a bug report mentions an unsupported Python, Node.js, npm, pnpm, or yarn
+version.
+
+### Project AI Skills Hash
+
+`vx ai setup` installs built-in vx skills globally by default. Use project scope
+only when the repository wants local skill copies:
+
+```bash
+vx ai setup --project
+vx ai check
+vx ai setup --project --force
+```
+
+Project setup records `[ai].skills_hash` in `vx.toml`. `vx ai check` compares
+that hash with the embedded skills hash and reminds developers to refresh stale
+project skills.
+
 ### Version Constraints
 
 | Constraint | Example | Meaning |

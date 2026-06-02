@@ -267,6 +267,7 @@ tempfile = "3.8"
 zip = { version = "8.1", default-features = false, features = ["deflate", "zstd", "time"] }
 tar = "0.4"
 flate2 = "1.0"
+bzip2 = "0.6"
 xz2 = "0.1.7"
 zstd = "0.13"
 walkdir = "2.4"

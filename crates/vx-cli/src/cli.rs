@@ -1494,13 +1494,19 @@ pub enum AiCommand {
         /// Target specific agents (default: all supported agents)
         #[arg(short, long, action = clap::ArgAction::Append)]
         agent: Vec<String>,
-        /// Install to global (home) directory instead of project
+        /// Install to global (home) directory (default)
         #[arg(short, long)]
         global: bool,
+        /// Install to the current project's agent directories and record the skills hash in vx.toml
+        #[arg(long, conflicts_with = "global")]
+        project: bool,
         /// Force overwrite existing skills
         #[arg(short, long)]
         force: bool,
     },
+
+    /// Check whether project-recorded vx skills are up to date
+    Check,
 
     /// List supported AI agents and their config paths
     Agents,
@@ -2244,8 +2250,10 @@ impl CommandHandler for Commands {
                 AiCommand::Setup {
                     agent,
                     global,
+                    project,
                     force,
-                } => commands::ai::handle_setup(agent, *global, *force).await,
+                } => commands::ai::handle_setup(agent, *global, *project, *force).await,
+                AiCommand::Check => commands::ai::handle_check().await,
                 AiCommand::Agents => commands::ai::handle_agents().await,
                 AiCommand::Skills { args } => commands::ai::handle_skills(ctx, args).await,
                 AiCommand::Context { minimal } => {
