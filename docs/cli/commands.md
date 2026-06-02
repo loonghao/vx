@@ -335,6 +335,19 @@ vx metrics --json          # JSON format
 
 [Full documentation →](./metrics)
 
+### ai
+
+Manage AI-agent skills and project context.
+
+```bash
+vx ai setup                # Install/update vx skills globally (default)
+vx ai setup --project      # Install project-local skills and record hash in vx.toml
+vx ai setup --project --force  # Refresh project-local skills
+vx ai check                # Check project skills hash against embedded skills
+vx ai agents               # List supported AI agents
+vx ai context              # Generate AI-friendly project context
+```
+
 ### cache
 
 Manage the download and version cache.

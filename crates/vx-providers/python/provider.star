@@ -3,6 +3,8 @@ load("@vx//stdlib:system_install.star", "cross_platform_install")
 #
 # Version source: python-build-standalone GitHub releases
 #   https://github.com/astral-sh/python-build-standalone/releases
+# Python 2.7 compatibility source: PyPy standalone downloads
+#   https://downloads.python.org/pypy/
 # Bundled runtimes: pip
 #
 # Uses stdlib templates from @vx//stdlib:provider.star
@@ -52,7 +54,7 @@ runtimes = [
 # Permissions
 # ---------------------------------------------------------------------------
 
-permissions = github_permissions()
+permissions = github_permissions(extra_hosts = ["downloads.python.org"])
 
 # ---------------------------------------------------------------------------
 # fetch_versions — python-build-standalone GitHub releases
@@ -85,6 +87,15 @@ _LEGACY_37_ASSETS = {
     "linux/x64":   "cpython-3.7.9-x86_64-unknown-linux-gnu-pgo-20200823T0036.tar.zst",
 }
 
+_PYPY27_VERSION = "2.7.18"
+_PYPY27_ASSETS = {
+    "windows/x64": "pypy2.7-v7.3.20-win64.zip",
+    "linux/x64":   "pypy2.7-v7.3.20-linux64.tar.bz2",
+    "linux/arm64": "pypy2.7-v7.3.20-aarch64.tar.bz2",
+    "macos/x64":   "pypy2.7-v7.3.20-macos_x86_64.tar.bz2",
+    "macos/arm64": "pypy2.7-v7.3.20-macos_arm64.tar.bz2",
+}
+
 def _pbs_triple(ctx):
     return _PBS_TRIPLES.get("{}/{}".format(ctx.platform.os, ctx.platform.arch))
 
@@ -94,11 +105,20 @@ def _platform_key(ctx):
 def _is_legacy_37(version, build_tag):
     return version == "3.7.9" and build_tag == "20200822"
 
+def _is_pypy27(version):
+    return version == _PYPY27_VERSION
+
 # ---------------------------------------------------------------------------
 # download_url — python-build-standalone asset
 # ---------------------------------------------------------------------------
 
 def download_url(ctx, version):
+    if _is_pypy27(version):
+        asset = _PYPY27_ASSETS.get(_platform_key(ctx))
+        if not asset:
+            return None
+        return "https://downloads.python.org/pypy/{}".format(asset)
+
     triple = _pbs_triple(ctx)
     if not triple:
         return None
@@ -118,6 +138,25 @@ def download_url(ctx, version):
 # ---------------------------------------------------------------------------
 
 def install_layout(ctx, version):
+    if _is_pypy27(version):
+        asset = _PYPY27_ASSETS.get(_platform_key(ctx))
+        if not asset:
+            return None
+        strip = asset
+        if strip.endswith(".zip"):
+            strip = strip[:-4]
+        elif strip.endswith(".tar.bz2"):
+            strip = strip[:-8]
+        if ctx.platform.os == "windows":
+            exe_paths = ["pypy.exe", "python.exe"]
+        else:
+            exe_paths = ["bin/pypy", "bin/python"]
+        return {
+            "type":             "archive",
+            "strip_prefix":     strip,
+            "executable_paths": exe_paths,
+        }
+
     if version == "3.7.9":
         if _LEGACY_37_ASSETS.get(_platform_key(ctx)) == None:
             return None
@@ -151,7 +190,12 @@ def install_layout(ctx, version):
 def store_root(ctx):
     return ctx.vx_home + "/store/python"
 
-def get_execute_path(ctx, _version):
+def get_execute_path(ctx, version):
+    if _is_pypy27(version):
+        if ctx.platform.os == "windows":
+            return ctx.install_dir + "/pypy.exe"
+        return ctx.install_dir + "/bin/pypy"
+
     if ctx.platform.os == "windows":
         return ctx.install_dir + "/python.exe"
     return ctx.install_dir + "/bin/python3"

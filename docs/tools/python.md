@@ -6,13 +6,13 @@ vx provides comprehensive Python support through both standalone Python runtime 
 
 | Tool | Description |
 |------|-------------|
-| `python` | Python interpreter (via python-build-standalone) |
+| `python` | Python interpreter (via python-build-standalone; Python 2.7 uses PyPy2.7 legacy compatibility builds) |
 | `uv` | Fast Python package manager |
 | `uvx` | Python tool runner (uv tool run) |
 
 ## Python Runtime
 
-vx uses [python-build-standalone](https://github.com/astral-sh/python-build-standalone) from Astral for portable Python distributions. Supports **Python 3.7 to 3.13+**.
+vx uses [python-build-standalone](https://github.com/astral-sh/python-build-standalone) from Astral for portable Python distributions. For Python 2.7, vx uses official PyPy2.7 portable archives because python-build-standalone does not publish CPython 2.7 builds. Supports **Python 2.7 and Python 3.7 to 3.13+**.
 
 ### Version Support Status
 
@@ -25,8 +25,9 @@ vx uses [python-build-standalone](https://github.com/astral-sh/python-build-stan
 | Python 3.9 | EOL | Last build: 20251120 |
 | Python 3.8 | EOL | Limited availability |
 | Python 3.7 | EOL | Legacy support only |
+| Python 2.7 | EOL | Legacy compatibility via PyPy2.7 |
 
-> **Note**: Python versions that have reached End-of-Life (EOL) may have limited availability in python-build-standalone releases.
+> **Note**: Python versions that have reached End-of-Life (EOL) may have limited availability. Python 2.7 is intended for legacy test and migration workflows; CPython-specific native extensions may require a system CPython 2.7 installation.
 
 ### Installation
 
@@ -35,12 +36,13 @@ vx uses [python-build-standalone](https://github.com/astral-sh/python-build-stan
 vx install python@latest
 
 # Install specific version
-vx install python 3.12.8
-vx install python 3.11.11
-vx install python 3.10.16
-vx install python 3.9.21
-vx install python 3.8.20
-vx install python 3.7.17
+vx install python@3.12.8
+vx install python@3.11.11
+vx install python@3.10.16
+vx install python@3.9.21
+vx install python@3.8.20
+vx install python@3.7.9
+vx install python@2.7
 
 # List available versions
 vx list python
@@ -84,7 +86,11 @@ vx uv pip list
 ```bash
 vx uv venv .venv
 vx uv venv .venv --python 3.11
+vx uv venv .venv37 --python 3.7
+vx uv venv .venv27 --python 2.7
 ```
+
+When `uv` receives a simple version through `vx uv ... --python <version>`, vx resolves that version with the vx Python provider first and passes the installed interpreter path to uv. Python 2.7 is a special legacy case: uv itself requires Python 3.6+, so `vx uv venv ... --python 2.7` creates the environment with PyPA's Python 2.7 `virtualenv.pyz` while preserving the same vx command shape.
 
 ### Project Management
 
@@ -152,12 +158,36 @@ vx uv run python main.py
 
 ```bash
 # Install Python directly
-vx install python 3.12.8
+vx install python@3.12.8
 
 # Run Python
 vx python --version
 vx python script.py
 ```
+
+### Legacy Multi-Python Testing
+
+Use separate virtual environments per Python line and keep the commands in `justfile`:
+
+```makefile
+venv37:
+    vx uv venv .venv37 --python 3.7
+    vx uv pip install --python .venv37 -r requirements-py37.txt
+
+venv27:
+    vx uv venv .venv27 --python 2.7
+    .venv27/bin/python -m pip install -r requirements-py27.txt
+
+test37: venv37
+    .venv37/bin/python -m pytest
+
+test27: venv27
+    .venv27/bin/python -m pytest
+
+test-legacy: test37 test27
+```
+
+On Windows, use `.venv37\Scripts\python.exe` and `.venv27\Scripts\python.exe` in the `justfile` commands.
 
 ### Data Science
 

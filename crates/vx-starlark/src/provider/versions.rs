@@ -545,6 +545,10 @@ impl StarlarkProvider {
             // a pre-install_only asset layout for this release, so the Python
             // provider has a matching legacy download/layout branch.
             ("3.7.9", "20200822", false),
+            // Python 2.7.x (EOL legacy compatibility). python-build-standalone
+            // does not provide CPython 2.7 assets, so the Python provider maps
+            // this runtime to PyPy2.7 7.3.20 portable archives.
+            ("2.7.18", "pypy-7.3.20", false),
         ];
 
         let mut result: Vec<VersionInfo> = versions

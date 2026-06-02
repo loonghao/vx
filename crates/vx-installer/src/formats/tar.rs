@@ -102,8 +102,9 @@ impl FormatHandler for TarHandler {
                     .await?;
             }
             CompressionType::Bzip2 => {
-                // Note: bzip2 support would require additional dependency
-                return Err(Error::unsupported_format("tar.bz2"));
+                let decoder = bzip2::read::BzDecoder::new(file);
+                self.extract_tar(decoder, target_dir, &mut extracted_files)
+                    .await?;
             }
             CompressionType::Zstd => {
                 let decoder = zstd::stream::read::Decoder::new(BufReader::new(file))?;
@@ -252,6 +253,10 @@ mod tests {
             CompressionType::Xz
         ));
         assert!(matches!(
+            handler.detect_compression(Path::new("test.tar.bz2")),
+            CompressionType::Bzip2
+        ));
+        assert!(matches!(
             handler.detect_compression(Path::new("test.tar.zst")),
             CompressionType::Zstd
         ));
@@ -259,5 +264,35 @@ mod tests {
             handler.detect_compression(Path::new("test.tzst")),
             CompressionType::Zstd
         ));
+    }
+
+    #[tokio::test]
+    async fn test_extract_tar_bz2_archive() {
+        let temp = tempfile::tempdir().unwrap();
+        let archive_path = temp.path().join("sample.tar.bz2");
+        let output_dir = temp.path().join("out");
+
+        {
+            let file = std::fs::File::create(&archive_path).unwrap();
+            let encoder = bzip2::write::BzEncoder::new(file, bzip2::Compression::default());
+            let mut builder = tar::Builder::new(encoder);
+            let data = b"hello from tar.bz2";
+            let mut header = tar::Header::new_gnu();
+            header.set_path("sample.txt").unwrap();
+            header.set_size(data.len() as u64);
+            header.set_cksum();
+            builder.append(&header, &data[..]).unwrap();
+            let encoder = builder.into_inner().unwrap();
+            encoder.finish().unwrap();
+        }
+
+        let handler = TarHandler::new();
+        handler
+            .extract(&archive_path, &output_dir, &ProgressContext::disabled())
+            .await
+            .unwrap();
+
+        let extracted = std::fs::read_to_string(output_dir.join("sample.txt")).unwrap();
+        assert_eq!(extracted, "hello from tar.bz2");
     }
 }

@@ -4799,6 +4799,7 @@ dependencies = [
  "anyhow",
  "async-trait",
  "backon",
+ "bzip2",
  "criterion",
  "dirs",
  "flate2",

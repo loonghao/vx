@@ -17,8 +17,10 @@ use crate::output::{
 };
 use crate::ui::UI;
 use anyhow::{Context, Result};
+use sha2::{Digest, Sha256};
 use std::collections::HashMap;
 use std::path::PathBuf;
+use toml_edit::{DocumentMut, Item, Table, value};
 
 /// Configuration for a single supported AI agent
 struct AgentConfig {
@@ -132,22 +134,29 @@ const VX_SKILLS: &[(&str, &str)] = &[
 ///
 /// Installs vx's built-in skills to the target AI agent configuration directories,
 /// so that AI coding agents can better understand and use vx.
-pub async fn handle_setup(agents: &[String], global: bool, force: bool) -> Result<()> {
+pub async fn handle_setup(
+    agents: &[String],
+    global: bool,
+    project: bool,
+    force: bool,
+) -> Result<()> {
     let target_agents = resolve_agents(agents)?;
+    let install_global = global || !project;
+    let skills_hash = compute_skills_hash();
 
     UI::header("Setting up vx skills for AI agents");
     println!();
 
-    let home_dir = dirs::home_dir().context("Could not determine home directory")?;
+    let home_dir = ai_home_dir()?;
     let cwd = std::env::current_dir().context("Could not determine current directory")?;
 
     let mut installed_count = 0;
+    let mut skipped_outdated_count = 0;
 
     for agent in &target_agents {
-        let dirs_to_install: Vec<PathBuf> = if global {
+        let dirs_to_install: Vec<PathBuf> = if install_global {
             vec![home_dir.join(agent.global_skills_dir)]
         } else {
-            // Install to project-level directory by default
             vec![cwd.join(agent.project_skills_dir)]
         };
 
@@ -159,8 +168,20 @@ pub async fn handle_setup(agents: &[String], global: bool, force: bool) -> Resul
                 let skill_file = skill_dir.join("SKILL.md");
 
                 if skill_file.exists() && !force {
+                    let existing = std::fs::read_to_string(&skill_file).unwrap_or_default();
+                    if existing != *skill_content {
+                        UI::warn(&format!(
+                            "  {} - {} is outdated at {} (use --force to update)",
+                            agent.name,
+                            skill_name,
+                            skill_file.display()
+                        ));
+                        skipped_outdated_count += 1;
+                        continue;
+                    }
+
                     UI::info(&format!(
-                        "  {} - {} already installed",
+                        "  {} - {} already up to date",
                         agent.name, skill_name
                     ));
                     continue;
@@ -206,7 +227,67 @@ pub async fn handle_setup(agents: &[String], global: bool, force: bool) -> Resul
         UI::info("All skills already up to date. Use --force to reinstall.");
     }
 
+    if project {
+        if skipped_outdated_count == 0 {
+            record_project_skills_hash(&cwd, &skills_hash)?;
+            UI::success(&format!(
+                "Recorded vx skills hash in vx.toml: {}",
+                short_hash(&skills_hash)
+            ));
+        } else {
+            UI::warn("Skipped recording skills hash because some project skills are outdated.");
+            UI::hint("Run `vx ai setup --project --force` to refresh skills and update vx.toml.");
+        }
+    }
+
     UI::hint("AI agents will now have access to all vx skills.");
+
+    Ok(())
+}
+
+/// Handle `vx ai check` command.
+///
+/// Compares the built-in vx skills hash with the hash recorded in the current
+/// project's `vx.toml` under `[ai].skills_hash`.
+pub async fn handle_check() -> Result<()> {
+    let cwd = std::env::current_dir().context("Could not determine current directory")?;
+    let vx_toml = cwd.join("vx.toml");
+    let current_hash = compute_skills_hash();
+
+    UI::header("Checking vx skills");
+    println!();
+
+    if !vx_toml.exists() {
+        UI::warn("No vx.toml found in the current directory.");
+        UI::hint("Run `vx ai setup --project` to install project skills and record their hash.");
+        return Ok(());
+    }
+
+    let config = vx_config::parse_config(&vx_toml).context("Failed to parse vx.toml")?;
+    let recorded_hash = config.ai.and_then(|ai| ai.skills_hash);
+
+    match recorded_hash {
+        Some(hash) if hash == current_hash => {
+            UI::success(&format!(
+                "Project vx skills are up to date ({})",
+                short_hash(&current_hash)
+            ));
+        }
+        Some(hash) => {
+            UI::warn(&format!(
+                "Project vx skills are outdated (recorded {}, current {})",
+                short_hash(&hash),
+                short_hash(&current_hash)
+            ));
+            UI::hint("Run `vx ai setup --project --force` to refresh project skills.");
+        }
+        None => {
+            UI::warn("No [ai].skills_hash recorded in vx.toml.");
+            UI::hint(
+                "Run `vx ai setup --project` to install project skills and record their hash.",
+            );
+        }
+    }
 
     Ok(())
 }
@@ -232,6 +313,50 @@ pub async fn handle_agents() -> Result<()> {
         SUPPORTED_AGENTS.len()
     ));
     UI::hint("Use `vx ai setup -a <agent>` to install vx skills for a specific agent");
+
+    Ok(())
+}
+
+/// Stable SHA-256 hash of all embedded vx skills.
+pub fn compute_skills_hash() -> String {
+    let mut hasher = Sha256::new();
+    for (skill_name, skill_content) in VX_SKILLS {
+        hasher.update(skill_name.as_bytes());
+        hasher.update([0]);
+        hasher.update(skill_content.as_bytes());
+        hasher.update([0]);
+    }
+    hasher
+        .finalize()
+        .iter()
+        .map(|byte| format!("{byte:02x}"))
+        .collect()
+}
+
+fn short_hash(hash: &str) -> &str {
+    hash.get(..12).unwrap_or(hash)
+}
+
+fn record_project_skills_hash(project_root: &std::path::Path, skills_hash: &str) -> Result<()> {
+    let config_path = project_root.join("vx.toml");
+    let original = if config_path.exists() {
+        std::fs::read_to_string(&config_path)
+            .with_context(|| format!("Failed to read {}", config_path.display()))?
+    } else {
+        String::new()
+    };
+    let mut doc: DocumentMut = original
+        .parse()
+        .context("Failed to parse vx.toml for skills hash update")?;
+
+    if !doc.as_table().contains_key("ai") {
+        doc["ai"] = Item::Table(Table::new());
+    }
+    doc["ai"]["skills_hash"] = value(skills_hash);
+    doc["ai"]["skills_updated_at"] = value(chrono::Utc::now().to_rfc3339());
+
+    std::fs::write(&config_path, doc.to_string())
+        .with_context(|| format!("Failed to write {}", config_path.display()))?;
 
     Ok(())
 }
@@ -281,6 +406,13 @@ fn resolve_agents(agents: &[String]) -> Result<Vec<&'static AgentConfig>> {
         }
     }
     Ok(result)
+}
+
+fn ai_home_dir() -> Result<PathBuf> {
+    if let Some(path) = std::env::var_os("VX_AI_HOME") {
+        return Ok(PathBuf::from(path));
+    }
+    dirs::home_dir().context("Could not determine home directory")
 }
 
 // ============================================================================

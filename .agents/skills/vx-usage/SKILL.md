@@ -204,6 +204,101 @@ pre_commit = ["vx run lint"]
 post_setup = ["vx npm install"]
 ```
 
+## AI Skills Maintenance
+
+`vx ai setup` installs vx's built-in skills globally by default so every agent
+session can reuse the same guidance:
+
+```bash
+vx ai setup                 # Install/update global agent skills
+vx ai setup --project       # Install project-local skills and record hash in vx.toml
+vx ai setup --project --force
+vx ai check                 # Compare vx.toml [ai].skills_hash with embedded skills
+```
+
+For project-local skills, `vx ai setup --project` records the current embedded
+skills hash in `vx.toml`. If `vx ai check` reports stale skills, refresh them
+with `vx ai setup --project --force` before continuing project work.
+
+## Legacy Python 2.7/3.7 Projects
+
+vx can run modern and legacy Python lines side by side:
+
+```bash
+vx python@3.12 --version
+vx python@3.7 --version
+vx python@2.7 --version
+```
+
+Python 3.7+ uses vx-managed CPython builds where available. Python 2.7 uses the
+vx legacy compatibility path backed by PyPy2.7 portable archives, so mention the
+PyPy caveat when a project depends on CPython-only native extensions.
+
+For virtual environments, keep one environment per Python line. When `uv`
+receives a simple `--python` version through vx, vx resolves it to the
+vx-managed interpreter path before forwarding to uv. Python 2.7 is a special
+legacy case: uv requires Python 3.6+, so `vx uv venv ... --python 2.7` uses
+PyPA's Python 2.7 `virtualenv.pyz` under the hood while preserving the same
+command shape:
+
+```bash
+vx uv venv .venv312 --python 3.12
+vx uv venv .venv37 --python 3.7
+vx uv venv .venv27 --python 2.7
+```
+
+Use `just` to make the workflow repeatable:
+
+```makefile
+venv37:
+    vx uv venv .venv37 --python 3.7
+    vx uv pip install --python .venv37 -r requirements-py37.txt
+
+venv27:
+    vx uv venv .venv27 --python 2.7
+    .venv27/bin/python -m pip install -r requirements-py27.txt
+
+test37: venv37
+    .venv37/bin/python -m pytest
+
+test27: venv27
+    .venv27/bin/python -m pytest
+
+test-legacy: test37 test27
+```
+
+On Windows, use `.venv37\Scripts\python.exe` and
+`.venv27\Scripts\python.exe` in `justfile` recipes.
+
+## Multi-Version Test Matrices
+
+For projects that support multiple runtime lines, keep the matrix in `justfile`
+instead of ad hoc commands. Use explicit runtime versions for Node/npm and
+explicit virtual environments for Python:
+
+```makefile
+test-node18:
+    vx node@18 npm test
+
+test-node20:
+    vx node@20 npm test
+
+test-node22:
+    vx node@22 npm test
+
+test-py37: venv37
+    .venv37/bin/python -m pytest tests/py37
+
+test-py312: venv312
+    .venv312/bin/python -m pytest tests/py312
+
+test-matrix: test-node18 test-node20 test-node22 test-py37 test-py312
+```
+
+Agents should prefer `vx just test-matrix` or `vx run test-matrix` when a
+project defines it, and should add a matrix recipe when compatibility support is
+part of the task.
+
 ## Using `--with` for Multi-Runtime
 
 When a command needs additional runtimes available:

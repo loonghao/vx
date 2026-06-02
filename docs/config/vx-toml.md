@@ -626,6 +626,24 @@ compiler = "msvc"                   # gcc | clang | msvc
 "*" = { licenses = ["MIT", "Apache-2.0", "BSD-3-Clause"] } # License policy
 ```
 
+### AI Skills
+
+Project-local AI skills can record the embedded vx skills hash in `vx.toml`.
+`vx ai check` compares this value with the currently embedded skills and reminds
+developers when project skills are stale.
+
+```toml
+[ai]
+skills_hash = "9f2d8c0a..."
+skills_updated_at = "2026-06-02T00:00:00Z"
+```
+
+```bash
+vx ai setup              # Install global skills by default
+vx ai setup --project    # Install project skills and write [ai].skills_hash
+vx ai check              # Check whether project skills are stale
+```
+
 ---
 
 ## Planned Sections
@@ -634,7 +652,6 @@ The following sections are designed and have Rust struct definitions, but are in
 
 | Section | Phase | Description |
 |---------|-------|-------------|
-| `[ai]` | Phase 2 | AI code generation integration |
 | `[docs]` | Phase 2 | Documentation auto-generation |
 | `[team]` | Phase 3 | Team collaboration rules (code owners, review, conventions) |
 | `[remote]` | Phase 3 | Remote development environments (Codespaces, Gitpod, DevContainer) |
