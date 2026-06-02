@@ -6,6 +6,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [0.9.13](https://github.com/loonghao/vx/compare/v0.9.12...v0.9.13) (2026-06-02)
+
+
+### Features
+
+* support legacy python and ai skills checks ([e8a60c5](https://github.com/loonghao/vx/commit/e8a60c52b5a246c745b49ea0a9e2d34d845cba3b))
+
 ## [0.9.12](https://github.com/loonghao/vx/compare/v0.9.11...v0.9.12) (2026-05-31)
 
 
