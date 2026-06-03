@@ -47,7 +47,7 @@ vx self-update
 vx self-update --check
 
 # Update to a specific version
-vx self-update v0.9.11
+vx self-update v0.9.13
 
 # Use beta channel
 vx self-update --channel beta
