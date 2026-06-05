@@ -129,6 +129,13 @@ impl Installer {
             .download_temp(download_url, progress)
             .await?;
 
+        // Auto-detect and verify sidecar checksum (RFC: PIP-557).
+        // Tries {url}.sha256 then {url}.sha256sum. Silently skips if
+        // neither exists; fails the install on checksum mismatch.
+        self.downloader
+            .verify_sidecar_checksum(download_url, &temp_path)
+            .await?;
+
         // Extract the archive
         let extracted_files = self
             .extractor
@@ -188,6 +195,11 @@ impl Installer {
         let temp_path = self
             .downloader
             .download_temp(download_url, progress)
+            .await?;
+
+        // Auto-detect and verify sidecar checksum (PIP-557).
+        self.downloader
+            .verify_sidecar_checksum(download_url, &temp_path)
             .await?;
 
         // Move/rename to final location
