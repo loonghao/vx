@@ -273,7 +273,7 @@ def score_asset(name, ctx, version, linux_libc = "musl", extra_excludes = None):
 
 def _tie_break_key(item):
     """Sort key for tie-breaking: (score desc, size asc, name_length asc, name asc)."""
-    score = item.get("total", 0)
+    score = item.get("score", 0)
     size  = item.get("size", 0)
     name  = item.get("name", "")
     # Higher score first, smaller size first, shorter name first, alphabetical
