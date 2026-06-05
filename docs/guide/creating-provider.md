@@ -78,12 +78,39 @@ That's it! vx will auto-discover the new provider.
 
 ## Choosing the Right Template
 
+```
+Need to add a new tool to vx?
+├── Tool distributed via GitHub Releases?
+│   ├── Rust target triple naming?       → github_rust_provider
+│   ├── Go goreleaser naming?            → github_go_provider
+│   ├── Single binary (no archive)?      → github_binary_provider
+│   ├── Irregular / unknown naming?      → github_smart_provider  ← NEW
+│   └── Need asset auto-detection?       → github_smart_provider
+├── System package manager only?         → system_provider
+└── Custom download source / logic?      → Hand-write download_url + install_layout
+```
+
 | Template | When to use | Asset example |
 |----------|-------------|---------------|
 | `github_rust_provider` | Rust tools with target triple naming | `rg-14.1.1-x86_64-unknown-linux-musl.tar.gz` |
 | `github_go_provider` | Go tools with goreleaser naming | `gh_2.67.0_linux_amd64.tar.gz` |
 | `github_binary_provider` | Single binary downloads (no archive) | `kubectl` |
+| `github_smart_provider` | Irregular / unknown naming; wants auto-detect (RFC 0041) | auto-scored from release assets |
 | `system_provider` | System package manager only (no download) | N/A |
+
+### When to Use `github_smart_provider`
+
+The `github_smart_provider` (RFC 0041) automatically inspects GitHub Release assets
+and picks the best match for the current platform via scoring:
+
+- **Irregular naming**: projects like hugo, ffmpeg, dive with non-standard asset naming
+- **Quick prototyping**: you don't know the exact asset template yet
+- **As a fallback**: provide an explicit `asset` template as a fallback when auto-detect fails
+- **Maintenance reduction**: no need to update platform maps when new architectures are added
+
+For tools with stable, well-known naming conventions (goreleaser Go tools, standard
+Rust triple naming), the explicit templates (`github_go_provider`, `github_rust_provider`)
+are still preferred for determinism and zero API calls.
 
 ### Template Placeholders
 
@@ -106,7 +133,14 @@ That's it! vx will auto-discover the new provider.
 | `{arch}` | `amd64` / `arm64` | Go GOARCH |
 | `{ext}` | `tar.gz` / `zip` | Archive extension |
 
+**Smart template** (`github_smart_provider`): No placeholders needed — the template
+automatically inspects the release assets and scores them against the current platform.
+All standard options (`executable`, `store`, `tag_prefix`, `linux_libc`) still apply.
+See [RFC 0041](../rfcs/0041-github-smart-provider-asset-scoring.md) for the scoring algorithm.
+
 ### Common template options
+
+**Rust / Go / Binary templates:**
 
 ```starlark
 _p = github_rust_provider("owner", "repo",
@@ -116,6 +150,28 @@ _p = github_rust_provider("owner", "repo",
     tag_prefix   = "v",             # Tag prefix (default: "v", use "" for no prefix)
     linux_libc   = "musl",          # Linux libc variant: "musl" (default) or "gnu"
     strip_prefix = "tool-{vversion}-{triple}",  # Archive top-level dir to strip
+)
+```
+
+**Smart template:**
+
+```starlark
+# Minimal — just owner/repo, auto-detects everything
+_p = github_smart_provider("owner", "repo")
+
+# With fallback template (used when auto-detect fails)
+_p = github_smart_provider("owner", "repo",
+    executable = "tool",
+    asset      = "tool-{vversion}-{triple}.{ext}",   # fallback template
+    strip      = "tool-{vversion}-{triple}",          # fallback strip_prefix
+    linux_libc = "musl",                              # Linux libc preference
+)
+
+# Tuning auto-detect behavior
+_p = github_smart_provider("owner", "repo",
+    score_threshold = 50,       # Minimum score to accept (0-100, default: 40)
+    extra_excludes  = ["debug", "static"],  # Extra filename keywords to exclude
+    prereleases     = True,     # Include pre-release versions
 )
 ```
 
@@ -261,6 +317,57 @@ def system_install(_ctx, _version):
         linux   = apt_install("mytool"),
     )
 ```
+
+### Example 4: Smart provider (hugo)
+
+When a tool has irregular asset naming, `github_smart_provider` automatically
+detects the right asset — no platform map needed:
+
+```starlark
+# crates/vx-providers/hugo/provider.star
+# Uses github_smart_provider — asset auto-detected from GitHub Release assets.
+# No platform map, no manual download_url, no install_layout needed.
+load("@vx//stdlib:provider.star",
+     "runtime_def", "github_permissions")
+load("@vx//stdlib:provider_templates.star",
+     "github_smart_provider")
+
+name        = "hugo"
+description = "Hugo static site generator"
+homepage    = "https://gohugo.io"
+repository  = "https://github.com/gohugoio/hugo"
+license     = "Apache-2.0"
+ecosystem   = "devtools"
+
+runtimes = [runtime_def("hugo", aliases=["hugo"],
+                         version_pattern="hugo v\\d+")]
+
+permissions = github_permissions()
+
+# github_smart_provider inspects all release assets and picks the best match
+# using the scoring algorithm defined in RFC 0041.
+#   - For irregular naming: hugo releases use different extensions per platform
+#     (hugo_0.146.7_windows-amd64.zip, hugo_0.146.7_darwin-universal.tar.gz, etc.)
+#   - The asset parameter below is a FALLBACK template used only when auto-detect
+#     fails (e.g. GitHub API unavailable or no asset scores above threshold).
+_p = github_smart_provider("gohugoio", "hugo",
+    executable = "hugo",
+    asset      = "hugo_{version}_{os}-{arch}.{ext}",
+    strip      = "",
+)
+
+fetch_versions   = _p["fetch_versions"]
+download_url     = _p["download_url"]
+install_layout   = _p["install_layout"]
+store_root       = _p["store_root"]
+get_execute_path = _p["get_execute_path"]
+post_install     = _p["post_install"]
+environment      = _p["environment"]
+deps             = _p["deps"]
+```
+
+Compare this to the hand-written approach (Example 2): the smart provider eliminates
+~40 lines of platform mapping boilerplate.
 
 ## Context Object (`ctx`)
 
