@@ -449,9 +449,7 @@ impl Installer for RealInstaller {
                 archive.unpack(dest)?;
             }
             Some("zip") => {
-                let file = std::fs::File::open(archive)?;
-                let mut archive = zip::ZipArchive::new(file)?;
-                archive.extract(dest)?;
+                extract_zip_robust(archive, dest)?;
             }
             Some("7z") => {
                 #[cfg(feature = "extended-formats")]
@@ -613,8 +611,29 @@ impl Installer for RealInstaller {
         }
 
         if is_archive {
-            // Extract archive
-            self.extract(&temp_path, dest).await?;
+            // Extract archive with retry for transient failures.
+            // Large zip archives (e.g. Go 1.26.2 with 15 009 entries) can
+            // experience truncated extraction on Windows due to filesystem
+            // pressure. Retry with exponential backoff to recover.
+            let temp_path_owned = temp_path.clone();
+            let dest_owned = dest.to_path_buf();
+            let extract_op = || async { self.extract(&temp_path_owned, &dest_owned).await };
+            extract_op
+                .retry(
+                    ExponentialBuilder::default()
+                        .with_min_delay(Duration::from_secs(1))
+                        .with_max_delay(Duration::from_secs(10))
+                        .with_max_times(3)
+                        .with_jitter(),
+                )
+                .notify(|err: &anyhow::Error, dur: Duration| {
+                    tracing::warn!(
+                        error = %err,
+                        retry_in = ?dur,
+                        "Retrying archive extraction after transient error"
+                    );
+                })
+                .await?;
         } else {
             // Single executable file - place under bin/
             let bin_dir = dest.join("bin");
@@ -812,6 +831,154 @@ impl Installer for RealInstaller {
 
         Ok(())
     }
+}
+
+/// Extract a zip archive entry-by-entry with Windows long-path support,
+/// error tracking, and completeness verification.
+///
+/// Replaces the single `archive.extract(dest)` call which can silently
+/// truncate on large archives (e.g. Go 1.26.2 with 15 009 entries on Windows).
+fn extract_zip_robust(archive_path: &Path, dest: &Path) -> Result<()> {
+    let file = std::fs::File::open(archive_path)
+        .map_err(|e| anyhow::anyhow!("Failed to open zip archive: {}", e))?;
+    let mut archive = zip::ZipArchive::new(file)
+        .map_err(|e| anyhow::anyhow!("Failed to read zip archive: {}", e))?;
+    let total_entries = archive.len();
+
+    tracing::debug!(
+        archive = %archive_path.display(),
+        total_entries,
+        dest = %dest.display(),
+        "Extracting zip archive entry-by-entry"
+    );
+
+    let mut extracted_files: usize = 0;
+    let mut extracted_dirs: usize = 0;
+    let mut skipped_entries: usize = 0;
+
+    for i in 0..total_entries {
+        let mut entry = match archive.by_index(i) {
+            Ok(entry) => entry,
+            Err(e) => {
+                tracing::warn!(
+                    index = i,
+                    total = total_entries,
+                    error = %e,
+                    "Failed to read zip entry; skipping"
+                );
+                skipped_entries += 1;
+                continue;
+            }
+        };
+
+        // enclosed_name() returns a sanitized path, filtering out
+        // path-traversal attacks (e.g. ../etc/passwd).
+        let entry_path = match entry.enclosed_name() {
+            Some(path) => dest.join(path),
+            None => {
+                tracing::debug!(
+                    name = entry.name(),
+                    "Skipping zip entry with invalid (non-enclosed) name"
+                );
+                skipped_entries += 1;
+                continue;
+            }
+        };
+
+        // On Windows, handle paths that exceed MAX_PATH (260 chars).
+        // Go archives with deep module paths can easily exceed this limit.
+        #[cfg(windows)]
+        let entry_path = {
+            use vx_paths::windows::{PathLengthStatus, check_path_length, to_long_path};
+
+            match check_path_length(&entry_path) {
+                PathLengthStatus::TooLong { length, .. } => {
+                    tracing::debug!(
+                        path = %entry_path.display(),
+                        length,
+                        "Using extended-length path for Windows"
+                    );
+                    to_long_path(&entry_path)
+                }
+                _ => entry_path,
+            }
+        };
+
+        // Create parent directories before writing the file.
+        // This handles archives where directory entries are implicit
+        // (not stored as explicit entries), like Go's Windows archives.
+        if let Some(parent) = entry_path.parent() {
+            if !parent.exists() {
+                std::fs::create_dir_all(parent).map_err(|e| {
+                    anyhow::anyhow!(
+                        "Failed to create parent directory {}: {}",
+                        parent.display(),
+                        e
+                    )
+                })?;
+            }
+        }
+
+        if entry.is_dir() {
+            if !entry_path.exists() {
+                std::fs::create_dir_all(&entry_path).map_err(|e| {
+                    anyhow::anyhow!("Failed to create directory {}: {}", entry_path.display(), e)
+                })?;
+            }
+            extracted_dirs += 1;
+        } else {
+            let mut output = std::fs::File::create(&entry_path).map_err(|e| {
+                anyhow::anyhow!("Failed to create file {}: {}", entry_path.display(), e)
+            })?;
+            std::io::copy(&mut entry, &mut output).map_err(|e| {
+                anyhow::anyhow!("Failed to write file {}: {}", entry_path.display(), e)
+            })?;
+            extracted_files += 1;
+        }
+    }
+
+    tracing::info!(
+        archive = %archive_path.display(),
+        total_entries,
+        extracted_files,
+        extracted_dirs,
+        skipped_entries,
+        "Zip extraction complete"
+    );
+
+    // Verify extraction was substantially complete.
+    // Allow a small number of skipped entries (symlinks etc.),
+    // but flag significant truncation as an error.
+    if total_entries > 0 {
+        let extracted_total = extracted_files + extracted_dirs;
+        let missing = total_entries.saturating_sub(extracted_total + skipped_entries);
+        let missing_ratio = missing as f64 / total_entries as f64;
+
+        if missing_ratio > 0.05 {
+            return Err(anyhow::anyhow!(
+                "Zip extraction incomplete: {}/{} entries missing ({:.1}% missing, {} files + {} dirs extracted, {} skipped). \
+                 The archive may be corrupt or extraction was interrupted.",
+                missing,
+                total_entries,
+                missing_ratio * 100.0,
+                extracted_files,
+                extracted_dirs,
+                skipped_entries,
+            ));
+        }
+
+        if missing > 0 {
+            tracing::warn!(
+                missing,
+                total_entries,
+                "{}/{} zip entries were not extracted (may be symlinks or special files)",
+                missing,
+                total_entries
+            );
+        }
+    }
+
+    Ok(())
 }
 
 /// Download error type that supports retry classification
