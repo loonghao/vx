@@ -6,6 +6,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [0.9.15](https://github.com/loonghao/vx/compare/v0.9.14...v0.9.15) (2026-06-05)
+
+
+### Bug Fixes
+
+* **runtime:** replace zip extract() with entry-by-entry extraction to prevent truncation ([ff3c418](https://github.com/loonghao/vx/commit/ff3c4189ccf9cf925290607d9708dfc575f63940))
+
 ## [0.9.14](https://github.com/loonghao/vx/compare/v0.9.13...v0.9.14) (2026-06-05)
 
 
