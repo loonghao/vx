@@ -6,6 +6,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [0.9.16](https://github.com/loonghao/vx/compare/v0.9.15...v0.9.16) (2026-06-05)
+
+
+### Features
+
+* **installer:** auto-verify sidecar checksum files from GitHub releases ([6cbdc9a](https://github.com/loonghao/vx/commit/6cbdc9ac89ae50d75b9138b4357b7027ba13f62f))
+* **starlark:** implement github_smart_provider MVP per RFC 0041 ([f274d6b](https://github.com/loonghao/vx/commit/f274d6b161644c915f025e59e340246128528615))
+
+
+### Documentation
+
+* add RFC 0041 for github_smart_provider asset scoring ([871bde6](https://github.com/loonghao/vx/commit/871bde65f73abe0c7a287931722f775428b8b246))
+* add RFC 0041 for github_smart_provider asset scoring ([1b7918b](https://github.com/loonghao/vx/commit/1b7918bfa6ba45338b37652243329ad075d605b4))
+
 ## [0.9.15](https://github.com/loonghao/vx/compare/v0.9.14...v0.9.15) (2026-06-05)
 
 
