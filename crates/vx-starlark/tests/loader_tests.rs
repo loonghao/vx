@@ -158,11 +158,11 @@ fn test_available_modules_contains_all_builtins() {
 fn test_available_modules_count() {
     let loader = VxModuleLoader::new();
     let modules = loader.available_modules();
-    // We have 14 built-in modules:
+    // We have 15 built-in modules:
     // semver, platform, http, github, install, env,
     // layout, permissions, provider, provider_templates,
-    // runtime, script_install, system_install, test
-    assert_eq!(modules.len(), 14, "Should have exactly 14 built-in modules");
+    // runtime, script_install, system_install, test, smart_detect
+    assert_eq!(modules.len(), 15, "Should have exactly 15 built-in modules");
 }
 
 // ============================================================

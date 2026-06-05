@@ -201,6 +201,10 @@ impl StarlarkProvider {
             Ok(json) => {
                 if json.is_null() {
                     Ok(None)
+                } else if let Some(type_str) = json.get("__type").and_then(|t| t.as_str())
+                    && type_str == "github_smart_detect"
+                {
+                    Box::pin(self.resolve_smart_detect_descriptor(ctx, &json)).await
                 } else if let Some(url) = json.as_str() {
                     Ok(Some(url.to_string()))
                 } else {
@@ -737,4 +741,251 @@ impl StarlarkProvider {
             Err(e) => Err(e),
         }
     }
+
+    // ──────────────────────────────────────────────────────────────────
+    // RFC 0041: github_smart_provider asset scoring & fallback resolution
+    // ──────────────────────────────────────────────────────────────────
+
+    /// Resolve a `github_smart_detect` descriptor: fetch release assets from
+    /// GitHub API, score them via Starlark `detect_best_asset`, return the
+    /// best asset URL or fallback.
+    async fn resolve_smart_detect_descriptor(
+        &self,
+        core_ctx: &ProviderContext,
+        descriptor: &serde_json::Value,
+    ) -> Result<Option<String>> {
+        use tracing::{debug, warn};
+        use vx_version_fetcher::GitHubReleasesFetcher;
+
+        let owner = descriptor
+            .get("owner")
+            .and_then(|o| o.as_str())
+            .unwrap_or("");
+        let repo = descriptor
+            .get("repo")
+            .and_then(|r| r.as_str())
+            .unwrap_or("");
+        let tag = descriptor.get("tag").and_then(|t| t.as_str()).unwrap_or("");
+        let version = descriptor
+            .get("version")
+            .and_then(|v| v.as_str())
+            .unwrap_or("");
+        let linux_libc = descriptor
+            .get("linux_libc")
+            .and_then(|l| l.as_str())
+            .unwrap_or("musl");
+        let threshold = descriptor
+            .get("score_threshold")
+            .and_then(|t| t.as_u64())
+            .unwrap_or(40);
+        let extra_excludes: Vec<String> = descriptor
+            .get("extra_excludes")
+            .and_then(|e| e.as_array())
+            .map(|a| {
+                a.iter()
+                    .filter_map(|v| v.as_str().map(|s| s.to_string()))
+                    .collect()
+            })
+            .unwrap_or_default();
+
+        // Step 1: Fetch assets from GitHub API
+        let runtime_ctx = super::versions::build_minimal_runtime_ctx();
+
+        let assets =
+            match GitHubReleasesFetcher::fetch_release_assets(owner, repo, tag, &runtime_ctx).await
+            {
+                Ok(assets) => {
+                    debug!(
+                        provider = %self.meta.name,
+                        tag = %tag,
+                        count = %assets.len(),
+                        "Fetched release assets for smart detect"
+                    );
+                    assets
+                }
+                Err(e) => {
+                    warn!(
+                        provider = %self.meta.name,
+                        tag = %tag,
+                        error = %e,
+                        "Failed to fetch release assets, trying fallback"
+                    );
+                    return self.try_fallback_asset_url(core_ctx, descriptor).await;
+                }
+            };
+
+        if assets.is_empty() {
+            debug!(provider = %self.meta.name, tag = %tag, "No assets found for release");
+            return self.try_fallback_asset_url(core_ctx, descriptor).await;
+        }
+
+        // Step 2: Build assets JSON array for Starlark
+        let assets_json: Vec<serde_json::Value> = assets
+            .iter()
+            .map(|a| {
+                serde_json::json!({
+                    "name": a.name,
+                    "size": a.size,
+                    "browser_download_url": a.browser_download_url,
+                })
+            })
+            .collect();
+
+        // Step 3: Build platform ctx dict for Starlark scoring
+        let platform_ctx = serde_json::json!({
+            "platform": {
+                "os": core_ctx.platform.os,
+                "arch": core_ctx.platform.arch,
+                "target": core_ctx.platform.target,
+            },
+        });
+
+        // Step 4: Call Starlark scoring
+        let engine = StarlarkEngine::new();
+        let scoring_result = engine.call_stdlib_function(
+            "@vx//stdlib:smart_detect.star",
+            "detect_best_asset",
+            &[
+                serde_json::json!(assets_json),
+                platform_ctx,
+                serde_json::json!(version),
+                serde_json::json!(threshold),
+                serde_json::json!(linux_libc),
+                serde_json::json!(extra_excludes),
+            ],
+        );
+
+        match scoring_result {
+            Ok(json) => {
+                if json.is_null() {
+                    debug!(
+                        provider = %self.meta.name,
+                        tag = %tag,
+                        "Smart detect: no asset above threshold"
+                    );
+                    return self.try_fallback_asset_url(core_ctx, descriptor).await;
+                }
+                let url = json.get("browser_download_url").and_then(|u| u.as_str());
+                if let Some(url) = url {
+                    let name = json.get("name").and_then(|n| n.as_str()).unwrap_or("");
+                    let score = json.get("score").and_then(|s| s.as_i64()).unwrap_or(0);
+                    debug!(
+                        provider = %self.meta.name,
+                        asset = %name,
+                        score = %score,
+                        "Smart detect selected best asset"
+                    );
+                    return Ok(Some(url.to_string()));
+                }
+                debug!(provider = %self.meta.name, "Smart detect result missing URL");
+                self.try_fallback_asset_url(core_ctx, descriptor).await
+            }
+            Err(e) => {
+                warn!(
+                    provider = %self.meta.name,
+                    error = %e,
+                    "Starlark scoring failed, trying fallback"
+                );
+                self.try_fallback_asset_url(core_ctx, descriptor).await
+            }
+        }
+    }
+
+    /// Try the fallback asset template when smart detect fails.
+    async fn try_fallback_asset_url(
+        &self,
+        core_ctx: &ProviderContext,
+        descriptor: &serde_json::Value,
+    ) -> Result<Option<String>> {
+        use tracing::debug;
+
+        let fallback_asset = descriptor
+            .get("fallback_asset")
+            .and_then(|a| a.as_str())
+            .filter(|s| !s.is_empty());
+
+        let template = match fallback_asset {
+            Some(t) => t,
+            None => {
+                debug!(
+                    provider = %self.meta.name,
+                    "No fallback asset template — returning None"
+                );
+                return Ok(None);
+            }
+        };
+
+        let owner = descriptor
+            .get("owner")
+            .and_then(|o| o.as_str())
+            .unwrap_or("");
+        let repo = descriptor
+            .get("repo")
+            .and_then(|r| r.as_str())
+            .unwrap_or("");
+        let tag = descriptor.get("tag").and_then(|t| t.as_str()).unwrap_or("");
+        let version = descriptor
+            .get("version")
+            .and_then(|v| v.as_str())
+            .unwrap_or("");
+
+        let fname = expand_asset_template(template, core_ctx, version);
+
+        let url = format!(
+            "https://github.com/{}/{}/releases/download/{}/{}",
+            owner, repo, tag, fname
+        );
+
+        debug!(
+            provider = %self.meta.name,
+            template = %template,
+            filename = %fname,
+            "Smart detect fallback: using explicit asset template"
+        );
+
+        Ok(Some(url))
+    }
+}
+
+/// Expand an asset filename template with platform-specific values.
+///
+/// Mirrors `expand_asset()` from `platform.star` for use in the Rust
+/// fallback path (so we don't need another Starlark roundtrip).
+///
+/// Supported placeholders: `{version}`, `{vversion}`, `{triple}`, `{os}`,
+/// `{arch}`, `{ext}`, `{exe}`.
+fn expand_asset_template(template: &str, ctx: &ProviderContext, version: &str) -> String {
+    let triple = ctx.platform.target.as_str();
+    let ext = if ctx.platform.os == "windows" {
+        "zip"
+    } else {
+        "tar.gz"
+    };
+    let exe = if ctx.platform.os == "windows" {
+        ".exe"
+    } else {
+        ""
+    };
+
+    let go_os = match ctx.platform.os.as_str() {
+        "windows" => "windows",
+        "macos" => "darwin",
+        "linux" => "linux",
+        _ => "linux",
+    };
+    let go_arch = match ctx.platform.arch.as_str() {
+        "x64" => "amd64",
+        "arm64" => "arm64",
+        "x86" => "386",
+        _ => "amd64",
+    };
+
+    template
+        .replace("{version}", version)
+        .replace("{vversion}", &format!("v{}", version))
+        .replace("{triple}", triple)
+        .replace("{os}", go_os)
+        .replace("{arch}", go_arch)
+        .replace("{ext}", ext)
+        .replace("{exe}", exe)
 }

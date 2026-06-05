@@ -674,6 +674,137 @@ async fn test_cargo_nextest_download_url() {
     }
 }
 
+// ============================================================
+// github_smart_provider template tests (RFC 0041)
+// ============================================================
+
+#[tokio::test]
+async fn test_smart_provider_download_url_returns_descriptor() {
+    let content = r#"
+load("@vx//stdlib:provider_templates.star", "github_smart_provider")
+
+_p = github_smart_provider("BurntSushi", "ripgrep",
+    executable = "rg",
+    asset      = "ripgrep-{version}-{triple}.{ext}",
+)
+
+name = "ripgrep"
+description = "ripgrep test"
+runtimes = [{"name": "ripgrep", "executable": "rg"}]
+fetch_versions = _p["fetch_versions"]
+download_url   = _p["download_url"]
+install_layout = _p["install_layout"]
+"#;
+
+    let provider = vx_starlark::StarlarkProvider::from_content("ripgrep", content)
+        .await
+        .unwrap();
+
+    // download_url through StarlarkProvider resolves the descriptor via
+    // GitHub API (real HTTP). We test via the Starlark engine instead.
+    let _ = provider.download_url("14.1.1").await;
+    // download_url returns a descriptor (dict), not a URL string
+    // The Rust side resolves the descriptor into a real URL.
+    // In unit tests without real HTTP, it returns None because
+    // resolve_smart_detect_descriptor fails to fetch from GitHub API.
+    // So we test via the Starlark engine directly instead:
+    let engine = vx_starlark::StarlarkEngine::new();
+    let ctx = vx_starlark::ProviderContext::new("ripgrep", std::env::temp_dir().join("vx-test"));
+    let result = engine
+        .call_function(
+            &provider.script_path(),
+            &content,
+            "download_url",
+            &ctx,
+            &[serde_json::json!("14.1.1")],
+        )
+        .unwrap();
+
+    // Verify the descriptor shape
+    assert_eq!(result["__type"].as_str().unwrap(), "github_smart_detect");
+    assert_eq!(result["owner"].as_str().unwrap(), "BurntSushi");
+    assert_eq!(result["repo"].as_str().unwrap(), "ripgrep");
+    assert_eq!(result["tag"].as_str().unwrap(), "v14.1.1");
+    assert_eq!(result["version"].as_str().unwrap(), "14.1.1");
+    assert_eq!(result["linux_libc"].as_str().unwrap(), "musl");
+    assert_eq!(result["score_threshold"].as_i64().unwrap(), 40);
+    assert_eq!(
+        result["fallback_asset"].as_str().unwrap(),
+        "ripgrep-{version}-{triple}.{ext}"
+    );
+}
+
+#[tokio::test]
+async fn test_smart_provider_minimal_no_asset() {
+    let content = r#"
+load("@vx//stdlib:provider_templates.star", "github_smart_provider")
+
+_p = github_smart_provider("myorg", "mytool")
+
+name = "mytool"
+description = "Smart provider without fallback"
+runtimes = [{"name": "mytool", "executable": "mytool"}]
+fetch_versions = _p["fetch_versions"]
+download_url   = _p["download_url"]
+install_layout = _p["install_layout"]
+"#;
+
+    let engine = vx_starlark::StarlarkEngine::new();
+    let ctx = vx_starlark::ProviderContext::new("mytool", std::env::temp_dir().join("vx-test"));
+    let result = engine
+        .call_function(
+            &std::path::PathBuf::from("<builtin:mytool>"),
+            content,
+            "download_url",
+            &ctx,
+            &[serde_json::json!("1.0.0")],
+        )
+        .unwrap();
+
+    assert_eq!(result["__type"].as_str().unwrap(), "github_smart_detect");
+    assert_eq!(result["owner"].as_str().unwrap(), "myorg");
+    assert_eq!(result["repo"].as_str().unwrap(), "mytool");
+    // No fallback_asset when asset=None
+    assert!(result.get("fallback_asset").is_none());
+}
+
+#[tokio::test]
+async fn test_smart_provider_install_layout() {
+    let content = r#"
+load("@vx//stdlib:provider_templates.star", "github_smart_provider")
+
+_p = github_smart_provider("myorg", "mytool",
+    executable = "mt",
+    strip      = "mytool-{vversion}-{triple}",
+)
+
+name = "mytool"
+description = "Smart provider install_layout test"
+runtimes = [{"name": "mytool", "executable": "mt"}]
+fetch_versions = _p["fetch_versions"]
+download_url   = _p["download_url"]
+install_layout = _p["install_layout"]
+"#;
+
+    let engine = vx_starlark::StarlarkEngine::new();
+    let ctx = vx_starlark::ProviderContext::new("mytool", std::env::temp_dir().join("vx-test"));
+    let result = engine
+        .call_function(
+            &std::path::PathBuf::from("<builtin:mytool2>"),
+            content,
+            "install_layout",
+            &ctx,
+            &[serde_json::json!("1.0.0")],
+        )
+        .unwrap();
+
+    assert_eq!(result["__type"].as_str().unwrap(), "archive");
+    assert_eq!(
+        result["strip_prefix"].as_str().unwrap(),
+        "mytool-{vversion}-{triple}"
+    );
+}
+
 #[tokio::test]
 async fn test_cargo_deny_download_url() {
     let (star_path, content) = load_provider_content("cargo-deny");

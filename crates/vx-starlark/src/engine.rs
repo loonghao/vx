@@ -208,6 +208,55 @@ impl StarlarkEngine {
         Ok(result)
     }
 
+    /// Call a function from a stdlib module by name.
+    ///
+    /// Loads the stdlib module source via [`VxModuleLoader`], evaluates it,
+    /// looks up the named function, and calls it with the given positional
+    /// JSON arguments.
+    ///
+    /// # Args
+    ///
+    /// * `module_path` — e.g. `"@vx//stdlib:smart_detect.star"`
+    /// * `func_name` — e.g. `"detect_best_asset"`
+    /// * `args` — positional JSON arguments passed to the function
+    ///
+    /// # Returns
+    ///
+    /// The function's return value as a JSON value.
+    pub fn call_stdlib_function(
+        &self,
+        module_path: &str,
+        func_name: &str,
+        args: &[JsonValue],
+    ) -> Result<JsonValue> {
+        let loader = crate::loader::VxModuleLoader::new();
+        let module = loader
+            .evaluable_module(module_path, &self.dialect)
+            .map_err(|e| Error::EvalError(e.to_string()))?;
+
+        let func_value = module
+            .get(func_name)
+            .ok_or_else(|| Error::function_not_found(func_name))?;
+
+        let heap = module.heap();
+        let pos_args: Vec<Value> = args
+            .iter()
+            .map(|a| self.json_to_starlark_value(heap, a))
+            .collect();
+
+        let mut eval = Evaluator::new(&module);
+        let result = eval
+            .eval_function(func_value, &pos_args, &[])
+            .map_err(|e| {
+                Error::EvalError(format!(
+                    "Error calling '{}' in '{}': {}",
+                    func_name, module_path, e
+                ))
+            })?;
+
+        Ok(self.starlark_value_to_json(result))
+    }
+
     /// Get a named variable from a Starlark script (e.g. `runtimes`, `permissions`)
     ///
     /// Evaluates the script and returns the value of the named variable as JSON.

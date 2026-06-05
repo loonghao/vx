@@ -47,8 +47,8 @@ pub use builder::VersionFetcherBuilder;
 pub use error::{FetchError, FetchResult};
 pub use fetcher::VersionFetcher;
 pub use fetchers::{
-    CustomApiFetcher, GitHubReleasesConfig, GitHubReleasesFetcher, JsDelivrConfig, JsDelivrFetcher,
-    NpmConfig, NpmFetcher, PyPiConfig, PyPiFetcher,
+    CustomApiFetcher, GitHubAssetInfo, GitHubReleasesConfig, GitHubReleasesFetcher, JsDelivrConfig,
+    JsDelivrFetcher, NpmConfig, NpmFetcher, PyPiConfig, PyPiFetcher,
 };
 pub use utils::version_utils;
 

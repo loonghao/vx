@@ -440,3 +440,109 @@ def system_provider(store_name, executable = None,
     fns["download_url"]   = _download_url
     fns["install_layout"] = _install_layout
     return fns
+
+# ---------------------------------------------------------------------------
+# Template 5: github_smart_provider
+#   GitHub releases with automatic asset scoring (RFC 0041).
+#   No asset template needed — the system inspects release assets and picks
+#   the best match for the current platform.
+# ---------------------------------------------------------------------------
+
+def github_smart_provider(owner, repo,
+                          executable = None,
+                          store = None,
+                          asset = None,
+                          tag_prefix = "v",
+                          linux_libc = "musl",
+                          prereleases = False,
+                          strip = None,
+                          path_env = True,
+                          score_threshold = 40,
+                          extra_excludes = None):
+    """Provider template for GitHub releases with automatic asset detection.
+
+    Unlike github_rust_provider / github_go_provider, you do NOT provide an
+    asset filename template.  Instead the system fetches the release assets
+    from the GitHub API, scores each one against the current platform, and
+    picks the best match automatically (RFC 0041).
+
+    When the optional ``asset`` fallback template IS provided it is only used
+    as a last resort — when the GitHub API call fails or no asset scores
+    above the threshold.
+
+    Args:
+        owner:           GitHub owner (e.g. "BurntSushi")
+        repo:            GitHub repo name (e.g. "ripgrep")
+        executable:      Executable name; defaults to `repo`
+        store:           Store directory name; defaults to `repo`
+        asset:           Fallback asset filename template.
+                         Only used when the GitHub API call fails or no asset
+                         scores above `score_threshold`.
+                         Placeholders: {version}, {vversion}, {triple}, {os},
+                         {arch}, {ext}, {exe}
+        tag_prefix:      Tag prefix before version (default: "v")
+        linux_libc:      Linux C library preference: "musl" (default) or "gnu"
+        prereleases:     Include pre-release versions (default: False)
+        strip:           Archive top-level directory prefix to strip (string).
+                         None = no stripping.
+        path_env:        Prepend install_dir to PATH (default: True)
+        score_threshold: Minimum score to accept an asset (0-100, default: 40)
+        extra_excludes:  Extra filename keywords to exclude (list of strings)
+
+    Returns:
+        A dict with all standard provider functions:
+        fetch_versions, download_url, install_layout,
+        store_root, get_execute_path, post_install, environment, deps
+
+    Example:
+        # ripgrep — no asset template, fully automatic
+        _p = github_smart_provider("BurntSushi", "ripgrep")
+
+        # Custom tool — with a fallback template
+        _p = github_smart_provider(
+            "myorg", "mytool",
+            asset      = "mytool-{vversion}-{triple}.{ext}",
+            executable = "mt",
+        )
+    """
+    exe_name   = executable if executable != None else repo
+    store_name = store      if store      != None else repo
+
+    def _fetch_versions(ctx):
+        from_github = make_fetch_versions(owner, repo, prereleases)
+        return from_github(ctx)
+
+    def _download_url(ctx, version):
+        tag = tag_prefix + version
+        desc = {
+            "__type":          "github_smart_detect",
+            "owner":           owner,
+            "repo":            repo,
+            "tag":             tag,
+            "version":         version,
+            "linux_libc":      linux_libc,
+            "score_threshold": score_threshold,
+        }
+        if extra_excludes != None:
+            desc["extra_excludes"] = extra_excludes
+        if asset != None:
+            desc["fallback_asset"] = asset
+        return desc
+
+    def _install_layout(ctx, version):
+        exe = exe_name + _exe_suffix(ctx)
+        layout = {
+            "__type":           "archive",
+            "executable_paths": [exe, exe_name],
+        }
+        if strip != None:
+            layout["strip_prefix"] = strip
+        else:
+            layout["strip_prefix"] = ""
+        return layout
+
+    fns = _std_provider_fns(store_name, exe_name, path_env, None)
+    fns["fetch_versions"] = _fetch_versions
+    fns["download_url"]   = _download_url
+    fns["install_layout"] = _install_layout
+    return fns

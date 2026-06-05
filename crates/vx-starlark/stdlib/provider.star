@@ -169,4 +169,5 @@ load("@vx//stdlib:provider_templates.star",
      "github_rust_provider",
      "github_go_provider",
      "github_binary_provider",
+     "github_smart_provider",
      "system_provider")
