@@ -6,6 +6,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [0.9.14](https://github.com/loonghao/vx/compare/v0.9.13...v0.9.14) (2026-06-05)
+
+
+### Features
+
+* add codegraph provider for colbymchenry/codegraph releases ([66d7483](https://github.com/loonghao/vx/commit/66d74835e4ffb26ea89c53ab6995717d03cd4b57))
+
+
+### Documentation
+
+* update version references to v0.9.13 (2026-06-03) ([92e04d5](https://github.com/loonghao/vx/commit/92e04d5f31f1624ee86869489c84170ebaf0026d))
+
 ## [0.9.13](https://github.com/loonghao/vx/compare/v0.9.12...v0.9.13) (2026-06-02)
 
 
