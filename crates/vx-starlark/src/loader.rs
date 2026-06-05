@@ -26,6 +26,7 @@ const PROVIDER_TEMPLATES_STAR: &str = include_str!("../stdlib/provider_templates
 const RUNTIME_STAR: &str = include_str!("../stdlib/runtime.star");
 const SCRIPT_INSTALL_STAR: &str = include_str!("../stdlib/script_install.star");
 const SYSTEM_INSTALL_STAR: &str = include_str!("../stdlib/system_install.star");
+const SMART_DETECT_STAR: &str = include_str!("../stdlib/smart_detect.star");
 const TEST_STAR: &str = include_str!("../stdlib/test.star");
 
 /// Module loader for `@vx//stdlib:*` virtual modules.
@@ -64,6 +65,10 @@ impl VxModuleLoader {
             SYSTEM_INSTALL_STAR,
         );
         stdlib_modules.insert("@vx//stdlib:test.star".to_string(), TEST_STAR);
+        stdlib_modules.insert(
+            "@vx//stdlib:smart_detect.star".to_string(),
+            SMART_DETECT_STAR,
+        );
 
         Self { stdlib_modules }
     }
@@ -113,6 +118,45 @@ impl VxModuleLoader {
         module
             .freeze()
             .map_err(|e| anyhow::anyhow!("Failed to freeze vx module '{}': {:?}", path, e))
+    }
+
+    /// Load and evaluate a vx virtual module, returning a non-frozen Module.
+    ///
+    /// Unlike [`load_module`], this returns a thawed `Module` that allows
+    /// individual function lookups and calls. Used by the Rust runtime to
+    /// invoke scoring functions in `smart_detect.star`.
+    pub fn evaluable_module(
+        &self,
+        path: &str,
+        dialect: &Dialect,
+    ) -> anyhow::Result<starlark::environment::Module> {
+        let source = self.get_source(path).ok_or_else(|| {
+            anyhow::anyhow!(
+                "Unknown vx module: '{}'. Available modules: {}",
+                path,
+                self.available_modules().join(", ")
+            )
+        })?;
+
+        let ast = AstModule::parse(path, source.to_string(), dialect)
+            .map_err(|e| anyhow::anyhow!("Failed to parse vx module '{}': {}", path, e))?;
+
+        let globals = starlark::environment::GlobalsBuilder::standard().build();
+        let module = starlark::environment::Module::new();
+        {
+            let recursive_loader = VxModuleLoader::new();
+            let dialect_clone = dialect.clone();
+            let file_loader = RecursiveVxLoader {
+                loader: recursive_loader,
+                dialect: dialect_clone,
+            };
+            let mut eval = starlark::eval::Evaluator::new(&module);
+            eval.set_loader(&file_loader);
+            eval.eval_module(ast, &globals)
+                .map_err(|e| anyhow::anyhow!("Failed to evaluate vx module '{}': {}", path, e))?;
+        }
+
+        Ok(module)
     }
 
     /// List all available stdlib vx modules.

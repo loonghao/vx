@@ -293,6 +293,78 @@ impl GitHubReleasesFetcher {
     }
 }
 
+/// Asset information from a GitHub release
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct GitHubAssetInfo {
+    pub name: String,
+    pub size: u64,
+    pub browser_download_url: String,
+}
+
+impl GitHubReleasesFetcher {
+    /// Fetch assets for a specific release tag.
+    ///
+    /// Calls `GET /repos/{owner}/{repo}/releases/tags/{tag}` and extracts
+    /// the `assets[]` array from the response.
+    pub async fn fetch_release_assets(
+        owner: &str,
+        repo: &str,
+        tag: &str,
+        ctx: &dyn FetchContext,
+    ) -> FetchResult<Vec<GitHubAssetInfo>> {
+        let url = format!(
+            "https://api.github.com/repos/{}/{}/releases/tags/{}",
+            owner, repo, tag
+        );
+
+        tracing::debug!(
+            owner = %owner,
+            repo = %repo,
+            tag = %tag,
+            "Fetching release assets"
+        );
+
+        let response = ctx
+            .get_json_value(&url)
+            .await
+            .map_err(|e| FetchError::network(e.to_string()))?;
+
+        let assets = response
+            .get("assets")
+            .and_then(|a| a.as_array())
+            .ok_or_else(|| {
+                FetchError::invalid_format("GitHub", "Expected assets array in release response")
+            })?;
+
+        let result: Vec<GitHubAssetInfo> = assets
+            .iter()
+            .filter_map(|a| {
+                let name = a.get("name")?.as_str()?.to_string();
+                let size = a.get("size").and_then(|s| s.as_u64()).unwrap_or(0);
+                let browser_download_url = a
+                    .get("browser_download_url")
+                    .and_then(|u| u.as_str())
+                    .map(|s| s.to_string())?;
+                Some(GitHubAssetInfo {
+                    name,
+                    size,
+                    browser_download_url,
+                })
+            })
+            .collect();
+
+        tracing::debug!(
+            owner = %owner,
+            repo = %repo,
+            tag = %tag,
+            count = %result.len(),
+            "Fetched release assets"
+        );
+
+        Ok(result)
+    }
+}
+
 #[async_trait]
 impl VersionFetcher for GitHubReleasesFetcher {
     async fn fetch(&self, ctx: &dyn FetchContext) -> FetchResult<Vec<VersionInfo>> {

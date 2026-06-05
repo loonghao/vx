@@ -1146,7 +1146,7 @@ impl StarlarkProvider {
 /// This context only has a real HTTP client; all other fields use lightweight
 /// no-op implementations. It is used to drive `vx-version-fetcher` fetchers
 /// without pulling in the full `vx-runtime-http` dependency.
-fn build_minimal_runtime_ctx() -> vx_runtime::RuntimeContext {
+pub(crate) fn build_minimal_runtime_ctx() -> vx_runtime::RuntimeContext {
     use std::sync::Arc;
     use vx_runtime::{MockFileSystem, MockInstaller, MockPathProvider, RuntimeContext};
 
