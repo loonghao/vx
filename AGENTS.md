@@ -262,7 +262,7 @@ vx dev                         # Enter dev environment
 
 ## Starlark Provider System
 
-vx uses a **two-phase execution model**: `provider.star` runs as pure Starlark computation (no I/O) returning descriptor dicts, which the Rust runtime then interprets for actual downloads, installs, and process execution. Four high-level templates cover 90% of cases: `github_rust_provider`, `github_go_provider`, `github_binary_provider`, and `system_provider`.
+vx uses a **two-phase execution model**: `provider.star` runs as pure Starlark computation (no I/O) returning descriptor dicts, which the Rust runtime then interprets for actual downloads, installs, and process execution. Five high-level templates cover 90% of cases: `github_rust_provider`, `github_go_provider`, `github_binary_provider`, `github_smart_provider`, and `system_provider`.
 
 For the complete DSL reference — stdlib modules, context object fields, template placeholders, and real-world examples — see [`docs/guide/provider-star-reference.md`](docs/guide/provider-star-reference.md).
 
@@ -297,11 +297,13 @@ Is the user working ON vx (developing vx itself)?
 ```
 Need to add a new tool to vx?
 ├── Tool releases on GitHub?
-│   ├── Rust target triple naming? → github_rust_provider (most common)
-│   ├── Go goreleaser style?       → github_go_provider
-│   └── Single binary (no archive)?→ github_binary_provider
-├── System package manager only?   → system_provider
-└── Custom download source?        → Hand-write download_url function
+│   ├── Rust target triple naming?       → github_rust_provider (most common)
+│   ├── Go goreleaser style?             → github_go_provider
+│   ├── Single binary (no archive)?      → github_binary_provider
+│   ├── Irregular / unknown naming?      → github_smart_provider  ← NEW
+│   └── Want auto-detect with fallback?  → github_smart_provider
+├── System package manager only?         → system_provider
+└── Custom download source?              → Hand-write download_url function
 ```
 
 ### Version Resolution Priority
@@ -413,7 +415,7 @@ crates/vx-providers/<name>/   # Provider definitions
 
 crates/vx-starlark/stdlib/   # Starlark standard library
 ├── provider.star              # Unified facade
-├── provider_templates.star    # 4 high-level templates
+├── provider_templates.star    # 5 high-level templates
 └── platform.star, env.star, ...  # 14 modules total
 ```
 
