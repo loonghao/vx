@@ -48,11 +48,27 @@ async fn test_hugo_download_url() {
     match result {
         Ok(json) => {
             if let Some(s) = json.as_str() {
+                // Legacy URL string format (for providers not using smart_detect)
                 assert!(s.contains("hugo"), "URL should contain 'hugo': {}", s);
                 assert!(
                     s.starts_with("https://"),
                     "URL should start with https://: {}",
                     s
+                );
+            } else if let Some(obj) = json.as_object() {
+                // github_smart_detect descriptor format
+                assert_eq!(
+                    obj.get("__type").and_then(|v| v.as_str()).unwrap_or(""),
+                    "github_smart_detect",
+                    "smart provider descriptor should have __type=github_smart_detect"
+                );
+                assert_eq!(
+                    obj.get("owner").and_then(|v| v.as_str()).unwrap_or(""),
+                    "gohugoio"
+                );
+                assert_eq!(
+                    obj.get("repo").and_then(|v| v.as_str()).unwrap_or(""),
+                    "hugo"
                 );
             } else if json.is_null() {
                 // None = platform not supported
@@ -107,8 +123,8 @@ async fn test_hugo_install_layout() {
         Ok(json) => {
             if let Some(obj) = json.as_object() {
                 assert!(
-                    obj.contains_key("type"),
-                    "install_layout should return dict with 'type' key"
+                    obj.contains_key("__type"),
+                    "install_layout should return dict with '__type' key"
                 );
             } else if json.is_null() {
                 // None = platform not supported
