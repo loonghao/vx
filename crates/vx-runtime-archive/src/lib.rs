@@ -181,10 +181,146 @@ impl ArchiveExtractor {
         Ok(())
     }
 
-    fn extract_zip(&self, archive: &Path, dest: &Path) -> Result<()> {
-        let file = std::fs::File::open(archive)?;
-        let mut archive = zip::ZipArchive::new(file)?;
-        archive.extract(dest)?;
+    fn extract_zip(&self, archive_path: &Path, dest: &Path) -> Result<()> {
+        let file = std::fs::File::open(archive_path)?;
+        let mut archive = zip::ZipArchive::new(file).map_err(|e| {
+            anyhow!(
+                "Failed to open zip archive {}: {}",
+                archive_path.display(),
+                e
+            )
+        })?;
+        let total_entries = archive.len();
+
+        tracing::debug!(
+            archive = %archive_path.display(),
+            total_entries,
+            dest = %dest.display(),
+            "Extracting zip archive entry-by-entry"
+        );
+
+        let mut extracted_files: usize = 0;
+        let mut extracted_dirs: usize = 0;
+        let mut skipped_entries: usize = 0;
+
+        for i in 0..total_entries {
+            let mut entry = match archive.by_index(i) {
+                Ok(entry) => entry,
+                Err(e) => {
+                    tracing::warn!(
+                        index = i,
+                        total = total_entries,
+                        error = %e,
+                        "Failed to read zip entry at index {}; skipping",
+                        i
+                    );
+                    skipped_entries += 1;
+                    continue;
+                }
+            };
+
+            // enclosed_name() returns a sanitized path, filtering out
+            // path-traversal attacks (e.g. ../etc/passwd). Entries with
+            // invalid names are skipped.
+            let entry_path = match entry.enclosed_name() {
+                Some(path) => dest.join(path),
+                None => {
+                    tracing::debug!(
+                        name = entry.name(),
+                        "Skipping zip entry with invalid (non-enclosed) name"
+                    );
+                    skipped_entries += 1;
+                    continue;
+                }
+            };
+
+            // Create parent directories before writing the file.
+            // This handles archives where directory entries are implicit
+            // (not stored as explicit entries), like Go's Windows archives.
+            if let Some(parent) = entry_path.parent() {
+                std::fs::create_dir_all(parent).map_err(|e| {
+                    anyhow!(
+                        "Failed to create parent directory {} for zip entry {}: {}",
+                        parent.display(),
+                        entry.name(),
+                        e
+                    )
+                })?;
+            }
+
+            if entry.is_dir() {
+                std::fs::create_dir_all(&entry_path).map_err(|e| {
+                    anyhow!(
+                        "Failed to create directory {} from zip entry {}: {}",
+                        entry_path.display(),
+                        entry.name(),
+                        e
+                    )
+                })?;
+                extracted_dirs += 1;
+            } else {
+                let mut output = std::fs::File::create(&entry_path).map_err(|e| {
+                    anyhow!(
+                        "Failed to create file {} from zip entry {}: {}",
+                        entry_path.display(),
+                        entry.name(),
+                        e
+                    )
+                })?;
+                std::io::copy(&mut entry, &mut output).map_err(|e| {
+                    anyhow!(
+                        "Failed to extract zip entry {} to {}: {}",
+                        entry.name(),
+                        entry_path.display(),
+                        e
+                    )
+                })?;
+                extracted_files += 1;
+            }
+        }
+
+        tracing::info!(
+            archive = %archive_path.display(),
+            total_entries,
+            extracted_files,
+            extracted_dirs,
+            skipped_entries,
+            "Zip extraction complete"
+        );
+
+        // Verify extraction was substantially complete.
+        // We allow a small number of skipped entries (e.g. symlinks on
+        // platforms that don't support them), but if a significant
+        // fraction is missing the extraction was likely truncated.
+        if total_entries > 0 {
+            let extracted_total = extracted_files + extracted_dirs;
+            let missing = total_entries.saturating_sub(extracted_total + skipped_entries);
+            let missing_ratio = missing as f64 / total_entries as f64;
+
+            if missing_ratio > 0.05 {
+                return Err(anyhow!(
+                    "Zip extraction appears incomplete: {}/{} entries missing ({:.1}% missing, {} files + {} dirs extracted, {} skipped). \
+                     The archive may be corrupt or extraction was interrupted.",
+                    missing,
+                    total_entries,
+                    missing_ratio * 100.0,
+                    extracted_files,
+                    extracted_dirs,
+                    skipped_entries,
+                ));
+            }
+
+            if missing > 0 {
+                tracing::warn!(
+                    missing,
+                    total_entries,
+                    "{}/{} zip entries were not extracted (may be symlinks or special files)",
+                    missing,
+                    total_entries
+                );
+            }
+        }
+
         Ok(())
     }
 
