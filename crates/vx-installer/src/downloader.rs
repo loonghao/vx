@@ -435,6 +435,108 @@ impl Downloader {
         None
     }
 
+    /// Verify a downloaded file using auto-detected sidecar checksum files.
+    ///
+    /// After downloading an asset from a URL (typically a GitHub release),
+    /// this method tries to fetch sidecar checksum files at:
+    /// - `{url}.sha256`
+    /// - `{url}.sha256sum`
+    ///
+    /// If a sidecar is found, the checksum is parsed and verified against
+    /// the local file. If no sidecar exists, verification is silently skipped.
+    ///
+    /// # Returns
+    /// - `Ok(())` if no sidecar found (skip verification)
+    /// - `Ok(())` if sidecar found and checksum matches
+    /// - `Err(ChecksumMismatch)` if sidecar found but checksum doesn't match
+    pub async fn verify_sidecar_checksum(&self, url: &str, file_path: &Path) -> Result<()> {
+        let filename = self.extract_filename_from_url(url);
+
+        for suffix in &[".sha256", ".sha256sum"] {
+            let sidecar_url = format!("{}{}", url, suffix);
+
+            debug!("Checking for sidecar checksum: {}", sidecar_url);
+
+            match self.fetch_and_parse_sidecar(&sidecar_url, &filename).await {
+                Ok(Some(expected_hash)) => {
+                    let actual_hash = self.calculate_sha256(file_path)?;
+                    if actual_hash == expected_hash {
+                        debug!("Sidecar checksum verified successfully ({})", suffix);
+                        return Ok(());
+                    }
+                    warn!(
+                        url = %sidecar_url,
+                        expected = %expected_hash,
+                        actual = %actual_hash,
+                        "Sidecar checksum mismatch"
+                    );
+                    return Err(Error::ChecksumMismatch {
+                        file_path: file_path.to_path_buf(),
+                        expected: expected_hash,
+                        actual: actual_hash,
+                    });
+                }
+                Ok(None) => {
+                    // Sidecar not found — try next suffix
+                    continue;
+                }
+                Err(e) => {
+                    // Network error fetching sidecar — log and try next
+                    warn!(
+                        sidecar_url = %sidecar_url,
+                        error = %e,
+                        "Failed to fetch sidecar checksum, trying next"
+                    );
+                    continue;
+                }
+            }
+        }
+
+        debug!(
+            url = %url,
+            "No sidecar checksum found — skipping verification"
+        );
+        Ok(())
+    }
+
+    /// Fetch a sidecar checksum file and parse its content to extract the
+    /// SHA-256 hash for the given asset filename.
+    ///
+    /// Returns `None` if the sidecar returns 404 (doesn't exist).
+    async fn fetch_and_parse_sidecar(
+        &self,
+        sidecar_url: &str,
+        asset_filename: &str,
+    ) -> Result<Option<String>> {
+        let response = match self.client.get(sidecar_url).send().await {
+            Ok(resp) => resp,
+            Err(e) => {
+                // If the server returned a 404, the sidecar simply doesn't exist
+                if e.status() == Some(reqwest::StatusCode::NOT_FOUND) {
+                    return Ok(None);
+                }
+                return Err(Error::Http(e));
+            }
+        };
+
+        let status = response.status();
+        if status == reqwest::StatusCode::NOT_FOUND {
+            return Ok(None);
+        }
+        if !status.is_success() {
+            // Non-404 error — treat as "not found" rather than failing the install
+            debug!(
+                url = %sidecar_url,
+                status = %status,
+                "Sidecar returned non-OK status, skipping"
+            );
+            return Ok(None);
+        }
+
+        let content = response.text().await?;
+        Ok(parse_checksum_content(&content, asset_filename))
+    }
+
     /// Download and verify checksum
     pub async fn download_with_checksum(
         &self,
@@ -598,6 +700,85 @@ impl DownloadConfig {
     }
 }
 
+/// Parse a checksum file content to extract the SHA-256 hash for a specific
+/// asset filename.
+///
+/// Supports the standard GNU coreutils / shasum formats:
+/// ```text
+/// b94d27b9934d3e08a52e52d7da7dabfac484efe37a5380ee9088f7ace2efcde9  filename.tar.gz
+/// b94d27b9934d3e08a52e52d7da7dabfac484efe37a5380ee9088f7ace2efcde9 *filename.tar.gz
+/// ```
+///
+/// Also handles:
+/// - Bare hash (no filename) — single-line, returns it directly
+/// - Leading/trailing whitespace, blank lines, comment lines
+/// - Multiple entries — matches by filename
+fn parse_checksum_content(content: &str, asset_filename: &str) -> Option<String> {
+    // Fast path: content is a single bare hex hash
+    let trimmed = content.trim();
+    if is_hex_hash(trimmed) && !trimmed.contains(' ') {
+        return Some(trimmed.to_lowercase());
+    }
+
+    // Try matching by filename in multi-entry format
+    let asset_basename = asset_filename.rsplit('/').next().unwrap_or(asset_filename);
+
+    for line in trimmed.lines() {
+        let line = line.trim();
+        if line.is_empty() || line.starts_with('#') {
+            continue;
+        }
+
+        // Standard format: "<hash>  <filename>" or "<hash> *<filename>"
+        if let Some((hash, name_part)) = line.split_once(' ') {
+            let hash = hash.trim().to_lowercase();
+            let name = name_part.trim().trim_start_matches('*');
+
+            // If the filename matches, return this hash
+            if (name == asset_basename || name == asset_filename) && is_hex_hash(&hash) {
+                return Some(hash);
+            }
+
+            // Also try matching just the basename
+            let name_basename = name.rsplit('/').next().unwrap_or(name);
+            if name_basename == asset_basename && is_hex_hash(&hash) {
+                return Some(hash);
+            }
+        }
+    }
+
+    // Fallback: return first valid hex hash line (for single-entry files
+    // where the filename differs slightly from the asset filename)
+    for line in trimmed.lines() {
+        let line = line.trim();
+        if line.is_empty() || line.starts_with('#') {
+            continue;
+        }
+        if let Some((hash, _)) = line.split_once(' ') {
+            let hash = hash.trim().to_lowercase();
+            if is_hex_hash(&hash) {
+                debug!(
+                    "Checksum file had no exact filename match — using first entry ({})",
+                    hash
+                );
+                return Some(hash);
+            }
+        }
+        // Bare hash line
+        let lowered = line.to_lowercase();
+        if is_hex_hash(&lowered) {
+            return Some(lowered);
+        }
+    }
+
+    None
+}
+
+/// Check if a string is a valid hex-encoded SHA-256 hash (64 hex chars).
+fn is_hex_hash(s: &str) -> bool {
+    s.len() == 64 && s.chars().all(|c| c.is_ascii_hexdigit())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -739,5 +920,104 @@ mod tests {
     fn test_parse_content_disposition_empty_filename() {
         let result = Downloader::parse_content_disposition("attachment; filename=");
         assert_eq!(result, None);
+    }
+
+    // ── Sidecar checksum parsing tests ──
+
+    #[test]
+    fn test_parse_checksum_content_standard_format() {
+        let hash = "b94d27b9934d3e08a52e52d7da7dabfac484efe37a5380ee9088f7ace2efcde9";
+        let content = format!("{}  mytool-linux-amd64.tar.gz\n", hash);
+        let result = parse_checksum_content(&content, "mytool-linux-amd64.tar.gz");
+        assert_eq!(result, Some(hash.to_string()));
+    }
+
+    #[test]
+    fn test_parse_checksum_content_star_format() {
+        let hash = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855";
+        let content = format!("{} *mytool.zip\n", hash);
+        let result = parse_checksum_content(&content, "mytool.zip");
+        assert_eq!(result, Some(hash.to_string()));
+    }
+
+    #[test]
+    fn test_parse_checksum_content_bare_hash() {
+        let hash = "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2";
+        let result = parse_checksum_content(hash, "anyfile.tar.gz");
+        assert_eq!(result, Some(hash.to_string()));
+    }
+
+    #[test]
+    fn test_parse_checksum_content_matches_by_basename() {
+        let hash = "1111111111111111111111111111111111111111111111111111111111111111";
+        let content = format!("{}  mytool-v1.0.0-linux-amd64.tar.gz\n", hash);
+        // Test with full URL path as filename
+        let result = parse_checksum_content(
+            &content,
+            "https://github.com/owner/repo/releases/download/v1.0.0/mytool-v1.0.0-linux-amd64.tar.gz",
+        );
+        assert_eq!(result, Some(hash.to_string()));
+    }
+
+    #[test]
+    fn test_parse_checksum_content_multiple_entries() {
+        let hash_linux = "aaaa111111111111111111111111111111111111111111111111111111111111";
+        let hash_win = "bbbb222222222222222222222222222222222222222222222222222222222222";
+        let content = format!(
+            "{}  mytool-linux.tar.gz\n{}  mytool-windows.zip\n",
+            hash_linux, hash_win
+        );
+        let result = parse_checksum_content(&content, "mytool-windows.zip");
+        assert_eq!(result, Some(hash_win.to_string()));
+    }
+
+    #[test]
+    fn test_parse_checksum_content_empty() {
+        assert_eq!(parse_checksum_content("", "file.tar.gz"), None);
+    }
+
+    #[test]
+    fn test_parse_checksum_content_comment_lines() {
+        let hash = "cccc333333333333333333333333333333333333333333333333333333333333";
+        let content = format!("# Auto-generated checksums\n{}  mytool.tar.gz\n", hash);
+        let result = parse_checksum_content(&content, "mytool.tar.gz");
+        assert_eq!(result, Some(hash.to_string()));
+    }
+
+    #[test]
+    fn test_parse_checksum_content_case_insensitive_hash() {
+        let hash_lower = "dddd444444444444444444444444444444444444444444444444444444444444";
+        let hash_upper = hash_lower.to_uppercase();
+        let content = format!("{}  mytool.tar.gz\n", hash_upper);
+        let result = parse_checksum_content(&content, "mytool.tar.gz");
+        assert_eq!(result, Some(hash_lower.to_string()));
+    }
+
+    #[test]
+    fn test_parse_checksum_content_fallback_first_entry() {
+        let hash = "eeee555555555555555555555555555555555555555555555555555555555555";
+        // Filename doesn't match any entry — should take first valid hash
+        let content = format!("{}  other-tool.tar.gz\n", hash);
+        let result = parse_checksum_content(&content, "mytool.tar.gz");
+        assert_eq!(result, Some(hash.to_string()));
+    }
+
+    #[test]
+    fn test_is_hex_hash_valid() {
+        assert!(is_hex_hash(
+            "b94d27b9934d3e08a52e52d7da7dabfac484efe37a5380ee9088f7ace2efcde9"
+        ));
+    }
+
+    #[test]
+    fn test_is_hex_hash_invalid_length() {
+        assert!(!is_hex_hash("abc123"));
+    }
+
+    #[test]
+    fn test_is_hex_hash_invalid_characters() {
+        assert!(!is_hex_hash(
+            "g94d27b9934d3e08a52e52d7da7dabfac484efe37a5380ee9088f7ace2efcde9"
+        ));
     }
 }
