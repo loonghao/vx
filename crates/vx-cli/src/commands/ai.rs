@@ -1331,7 +1331,12 @@ fn apply_mcp_config(path: &std::path::Path, entry: &HeadroomMcpEntry) -> Result<
     let mut root: serde_json::Value = if path.exists() {
         let content = std::fs::read_to_string(path)
             .with_context(|| format!("Failed to read {}", path.display()))?;
-        serde_json::from_str(&content).unwrap_or(serde_json::Value::Object(Default::default()))
+        serde_json::from_str(&content).with_context(|| {
+            format!(
+                "{} is not valid JSON — refusing to overwrite. Fix or remove the file before retrying.",
+                path.display()
+            )
+        })?
     } else {
         serde_json::Value::Object(Default::default())
     };
@@ -1357,7 +1362,7 @@ fn apply_mcp_config(path: &std::path::Path, entry: &HeadroomMcpEntry) -> Result<
     Ok(())
 }
 
-async fn handle_headroom_setup(
+pub async fn handle_headroom_setup(
     agents: &[String],
     _dry_run: bool,
     apply: bool,
@@ -1402,6 +1407,7 @@ async fn handle_headroom_setup(
         UI::info("Applying MCP configuration...");
         println!();
 
+        let mut errors: Vec<String> = Vec::new();
         for target in &targets {
             let config_path = cwd.join(target.config_path);
             match apply_mcp_config(&config_path, &entry) {
@@ -1413,14 +1419,23 @@ async fn handle_headroom_setup(
                     ));
                 }
                 Err(e) => {
-                    UI::error(&format!(
-                        "{}: failed to update {} - {}",
+                    let msg = format!(
+                        "{}: failed to update {} — {}",
                         target.name,
                         config_path.display(),
                         e
-                    ));
+                    );
+                    UI::error(&msg);
+                    errors.push(msg);
                 }
             }
+        }
+        if !errors.is_empty() {
+            return Err(anyhow::anyhow!(
+                "Failed to write {} agent config(s):\n{}",
+                errors.len(),
+                errors.join("\n")
+            ));
         }
     } else {
         // dry-run (default)
