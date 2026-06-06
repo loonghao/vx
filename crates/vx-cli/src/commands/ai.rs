@@ -897,7 +897,7 @@ const DEFAULT_PYTHON_VERSION: &str = "3.11";
 #[allow(dead_code)]
 const DEFAULT_MCPCALL_VERSION: &str = "0.4.0";
 /// Default proxy host
-const DEFAULT_PROXY_HOST: &str = "127.0.0.1";
+pub const DEFAULT_PROXY_HOST: &str = "127.0.0.1";
 /// Default proxy port
 #[allow(dead_code)]
 const DEFAULT_PROXY_PORT: u16 = 8787;
@@ -906,26 +906,45 @@ const DEFAULT_PROXY_PORT: u16 = 8787;
 // Proxy state management helpers
 // ---------------------------------------------------------------------------
 
-/// Returns the headroom state directory: `~/.vx/state/headroom/`
-fn headroom_state_dir() -> Result<std::path::PathBuf> {
-    let home = dirs::home_dir().context("Could not determine home directory")?;
-    Ok(home.join(".vx").join("state").join("headroom"))
+/// Returns the headroom state directory under a custom base dir (for test isolation).
+pub fn headroom_state_dir_with_base(base: &std::path::Path) -> std::path::PathBuf {
+    base.join(".vx").join("state").join("headroom")
 }
 
-/// Returns the PID file path for a given proxy port
-fn proxy_pid_path(port: u16) -> Result<std::path::PathBuf> {
-    let dir = headroom_state_dir()?;
+/// Returns the PID file path for a given proxy port under a custom base (for test isolation).
+pub fn proxy_pid_path_with_base(base: &std::path::Path, port: u16) -> Result<std::path::PathBuf> {
+    let dir = headroom_state_dir_with_base(base);
     std::fs::create_dir_all(&dir)
         .with_context(|| format!("Failed to create state directory: {}", dir.display()))?;
     Ok(dir.join(format!("proxy-{}.pid", port)))
 }
 
-/// Returns the default log file path for a given proxy port
-fn proxy_log_path(port: u16) -> Result<std::path::PathBuf> {
-    let dir = headroom_state_dir()?;
+/// Returns the PID file path for a given proxy port
+fn proxy_pid_path(port: u16) -> Result<std::path::PathBuf> {
+    let home = dirs::home_dir().context("Could not determine home directory")?;
+    proxy_pid_path_with_base(&home, port)
+}
+
+/// Returns the default log file path for a given proxy port under a custom base (for test isolation).
+pub fn proxy_log_path_with_base(base: &std::path::Path, port: u16) -> Result<std::path::PathBuf> {
+    let dir = headroom_state_dir_with_base(base);
     std::fs::create_dir_all(&dir)
         .with_context(|| format!("Failed to create state directory: {}", dir.display()))?;
     Ok(dir.join(format!("proxy-{}.log", port)))
+}
+
+/// Returns the default log file path for a given proxy port
+fn proxy_log_path(port: u16) -> Result<std::path::PathBuf> {
+    let home = dirs::home_dir().context("Could not determine home directory")?;
+    proxy_log_path_with_base(&home, port)
+}
+
+/// Returns the host state file path for a given proxy port under a custom base (for test isolation).
+pub fn proxy_host_path_with_base(base: &std::path::Path, port: u16) -> Result<std::path::PathBuf> {
+    let dir = headroom_state_dir_with_base(base);
+    std::fs::create_dir_all(&dir)
+        .with_context(|| format!("Failed to create state directory: {}", dir.display()))?;
+    Ok(dir.join(format!("proxy-{}.host", port)))
 }
 
 /// Returns the host state file path for a given proxy port.
@@ -933,15 +952,13 @@ fn proxy_log_path(port: u16) -> Result<std::path::PathBuf> {
 /// When `start --host <host>` is used with a non-default host, the host is persisted
 /// so that `status` and `stop` can use the correct address for health probes.
 fn proxy_host_path(port: u16) -> Result<std::path::PathBuf> {
-    let dir = headroom_state_dir()?;
-    std::fs::create_dir_all(&dir)
-        .with_context(|| format!("Failed to create state directory: {}", dir.display()))?;
-    Ok(dir.join(format!("proxy-{}.host", port)))
+    let home = dirs::home_dir().context("Could not determine home directory")?;
+    proxy_host_path_with_base(&home, port)
 }
 
-/// Reads the persisted host for a proxy port. Falls back to `DEFAULT_PROXY_HOST`.
-fn read_proxy_host(port: u16) -> String {
-    proxy_host_path(port)
+/// Reads the persisted host for a proxy port under a custom base (for test isolation).
+pub fn read_proxy_host_with_base(base: &std::path::Path, port: u16) -> String {
+    proxy_host_path_with_base(base, port)
         .ok()
         .and_then(|p| std::fs::read_to_string(p).ok())
         .map(|s| s.trim().to_string())
@@ -949,8 +966,14 @@ fn read_proxy_host(port: u16) -> String {
         .unwrap_or_else(|| DEFAULT_PROXY_HOST.to_string())
 }
 
+/// Reads the persisted host for a proxy port. Falls back to `DEFAULT_PROXY_HOST`.
+fn read_proxy_host(port: u16) -> String {
+    let home = dirs::home_dir().unwrap_or_default();
+    read_proxy_host_with_base(&home, port)
+}
+
 /// Reads a PID from a PID file. Returns `None` if the file does not exist or is unreadable.
-fn read_pid(path: &std::path::Path) -> Option<u32> {
+pub fn read_pid(path: &std::path::Path) -> Option<u32> {
     let content = std::fs::read_to_string(path).ok()?;
     content.trim().parse::<u32>().ok()
 }
@@ -978,7 +1001,7 @@ fn is_process_running(pid: u32) -> bool {
 }
 
 /// Tries to connect to the proxy's TCP port. Returns `Ok` if the port is reachable.
-fn check_port(host: &str, port: u16) -> Result<()> {
+pub fn check_port(host: &str, port: u16) -> Result<()> {
     use std::net::TcpStream;
     use std::time::Duration;
     let addr = format!("{}:{}", host, port);
@@ -988,7 +1011,7 @@ fn check_port(host: &str, port: u16) -> Result<()> {
 }
 
 /// Performs a minimal HTTP health check: `GET /health`. Returns `true` if status is 200 OK.
-fn check_health_endpoint(host: &str, port: u16) -> bool {
+pub fn check_health_endpoint(host: &str, port: u16) -> bool {
     use std::io::{Read, Write};
     use std::net::TcpStream;
     use std::time::Duration;
@@ -1022,10 +1045,10 @@ fn check_health_endpoint(host: &str, port: u16) -> bool {
 /// Build the `headroom proxy` command with the given arguments.
 /// Returns the command and a human-readable label.
 ///
-/// Uses the **vx bridge**: delegates to `vx headroom proxy ...` so that the headroom
+/// Uses the **vx bridge**: delegates to `vx uv tool run headroom proxy ...` so that the headroom
 /// executable installed via `vx uv tool install` is resolved correctly regardless of
 /// whether it has been added to PATH (especially on Windows).
-fn build_proxy_command(
+pub fn build_proxy_command(
     host: &str,
     port: u16,
     log_file: Option<&str>,
@@ -1033,7 +1056,13 @@ fn build_proxy_command(
 ) -> (std::process::Command, String) {
     let vx_exe = std::env::current_exe().unwrap_or_else(|_| std::path::PathBuf::from("vx"));
     let mut cmd = std::process::Command::new(&vx_exe);
+    // headroom is installed via `uv tool install`, so the canonical vx bridge
+    // is `vx uv tool run headroom` — this resolves the uv-managed binary
+    // regardless of whether it is on PATH (critical on Windows).
     cmd.args([
+        "uv",
+        "tool",
+        "run",
         "headroom",
         "proxy",
         "--host",
@@ -1058,7 +1087,10 @@ fn build_proxy_command(
     cmd.arg("--log-file");
     cmd.arg(log_path.to_string_lossy().as_ref());
 
-    let label = format!("vx headroom proxy --host {} --port {}", host, port);
+    let label = format!(
+        "vx uv tool run headroom proxy --host {} --port {}",
+        host, port
+    );
     (cmd, label)
 }
 
@@ -1441,7 +1473,7 @@ async fn handle_headroom_proxy(command: &HeadroomProxyCommand) -> Result<()> {
             let vx_exe =
                 std::env::current_exe().context("Could not determine vx executable path")?;
             let version_check = std::process::Command::new(&vx_exe)
-                .args(["headroom", "--version"])
+                .args(["uv", "tool", "run", "headroom", "--version"])
                 .stdout(std::process::Stdio::piped())
                 .stderr(std::process::Stdio::piped())
                 .output();
@@ -1705,166 +1737,5 @@ async fn handle_headroom_mcp(_ctx: &CommandContext, command: &HeadroomMcpCommand
             UI::hint("This command will be fleshed out in a follow-up.");
             Ok(())
         }
-    }
-}
-
-// ---------------------------------------------------------------------------
-// Tests for headroom proxy lifecycle helpers
-// ---------------------------------------------------------------------------
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use std::io::Write;
-    use tempfile::{NamedTempFile, TempDir};
-
-    // ----- State file path helpers -----
-
-    #[test]
-    fn proxy_host_path_returns_expected_suffix() {
-        let path = proxy_host_path(8787).unwrap();
-        assert!(
-            path.to_string_lossy().contains("proxy-8787.host"),
-            "expected suffix proxy-8787.host, got {}",
-            path.display()
-        );
-    }
-
-    #[test]
-    fn proxy_pid_path_returns_expected_suffix() {
-        let path = proxy_pid_path(9999).unwrap();
-        assert!(
-            path.to_string_lossy().contains("proxy-9999.pid"),
-            "expected suffix proxy-9999.pid, got {}",
-            path.display()
-        );
-    }
-
-    #[test]
-    fn proxy_log_path_returns_expected_suffix() {
-        let path = proxy_log_path(4321).unwrap();
-        assert!(
-            path.to_string_lossy().contains("proxy-4321.log"),
-            "expected suffix proxy-4321.log, got {}",
-            path.display()
-        );
-    }
-
-    // ----- read_proxy_host fallback -----
-
-    #[test]
-    fn read_proxy_host_falls_back_to_default_when_no_host_file() {
-        // Use a port that doesn't have a written host file
-        let host = read_proxy_host(55432);
-        assert_eq!(host, DEFAULT_PROXY_HOST);
-    }
-
-    #[test]
-    fn read_proxy_host_returns_persisted_value() {
-        let dir = TempDir::new().unwrap();
-        let host_file = dir.path().join("proxy-8787.host");
-        std::fs::write(&host_file, "10.0.0.1\n").unwrap();
-
-        // Can't easily mock headroom_state_dir, but we can test read_proxy_host
-        // with a port that has a real host file written via proxy_host_path
-        let host_path = proxy_host_path(8788).unwrap();
-        std::fs::write(&host_path, "192.168.1.1").unwrap();
-
-        let host = read_proxy_host(8788);
-        assert_eq!(host, "192.168.1.1");
-
-        // Cleanup
-        let _ = std::fs::remove_file(&host_path);
-    }
-
-    #[test]
-    fn read_pid_returns_none_for_missing_file() {
-        assert!(read_pid(std::path::Path::new("/nonexistent/pid/file.pid")).is_none());
-    }
-
-    #[test]
-    fn read_pid_returns_parsed_value() {
-        let mut file = NamedTempFile::new().unwrap();
-        writeln!(file, "4242").unwrap();
-        assert_eq!(read_pid(file.path()), Some(4242));
-    }
-
-    #[test]
-    fn read_pid_rejects_invalid_content() {
-        let mut file = NamedTempFile::new().unwrap();
-        writeln!(file, "not-a-number").unwrap();
-        assert_eq!(read_pid(file.path()), None);
-    }
-
-    // ----- build_proxy_command: vx bridge -----
-
-    #[test]
-    fn build_proxy_command_uses_vx_bridge() {
-        let (cmd, label) = build_proxy_command("127.0.0.1", 8787, None, false);
-        let program = cmd.get_program().to_string_lossy();
-
-        // The command should use the vx executable, NOT bare "headroom"
-        assert!(
-            program.contains("vx") || program.ends_with("vx.exe"),
-            "expected vx bridge, got program '{}'",
-            program
-        );
-        assert!(
-            !program.ends_with("headroom") && !program.ends_with("headroom.exe"),
-            "should NOT invoke bare headroom"
-        );
-
-        // Label describes the vx bridge path
-        assert!(label.contains("vx headroom proxy"));
-    }
-
-    #[test]
-    fn build_proxy_command_includes_no_optimize_flag() {
-        let (cmd, _) = build_proxy_command("127.0.0.1", 8787, Some("/tmp/log"), true);
-        let args: Vec<_> = cmd.get_args().map(|a| a.to_string_lossy()).collect();
-        assert!(
-            args.iter().any(|a| a == "--no-optimize"),
-            "expected --no-optimize in args: {:?}",
-            args
-        );
-    }
-
-    #[test]
-    fn build_proxy_command_sets_telemetry_off() {
-        let (cmd, _) = build_proxy_command("127.0.0.1", 8787, None, false);
-        let envs: Vec<_> = cmd.get_envs().collect();
-        let telemetry_off = envs.iter().any(|(k, v)| {
-            *k == std::ffi::OsStr::new("HEADROOM_TELEMETRY")
-                && v.map(|val| val == "off").unwrap_or(false)
-        });
-        assert!(telemetry_off, "HEADROOM_TELEMETRY should be 'off'");
-    }
-
-    #[test]
-    fn build_proxy_command_passes_log_file() {
-        let (cmd, _) = build_proxy_command("127.0.0.1", 8787, Some("/custom/log.log"), false);
-        let args: Vec<_> = cmd.get_args().map(|a| a.to_string_lossy()).collect();
-        let log_file_idx = args.iter().position(|a| a == "--log-file");
-        assert!(log_file_idx.is_some(), "expected --log-file flag in args");
-        let next = args[log_file_idx.unwrap() + 1].clone();
-        assert_eq!(
-            next, "/custom/log.log",
-            "log file arg should follow --log-file"
-        );
-    }
-
-    #[test]
-    fn check_health_endpoint_returns_false_for_invalid_host() {
-        assert!(!check_health_endpoint("bad host value", 8787));
-    }
-
-    #[test]
-    fn doctor_status_json_uses_requested_ports() {
-        let json = doctor_status_json("ok", 9123, 9456, true, true, true, true);
-        assert_eq!(json["status"], "ok");
-        assert_eq!(json["proxy_port"], 9123);
-        assert_eq!(json["mcp_port"], 9456);
-        assert_eq!(json["checks"]["uv"], true);
-        assert_eq!(json["checks"]["headroom"], true);
     }
 }
