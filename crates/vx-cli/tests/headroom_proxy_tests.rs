@@ -137,7 +137,7 @@ fn build_proxy_command_uses_vx_bridge() {
         !program.ends_with("headroom") && !program.ends_with("headroom.exe"),
         "should NOT invoke bare headroom"
     );
-    assert!(label.contains("vx uv tool run headroom proxy"));
+    assert!(label.contains("vx uv tool run --from headroom-ai[proxy] headroom proxy"));
 }
 
 #[test]
@@ -145,20 +145,25 @@ fn build_proxy_command_includes_uv_tool_run_args() {
     let (cmd, _) = build_proxy_command("10.0.0.1", 9999, None, false);
     let args: Vec<_> = cmd.get_args().map(|a| a.to_string_lossy()).collect();
 
-    // Verify the bridge path: vx uv tool run headroom proxy --host ... --port ...
+    // Verify the bridge path: vx uv tool run --from headroom-ai[proxy] headroom proxy ...
     assert!(args.iter().any(|a| a == "uv"), "expected 'uv' subcommand");
-    assert!(
-        args.iter().any(|a| a == "tool"),
-        "expected 'tool' subcommand"
-    );
+    assert!(args.iter().any(|a| a == "tool"), "expected 'tool' subcommand");
     assert!(args.iter().any(|a| a == "run"), "expected 'run' subcommand");
     assert!(
+        args.iter().any(|a| a == "--from"),
+        "expected '--from' flag"
+    );
+    assert!(
+        args.iter().any(|a| a == "headroom-ai[proxy]"),
+        "expected 'headroom-ai[proxy]' package"
+    );
+    assert!(
         args.iter().any(|a| a == "headroom"),
-        "expected 'headroom' command"
+        "expected 'headroom' executable"
     );
     assert!(
         args.iter().any(|a| a == "proxy"),
-        "expected 'proxy' command"
+        "expected 'proxy' subcommand"
     );
 }
 
@@ -264,3 +269,76 @@ fn headroom_state_dir_with_base_uses_injected_base() {
     assert!(state.starts_with(base));
     assert!(state.ends_with(std::path::Path::new(".vx").join("state").join("headroom")));
 }
+
+// ---------------------------------------------------------------------------
+// Behavioral verification: the command shape is executable when headroom is
+// installed via `uv tool install --from 'headroom-ai[proxy]' headroom`.
+// We can't run headroom in a test (it may not be installed on CI), but we
+// CAN verify that `--from` comes BEFORE `headroom` (uv positional requirement)
+// and that the program path exists.
+// ---------------------------------------------------------------------------
+
+#[test]
+fn build_proxy_command_from_flag_comes_before_executable() {
+    let (cmd, _) = build_proxy_command("127.0.0.1", 8787, None, false);
+    let args: Vec<_> = cmd.get_args().map(|a| a.to_string_lossy()).collect();
+
+    let from_idx = args
+        .iter()
+        .position(|a| a == "--from")
+        .expect("--from flag must be present");
+    let headroom_idx = args
+        .iter()
+        .position(|a| a == "headroom")
+        .expect("headroom executable must be present");
+
+    assert!(
+        from_idx < headroom_idx,
+        "--from must precede the executable name (uv positional requirement); got --from at {}, headroom at {}",
+        from_idx,
+        headroom_idx
+    );
+}
+
+#[test]
+fn build_proxy_command_exact_arg_order_is_correct() {
+    let (cmd, _) = build_proxy_command("192.168.0.1", 8888, None, false);
+    let args: Vec<_> = cmd.get_args().map(|a| a.to_string_lossy()).collect();
+
+    // Expected: uv tool run --from headroom-ai[proxy] headroom proxy --host 192.168.0.1 --port 8888 [--log-file ...]
+    assert_eq!(args[0], "uv");
+    assert_eq!(args[1], "tool");
+    assert_eq!(args[2], "run");
+    assert_eq!(args[3], "--from");
+    assert_eq!(args[4], "headroom-ai[proxy]");
+    assert_eq!(args[5], "headroom");
+    assert_eq!(args[6], "proxy");
+    assert_eq!(args[7], "--host");
+    assert_eq!(args[8], "192.168.0.1");
+    assert_eq!(args[9], "--port");
+    assert_eq!(args[10], "8888");
+    // Followed by --log-file with a temp path
+    assert_eq!(args[11], "--log-file");
+}
+
+#[test]
+fn build_proxy_command_program_is_this_vx_binary() {
+    let (cmd, _) = build_proxy_command("127.0.0.1", 8787, None, false);
+    let program = cmd.get_program();
+
+    // The program path must be the current vx binary, which must exist.
+    // This verifies the command target is runnable, not a placeholder.
+    assert!(
+        Path::new(program).exists(),
+        "program '{}' does not exist — bridge target is broken",
+        program.to_string_lossy()
+    );
+
+    let program_str = program.to_string_lossy();
+    assert!(
+        program_str.contains("vx") || program_str.ends_with("vx.exe"),
+        "program '{}' does not appear to be the vx binary",
+        program_str
+    );
+}
+
