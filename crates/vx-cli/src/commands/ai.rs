@@ -1003,7 +1003,7 @@ async fn handle_headroom_install(
     ));
 
     let mcpcall_status = std::process::Command::new(&vx_exe)
-        .args(["install", "mcpcall", mcpcall_version])
+        .args(["install", &format!("mcpcall@{}", mcpcall_version)])
         .status()
         .context("Failed to install mcpcall")?;
 
@@ -1032,33 +1032,41 @@ async fn handle_headroom_install(
 /// Handle `vx ai headroom doctor` — environment diagnostic checks.
 ///
 /// Three-layer check: environment, proxy, MCP.
-/// This is a stub in PIP-601; full implementation in PIP-603.
+/// Environment layer is fully implemented; proxy and MCP layers are stubs (PIP-602/PIP-603).
+/// When `--json` is set, outputs pure machine-readable JSON on stdout.
 async fn handle_headroom_doctor(quick: bool, json: bool, port: u16, mcp_port: u16) -> Result<()> {
     let vx_exe = std::env::current_exe().context("Could not determine vx executable path")?;
 
-    UI::header("headroom doctor");
+    if !json {
+        UI::header("headroom doctor");
+        println!();
+        UI::info("--- Environment ---");
+    }
 
-    // Layer 1: Environment checks
-    println!();
-    UI::info("--- Environment ---");
-
-    // Check uv availability
+    // Layer 1: Environment checks (always run — data collection)
     let uv_check = std::process::Command::new(&vx_exe)
         .args(["uv", "--version"])
         .output();
-    match uv_check {
+    let uv_version = match &uv_check {
         Ok(output) if output.status.success() => {
             let ver = String::from_utf8_lossy(&output.stdout).trim().to_string();
-            UI::success(&format!("uv: {}", ver));
+            if !json {
+                UI::success(&format!("uv: {}", ver));
+            }
+            Some(ver)
         }
-        _ => UI::error("uv: not available"),
-    }
+        _ => {
+            if !json {
+                UI::error("uv: not available");
+            }
+            None
+        }
+    };
 
-    // Check python availability
     let py_check = std::process::Command::new(&vx_exe)
         .args(["python", "--version"])
         .output();
-    match py_check {
+    let py_version = match &py_check {
         Ok(output) if output.status.success() => {
             let ver = String::from_utf8_lossy(&output.stderr).trim().to_string();
             let ver = if ver.is_empty() {
@@ -1066,12 +1074,19 @@ async fn handle_headroom_doctor(quick: bool, json: bool, port: u16, mcp_port: u1
             } else {
                 ver
             };
-            UI::success(&format!("python: {}", ver));
+            if !json {
+                UI::success(&format!("python: {}", ver));
+            }
+            Some(ver)
         }
-        _ => UI::warn("python: check skipped (may not be installed via vx)"),
-    }
+        _ => {
+            if !json {
+                UI::warn("python: check skipped (may not be installed via vx)");
+            }
+            None
+        }
+    };
 
-    // Check headroom availability
     let hr_check = std::process::Command::new(&vx_exe)
         .args([
             "uv",
@@ -1083,56 +1098,92 @@ async fn handle_headroom_doctor(quick: bool, json: bool, port: u16, mcp_port: u1
             "--version",
         ])
         .output();
-    match hr_check {
+    let hr_version = match &hr_check {
         Ok(output) if output.status.success() => {
             let ver = String::from_utf8_lossy(&output.stdout).trim().to_string();
-            UI::success(&format!("headroom-ai: {}", ver));
+            if !json {
+                UI::success(&format!("headroom-ai: {}", ver));
+            }
+            Some(ver)
         }
-        _ => UI::error(&format!(
-            "headroom-ai[proxy] {}: not installed",
-            DEFAULT_HEADROOM_VERSION
-        )),
-    }
+        _ => {
+            if !json {
+                UI::error(&format!(
+                    "headroom-ai[proxy] {}: not installed",
+                    DEFAULT_HEADROOM_VERSION
+                ));
+            }
+            None
+        }
+    };
 
-    // Check mcpcall availability
     let mcpcall_check = std::process::Command::new(&vx_exe)
         .args(["mcpcall", "--version"])
         .output();
-    match mcpcall_check {
+    let mcpcall_version = match &mcpcall_check {
         Ok(output) if output.status.success() => {
             let ver = String::from_utf8_lossy(&output.stdout).trim().to_string();
-            UI::success(&format!("mcpcall: {}", ver));
+            if !json {
+                UI::success(&format!("mcpcall: {}", ver));
+            }
+            Some(ver)
         }
-        _ => UI::warn("mcpcall: not installed (run 'vx ai headroom install' to set up)"),
+        _ => {
+            if !json {
+                UI::warn("mcpcall: not installed (run 'vx ai headroom install' to set up)");
+            }
+            None
+        }
+    };
+
+    // Build and emit JSON output when requested — always before any early return
+    if json {
+        let mut env = serde_json::Map::new();
+        env.insert("uv".into(), serde_json::json!(uv_version));
+        env.insert("python".into(), serde_json::json!(py_version));
+        env.insert("headroom".into(), serde_json::json!(hr_version));
+        env.insert("mcpcall".into(), serde_json::json!(mcpcall_version));
+
+        let mut result = serde_json::Map::new();
+        result.insert("environment".into(), serde_json::Value::Object(env));
+        result.insert(
+            "headroom_version".into(),
+            serde_json::json!(DEFAULT_HEADROOM_VERSION),
+        );
+
+        if !quick {
+            result.insert(
+                "proxy".into(),
+                serde_json::json!({"status": "not_implemented", "port": port}),
+            );
+            result.insert(
+                "mcp".into(),
+                serde_json::json!({"status": "not_implemented", "port": mcp_port}),
+            );
+        }
+
+        println!("{}", serde_json::Value::Object(result));
     }
 
     if quick {
-        UI::hint("Quick check complete. Run without --quick for proxy and MCP checks.");
+        if !json {
+            UI::hint("Quick check complete. Run without --quick for proxy and MCP checks.");
+        }
         return Ok(());
     }
 
-    // Layer 2: Proxy checks
-    println!();
-    UI::info(&format!("--- Proxy (port {}) ---", port));
-    UI::info("proxy check: not yet implemented (PIP-602)");
-    UI::hint("Run 'vx ai headroom proxy start' to start the proxy service.");
+    if !json {
+        // Layer 2: Proxy checks
+        println!();
+        UI::info(&format!("--- Proxy (port {}) ---", port));
+        UI::info("proxy check: not yet implemented (PIP-602)");
+        UI::hint("Run 'vx ai headroom proxy start' to start the proxy service.");
 
-    // Layer 3: MCP checks
-    println!();
-    UI::info(&format!("--- MCP (port {}) ---", mcp_port));
-    UI::info("MCP check: not yet implemented (PIP-603)");
-    UI::hint("Run 'vx ai headroom mcp test' to validate MCP tools.");
-
-    if json {
-        println!(
-            "{}",
-            serde_json::json!({
-                "status": "ok",
-                "headroom_version": DEFAULT_HEADROOM_VERSION,
-                "proxy_port": port,
-                "mcp_port": mcp_port,
-            })
-        );
+        // Layer 3: MCP checks
+        println!();
+        UI::info(&format!("--- MCP (port {}) ---", mcp_port));
+        UI::info("MCP check: not yet implemented (PIP-603)");
+        UI::hint("Run 'vx ai headroom mcp test' to validate MCP tools.");
     }
 
     Ok(())
@@ -1203,14 +1254,18 @@ async fn handle_headroom_proxy(command: &HeadroomProxyCommand) -> Result<()> {
             UI::hint("This command will be fully implemented in PIP-602.");
         }
         HeadroomProxyCommand::Status { port, json } => {
-            UI::header("headroom proxy status");
-            println!();
-            UI::info("proxy status: not yet implemented (PIP-602)");
-            UI::info(&format!("  checking port: {}", port));
             if *json {
-                println!("{}", serde_json::json!({"status": "unknown", "port": port}));
+                println!(
+                    "{}",
+                    serde_json::json!({"status": "not_implemented", "port": port})
+                );
+            } else {
+                UI::header("headroom proxy status");
+                println!();
+                UI::info("proxy status: not yet implemented (PIP-602)");
+                UI::info(&format!("  checking port: {}", port));
+                UI::hint("This command will be fully implemented in PIP-602.");
             }
-            UI::hint("This command will be fully implemented in PIP-602.");
         }
         HeadroomProxyCommand::Stop { port } => {
             UI::header("headroom proxy stop");
