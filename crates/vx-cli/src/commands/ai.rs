@@ -1270,9 +1270,96 @@ async fn handle_headroom_doctor(quick: bool, json: bool, port: u16, mcp_port: u1
 /// Handle `vx ai headroom setup` — generate MCP config templates.
 ///
 /// Stub in PIP-601; full implementation in PIP-604.
+// ---------------------------------------------------------------------------
+// Headroom setup: MCP config templates for AI agents
+// ---------------------------------------------------------------------------
+
+/// MCP server entry for headroom — what gets written into agent configs.
+#[derive(Debug, serde::Serialize)]
+struct HeadroomMcpEntry {
+    command: &'static str,
+    args: Vec<&'static str>,
+    env: std::collections::BTreeMap<&'static str, &'static str>,
+}
+
+fn headroom_mcp_entry() -> HeadroomMcpEntry {
+    let mut env = std::collections::BTreeMap::new();
+    env.insert("HEADROOM_TELEMETRY", "off");
+    HeadroomMcpEntry {
+        command: "vx",
+        args: vec!["ai", "headroom", "mcp", "stdio"],
+        env,
+    }
+}
+
+/// Agent MCP config target — maps agent name to config file path (relative to CWD).
+struct McpAgentTarget {
+    name: &'static str,
+    config_path: &'static str,
+}
+
+const MCP_AGENT_TARGETS: &[McpAgentTarget] = &[
+    McpAgentTarget {
+        name: "codex",
+        config_path: ".codex/mcp.json",
+    },
+    McpAgentTarget {
+        name: "claude-code",
+        config_path: ".claude/settings.json",
+    },
+    McpAgentTarget {
+        name: "cursor",
+        config_path: ".cursor/mcp.json",
+    },
+];
+
+/// Format a single MCP server entry as a pretty-printed JSON snippet.
+fn format_mcp_snippet(entry: &HeadroomMcpEntry) -> Result<String> {
+    let mut servers = serde_json::Map::new();
+    servers.insert("headroom".to_string(), serde_json::to_value(entry)?);
+    let mut root = serde_json::Map::new();
+    root.insert("mcpServers".to_string(), serde_json::Value::Object(servers));
+    serde_json::to_string_pretty(&serde_json::Value::Object(root))
+        .context("Failed to serialize MCP config")
+}
+
+/// Merge the headroom MCP entry into an existing config file.
+///
+/// Reads the file (JSON object), sets `mcpServers.headroom`, writes back.
+/// If the file doesn't exist, creates it fresh.
+fn apply_mcp_config(path: &std::path::Path, entry: &HeadroomMcpEntry) -> Result<()> {
+    let mut root: serde_json::Value = if path.exists() {
+        let content = std::fs::read_to_string(path)
+            .with_context(|| format!("Failed to read {}", path.display()))?;
+        serde_json::from_str(&content).unwrap_or(serde_json::Value::Object(Default::default()))
+    } else {
+        serde_json::Value::Object(Default::default())
+    };
+
+    // Ensure mcpServers exists
+    let mcp_servers = root
+        .as_object_mut()
+        .context("Config file is not a JSON object")?
+        .entry("mcpServers")
+        .or_insert_with(|| serde_json::Value::Object(Default::default()));
+
+    mcp_servers["headroom"] = serde_json::to_value(entry)?;
+
+    // Create parent directory if needed
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent)
+            .with_context(|| format!("Failed to create {}", parent.display()))?;
+    }
+
+    std::fs::write(path, serde_json::to_string_pretty(&root)? + "\n")
+        .with_context(|| format!("Failed to write {}", path.display()))?;
+
+    Ok(())
+}
+
 async fn handle_headroom_setup(
     agents: &[String],
-    dry_run: bool,
+    _dry_run: bool,
     apply: bool,
     port: u16,
     mcp_port: u16,
@@ -1280,30 +1367,87 @@ async fn handle_headroom_setup(
 ) -> Result<()> {
     UI::header("headroom setup");
     println!();
-    UI::info("setup: not yet implemented (PIP-604)");
-    UI::info(&format!(
-        "Would configure MCP for agents: {}",
-        if agents.is_empty() {
-            "codex, claude-code, cursor (default)"
-        } else {
-            ""
-        }
-    ));
-    if !agents.is_empty() {
-        UI::info(&format!("  requested agents: {}", agents.join(", ")));
+
+    // Resolve target agents
+    let targets: Vec<&McpAgentTarget> = if agents.is_empty() {
+        // Default: all three
+        MCP_AGENT_TARGETS.iter().collect()
+    } else {
+        agents
+            .iter()
+            .filter_map(|name| MCP_AGENT_TARGETS.iter().find(|t| t.name == name.as_str()))
+            .collect()
+    };
+
+    if targets.is_empty() {
+        UI::warn("No matching agents found. Supported: codex, claude-code, cursor.");
+        return Ok(());
     }
+
+    let entry = headroom_mcp_entry();
+    let snippet = format_mcp_snippet(&entry)?;
+    let cwd = std::env::current_dir().context("Failed to get current directory")?;
+
+    UI::info(&format!(
+        "MCP command: {} {}",
+        entry.command,
+        entry.args.join(" ")
+    ));
     UI::info(&format!("  proxy port: {}", port));
     UI::info(&format!("  MCP port: {}", mcp_port));
     UI::info(&format!("  headroom version: {}", headroom_version));
-    UI::info(&format!(
-        "  mode: {}",
-        if apply {
-            "--apply"
-        } else {
-            "--dry-run (default)"
+    println!();
+
+    if apply {
+        UI::info("Applying MCP configuration...");
+        println!();
+
+        for target in &targets {
+            let config_path = cwd.join(target.config_path);
+            match apply_mcp_config(&config_path, &entry) {
+                Ok(()) => {
+                    UI::success(&format!(
+                        "{}: updated {}",
+                        target.name,
+                        config_path.display()
+                    ));
+                }
+                Err(e) => {
+                    UI::error(&format!(
+                        "{}: failed to update {} - {}",
+                        target.name,
+                        config_path.display(),
+                        e
+                    ));
+                }
+            }
         }
-    ));
-    UI::hint("This command will be fully implemented in PIP-604.");
+    } else {
+        // dry-run (default)
+        UI::info("Dry-run mode. Use --apply to write config files.");
+        println!();
+
+        for target in &targets {
+            let config_path = cwd.join(target.config_path);
+            let status = if config_path.exists() {
+                "(exists — would merge)"
+            } else {
+                "(new file)"
+            };
+            UI::info(&format!(
+                "{}: {} {}",
+                target.name,
+                config_path.display(),
+                status
+            ));
+        }
+
+        println!();
+        UI::header("Configuration to be written");
+        println!();
+        println!("{}", snippet);
+    }
+
     Ok(())
 }
 
