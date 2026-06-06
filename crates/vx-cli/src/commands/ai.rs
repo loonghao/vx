@@ -1056,13 +1056,16 @@ pub fn build_proxy_command(
 ) -> (std::process::Command, String) {
     let vx_exe = std::env::current_exe().unwrap_or_else(|_| std::path::PathBuf::from("vx"));
     let mut cmd = std::process::Command::new(&vx_exe);
-    // headroom is installed via `uv tool install`, so the canonical vx bridge
-    // is `vx uv tool run headroom` — this resolves the uv-managed binary
-    // regardless of whether it is on PATH (critical on Windows).
+    // headroom is installed via `uv tool install --from 'headroom-ai[proxy]' headroom`.
+    // `uv tool run headroom` falls back to PyPI package "headroom" (unrelated), so we
+    // must use `--from headroom-ai[proxy]` to explicitly tell uv which package provides
+    // the `headroom` executable.
     cmd.args([
         "uv",
         "tool",
         "run",
+        "--from",
+        "headroom-ai[proxy]",
         "headroom",
         "proxy",
         "--host",
@@ -1088,7 +1091,7 @@ pub fn build_proxy_command(
     cmd.arg(log_path.to_string_lossy().as_ref());
 
     let label = format!(
-        "vx uv tool run headroom proxy --host {} --port {}",
+        "vx uv tool run --from headroom-ai[proxy] headroom proxy --host {} --port {}",
         host, port
     );
     (cmd, label)
@@ -1304,9 +1307,19 @@ async fn handle_headroom_doctor(quick: bool, json: bool, port: u16, mcp_port: u1
         _ => {}
     }
 
-    // Check headroom availability
+    // Check headroom availability via the canonical vx bridge:
+    // `uv tool run` must use `--from headroom-ai[proxy]` because the bare
+    // `headroom` name resolves to an unrelated PyPI package.
     let hr_check = std::process::Command::new(&vx_exe)
-        .args(["headroom", "--version"])
+        .args([
+            "uv",
+            "tool",
+            "run",
+            "--from",
+            "headroom-ai[proxy]",
+            "headroom",
+            "--version",
+        ])
         .output();
     let headroom_ok = matches!(hr_check, Ok(ref output) if output.status.success());
     match hr_check {
@@ -1473,7 +1486,15 @@ async fn handle_headroom_proxy(command: &HeadroomProxyCommand) -> Result<()> {
             let vx_exe =
                 std::env::current_exe().context("Could not determine vx executable path")?;
             let version_check = std::process::Command::new(&vx_exe)
-                .args(["uv", "tool", "run", "headroom", "--version"])
+                .args([
+                    "uv",
+                    "tool",
+                    "run",
+                    "--from",
+                    "headroom-ai[proxy]",
+                    "headroom",
+                    "--version",
+                ])
                 .stdout(std::process::Stdio::piped())
                 .stderr(std::process::Stdio::piped())
                 .output();
