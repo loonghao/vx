@@ -1542,6 +1542,153 @@ pub enum AiCommand {
     /// Commands to manage persistent state for AI agents.
     #[command(subcommand)]
     Session(SessionCommand),
+
+    /// Headroom context compression integration
+    ///
+    /// Install, configure, and manage headroom-ai for LLM context compression.
+    /// Headroom provides proxy, MCP server, and context optimization for AI agents.
+    #[command(subcommand)]
+    Headroom(HeadroomCommand),
+}
+
+/// Headroom context compression commands
+#[derive(Subcommand, Clone)]
+pub enum HeadroomCommand {
+    /// Install headroom-ai with proxy support
+    ///
+    /// Installs headroom via uv tool install.
+    /// Uses Python-first bridge: delegates to `vx uv tool install --from 'headroom-ai[proxy]==<version>' headroom`.
+    Install {
+        /// Headroom version to install (default: latest)
+        #[arg(long, default_value = "latest")]
+        version: String,
+        /// Python version to use (default: 3.11)
+        #[arg(long, default_value = "3.11")]
+        python: String,
+        /// Mcpcall version (default: 0.4.0)
+        #[arg(long, default_value = "0.4.0")]
+        mcpcall_version: String,
+        /// Force reinstall even if already installed
+        #[arg(short, long)]
+        force: bool,
+    },
+
+    /// Check headroom environment and connectivity
+    ///
+    /// Validates the local headroom installation, proxy health, and MCP availability.
+    /// Performs three-layer checks: environment, proxy, and MCP.
+    Doctor {
+        /// Quick check (skip proxy startup and MCP probe)
+        #[arg(long)]
+        quick: bool,
+        /// Output results as JSON
+        #[arg(long)]
+        json: bool,
+        /// Proxy port (default: 8787)
+        #[arg(long, default_value = "8787")]
+        port: u16,
+        /// MCP port (default: 8765)
+        #[arg(long, default_value = "8765")]
+        mcp_port: u16,
+    },
+
+    /// Generate AI agent MCP configuration templates
+    ///
+    /// Produces MCP config snippets for Codex, Claude Code, and Cursor.
+    /// Defaults to dry-run; use --apply to write config files.
+    Setup {
+        /// Target agents (codex, claude-code, cursor; default: all)
+        #[arg(short, long, action = clap::ArgAction::Append)]
+        agent: Vec<String>,
+        /// Preview changes without writing (default)
+        #[arg(long)]
+        dry_run: bool,
+        /// Write MCP configuration to agent config files
+        #[arg(long, conflicts_with = "dry_run")]
+        apply: bool,
+        /// Proxy port (default: 8787)
+        #[arg(long, default_value = "8787")]
+        port: u16,
+        /// MCP port (default: 8765)
+        #[arg(long, default_value = "8765")]
+        mcp_port: u16,
+        /// Headroom version (default: latest)
+        #[arg(long, default_value = "latest")]
+        headroom_version: String,
+    },
+
+    /// Manage headroom proxy lifecycle
+    #[command(subcommand)]
+    Proxy(HeadroomProxyCommand),
+
+    /// Headroom MCP operations
+    #[command(subcommand)]
+    Mcp(HeadroomMcpCommand),
+}
+
+/// Headroom proxy lifecycle commands
+#[derive(Subcommand, Clone)]
+pub enum HeadroomProxyCommand {
+    /// Start headroom proxy (detached by default)
+    Start {
+        /// Proxy host (default: 127.0.0.1)
+        #[arg(long, default_value = "127.0.0.1")]
+        host: String,
+        /// Proxy port (default: 8787)
+        #[arg(long, default_value = "8787")]
+        port: u16,
+        /// Run in foreground (do not detach)
+        #[arg(long)]
+        foreground: bool,
+        /// Log file path
+        #[arg(long)]
+        log_file: Option<String>,
+        /// Disable headroom optimization passthrough
+        #[arg(long)]
+        no_optimize: bool,
+    },
+
+    /// Show proxy status
+    Status {
+        /// Proxy port (default: 8787)
+        #[arg(long, default_value = "8787")]
+        port: u16,
+        /// Output as JSON
+        #[arg(long)]
+        json: bool,
+    },
+
+    /// Stop headroom proxy
+    Stop {
+        /// Proxy port (default: 8787)
+        #[arg(long, default_value = "8787")]
+        port: u16,
+    },
+}
+
+/// Headroom MCP subcommands
+#[derive(Subcommand, Clone)]
+pub enum HeadroomMcpCommand {
+    /// Run headroom MCP server in stdio mode
+    ///
+    /// Internal bridge entry point for agent MCP configurations.
+    /// Agents point to: vx ai headroom mcp stdio
+    Stdio,
+
+    /// Smoke-test headroom MCP tools via mcpcall
+    ///
+    /// Validates headroom_compress, headroom_retrieve, and headroom_stats.
+    Test {
+        /// MCP server URL (default: http://127.0.0.1:8765/mcp)
+        #[arg(long, default_value = "http://127.0.0.1:8765/mcp")]
+        url: String,
+        /// Output as JSON
+        #[arg(long)]
+        json: bool,
+        /// Sample file to use for compress test
+        #[arg(long)]
+        sample_file: Option<String>,
+    },
 }
 
 /// AI session management commands
@@ -2260,6 +2407,7 @@ impl CommandHandler for Commands {
                     commands::ai::handle_context(ctx, *minimal, ctx.output_format()).await
                 }
                 AiCommand::Session(session) => commands::ai::handle_session(ctx, session).await,
+                AiCommand::Headroom(headroom) => commands::ai::handle_headroom(ctx, headroom).await,
             },
 
             Commands::Schema {
