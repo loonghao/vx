@@ -896,6 +896,168 @@ const DEFAULT_PYTHON_VERSION: &str = "3.11";
 /// Default mcpcall version
 #[allow(dead_code)]
 const DEFAULT_MCPCALL_VERSION: &str = "0.4.0";
+/// Default proxy host
+const DEFAULT_PROXY_HOST: &str = "127.0.0.1";
+/// Default proxy port
+#[allow(dead_code)]
+const DEFAULT_PROXY_PORT: u16 = 8787;
+
+// ---------------------------------------------------------------------------
+// Proxy state management helpers
+// ---------------------------------------------------------------------------
+
+/// Returns the headroom state directory: `~/.vx/state/headroom/`
+fn headroom_state_dir() -> Result<std::path::PathBuf> {
+    let home = dirs::home_dir().context("Could not determine home directory")?;
+    Ok(home.join(".vx").join("state").join("headroom"))
+}
+
+/// Returns the PID file path for a given proxy port
+fn proxy_pid_path(port: u16) -> Result<std::path::PathBuf> {
+    let dir = headroom_state_dir()?;
+    std::fs::create_dir_all(&dir)
+        .with_context(|| format!("Failed to create state directory: {}", dir.display()))?;
+    Ok(dir.join(format!("proxy-{}.pid", port)))
+}
+
+/// Returns the default log file path for a given proxy port
+fn proxy_log_path(port: u16) -> Result<std::path::PathBuf> {
+    let dir = headroom_state_dir()?;
+    std::fs::create_dir_all(&dir)
+        .with_context(|| format!("Failed to create state directory: {}", dir.display()))?;
+    Ok(dir.join(format!("proxy-{}.log", port)))
+}
+
+/// Returns the host state file path for a given proxy port.
+///
+/// When `start --host <host>` is used with a non-default host, the host is persisted
+/// so that `status` and `stop` can use the correct address for health probes.
+fn proxy_host_path(port: u16) -> Result<std::path::PathBuf> {
+    let dir = headroom_state_dir()?;
+    std::fs::create_dir_all(&dir)
+        .with_context(|| format!("Failed to create state directory: {}", dir.display()))?;
+    Ok(dir.join(format!("proxy-{}.host", port)))
+}
+
+/// Reads the persisted host for a proxy port. Falls back to `DEFAULT_PROXY_HOST`.
+fn read_proxy_host(port: u16) -> String {
+    proxy_host_path(port)
+        .ok()
+        .and_then(|p| std::fs::read_to_string(p).ok())
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty())
+        .unwrap_or_else(|| DEFAULT_PROXY_HOST.to_string())
+}
+
+/// Reads a PID from a PID file. Returns `None` if the file does not exist or is unreadable.
+fn read_pid(path: &std::path::Path) -> Option<u32> {
+    let content = std::fs::read_to_string(path).ok()?;
+    content.trim().parse::<u32>().ok()
+}
+
+/// Checks whether a process with the given PID is running on this platform.
+#[cfg(unix)]
+fn is_process_running(pid: u32) -> bool {
+    unsafe { libc::kill(pid as i32, 0) == 0 }
+}
+
+#[cfg(windows)]
+fn is_process_running(pid: u32) -> bool {
+    let output = std::process::Command::new("tasklist")
+        .args(["/FI", &format!("PID eq {}", pid)])
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::null())
+        .output();
+    match output {
+        Ok(out) => {
+            let stdout = String::from_utf8_lossy(&out.stdout);
+            stdout.contains(&format!("{}", pid))
+        }
+        Err(_) => false,
+    }
+}
+
+/// Tries to connect to the proxy's TCP port. Returns `Ok` if the port is reachable.
+fn check_port(host: &str, port: u16) -> Result<()> {
+    use std::net::TcpStream;
+    use std::time::Duration;
+    let addr = format!("{}:{}", host, port);
+    TcpStream::connect_timeout(&addr.parse()?, Duration::from_secs(2))
+        .with_context(|| format!("Port {}:{} is not reachable", host, port))?;
+    Ok(())
+}
+
+/// Performs a minimal HTTP health check: `GET /health`. Returns `true` if status is 200 OK.
+fn check_health_endpoint(host: &str, port: u16) -> bool {
+    use std::io::{Read, Write};
+    use std::net::TcpStream;
+    use std::time::Duration;
+
+    let addr = format!("{}:{}", host, port);
+    let mut stream =
+        match TcpStream::connect_timeout(&addr.parse().unwrap(), Duration::from_secs(2)) {
+            Ok(s) => s,
+            Err(_) => return false,
+        };
+    stream.set_read_timeout(Some(Duration::from_secs(2))).ok();
+    stream.set_write_timeout(Some(Duration::from_secs(2))).ok();
+
+    let request = format!(
+        "GET /health HTTP/1.0\r\nHost: {}:{}\r\nConnection: close\r\n\r\n",
+        host, port
+    );
+    if stream.write_all(request.as_bytes()).is_err() {
+        return false;
+    }
+    let mut response = String::new();
+    if stream.read_to_string(&mut response).is_err() {
+        return false;
+    }
+    response.contains("200 OK")
+}
+
+/// Build the `headroom proxy` command with the given arguments.
+/// Returns the command and a human-readable label.
+///
+/// Uses the **vx bridge**: delegates to `vx headroom proxy ...` so that the headroom
+/// executable installed via `vx uv tool install` is resolved correctly regardless of
+/// whether it has been added to PATH (especially on Windows).
+fn build_proxy_command(
+    host: &str,
+    port: u16,
+    log_file: Option<&str>,
+    no_optimize: bool,
+) -> (std::process::Command, String) {
+    let vx_exe = std::env::current_exe().unwrap_or_else(|_| std::path::PathBuf::from("vx"));
+    let mut cmd = std::process::Command::new(&vx_exe);
+    cmd.args([
+        "headroom",
+        "proxy",
+        "--host",
+        host,
+        "--port",
+        &port.to_string(),
+    ]);
+
+    if no_optimize {
+        cmd.arg("--no-optimize");
+    }
+
+    // Headroom telemetry is disabled by default per PIP-584 product decision
+    cmd.env("HEADROOM_TELEMETRY", "off");
+
+    let log_path = if let Some(lf) = log_file {
+        std::path::PathBuf::from(lf)
+    } else {
+        proxy_log_path(port).unwrap_or_else(|_| std::path::PathBuf::from("headroom-proxy.log"))
+    };
+
+    cmd.arg("--log-file");
+    cmd.arg(log_path.to_string_lossy().as_ref());
+
+    let label = format!("vx headroom proxy --host {} --port {}", host, port);
+    (cmd, label)
+}
 
 /// Handle `vx ai headroom` command — dispatches to subcommands.
 pub async fn handle_headroom(ctx: &CommandContext, command: &HeadroomCommand) -> Result<()> {
@@ -1005,8 +1167,9 @@ async fn handle_headroom_install(
         mcpcall_version
     ));
 
+    let mcpcall_spec = format!("mcpcall@{}", mcpcall_version);
     let mcpcall_status = std::process::Command::new(&vx_exe)
-        .args(["install", &format!("mcpcall@{}", mcpcall_version)])
+        .args(["install", &mcpcall_spec])
         .status()
         .context("Failed to install mcpcall")?;
 
@@ -1246,21 +1409,146 @@ async fn handle_headroom_proxy(command: &HeadroomProxyCommand) -> Result<()> {
         } => {
             UI::header("headroom proxy start");
             println!();
-            UI::info("proxy start: not yet implemented (PIP-602)");
-            UI::info(&format!("  host: {}", host));
-            UI::info(&format!("  port: {}", port));
-            UI::info(&format!("  foreground: {}", foreground));
-            if let Some(log) = log_file {
-                UI::info(&format!("  log file: {}", log));
+            // Check if already running
+            let pid_path = proxy_pid_path(*port)?;
+            if let Some(pid) = read_pid(&pid_path) {
+                if is_process_running(pid) {
+                    UI::warn(&format!(
+                        "A headroom proxy appears to be running on port {} (PID {})",
+                        port, pid
+                    ));
+                    UI::hint("Run 'vx ai headroom proxy stop' to stop it first.");
+                    return Ok(());
+                }
             }
-            UI::info(&format!("  optimize: {}", !no_optimize));
-            UI::hint("This command will be fully implemented in PIP-602.");
+
+            // Verify headroom is installed
+            UI::step("Checking headroom availability...");
+            let vx_exe =
+                std::env::current_exe().context("Could not determine vx executable path")?;
+            let version_check = std::process::Command::new(&vx_exe)
+                .args(["headroom", "--version"])
+                .stdout(std::process::Stdio::piped())
+                .stderr(std::process::Stdio::piped())
+                .output();
+
+            match version_check {
+                Ok(out) if out.status.success() => {
+                    let v = String::from_utf8_lossy(&out.stdout);
+                    UI::success(&format!("headroom: {}", v.trim()));
+                }
+                _ => {
+                    UI::error("headroom is not installed or not in PATH");
+                    UI::hint("Run 'vx ai headroom install' to install headroom-ai[proxy].");
+                    return Ok(());
+                }
+            }
+
+            // Persist the host so status/stop can use the correct address
+            let host_path = proxy_host_path(*port)?;
+            std::fs::write(&host_path, host)
+                .with_context(|| format!("Failed to write host file: {}", host_path.display()))?;
+
+            let (mut cmd, _label) =
+                build_proxy_command(host, *port, log_file.as_deref(), *no_optimize);
+
+            if *foreground {
+                UI::info(&format!(
+                    "Starting headroom proxy in foreground on {}:{}...",
+                    host, port
+                ));
+                let status = cmd
+                    .stdin(std::process::Stdio::inherit())
+                    .stdout(std::process::Stdio::inherit())
+                    .stderr(std::process::Stdio::inherit())
+                    .status()
+                    .context("Failed to start headroom proxy in foreground")?;
+
+                if !status.success() {
+                    UI::error(&format!(
+                        "headroom proxy exited with code: {:?}",
+                        status.code()
+                    ));
+                }
+            } else {
+                UI::info(&format!(
+                    "Starting headroom proxy (detached) on {}:{}...",
+                    host, port
+                ));
+
+                let child = cmd
+                    .stdin(std::process::Stdio::null())
+                    .stdout(std::process::Stdio::null())
+                    .stderr(std::process::Stdio::null())
+                    .spawn()
+                    .context("Failed to spawn headroom proxy process")?;
+
+                let pid = child.id();
+                std::fs::write(&pid_path, pid.to_string())
+                    .with_context(|| format!("Failed to write PID file: {}", pid_path.display()))?;
+
+                UI::success(&format!(
+                    "headroom proxy started (PID {}) on {}:{}",
+                    pid, host, port
+                ));
+                UI::item(&format!("PID file: {}", pid_path.display()));
+
+                let log = log_file
+                    .as_deref()
+                    .map(std::path::PathBuf::from)
+                    .unwrap_or_else(|| {
+                        proxy_log_path(*port)
+                            .unwrap_or_else(|_| std::path::PathBuf::from("headroom-proxy.log"))
+                    });
+                UI::item(&format!("Log file: {}", log.display()));
+
+                // Verify the proxy responds
+                UI::step("Waiting for proxy to become ready...");
+                for i in 1..=10 {
+                    if check_port(host, *port).is_ok() && check_health_endpoint(host, *port) {
+                        UI::success("headroom proxy is healthy and accepting connections");
+                        break;
+                    }
+                    if i == 10 {
+                        UI::warn("headroom proxy started but health check timed out");
+                        UI::hint("Check logs and run 'vx ai headroom proxy status' to diagnose.");
+                    }
+                    std::thread::sleep(std::time::Duration::from_millis(500));
+                }
+            }
         }
         HeadroomProxyCommand::Status { port, json } => {
+            let pid_path = proxy_pid_path(*port)?;
+            let pid = read_pid(&pid_path);
+            let running = pid.map_or(false, is_process_running);
+            let host = read_proxy_host(*port);
+            let port_open = check_port(&host, *port).is_ok();
+            let healthy = port_open && check_health_endpoint(&host, *port);
+
             if *json {
+                let status = if healthy {
+                    "healthy"
+                } else if running && port_open {
+                    "unhealthy"
+                } else if running {
+                    "not_listening"
+                } else if pid.is_some() {
+                    "stale_pid"
+                } else {
+                    "not_running"
+                };
                 println!(
                     "{}",
-                    serde_json::json!({"status": "not_implemented", "port": port})
+                    serde_json::json!({
+                        "status": status,
+                        "host": host,
+                        "port": port,
+                        "pid": pid,
+                        "process_running": running,
+                        "port_open": port_open,
+                        "health_check": healthy,
+                        "pid_file": pid_path.display().to_string(),
+                    })
                 );
             } else {
                 UI::header("headroom proxy status");
@@ -1273,9 +1561,40 @@ async fn handle_headroom_proxy(command: &HeadroomProxyCommand) -> Result<()> {
         HeadroomProxyCommand::Stop { port } => {
             UI::header("headroom proxy stop");
             println!();
-            UI::info("proxy stop: not yet implemented (PIP-602)");
-            UI::info(&format!("  stopping on port: {}", port));
-            UI::hint("This command will be fully implemented in PIP-602.");
+            let pid_path = proxy_pid_path(*port)?;
+            let pid = read_pid(&pid_path);
+
+            match pid {
+                Some(p) if is_process_running(p) => {
+                    UI::info(&format!(
+                        "Stopping headroom proxy on port {} (PID {})...",
+                        port, p
+                    ));
+                    kill_process(p)?;
+                    let _ = std::fs::remove_file(&pid_path);
+                    UI::success(&format!("headroom proxy (PID {}) stopped", p));
+                }
+                Some(p) => {
+                    UI::warn(&format!(
+                        "PID {} found in PID file but process is not running (stale PID)",
+                        p
+                    ));
+                    let _ = std::fs::remove_file(&pid_path);
+                    UI::info("Cleaned up stale PID file.");
+                }
+                None => {
+                    // Try to find by port in use
+                    let host = read_proxy_host(*port);
+                    if check_port(&host, *port).is_ok() {
+                        UI::warn(&format!("Port {} is in use but no PID file found", port));
+                        UI::hint(
+                            "The proxy may have been started outside of vx. Stop it manually.",
+                        );
+                    } else {
+                        UI::info("headroom proxy is not running.");
+                    }
+                }
+            }
         }
     }
     Ok(())
@@ -1313,5 +1632,181 @@ async fn handle_headroom_mcp(_ctx: &CommandContext, command: &HeadroomMcpCommand
             UI::hint("This command will be fully implemented in PIP-603.");
             Ok(())
         }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Process termination helpers
+// ---------------------------------------------------------------------------
+
+#[cfg(unix)]
+fn kill_process(pid: u32) -> Result<()> {
+    unsafe {
+        if libc::kill(pid as i32, libc::SIGTERM) != 0 {
+            let err = std::io::Error::last_os_error();
+            anyhow::bail!("Failed to send SIGTERM to PID {}: {}", pid, err);
+        }
+    }
+    Ok(())
+}
+
+#[cfg(windows)]
+fn kill_process(pid: u32) -> Result<()> {
+    let status = std::process::Command::new("taskkill")
+        .args(["/PID", &pid.to_string(), "/F"])
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
+        .status()
+        .with_context(|| format!("Failed to run taskkill for PID {}", pid))?;
+
+    if !status.success() {
+        anyhow::bail!("taskkill failed for PID {}", pid);
+    }
+    Ok(())
+}
+
+// ---------------------------------------------------------------------------
+// Tests for headroom proxy lifecycle helpers
+// ---------------------------------------------------------------------------
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::io::Write;
+    use tempfile::{NamedTempFile, TempDir};
+
+    // ----- State file path helpers -----
+
+    #[test]
+    fn proxy_host_path_returns_expected_suffix() {
+        let path = proxy_host_path(8787).unwrap();
+        assert!(
+            path.to_string_lossy().contains("proxy-8787.host"),
+            "expected suffix proxy-8787.host, got {}",
+            path.display()
+        );
+    }
+
+    #[test]
+    fn proxy_pid_path_returns_expected_suffix() {
+        let path = proxy_pid_path(9999).unwrap();
+        assert!(
+            path.to_string_lossy().contains("proxy-9999.pid"),
+            "expected suffix proxy-9999.pid, got {}",
+            path.display()
+        );
+    }
+
+    #[test]
+    fn proxy_log_path_returns_expected_suffix() {
+        let path = proxy_log_path(4321).unwrap();
+        assert!(
+            path.to_string_lossy().contains("proxy-4321.log"),
+            "expected suffix proxy-4321.log, got {}",
+            path.display()
+        );
+    }
+
+    // ----- read_proxy_host fallback -----
+
+    #[test]
+    fn read_proxy_host_falls_back_to_default_when_no_host_file() {
+        // Use a port that doesn't have a written host file
+        let host = read_proxy_host(55432);
+        assert_eq!(host, DEFAULT_PROXY_HOST);
+    }
+
+    #[test]
+    fn read_proxy_host_returns_persisted_value() {
+        let dir = TempDir::new().unwrap();
+        let host_file = dir.path().join("proxy-8787.host");
+        std::fs::write(&host_file, "10.0.0.1\n").unwrap();
+
+        // Can't easily mock headroom_state_dir, but we can test read_proxy_host
+        // with a port that has a real host file written via proxy_host_path
+        let host_path = proxy_host_path(8788).unwrap();
+        std::fs::write(&host_path, "192.168.1.1").unwrap();
+
+        let host = read_proxy_host(8788);
+        assert_eq!(host, "192.168.1.1");
+
+        // Cleanup
+        let _ = std::fs::remove_file(&host_path);
+    }
+
+    #[test]
+    fn read_pid_returns_none_for_missing_file() {
+        assert!(read_pid(std::path::Path::new("/nonexistent/pid/file.pid")).is_none());
+    }
+
+    #[test]
+    fn read_pid_returns_parsed_value() {
+        let mut file = NamedTempFile::new().unwrap();
+        writeln!(file, "4242").unwrap();
+        assert_eq!(read_pid(file.path()), Some(4242));
+    }
+
+    #[test]
+    fn read_pid_rejects_invalid_content() {
+        let mut file = NamedTempFile::new().unwrap();
+        writeln!(file, "not-a-number").unwrap();
+        assert_eq!(read_pid(file.path()), None);
+    }
+
+    // ----- build_proxy_command: vx bridge -----
+
+    #[test]
+    fn build_proxy_command_uses_vx_bridge() {
+        let (cmd, label) = build_proxy_command("127.0.0.1", 8787, None, false);
+        let program = cmd.get_program().to_string_lossy();
+
+        // The command should use the vx executable, NOT bare "headroom"
+        assert!(
+            program.contains("vx") || program.ends_with("vx.exe"),
+            "expected vx bridge, got program '{}'",
+            program
+        );
+        assert!(
+            !program.ends_with("headroom") && !program.ends_with("headroom.exe"),
+            "should NOT invoke bare headroom"
+        );
+
+        // Label describes the vx bridge path
+        assert!(label.contains("vx headroom proxy"));
+    }
+
+    #[test]
+    fn build_proxy_command_includes_no_optimize_flag() {
+        let (cmd, _) = build_proxy_command("127.0.0.1", 8787, Some("/tmp/log"), true);
+        let args: Vec<_> = cmd.get_args().map(|a| a.to_string_lossy()).collect();
+        assert!(
+            args.iter().any(|a| a == "--no-optimize"),
+            "expected --no-optimize in args: {:?}",
+            args
+        );
+    }
+
+    #[test]
+    fn build_proxy_command_sets_telemetry_off() {
+        let (cmd, _) = build_proxy_command("127.0.0.1", 8787, None, false);
+        let envs: Vec<_> = cmd.get_envs().collect();
+        let telemetry_off = envs.iter().any(|(k, v)| {
+            *k == std::ffi::OsStr::new("HEADROOM_TELEMETRY")
+                && v.map(|val| val == "off").unwrap_or(false)
+        });
+        assert!(telemetry_off, "HEADROOM_TELEMETRY should be 'off'");
+    }
+
+    #[test]
+    fn build_proxy_command_passes_log_file() {
+        let (cmd, _) = build_proxy_command("127.0.0.1", 8787, Some("/custom/log.log"), false);
+        let args: Vec<_> = cmd.get_args().map(|a| a.to_string_lossy()).collect();
+        let log_file_idx = args.iter().position(|a| a == "--log-file");
+        assert!(log_file_idx.is_some(), "expected --log-file flag in args");
+        let next = args[log_file_idx.unwrap() + 1].clone();
+        assert_eq!(
+            next, "/custom/log.log",
+            "log file arg should follow --log-file"
+        );
     }
 }
