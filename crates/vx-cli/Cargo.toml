@@ -94,6 +94,9 @@ toon-format = { version = "0.5", default-features = false }
 axoupdater = { workspace = true, optional = true }
 workspace-hack = { version = "0.1", path = "../workspace-hack" }
 
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"
+
 [target.'cfg(windows)'.dependencies]
 windows-sys = { workspace = true }
 
