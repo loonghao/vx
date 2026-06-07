@@ -30,7 +30,7 @@ runtimes = [
         aliases = ["google-cloud-sdk"],
         test_commands = [
             {"command": "{executable} --version", "name": "version_check",
-             "expected_output": "Google Cloud SDK", "timeout_ms": 120000},
+             "expected_output": "Google Cloud SDK"},
         ],
     ),
     bundled_runtime_def("gsutil", bundled_with = "gcloud"),

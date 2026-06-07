@@ -26,10 +26,9 @@ permissions = github_permissions(
     exec_cmds   = ["winget", "brew", "apt"],
 )
 
-# Tags can appear before matching cross-platform binaries are published.
 fetch_versions = fetch_versions_from_api(
-    "https://releases.hashicorp.com/vault/index.json",
-    "hashicorp_releases_cross_platform",
+    "https://api.github.com/repos/hashicorp/vault/tags?per_page=100",
+    "github_tags",
 )
 
 _VAULT_PLATFORMS = {
@@ -50,9 +49,6 @@ def download_url(ctx, version):
     if not platform:
         return None
     os_str, arch_str = platform
-    if version == "2.0.1" and os_str != "linux":
-        # Vault 2.0.1 only ships Linux artifacts.
-        return None
     asset = "vault_{}_{}_{}.zip".format(version, os_str, arch_str)
     return "https://releases.hashicorp.com/vault/{}/{}".format(version, asset)
 

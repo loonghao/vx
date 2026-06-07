@@ -364,7 +364,6 @@ def fetch_versions_from_api(url, transform):
         "pypi"               - https://pypi.org/pypi/{package}/json
         "npm_registry"       - https://registry.npmjs.org/{package}
         "hashicorp_releases" - HashiCorp releases API
-        "hashicorp_releases_cross_platform" - HashiCorp CE versions with Linux/macOS/Windows builds
 
     Args:
         url:       The API URL to fetch
