@@ -1604,7 +1604,7 @@ pub enum HeadroomCommand {
         #[arg(long)]
         dry_run: bool,
         /// Write MCP configuration to agent config files
-        #[arg(long, conflicts_with = "dry_run")]
+        #[arg(long, overrides_with = "dry_run")]
         apply: bool,
         /// Proxy port (default: 8787)
         #[arg(long, default_value = "8787")]
