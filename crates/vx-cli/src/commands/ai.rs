@@ -988,7 +988,10 @@ async fn handle_headroom_install(
         UI::hint(
             "Try running manually: vx uv tool install --python <version> --from 'headroom-ai[proxy]==<version>' headroom",
         );
-        std::process::exit(code);
+        return Err(anyhow::anyhow!(
+            "headroom install failed with exit code {}",
+            code
+        ));
     }
 
     UI::success(&format!(
@@ -1192,7 +1195,7 @@ async fn handle_headroom_doctor(quick: bool, json: bool, port: u16, mcp_port: u1
 /// Handle `vx ai headroom setup` — generate MCP config templates.
 ///
 /// Stub in PIP-601; full implementation in PIP-604.
-async fn handle_headroom_setup(
+pub async fn handle_headroom_setup(
     agents: &[String],
     _dry_run: bool,
     apply: bool,
@@ -1290,7 +1293,7 @@ async fn handle_headroom_mcp(_ctx: &CommandContext, command: &HeadroomMcpCommand
             UI::hint(
                 "Run 'vx ai headroom install' first, then 'vx ai headroom mcp test' to verify.",
             );
-            Ok(())
+            Err(anyhow::anyhow!("headroom mcp stdio not yet implemented"))
         }
         HeadroomMcpCommand::Test {
             url,
