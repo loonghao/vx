@@ -131,7 +131,6 @@ def fetch_json_versions(ctx, url, transform, headers = {}):
         "pypi"              - PyPI JSON API: {info: {version: "..."}, releases: {...}}
         "npm_registry"      - npm registry: {versions: {"1.0.0": {...}, ...}}
         "hashicorp_releases"- HashiCorp releases API: {versions: {"1.0.0": {...}}}
-        "hashicorp_releases_cross_platform" - HashiCorp CE versions with Linux/macOS/Windows builds
         "adoptium"          - Eclipse Adoptium API for Java
         "github_tags"       - GitHub tags API (alternative to github_releases)
 

@@ -48,7 +48,7 @@ def github_asset_url(owner, repo, tag, asset_name):
 # Factory: fetch_versions
 # ---------------------------------------------------------------------------
 
-def make_fetch_versions(owner, repo, include_prereleases = False):
+def make_fetch_versions(owner, repo, include_prereleases = False, tag_prefix = None):
     """Return a fetch_versions(ctx) function bound to a specific GitHub repo.
 
     This is the primary "inheritance" mechanism: a provider that only needs
@@ -62,13 +62,19 @@ def make_fetch_versions(owner, repo, include_prereleases = False):
         owner:               GitHub owner
         repo:                GitHub repo name
         include_prereleases: Whether to include pre-release versions
+        tag_prefix:          Optional tag prefix to strip when extracting versions.
+                             E.g. tag_prefix = "ripgrep-" turns tag "ripgrep-15.1.0"
+                             into version "15.1.0". When None, strips leading "v".
 
     Returns:
         A function with signature: fetch_versions(ctx) -> list[VersionInfo]
     """
     def fetch_versions(ctx):
         releases = github_releases(ctx, owner, repo, include_prereleases)
-        return releases_to_versions(releases)
+        versions = releases_to_versions(releases)
+        if tag_prefix != None and type(versions) == type({}):
+            versions["tag_prefix"] = tag_prefix
+        return versions
 
     return fetch_versions
 
