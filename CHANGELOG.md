@@ -6,6 +6,31 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [0.9.17](https://github.com/loonghao/vx/compare/v0.9.16...v0.9.17) (2026-06-07)
+
+
+### Features
+
+* **ai:** add vx ai headroom CLI skeleton with bridge runner ([#962](https://github.com/loonghao/vx/issues/962)) ([8fafbf4](https://github.com/loonghao/vx/commit/8fafbf4a2dfec71d03d650ad1b50fc1e5cb8ce22))
+* **headroom:** implement MCP config setup for AI agents ([4e1a355](https://github.com/loonghao/vx/commit/4e1a355704f6afdc31144e16090f67880c716d01))
+* **headroom:** implement proxy lifecycle management ([6a15d7e](https://github.com/loonghao/vx/commit/6a15d7e7665858504d277d209f8c4e0e75a55885))
+* migrate hugo provider to github_smart_provider (PIP-558) ([b449dcb](https://github.com/loonghao/vx/commit/b449dcb2835300a88e4d481d46b9549b28ca4e18))
+* **providers:** add sentry-cli provider (getsentry/sentry-cli) ([c967a03](https://github.com/loonghao/vx/commit/c967a03ece7baccdde12943fae40a252cab93a2a))
+* **providers:** use vx-org/mirrors as stable download source ([7db5c8a](https://github.com/loonghao/vx/commit/7db5c8ab3f5d61afb1bc1084355cd6e4a1fa24a5))
+* **providers:** use vx-org/mirrors as stable download source for all providers ([b5dfca4](https://github.com/loonghao/vx/commit/b5dfca4755f68fa4ff473f6b8d362eead0b26a36))
+* **providers:** use vx-org/mirrors as stable download source for all providers ([b5dfca4](https://github.com/loonghao/vx/commit/b5dfca4755f68fa4ff473f6b8d362eead0b26a36))
+
+
+### Bug Fixes
+
+* **headroom:** add libc dependency for unix builds ([3fad63e](https://github.com/loonghao/vx/commit/3fad63e782fc9228458dadbb40afea8b2ba41130))
+* **headroom:** reject invalid JSON configs, surface write errors ([842a3d5](https://github.com/loonghao/vx/commit/842a3d552f300f74f9551737b66961c601a622ca))
+
+
+### Documentation
+
+* add smart provider decision tree to creating-provider guide ([#961](https://github.com/loonghao/vx/issues/961)) ([b71b1e6](https://github.com/loonghao/vx/commit/b71b1e6a99f1270233d10dedb4ac5ad08bfab706))
+
 ## [0.9.16](https://github.com/loonghao/vx/compare/v0.9.15...v0.9.16) (2026-06-05)
 
 
