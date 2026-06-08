@@ -70,9 +70,10 @@ permissions = github_permissions()
 
 _ASSET_MAP = {
     # (os, arch): (asset_name, archive_subdir)
-    "windows/x64":  ("ffmpeg-{v}-win64-lgpl.zip",          "ffmpeg-{v}-win64-lgpl"),
-    "linux/x64":    ("ffmpeg-{v}-linux64-lgpl.tar.xz",     "ffmpeg-{v}-linux64-lgpl"),
-    "linux/arm64":  ("ffmpeg-{v}-linuxarm64-lgpl.tar.xz",  "ffmpeg-{v}-linuxarm64-lgpl"),
+    # BtbN archive internal dir naming: ffmpeg-n{version}-latest-{platform}-{version}
+    "windows/x64":  ("ffmpeg-{v}-win64-lgpl.zip",          "ffmpeg-n{v}-latest-win64-lgpl-{v}"),
+    "linux/x64":    ("ffmpeg-{v}-linux64-lgpl.tar.xz",     "ffmpeg-n{v}-latest-linux64-lgpl-{v}"),
+    "linux/arm64":  ("ffmpeg-{v}-linuxarm64-lgpl.tar.xz",  "ffmpeg-n{v}-latest-linuxarm64-lgpl-{v}"),
 }
 
 # ---------------------------------------------------------------------------

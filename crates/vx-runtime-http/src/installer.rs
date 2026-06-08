@@ -829,6 +829,29 @@ impl Installer for RealInstaller {
             }
         }
 
+        // Ensure extracted binaries have executable permissions on Unix.
+        // Archive extraction (tar/zip/7z) does not guarantee execute bits,
+        // unlike the single-file path which explicitly chmods 0o755.
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            let bin_dir = dest.join("bin");
+            if bin_dir.is_dir() {
+                if let Ok(entries) = std::fs::read_dir(&bin_dir) {
+                    for entry in entries.filter_map(|e| e.ok()) {
+                        let path = entry.path();
+                        if path.is_file() {
+                            if let Ok(meta) = std::fs::metadata(&path) {
+                                let mut perms = meta.permissions();
+                                perms.set_mode(0o755);
+                                let _ = std::fs::set_permissions(&path, perms);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
         Ok(())
     }
 }
