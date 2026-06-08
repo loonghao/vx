@@ -98,7 +98,14 @@ jobs:
         # we specify bash to get pipefail; it guards against the `curl` command
         # failing. otherwise `sh` won't catch that `curl` returned non-0
         shell: bash
-        run: "curl --proto '=https' --tlsv1.2 -LsSf https://github.com/axodotdev/cargo-dist/releases/download/v0.30.3/cargo-dist-installer.sh | sh"
+        run: |
+          for i in 1 2 3; do
+            curl --proto '=https' --tlsv1.2 -LsSf https://github.com/axodotdev/cargo-dist/releases/download/v0.30.3/cargo-dist-installer.sh | sh && exit 0
+            echo "cargo-dist install attempt $i/3 failed, retrying in 10s..."
+            sleep 10
+          done
+          echo "All 3 attempts failed"
+          exit 1
 
       - name: Cache dist
         uses: actions/upload-artifact@v7
@@ -163,8 +170,28 @@ jobs:
             curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
             echo "$HOME/.cargo/bin" >> $GITHUB_PATH
           fi
-      - name: Install dist
-        run: ${{ matrix.install_dist.run }}
+      - name: Install dist (Unix)
+        if: ${{ runner.os != 'Windows' }}
+        shell: bash
+        run: |
+          for i in 1 2 3; do
+            ${{ matrix.install_dist.run }} && exit 0
+            echo "cargo-dist install attempt $i/3 failed, retrying in 10s..."
+            sleep 10
+          done
+          echo "All 3 attempts failed"
+          exit 1
+      - name: Install dist (Windows)
+        if: ${{ runner.os == 'Windows' }}
+        shell: pwsh
+        run: |
+          $retries = 3; $delay = 10
+          for ($i = 1; $i -le $retries; $i++) {
+            ${{ matrix.install_dist.run }}; if ($LASTEXITCODE -eq 0) { return }
+            Write-Host "cargo-dist install attempt $i/$retries failed, retrying in ${delay}s..."
+            Start-Sleep -Seconds $delay
+          }
+          exit 1
       # Get the dist-manifest
       - name: Fetch local artifacts
         uses: actions/download-artifact@v8
