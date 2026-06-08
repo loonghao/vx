@@ -14,6 +14,11 @@ if (-not (Test-Path $repoDir)) {
 
 Push-Location $repoDir
 try {
+  # Workaround: npm EOVERRIDE — @codemirror/language is both a direct dependency
+  # and in overrides/resolutions. npm 10+ rejects overrides on direct deps when
+  # the version specs differ. Remove the redundant override/resolution entries.
+  vx npm pkg delete overrides.@codemirror/language resolutions.@codemirror/language 2>$null
+
   "== AionUi build test ==" | Tee-Object -FilePath $logFile
   "Working directory: $repoDir" | Tee-Object -FilePath $logFile -Append
 
