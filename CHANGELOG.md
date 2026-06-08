@@ -6,6 +6,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [0.9.21](https://github.com/loonghao/vx/compare/v0.9.20...v0.9.21) (2026-06-08)
+
+
+### Bug Fixes
+
+* **ci:** also work around pnpm workspace:* protocol in aionui example ([002869c](https://github.com/loonghao/vx/commit/002869cbdd515870cf397e393a11cc0b7ed1d84a))
+* **ci:** work around npm EOVERRIDE in aionui example ([4586ada](https://github.com/loonghao/vx/commit/4586ada787d694a762254ab6898d36e02b4d2b13))
+
 ## [0.9.20](https://github.com/loonghao/vx/compare/v0.9.19...v0.9.20) (2026-06-08)
 
 
