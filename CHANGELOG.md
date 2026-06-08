@@ -6,6 +6,21 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [0.9.18](https://github.com/loonghao/vx/compare/v0.9.17...v0.9.18) (2026-06-08)
+
+
+### Features
+
+* **headroom:** implement doctor MCP checks and smoke test harness (PIP-603) ([f3cea72](https://github.com/loonghao/vx/commit/f3cea724bd8b7dc66679172a6c570adbbe33355f))
+
+
+### Bug Fixes
+
+* **headroom:** address code-review feedback for proxy lifecycle ([f6ffc11](https://github.com/loonghao/vx/commit/f6ffc118d11088723d7b42778d48b8b28f815f17))
+* **headroom:** correct vx bridge path, move tests to integration dir ([7c80a28](https://github.com/loonghao/vx/commit/7c80a283f33a05e090c54fa93aca4d90d03ecccd))
+* **headroom:** harden doctor JSON and health checks ([4e3cd27](https://github.com/loonghao/vx/commit/4e3cd274ff9bda9b2cce6721fcfae75a00533287))
+* **headroom:** use --from headroom-ai[proxy] for correct package resolution ([72bd3de](https://github.com/loonghao/vx/commit/72bd3defa7791d858579976b90d72b0ec2772b59))
+
 ## [0.9.17](https://github.com/loonghao/vx/compare/v0.9.16...v0.9.17) (2026-06-07)
 
 
