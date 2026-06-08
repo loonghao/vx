@@ -187,7 +187,8 @@ jobs:
         run: |
           $retries = 3; $delay = 10
           for ($i = 1; $i -le $retries; $i++) {
-            ${{ matrix.install_dist.run }}; if ($LASTEXITCODE -eq 0) { return }
+            ${{ matrix.install_dist.run }}
+            if (Get-Command dist -ErrorAction SilentlyContinue) { return }
             Write-Host "cargo-dist install attempt $i/$retries failed, retrying in ${delay}s..."
             Start-Sleep -Seconds $delay
           }
