@@ -227,6 +227,37 @@ async fn handle_install(ctx: &CommandContext, args: &InstallGlobalArgs) -> Resul
                 Box::new(vx_ecosystem_pm::installers::NpmInstaller::new())
             }
         }
+        "go" | "golang" => {
+            let go_path = if runtime_version.is_some() {
+                match vx_paths::get_bundled_tool_path("go", "go") {
+                    Ok(Some(path)) => Some(path),
+                    Ok(None) => {
+                        tracing::warn!("go not found in installed go runtime");
+                        None
+                    }
+                    Err(e) => {
+                        tracing::warn!("Failed to get go path from RuntimeRoot: {}", e);
+                        None
+                    }
+                }
+            } else {
+                None
+            };
+
+            if let Some(path) = go_path {
+                if path.exists() {
+                    if args.verbose {
+                        UI::detail(&format!("Using go from: {}", path.display()));
+                    }
+                    Box::new(vx_ecosystem_pm::installers::GoInstaller::with_go_path(path))
+                } else {
+                    tracing::warn!("go path does not exist: {}", path.display());
+                    Box::new(vx_ecosystem_pm::installers::GoInstaller::new())
+                }
+            } else {
+                Box::new(vx_ecosystem_pm::installers::GoInstaller::new())
+            }
+        }
         _ => get_installer(&spec.ecosystem)
             .with_context(|| format!("Unsupported ecosystem: {}", spec.ecosystem))?,
     };
