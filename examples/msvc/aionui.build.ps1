@@ -14,7 +14,19 @@ if (-not (Test-Path $repoDir)) {
 
 Push-Location $repoDir
 try {
-  # Workaround: npm EOVERRIDE — @codemirror/language is both a direct dependency
+  # Workaround 1: npm doesn't support pnpm/yarn "workspace:*" protocol.
+  # AionUi is a monorepo with internal deps like "@aionui/web-host": "workspace:*".
+  # Replace with "*" so npm can resolve workspace packages.
+  Get-ChildItem -Path . -Recurse -Filter "package.json" -Depth 3 | ForEach-Object {
+    $c = Get-Content $_.FullName -Raw -Encoding UTF8
+    if ($c -match 'workspace:') {
+      Write-Host "Replacing workspace:* in $($_.FullName)"
+      $c = $c -replace '"workspace:\*"', '"*"'
+      [System.IO.File]::WriteAllText($_.FullName, $c, [System.Text.Encoding]::UTF8)
+    }
+  }
+
+  # Workaround 2: npm EOVERRIDE — @codemirror/language is both a direct dependency
   # and in overrides/resolutions. npm 10+ rejects overrides on direct deps when
   # the version specs differ. Remove the redundant override/resolution entries.
   vx npm pkg delete overrides.@codemirror/language resolutions.@codemirror/language 2>$null
