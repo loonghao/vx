@@ -6,6 +6,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [0.9.20](https://github.com/loonghao/vx/compare/v0.9.19...v0.9.20) (2026-06-08)
+
+
+### Bug Fixes
+
+* apply chmod +x after archive extraction and fix ffmpeg strip_prefix ([6e2f1f2](https://github.com/loonghao/vx/commit/6e2f1f2eaddaf3161c280b1489f6f2b811942688))
+* resolve zig Starlark try keyword and implement github_smart_provider template (PIP-1171) ([af776ae](https://github.com/loonghao/vx/commit/af776ae1cf97bfa905a13dc2e865af9dbe234e8f))
+
 ## [0.9.19](https://github.com/loonghao/vx/compare/v0.9.18...v0.9.19) (2026-06-08)
 
 
