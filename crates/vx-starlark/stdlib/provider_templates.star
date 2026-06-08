@@ -395,7 +395,99 @@ def github_binary_provider(owner, repo, asset,
 
 
 # ---------------------------------------------------------------------------
-# Template 4: system_provider
+# Template 4: github_smart_provider
+#   GitHub releases with smart (GitHub API) asset detection
+#   Calls GitHub Releases API to find the best-matching asset per platform.
+#   Falls back to system package manager when no asset matches.
+# ---------------------------------------------------------------------------
+
+def github_smart_provider(owner, repo,
+                          asset = None,
+                          executable = None,
+                          store = None,
+                          tag_prefix = "v",
+                          prereleases = False,
+                          strip = None,
+                          path_env = True,
+                          extra_env = None):
+    """Provider template using smart GitHub Release API asset detection.
+
+    Instead of constructing a download URL directly, this template returns a
+    descriptor that the Rust runtime resolves via the GitHub Releases API,
+    finding the best-matching asset for the current platform. This handles
+    naming variations (e.g. macOS .pkg vs tar.gz, x86_64 vs amd64) without
+    hardcoding asset name patterns.
+
+    When an explicit `asset` fallback is provided, it's used as a fallback
+    pattern if the smart API detection yields no match.
+
+    Args:
+        owner:       GitHub owner (e.g. "gohugoio")
+        repo:        GitHub repo name (e.g. "hugo")
+        asset:       Optional fallback asset pattern with placeholders:
+                     {version}, {vversion}, {triple}, {os}, {arch}, {ext}, {exe}
+        executable:  Executable name; defaults to `repo`
+        store:       Store directory name; defaults to `repo`
+        tag_prefix:  Tag prefix before version (default: "v", use "" for no prefix)
+        prereleases: Include pre-release versions (default: False)
+        strip:       Archive strip prefix to remove from extracted paths
+        path_env:    Prepend install_dir to PATH (default: True)
+        extra_env:   Additional env ops (list of dicts from env.star)
+
+    Returns:
+        A dict with all standard provider functions.
+        download_url returns a ``github_smart_detect`` descriptor dict.
+
+    Example:
+        # Minimal: no fallback asset
+        _p = github_smart_provider("gohugoio", "hugo")
+
+        # With fallback asset pattern
+        _p = github_smart_provider("BurntSushi", "ripgrep",
+            executable = "rg",
+            asset      = "ripgrep-{version}-{triple}.{ext}",
+        )
+    """
+    exe_name   = executable if executable != None else repo
+    store_name = store      if store      != None else repo
+
+    def _fetch_versions(ctx):
+        from_github = make_fetch_versions(owner, repo, prereleases)
+        return from_github(ctx)
+
+    def _download_url(ctx, version):
+        tag = tag_prefix + version
+        desc = {
+            "__type":        "github_smart_detect",
+            "owner":         owner,
+            "repo":          repo,
+            "tag":           tag,
+            "version":       version,
+            "linux_libc":    "musl",
+            "score_threshold": 40,
+        }
+        if asset != None:
+            desc["fallback_asset"] = asset
+        return desc
+
+    def _install_layout(ctx, version):
+        exe   = exe_name + _exe_suffix(ctx)
+        strip_prefix = strip if strip != None else ""
+        return {
+            "__type":           "archive",
+            "strip_prefix":     strip_prefix,
+            "executable_paths": [exe, exe_name],
+        }
+
+    fns = _std_provider_fns(store_name, exe_name, path_env, extra_env)
+    fns["fetch_versions"] = _fetch_versions
+    fns["download_url"]   = _download_url
+    fns["install_layout"] = _install_layout
+    return fns
+
+
+# ---------------------------------------------------------------------------
+# Template 5: system_provider
 #   Tools installed via system package managers (winget/brew/apt/choco)
 #   No download URL — the Rust runtime delegates to the package manager.
 # ---------------------------------------------------------------------------

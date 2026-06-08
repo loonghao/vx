@@ -85,12 +85,14 @@ def _zig_use_new_url_format(version):
     if len(parts) < 2:
         return True  # Default to new format
 
-    try:
-        major = int(parts[0])
-        minor = int(parts[1])
-        patch = int(parts[2]) if len(parts) > 2 else 0
-    except (ValueError, IndexError):
-        return True  # Default to new format
+    # Pre-validate numeric parts before calling int() (Starlark has no try/except)
+    if not parts[0].isdigit() or not parts[1].isdigit():
+        return True
+    major = int(parts[0])
+    minor = int(parts[1])
+    if len(parts) > 2 and not parts[2].isdigit():
+        return True
+    patch = int(parts[2]) if len(parts) > 2 else 0
 
     # New format for 0.14.1+
     if major > 0:
