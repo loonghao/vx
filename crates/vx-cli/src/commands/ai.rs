@@ -20,7 +20,10 @@ use crate::ui::UI;
 use anyhow::{Context, Result};
 use sha2::{Digest, Sha256};
 use std::collections::HashMap;
+use std::io::Write;
+use std::net::TcpStream;
 use std::path::PathBuf;
+use std::time::Duration;
 use toml_edit::{DocumentMut, Item, Table, value};
 
 /// Configuration for a single supported AI agent
@@ -1139,7 +1142,19 @@ async fn handle_headroom_doctor(quick: bool, json: bool, port: u16, mcp_port: u1
         }
     };
 
-    // Build and emit JSON output when requested — always before any early return
+    // Layer 2 & 3: Proxy and MCP checks (run for both JSON and text output)
+    let (proxy_status_msg, proxy_health, proxy_stats) = if !quick {
+        check_proxy_layer(port).await
+    } else {
+        (None, None, None)
+    };
+    let (mcp_running, mcp_tools, mcp_cr_result) = if !quick {
+        check_mcp_layer(mcp_port).await
+    } else {
+        (false, vec![], None)
+    };
+
+    // Build and emit JSON output when requested
     if json {
         let mut env = serde_json::Map::new();
         env.insert("uv".into(), serde_json::json!(uv_version));
@@ -1157,39 +1172,299 @@ async fn handle_headroom_doctor(quick: bool, json: bool, port: u16, mcp_port: u1
         if !quick {
             result.insert(
                 "proxy".into(),
-                serde_json::json!({"status": "not_implemented", "port": port}),
+                serde_json::json!({
+                    "status": proxy_health.as_deref().unwrap_or(
+                        if proxy_status_msg.as_deref() == Some("running") {
+                            "port_in_use"
+                        } else {
+                            "not_running"
+                        }
+                    ),
+                    "port": port,
+                    "health": proxy_health,
+                    "stats": proxy_stats,
+                }),
             );
             result.insert(
                 "mcp".into(),
-                serde_json::json!({"status": "not_implemented", "port": mcp_port}),
+                serde_json::json!({
+                    "running": mcp_running,
+                    "port": mcp_port,
+                    "tools": mcp_tools,
+                    "compress_retrieve": mcp_cr_result,
+                }),
             );
         }
 
         println!("{}", serde_json::Value::Object(result));
-    }
-
-    if quick {
-        if !json {
-            UI::hint("Quick check complete. Run without --quick for proxy and MCP checks.");
-        }
         return Ok(());
     }
 
-    if !json {
-        // Layer 2: Proxy checks
-        println!();
-        UI::info(&format!("--- Proxy (port {}) ---", port));
-        UI::info("proxy check: not yet implemented (PIP-602)");
-        UI::hint("Run 'vx ai headroom proxy start' to start the proxy service.");
+    if quick {
+        UI::hint("Quick check complete. Run without --quick for proxy and MCP checks.");
+        return Ok(());
+    }
 
-        // Layer 3: MCP checks
-        println!();
-        UI::info(&format!("--- MCP (port {}) ---", mcp_port));
-        UI::info("MCP check: not yet implemented (PIP-603)");
+    // Layer 2: Proxy checks (text output)
+    println!();
+    UI::info(&format!("--- Proxy (port {}) ---", port));
+
+    match proxy_status_msg.as_deref() {
+        Some("running") => {
+            UI::success("Proxy is running");
+            if let Some(health) = &proxy_health {
+                UI::success(&format!("/health: {}", health));
+            }
+            if let Some(stats) = &proxy_stats {
+                UI::success(&format!("/stats: {}", stats));
+            }
+        }
+        Some("port_in_use") => {
+            UI::warn(&format!("Port {} is in use but /health did not respond", port));
+            if let Some(health) = &proxy_health {
+                UI::success(&format!("/health: {}", health));
+            }
+        }
+        None | Some("not_running") => {
+            UI::warn(&format!("Port {} is free — proxy is not running.", port));
+            UI::hint("Run 'vx ai headroom proxy start' to start the proxy service.");
+        }
+        Some(other) => {
+            UI::warn(&format!("Proxy status: {}", other));
+        }
+    }
+
+    // Layer 3: MCP checks (text output)
+    println!();
+    UI::info(&format!("--- MCP (port {}) ---", mcp_port));
+
+    if mcp_running {
+        UI::success(&format!("MCP server detected on port {}", mcp_port));
+        if !mcp_tools.is_empty() {
+            UI::success(&format!("Tools available: {}", mcp_tools.join(", ")));
+        } else {
+            UI::warn("No expected MCP tools found via mcpcall list");
+        }
+        match &mcp_cr_result {
+            Some(r) if r == "ok" => {
+                UI::success("compress \u{2192} retrieve round-trip: PASSED");
+            }
+            Some(r) => {
+                UI::warn(&format!("compress \u{2192} retrieve: {}", r));
+            }
+            None => {
+                UI::warn("compress \u{2192} retrieve: not tested");
+            }
+        }
+    } else {
+        UI::warn(&format!(
+            "Port {} is free — MCP server is not running.",
+            mcp_port
+        ));
         UI::hint("Run 'vx ai headroom mcp test' to validate MCP tools.");
     }
 
     Ok(())
+}
+
+// ============================================================================
+// Helper functions for doctor checks
+// ============================================================================
+
+/// Check if a TCP port is free (nothing listening). Returns `true` if free.
+fn is_port_free(port: u16) -> bool {
+    TcpStream::connect_timeout(
+        &format!("127.0.0.1:{}", port).parse().unwrap(),
+        Duration::from_millis(500),
+    )
+    .is_err()
+}
+
+/// Make a simple HTTP GET request to a local endpoint. Returns the status line and body.
+async fn check_http_endpoint(port: u16, path: &str) -> Result<String> {
+    use std::io::Read;
+
+    let mut stream = TcpStream::connect_timeout(
+        &format!("127.0.0.1:{}", port).parse()?,
+        Duration::from_secs(2),
+    )?;
+
+    let request = format!(
+        "GET {} HTTP/1.1\r\nHost: 127.0.0.1:{}\r\nConnection: close\r\n\r\n",
+        path, port
+    );
+    stream.write_all(request.as_bytes())?;
+
+    let mut response = String::new();
+    stream.read_to_string(&mut response)?;
+
+    let status_line = response.lines().next().unwrap_or("unknown");
+    let body = response
+        .split("\r\n\r\n")
+        .nth(1)
+        .unwrap_or("")
+        .trim()
+        .to_string();
+
+    Ok(if body.is_empty() {
+        status_line.to_string()
+    } else {
+        format!("{} | body: {}", status_line, body)
+    })
+}
+
+/// Check proxy layer: port status, /health, /stats endpoints.
+async fn check_proxy_layer(port: u16) -> (Option<String>, Option<String>, Option<String>) {
+    if is_port_free(port) {
+        return (None, None, None); // not_running
+    }
+
+    let health = check_http_endpoint(port, "/health")
+        .await
+        .ok()
+        .filter(|s| !s.starts_with("unknown") && !s.contains("Connection refused"));
+
+    let stats = check_http_endpoint(port, "/stats")
+        .await
+        .ok()
+        .filter(|s| !s.starts_with("unknown") && !s.contains("Connection refused"));
+
+    let status = if health.is_some() {
+        Some("running".to_string())
+    } else {
+        Some("port_in_use".to_string())
+    };
+
+    (status, health, stats)
+}
+
+/// Check MCP layer: port status, tool listing, compress→retrieve round-trip.
+async fn check_mcp_layer(mcp_port: u16) -> (bool, Vec<String>, Option<String>) {
+    let vx_exe = match std::env::current_exe() {
+        Ok(exe) => exe,
+        Err(_) => return (false, vec![], None),
+    };
+
+    if is_port_free(mcp_port) {
+        return (false, vec![], None);
+    }
+
+    let mcp_url = format!("http://127.0.0.1:{}/mcp", mcp_port);
+
+    // Try mcpcall list to discover tools
+    let tools = match std::process::Command::new(&vx_exe)
+        .args(["mcpcall", "--url", &mcp_url, "list"])
+        .output()
+    {
+        Ok(output) if output.status.success() => {
+            let stdout = String::from_utf8_lossy(&output.stdout);
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            let combined = format!("{}{}", stdout, stderr);
+            extract_mcp_tool_names(&combined)
+        }
+        _ => vec![],
+    };
+
+    if tools.is_empty() {
+        // Port is occupied but mcpcall didn't return tools — server might not be MCP
+        return (true, vec![], Some("mcpcall list returned no tools".into()));
+    }
+
+    // Try compress → retrieve round-trip
+    let cr_result = match test_mcp_compress_retrieve(&vx_exe, &mcp_url).await {
+        Ok(true) => Some("ok".into()),
+        Ok(false) => Some("retrieved content does not match original".into()),
+        Err(e) => Some(format!("error: {}", e)),
+    };
+
+    (true, tools, cr_result)
+}
+
+/// Extract MCP tool names from mcpcall list output.
+fn extract_mcp_tool_names(output: &str) -> Vec<String> {
+    let expected = ["compress", "retrieve", "stats"];
+    let mut found: Vec<String> = Vec::new();
+
+    for kw in &expected {
+        let lower_output = output.to_lowercase();
+        if !lower_output.contains(kw) {
+            continue;
+        }
+        // Try to find a line containing both "headroom" and the keyword
+        let mut matched = false;
+        for line in output.lines() {
+            let trimmed = line.trim();
+            let lower = trimmed.to_lowercase();
+            if lower.contains(*kw) && (lower.contains("headroom") || lower.contains("mcp")) {
+                found.push(trimmed.to_string());
+                matched = true;
+                break;
+            }
+        }
+        if !matched {
+            found.push(format!("headroom_{}", kw));
+        }
+    }
+
+    found
+}
+
+/// Test MCP compress → retrieve round-trip via mcpcall.
+async fn test_mcp_compress_retrieve(vx_exe: &std::path::Path, mcp_url: &str) -> Result<bool> {
+    let sample = "Hello, headroom MCP round-trip test!";
+
+    // Compress
+    let compress_output = std::process::Command::new(vx_exe)
+        .args([
+            "mcpcall",
+            "--url",
+            mcp_url,
+            "call",
+            "headroom_compress",
+            "--args",
+            &format!(r#"{{"content": "{}"}}"#, sample),
+        ])
+        .output()
+        .context("Failed to run mcpcall compress")?;
+
+    if !compress_output.status.success() {
+        let stderr = String::from_utf8_lossy(&compress_output.stderr);
+        return Err(anyhow::anyhow!("mcpcall compress failed: {}", stderr));
+    }
+
+    let compress_text = String::from_utf8_lossy(&compress_output.stdout).trim().to_string();
+    let hash = compress_text
+        .lines()
+        .last()
+        .unwrap_or(&compress_text)
+        .trim();
+    if hash.is_empty() {
+        return Err(anyhow::anyhow!("empty response from compress"));
+    }
+
+    // Retrieve
+    let retrieve_output = std::process::Command::new(vx_exe)
+        .args([
+            "mcpcall",
+            "--url",
+            mcp_url,
+            "call",
+            "headroom_retrieve",
+            "--args",
+            &format!(r#"{{"hash": "{}"}}"#, hash),
+        ])
+        .output()
+        .context("Failed to run mcpcall retrieve")?;
+
+    if !retrieve_output.status.success() {
+        let stderr = String::from_utf8_lossy(&retrieve_output.stderr);
+        return Err(anyhow::anyhow!("mcpcall retrieve failed: {}", stderr));
+    }
+
+    let retrieve_text =
+        String::from_utf8_lossy(&retrieve_output.stdout).trim().to_string();
+
+    Ok(retrieve_text.contains(sample))
 }
 
 /// Handle `vx ai headroom setup` — generate MCP config templates.
@@ -1282,35 +1557,260 @@ async fn handle_headroom_proxy(command: &HeadroomProxyCommand) -> Result<()> {
 }
 
 /// Handle `vx ai headroom mcp` — dispatch to MCP subcommands.
-///
-/// Stubs in PIP-601; full implementation in PIP-603.
 async fn handle_headroom_mcp(_ctx: &CommandContext, command: &HeadroomMcpCommand) -> Result<()> {
     match command {
         HeadroomMcpCommand::Stdio => {
             // Internal bridge entry point for agent MCP configurations.
-            // In Phase 1, this is a stub. Eventually delegates to headroom MCP server.
-            UI::error("headroom mcp stdio: not yet implemented (PIP-603)");
-            UI::hint(
-                "Run 'vx ai headroom install' first, then 'vx ai headroom mcp test' to verify.",
-            );
-            Err(anyhow::anyhow!("headroom mcp stdio not yet implemented"))
+            // Launches headroom MCP server in stdio mode and relays stdin/stdout.
+            let vx_exe = std::env::current_exe()
+                .context("Could not determine vx executable path")?;
+
+            let mut child = std::process::Command::new(&vx_exe)
+                .args([
+                    "uv",
+                    "tool",
+                    "run",
+                    "--from",
+                    &format!("headroom-ai[proxy]=={}", DEFAULT_HEADROOM_VERSION),
+                    "headroom",
+                    "mcp",
+                ])
+                .stdin(std::process::Stdio::piped())
+                .stdout(std::process::Stdio::piped())
+                .stderr(std::process::Stdio::inherit())
+                .spawn()
+                .context("Failed to start headroom MCP server")?;
+
+            let mut child_stdin = child.stdin.take().unwrap();
+            let mut child_stdout = child.stdout.take().unwrap();
+
+            // Pipe parent stdin → headroom stdin
+            let parent_stdin = std::io::stdin();
+            std::thread::spawn(move || {
+                let _ = std::io::copy(&mut parent_stdin.lock(), &mut child_stdin);
+            });
+
+            // Pipe headroom stdout → parent stdout
+            let parent_stdout = std::io::stdout();
+            std::thread::spawn(move || {
+                let _ = std::io::copy(&mut child_stdout, &mut parent_stdout.lock());
+            });
+
+            let status = child.wait().context("Headroom MCP server stalled")?;
+            std::process::exit(status.code().unwrap_or(1));
         }
         HeadroomMcpCommand::Test {
             url,
             json,
             sample_file,
         } => {
-            UI::header("headroom mcp test");
-            println!();
-            UI::info("mcp test: not yet implemented (PIP-603)");
-            UI::info(&format!("  MCP URL: {}", url));
+            if !json {
+                UI::header("headroom mcp test");
+                println!();
+                UI::info(&format!("MCP URL: {}", url));
+            }
+
+            let vx_exe = std::env::current_exe()
+                .context("Could not determine vx executable path")?;
+
+            // Step 1: List tools via mcpcall
+            if !json {
+                UI::info("--- Listing MCP tools ---");
+            }
+
+            let list_output = std::process::Command::new(&vx_exe)
+                .args(["mcpcall", "--url", url, "list"])
+                .output()
+                .context("Failed to run mcpcall list")?;
+
+            let tools_found = if list_output.status.success() {
+                let stdout = String::from_utf8_lossy(&list_output.stdout);
+                let stderr = String::from_utf8_lossy(&list_output.stderr);
+                let combined = format!("{}{}", stdout, stderr);
+                let tool_names = extract_mcp_tool_names(&combined);
+
+                if !json {
+                    if tool_names.is_empty() {
+                        UI::warn("mcpcall list ran but no expected tools (headroom_compress, headroom_retrieve, headroom_stats) found");
+                        println!("  raw output: {}", combined.trim());
+                    } else {
+                        UI::success(&format!(
+                            "Found MCP tools: {}",
+                            tool_names.join(", ")
+                        ));
+                    }
+                }
+                tool_names
+            } else {
+                let stderr = String::from_utf8_lossy(&list_output.stderr);
+                if !json {
+                    UI::error(&format!("mcpcall list failed: {}", stderr.trim()));
+                }
+                vec![]
+            };
+
+            // Step 2: Read sample content
+            let sample_content: String = if let Some(sample_path) = sample_file {
+                std::fs::read_to_string(sample_path)
+                    .context("Failed to read sample file")?
+            } else {
+                "Hello, headroom MCP test! This is sample content for testing the compress and retrieve round-trip.".to_string()
+            };
+
+            // Step 3: Test compress
+            if !json {
+                println!();
+                UI::info("--- Testing headroom_compress ---");
+            }
+
+            let compress_output = std::process::Command::new(&vx_exe)
+                .args([
+                    "mcpcall",
+                    "--url",
+                    url,
+                    "call",
+                    "headroom_compress",
+                    "--args",
+                    &format!(r#"{{"content": "{}"}}"#, sample_content),
+                ])
+                .output()
+                .context("Failed to run mcpcall compress")?;
+
+            let compress_ok = compress_output.status.success();
+            let compress_text = if compress_ok {
+                let t = String::from_utf8_lossy(&compress_output.stdout)
+                    .trim()
+                    .to_string();
+                if t.is_empty() {
+                    String::from_utf8_lossy(&compress_output.stderr)
+                        .trim()
+                        .to_string()
+                } else {
+                    t
+                }
+            } else {
+                String::from_utf8_lossy(&compress_output.stderr)
+                    .trim()
+                    .to_string()
+            };
+
+            if !json {
+                if compress_ok {
+                    UI::success(&format!("compress result: {}", compress_text));
+                } else {
+                    UI::error(&format!("compress failed: {}", compress_text));
+                }
+            }
+
+            // Step 4: Test retrieve
+            if !json {
+                println!();
+                UI::info("--- Testing headroom_retrieve ---");
+            }
+
+            let hash = compress_text.lines().last().unwrap_or(&compress_text).trim();
+            let retrieve_ok = if compress_ok && !hash.is_empty() {
+                let retrieve_output = std::process::Command::new(&vx_exe)
+                    .args([
+                        "mcpcall",
+                        "--url",
+                        url,
+                        "call",
+                        "headroom_retrieve",
+                        "--args",
+                        &format!(r#"{{"hash": "{}"}}"#, hash),
+                    ])
+                    .output()
+                    .context("Failed to run mcpcall retrieve")?;
+
+                let retrieve_text = String::from_utf8_lossy(&retrieve_output.stdout)
+                    .trim()
+                    .to_string();
+                let retrieve_text = if retrieve_text.is_empty() {
+                    String::from_utf8_lossy(&retrieve_output.stderr)
+                        .trim()
+                        .to_string()
+                } else {
+                    retrieve_text
+                };
+
+                if retrieve_output.status.success() {
+                    let roundtrip_ok = retrieve_text.contains(&sample_content);
+                    if !json {
+                        if roundtrip_ok {
+                            UI::success("retrieve: content matches original");
+                        } else {
+                            UI::warn(&format!(
+                                "retrieve result: {}",
+                                retrieve_text
+                            ));
+                        }
+                    }
+                    roundtrip_ok
+                } else {
+                    if !json {
+                        UI::error(&format!("retrieve failed: {}", retrieve_text));
+                    }
+                    false
+                }
+            } else {
+                if !json {
+                    UI::error("Cannot test retrieve: compress step failed or hash was empty");
+                }
+                false
+            };
+
+            // Step 5: Test stats
+            if !json {
+                println!();
+                UI::info("--- Testing headroom_stats ---");
+            }
+
+            let stats_output = std::process::Command::new(&vx_exe)
+                .args(["mcpcall", "--url", url, "call", "headroom_stats", "--args", "{}"])
+                .output()
+                .context("Failed to run mcpcall stats")?;
+
+            if !json {
+                if stats_output.status.success() {
+                    let stats_text = String::from_utf8_lossy(&stats_output.stdout);
+                    let stats_text = if stats_text.trim().is_empty() {
+                        String::from_utf8_lossy(&stats_output.stderr)
+                    } else {
+                        stats_text
+                    };
+                    UI::success(&format!("stats: {}", stats_text.trim()));
+                } else {
+                    let err = String::from_utf8_lossy(&stats_output.stderr);
+                    UI::error(&format!("stats failed: {}", err.trim()));
+                }
+            }
+
+            // JSON output
             if *json {
-                UI::info("  output: json");
+                let result = serde_json::json!({
+                    "url": url,
+                    "tools_found": tools_found,
+                    "compress_ok": compress_ok,
+                    "retrieve_ok": retrieve_ok,
+                    "stats_ok": stats_output.status.success(),
+                    "roundtrip_ok": compress_ok && retrieve_ok,
+                });
+                println!("{}", serde_json::to_string_pretty(&result)?);
             }
-            if let Some(sample) = sample_file {
-                UI::info(&format!("  sample file: {}", sample));
+
+            // Final summary
+            if !json {
+                println!();
+                UI::header("Summary");
+                println!();
+                UI::info(&format!("  Tools found:     {}", tools_found.join(", ")));
+                UI::info(&format!("  compress:       {}", if compress_ok { "PASS" } else { "FAIL" }));
+                UI::info(&format!("  retrieve:       {}", if retrieve_ok { "PASS" } else { "FAIL" }));
+                UI::info(&format!("  stats:          {}", if stats_output.status.success() { "PASS" } else { "FAIL" }));
+                UI::info(&format!("  round-trip:     {}", if compress_ok && retrieve_ok { "PASS" } else { "FAIL" }));
             }
-            UI::hint("This command will be fully implemented in PIP-603.");
+
             Ok(())
         }
     }
