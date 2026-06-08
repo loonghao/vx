@@ -6,6 +6,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [0.9.19](https://github.com/loonghao/vx/compare/v0.9.18...v0.9.19) (2026-06-08)
+
+
+### Bug Fixes
+
+* **release:** add retry logic to cargo-dist install steps (PIP-1133) ([5c24593](https://github.com/loonghao/vx/commit/5c2459310a142376f4f7413d351bc9692c33229d))
+* **release:** use Get-Command instead of $LASTEXITCODE for Windows cargo-dist retry ([9a7028f](https://github.com/loonghao/vx/commit/9a7028faff6c0e11e69c8bf4fd194f56e2a85f18))
+* use vx-managed Go runtime for go install global workflow (PIP-1156) ([46ebc47](https://github.com/loonghao/vx/commit/46ebc475e12f5f8b632b52cd3806793b52a83057))
+
 ## [0.9.18](https://github.com/loonghao/vx/compare/v0.9.17...v0.9.18) (2026-06-08)
 
 
