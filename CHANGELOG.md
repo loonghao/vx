@@ -6,6 +6,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [0.9.23](https://github.com/loonghao/vx/compare/v0.9.22...v0.9.23) (2026-06-09)
+
+
+### Bug Fixes
+
+* resolve bundled runtime version mismatch and add archive prefix auto-repair ([f540039](https://github.com/loonghao/vx/commit/f5400399a690a43cbf04db37e145455c5817cd00))
+
 ## [0.9.22](https://github.com/loonghao/vx/compare/v0.9.21...v0.9.22) (2026-06-09)
 
 
