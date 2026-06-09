@@ -14,7 +14,7 @@ vx 开箱即支持 **142 个工具**，涵盖语言运行时、包管理器、De
 | [构建工具](#构建工具) | CMake, Ninja, Just, Task, Make, Meson, protoc, MSBuild, Trunk, wasm-pack | 10 |
 | [WebAssembly 运行时](#webassembly-运行时) | Wasmtime, Wasmer | 2 |
 | [代码质量](#代码质量) | pre-commit, Vite | 2 |
-| [AI](#ai) | Ollama, mcpcall, headroom | 3 |
+| [AI](#ai) | Ollama, mcpcall | 2 |
 | [科学计算 & HPC](#科学计算--hpc) | Spack, Rez | 2 |
 | [媒体](#媒体) | FFmpeg, ImageMagick | 2 |
 | [系统工具](#系统工具) | jq, gh, curl, pwsh, Git, NASM, x-cmd | 7+ |

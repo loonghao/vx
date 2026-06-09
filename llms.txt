@@ -97,7 +97,7 @@ vx analyze --json          # Project analysis as JSON
 - [Go Tools](https://github.com/loonghao/vx/blob/main/docs/tools/go.md): go, gofmt
 - [Build Tools](https://github.com/loonghao/vx/blob/main/docs/tools/build-tools.md): just, task, cmake, ninja, vite, protoc, meson, xmake
 - [DevOps Tools](https://github.com/loonghao/vx/blob/main/docs/tools/devops.md): docker, terraform, kubectl, helm, podman
-- [AI Tools](https://github.com/loonghao/vx/blob/main/docs/tools/ai.md): AI/ML development tools (ollama, mcpcall, headroom)
+- [AI Tools](https://github.com/loonghao/vx/blob/main/docs/tools/ai.md): AI/ML development tools (ollama, mcpcall)
 
 ## Guides
 
@@ -144,7 +144,6 @@ This eliminates the need for users to pre-install Node.js, Python, or any runtim
 - [Virtual Environment Isolation](https://github.com/loonghao/vx/blob/main/docs/guide/virtual-env-isolation.md): Per-project tool isolation
 - [Platform Redirection](https://github.com/loonghao/vx/blob/main/docs/guides/platform-redirection.md): Platform-specific tool routing
 - [Runtime Lifecycle](https://github.com/loonghao/vx/blob/main/docs/guides/runtime-lifecycle.md): Install, execute, uninstall lifecycle
-- [Headroom](https://github.com/loonghao/vx/blob/main/docs/guides/headroom.md): AI context compression for LLM agents
 - [Use Cases](https://github.com/loonghao/vx/blob/main/docs/guides/use-cases.md): Real-world usage scenarios
 - [Chinese Documentation](https://github.com/loonghao/vx/blob/main/README_zh.md): 中文文档
 
