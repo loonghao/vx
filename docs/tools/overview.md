@@ -16,7 +16,7 @@ vx supports **142 tools** out of the box, spanning language runtimes, package ma
 | [Cloud CLI](#cloud-cli) | AWS CLI, Azure CLI, Google Cloud CLI | 3 |
 | [Code Quality](#code-quality) | pre-commit, ruff, ripgrep, fd, bat, biome, golangci-lint | 7+ |
 | [Git Tools](#git-tools) | lazygit, jj, delta, gitleaks, lefthook, worktrunk | 8 |
-| [AI/ML](#aiml-tools) | Ollama, mcpcall, usql | 3 |
+| [AI/ML](#aiml-tools) | Ollama, mcpcall, headroom, usql | 4 |
 | [Scientific & HPC](#scientific--hpc) | Spack, Rez | 2 |
 | [Media](#media) | FFmpeg, ImageMagick | 2 |
 | [CLI Enhancements](#cli--terminal-enhancements) | jq, fzf, eza, duf, dust, sd, zoxide, witr | 8+ |
@@ -162,6 +162,7 @@ See [Build Cache Guide](./build-cache) for detailed documentation.
 |------|-------------|---------------|
 | **Ollama** | Run LLMs locally (Llama, Mistral, Gemma) | [Details →](./ai) |
 | **mcpcall** | Scriptable MCP client for smoke tests and CI | [Details →](./ai) |
+| **headroom** | AI context compression for LLM agents | [Details →](./ai) |
 | **usql** | Universal SQL CLI (AI-enhanced) | — |
 
 ## Scientific & HPC
