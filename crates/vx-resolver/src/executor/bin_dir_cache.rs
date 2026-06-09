@@ -235,9 +235,10 @@ fn quick_find_bin_dir(search_dir: &std::path::Path, exe_names: &[String]) -> Opt
             if !sub_path.is_dir() {
                 continue;
             }
-            if let Some(dir_name) = sub_path.file_name().and_then(|n| n.to_str())
+            let dir_name = sub_path.file_name().and_then(|n| n.to_str());
+            if let Some(name) = dir_name
                 && matches!(
-                    dir_name,
+                    name,
                     "bin" | "node_modules" | "lib" | "share" | "include" | "man" | "doc"
                 )
             {
@@ -246,6 +247,15 @@ fn quick_find_bin_dir(search_dir: &std::path::Path, exe_names: &[String]) -> Opt
             // Check files in subdirectory
             for name in exe_names {
                 if sub_path.join(name).is_file() {
+                    // Auto-repair: if the subdir looks like an archive prefix
+                    // (e.g., node-v25.2.1-win-x64), the strip_prefix step may have
+                    // been skipped. Flatten the contents up and return the parent.
+                    if let Some(dn) = dir_name
+                        && looks_like_archive_prefix(dn)
+                        && let Some(repaired) = repair_archive_prefix(search_dir, &sub_path)
+                    {
+                        return Some(repaired);
+                    }
                     return Some(sub_path);
                 }
             }
@@ -262,6 +272,98 @@ fn quick_find_bin_dir(search_dir: &std::path::Path, exe_names: &[String]) -> Opt
     }
 
     None
+}
+
+/// Check if a directory name looks like an archive prefix.
+///
+/// Common patterns:
+/// - `node-v25.2.1-win-x64` (Node.js)
+/// - `go1.21.0.linux-amd64` (Go)
+/// - `tool-1.0.0-darwin-arm64`
+fn looks_like_archive_prefix(dir_name: &str) -> bool {
+    // Must contain a version number pattern (digit.digit)
+    let has_version_pattern = dir_name
+        .chars()
+        .collect::<Vec<_>>()
+        .windows(3)
+        .any(|w| w[0].is_ascii_digit() && w[1] == '.' && w[2].is_ascii_digit());
+    if !has_version_pattern {
+        return false;
+    }
+    // Must also contain an OS or arch indicator
+    let lower = dir_name.to_lowercase();
+    lower.contains("win")
+        || lower.contains("linux")
+        || lower.contains("darwin")
+        || lower.contains("macos")
+        || lower.contains("x64")
+        || lower.contains("arm64")
+        || lower.contains("amd64")
+        || lower.contains("x86")
+}
+
+/// Auto-repair an install where strip_prefix was not applied.
+///
+/// Moves all contents of `prefix_dir` up to `parent_dir`, then removes the
+/// now-empty `prefix_dir`. Returns `Some(parent_dir)` on success, `None` if
+/// the repair could not be completed (in which case the caller can still
+/// fall back to using the original `prefix_dir`).
+fn repair_archive_prefix(
+    parent_dir: &std::path::Path,
+    prefix_dir: &std::path::Path,
+) -> Option<PathBuf> {
+    // Verify the parent dir's root does NOT already have the exe files
+    // (safety check to avoid overwriting correctly installed files)
+    let prefix_dir_name = prefix_dir.file_name()?.to_str()?;
+
+    tracing::info!(
+        "Auto-repairing archive prefix: moving contents of {} up to {}",
+        prefix_dir.display(),
+        parent_dir.display()
+    );
+
+    // Move all contents from prefix_dir to parent_dir
+    let entries = std::fs::read_dir(prefix_dir).ok()?;
+    for entry in entries.filter_map(|e| e.ok()) {
+        let source = entry.path();
+        let target = parent_dir.join(entry.file_name());
+
+        // Skip if target already exists (more recent install took precedence)
+        if target.exists() {
+            continue;
+        }
+
+        match std::fs::rename(&source, &target) {
+            Ok(()) => {
+                trace!("  Moved {} -> {}", source.display(), target.display());
+            }
+            Err(e) => {
+                tracing::warn!(
+                    "  Failed to move {} -> {}: {}",
+                    source.display(),
+                    target.display(),
+                    e
+                );
+                return None;
+            }
+        }
+    }
+
+    // Remove the now-empty prefix directory
+    if let Err(e) = std::fs::remove_dir(prefix_dir) {
+        tracing::debug!(
+            "  Could not remove empty prefix dir {}: {}",
+            prefix_dir.display(),
+            e
+        );
+    }
+
+    tracing::info!(
+        "Auto-repair complete: {} files moved from {} to root",
+        prefix_dir_name,
+        parent_dir.display()
+    );
+    Some(parent_dir.to_path_buf())
 }
 
 /// Record a "version not installed" warning for a tool (prevents duplicates).
