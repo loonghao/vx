@@ -57,6 +57,84 @@ ai-serve = "ollama serve"
 ai-chat = "ollama run llama3.2"
 ```
 
+## Headroom
+
+Context compression for AI agents. Reduces token usage by 40-60% while preserving semantic meaning.
+
+```bash
+# Install headroom
+vx ai headroom install
+
+# Environment diagnostics
+vx ai headroom doctor
+
+# Start the compression proxy
+vx ai headroom proxy start
+
+# Run MCP server for AI agent integration
+vx ai headroom mcp stdio
+```
+
+**Key Features:**
+
+- LLM context window compression
+- MCP server for AI agent integration
+- Proxy mode for transparent optimization
+- CI log compression
+- Multi-agent support (Claude Code, Cursor, Codex, etc.)
+
+**Supported Platforms:**
+
+- Windows (x64, ARM64)
+- macOS (Intel, Apple Silicon)
+- Linux (x64, ARM64)
+
+**Example Usage:**
+
+```bash
+# Install and verify
+vx ai headroom install
+vx ai headroom doctor
+
+# Start the proxy in background
+vx ai headroom proxy start
+
+# Configure AI agent to use headroom MCP
+vx ai headroom setup --agent claude-code --apply
+
+# Smoke-test MCP tools
+vx ai headroom mcp test --json
+```
+
+**Project Configuration:**
+
+```toml
+[tools]
+uv = "latest"
+
+[scripts]
+headroom-doctor = "vx ai headroom doctor"
+headroom-start = "vx ai headroom proxy start"
+headroom-test = "vx ai headroom mcp test"
+```
+
+**MCP Integration:**
+
+Add headroom as an MCP server to your AI agent's configuration:
+
+```json
+{
+  "mcpServers": {
+    "headroom": {
+      "command": "vx",
+      "args": ["ai", "headroom", "mcp", "stdio"]
+    }
+  }
+}
+```
+
+For detailed guide, see [Headroom Guide](../guides/headroom).
+
 ## AI-Powered Development Workflows
 
 vx is uniquely suited for AI development because it manages your entire toolchain — Python, Node.js, and AI tools — from a single configuration.
