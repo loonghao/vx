@@ -133,7 +133,7 @@ headroom-test = "vx ai headroom mcp test"
 }
 ```
 
-详细指南请参见 [Headroom 指南](../zh/guides/headroom)。
+详细指南请参见 [Headroom 指南](../guides/headroom)。
 
 ## AI 驱动的开发工作流
 
