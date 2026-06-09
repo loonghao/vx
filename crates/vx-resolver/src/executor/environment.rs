@@ -314,20 +314,15 @@ impl<'a> EnvironmentManager<'a> {
         // cannot find `node`, causing `node ci` to be executed instead of `npm ci`.
         if let Some(ref provider_name) = effective_runtime_name
             && provider_name != runtime_name
-            && let Some(provider_runtime) = registry.get_runtime(provider_name)
+            && registry.get_runtime(provider_name).is_some()
         {
-            // Find the installed version of the parent runtime
-            let provider_version = match provider_runtime.installed_versions(context).await {
-                Ok(versions) if !versions.is_empty() => {
-                    let mut sorted = versions;
-                    sorted.sort_by(|a, b| self.compare_versions(a, b));
-                    sorted
-                        .last()
-                        .cloned()
-                        .unwrap_or_else(|| "latest".to_string())
-                }
-                _ => "latest".to_string(),
-            };
+            // Use the already-resolved version for the parent runtime.
+            // `version` is either the user-requested version (e.g., from node@20)
+            // or the installed version resolved above. This is critical for commands
+            // like `vx node@20::npx` — without this, the bundled runtime would always
+            // pick the latest installed node version (e.g., 25.2.1) even when the user
+            // explicitly requested node@20.
+            let provider_version = version.clone();
             debug!(
                 "[prepare_env] Bundled runtime {} → injecting parent {} ({}) environment",
                 runtime_name, provider_name, provider_version
