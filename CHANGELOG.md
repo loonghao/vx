@@ -6,6 +6,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [0.9.22](https://github.com/loonghao/vx/compare/v0.9.21...v0.9.22) (2026-06-09)
+
+
+### Documentation
+
+* **headroom:** add Phase 1 documentation for context compression integration ([1d3206b](https://github.com/loonghao/vx/commit/1d3206bb4c18c2f67ca404f0116f385d1b282b5f))
+* **headroom:** add Phase 1 documentation for context compression integration ([#984](https://github.com/loonghao/vx/issues/984)) ([b5d14fa](https://github.com/loonghao/vx/commit/b5d14face46c69f4bd2fd7651587bca864d4d6ab))
+* **zh/tools/ai:** fix dead link to Headroom guide ([d9316d9](https://github.com/loonghao/vx/commit/d9316d93ea1165abd159ec492f3e3f89b5319274))
+
 ## [0.9.21](https://github.com/loonghao/vx/compare/v0.9.20...v0.9.21) (2026-06-08)
 
 
