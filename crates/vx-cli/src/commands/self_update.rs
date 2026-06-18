@@ -1057,6 +1057,19 @@ fn extract_from_tar_gz(content: &[u8], output_path: &PathBuf) -> Result<()> {
 }
 
 /// Try to get release info from jsDelivr CDN
+///
+/// Uses semver-aware selection via `find_latest_version` to pick the latest
+/// suitable version, **without** requiring CDN asset existence. This is
+/// consistent with `update_checker.rs::fetch_latest_version`, which also
+/// trusts the CDN version list directly.
+///
+/// # Why no asset-existence guard
+///
+/// A CDN HEAD check can fail transiently (CDN sync lag after a fresh release),
+/// causing the caller to fall back to an older version and report "already up
+/// to date" — the exact bug reported in PIP-1829. The download phase handles
+/// multi-channel fallback (CDN → Fastly → GitHub Releases, multiple tag
+/// formats and naming conventions), so a missing CDN asset is not fatal.
 async fn try_jsdelivr_api(client: &reqwest::Client, prerelease: bool) -> Result<GitHubRelease> {
     let url = "https://data.jsdelivr.com/v1/package/gh/loonghao/vx";
 
@@ -1075,52 +1088,23 @@ async fn try_jsdelivr_api(client: &reqwest::Client, prerelease: bool) -> Result<
         .as_array()
         .ok_or_else(|| anyhow!("No versions found in jsDelivr response"))?;
 
-    // Find the latest version based on prerelease flag using vx_runtime_core utilities
     let version_strings: Vec<&str> = versions.iter().filter_map(|v| v.as_str()).collect();
 
-    // Try to find a version that has actual assets
-    for version_str in &version_strings {
-        let is_prerelease = vx_runtime_core::version_utils::is_prerelease(version_str);
-
-        // Skip prerelease versions if we don't want them
-        if !prerelease && is_prerelease {
-            continue;
-        }
-
-        let version_number = vx_runtime_core::version_utils::normalize_version(version_str);
-
-        // Create CDN assets for this version
-        let assets = create_cdn_assets(version_number);
-
-        // Verify at least one asset exists for current platform
-        if let Ok(current_asset) = find_platform_asset(&assets) {
-            // Try to verify the asset exists (quick HEAD request)
-            if verify_asset_exists(client, &current_asset.browser_download_url).await {
-                UI::detail(&format!(
-                    "Found version {} with valid assets",
-                    version_number
-                ));
-
-                return Ok(GitHubRelease {
-                    tag_name: version_str.to_string(),
-                    name: format!("Release {}", version_number),
-                    body: "Release information retrieved from CDN".to_string(),
-                    prerelease: is_prerelease,
-                    assets,
-                });
-            }
-        }
-    }
-
-    // If no version with valid assets found, return the latest version anyway
-    // The download will fail and provide appropriate error message
+    // Semver-aware selection — pick the latest suitable version.
+    // This is the same selection logic used by update_checker.rs, ensuring
+    // the notification and self-update commands agree on what "latest" means.
     let latest_version =
         vx_runtime_core::version_utils::find_latest_version(&version_strings, !prerelease)
-            .ok_or_else(|| anyhow!("No suitable version found"))?;
+            .ok_or_else(|| anyhow!("No suitable version found in jsDelivr versions"))?;
 
     let version_number = vx_runtime_core::version_utils::normalize_version(latest_version);
 
     let assets = create_cdn_assets(version_number);
+
+    UI::detail(&format!(
+        "Selected latest version: {} (CDN tag: {})",
+        version_number, latest_version,
+    ));
 
     Ok(GitHubRelease {
         tag_name: latest_version.to_string(),
@@ -1129,14 +1113,6 @@ async fn try_jsdelivr_api(client: &reqwest::Client, prerelease: bool) -> Result<
         prerelease: vx_runtime_core::version_utils::is_prerelease(latest_version),
         assets,
     })
-}
-
-/// Verify an asset exists via HEAD request
-async fn verify_asset_exists(client: &reqwest::Client, url: &str) -> bool {
-    match client.head(url).send().await {
-        Ok(response) => response.status().is_success(),
-        Err(_) => false,
-    }
 }
 
 /// Determine artifact naming format based on version
