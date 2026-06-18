@@ -43,7 +43,7 @@ jobs:
     outputs:
       should_run: ${{ steps.filter.outputs.should_run }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - name: Detect file changes
         id: filter
         shell: bash
@@ -89,7 +89,7 @@ jobs:
             binary: target/release/vx
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Setup Rust + sccache
         uses: ./.github/actions/setup-rust-sccache
@@ -120,7 +120,7 @@ jobs:
         os: [ubuntu-latest, windows-latest, macos-latest]
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Setup vx (latest)
         uses: ./
@@ -147,7 +147,7 @@ jobs:
         os: [ubuntu-latest, windows-latest, macos-latest]
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Setup vx with tools
         uses: ./
@@ -189,7 +189,7 @@ jobs:
             binary: ./bin/vx
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Download built binary
         uses: actions/download-artifact@v8

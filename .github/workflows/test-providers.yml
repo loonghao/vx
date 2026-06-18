@@ -58,7 +58,7 @@ jobs:
       provider_subset: ${{ steps.scope.outputs.provider_subset }}
       changed_providers: ${{ steps.scope.outputs.changed_providers }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Detect file changes
         id: filter
@@ -149,7 +149,7 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Setup Rust + sccache
         uses: ./.github/actions/setup-rust-sccache
@@ -211,7 +211,7 @@ jobs:
       SCCACHE_DIR: ${{ github.workspace }}/.cache/sccache
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Setup Rust + sccache
         uses: ./.github/actions/setup-rust-sccache
@@ -235,7 +235,7 @@ jobs:
       SCCACHE_DIR: ${{ github.workspace }}/.cache/sccache
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Setup Rust + sccache
         uses: ./.github/actions/setup-rust-sccache
@@ -265,7 +265,7 @@ jobs:
         chunk: ${{ fromJSON(needs.build-and-discover.outputs.matrix-linux) }}
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Download VX binary
         uses: actions/download-artifact@v8
@@ -328,7 +328,7 @@ jobs:
         chunk: ${{ fromJSON(needs.build-and-discover.outputs.matrix-macos) }}
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Download VX binary
         uses: actions/download-artifact@v8
@@ -392,7 +392,7 @@ jobs:
         chunk: ${{ fromJSON(needs.build-and-discover.outputs.matrix-windows) }}
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Download VX binary
         uses: actions/download-artifact@v8
@@ -448,7 +448,7 @@ jobs:
       VX_HOME: ${{ github.workspace }}/.cache/vx-quick
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Download VX binary
         uses: actions/download-artifact@v8
@@ -482,7 +482,7 @@ jobs:
     if: always() && (needs.test-linux.result != 'skipped' || needs.test-macos.result != 'skipped' || needs.test-windows.result != 'skipped')
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Download all reports
         uses: actions/download-artifact@v8

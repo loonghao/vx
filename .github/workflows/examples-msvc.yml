@@ -45,7 +45,7 @@ jobs:
       used-release-binary: ${{ steps.download-release.outputs.used_release_binary }}
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       # -----------------------------------------------------------------------
       # Fast path: for schedule or pure example changes, try to download the
@@ -168,7 +168,7 @@ jobs:
     timeout-minutes: 60
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Download VX binary
         uses: actions/download-artifact@v8
