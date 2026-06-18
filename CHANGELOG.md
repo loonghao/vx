@@ -6,6 +6,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [0.9.25](https://github.com/loonghao/vx/compare/v0.9.24...v0.9.25) (2026-06-18)
+
+
+### Bug Fixes
+
+* self-update CDN version selection picks first, not latest (PIP-1829) ([9dc614b](https://github.com/loonghao/vx/commit/9dc614b35056d07ba0de4c4d407378d7ba151d77))
+
 ## [0.9.24](https://github.com/loonghao/vx/compare/v0.9.23...v0.9.24) (2026-06-17)
 
 
