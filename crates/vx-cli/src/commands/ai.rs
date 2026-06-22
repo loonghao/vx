@@ -1220,7 +1220,10 @@ async fn handle_headroom_doctor(quick: bool, json: bool, port: u16, mcp_port: u1
             }
         }
         Some("port_in_use") => {
-            UI::warn(&format!("Port {} is in use but /health did not respond", port));
+            UI::warn(&format!(
+                "Port {} is in use but /health did not respond",
+                port
+            ));
             if let Some(health) = &proxy_health {
                 UI::success(&format!("/health: {}", health));
             }
@@ -1432,7 +1435,9 @@ async fn test_mcp_compress_retrieve(vx_exe: &std::path::Path, mcp_url: &str) -> 
         return Err(anyhow::anyhow!("mcpcall compress failed: {}", stderr));
     }
 
-    let compress_text = String::from_utf8_lossy(&compress_output.stdout).trim().to_string();
+    let compress_text = String::from_utf8_lossy(&compress_output.stdout)
+        .trim()
+        .to_string();
     let hash = compress_text
         .lines()
         .last()
@@ -1461,8 +1466,9 @@ async fn test_mcp_compress_retrieve(vx_exe: &std::path::Path, mcp_url: &str) -> 
         return Err(anyhow::anyhow!("mcpcall retrieve failed: {}", stderr));
     }
 
-    let retrieve_text =
-        String::from_utf8_lossy(&retrieve_output.stdout).trim().to_string();
+    let retrieve_text = String::from_utf8_lossy(&retrieve_output.stdout)
+        .trim()
+        .to_string();
 
     Ok(retrieve_text.contains(sample))
 }
@@ -1562,8 +1568,8 @@ async fn handle_headroom_mcp(_ctx: &CommandContext, command: &HeadroomMcpCommand
         HeadroomMcpCommand::Stdio => {
             // Internal bridge entry point for agent MCP configurations.
             // Launches headroom MCP server in stdio mode and relays stdin/stdout.
-            let vx_exe = std::env::current_exe()
-                .context("Could not determine vx executable path")?;
+            let vx_exe =
+                std::env::current_exe().context("Could not determine vx executable path")?;
 
             let mut child = std::process::Command::new(&vx_exe)
                 .args([
@@ -1610,8 +1616,8 @@ async fn handle_headroom_mcp(_ctx: &CommandContext, command: &HeadroomMcpCommand
                 UI::info(&format!("MCP URL: {}", url));
             }
 
-            let vx_exe = std::env::current_exe()
-                .context("Could not determine vx executable path")?;
+            let vx_exe =
+                std::env::current_exe().context("Could not determine vx executable path")?;
 
             // Step 1: List tools via mcpcall
             if !json {
@@ -1631,13 +1637,12 @@ async fn handle_headroom_mcp(_ctx: &CommandContext, command: &HeadroomMcpCommand
 
                 if !json {
                     if tool_names.is_empty() {
-                        UI::warn("mcpcall list ran but no expected tools (headroom_compress, headroom_retrieve, headroom_stats) found");
+                        UI::warn(
+                            "mcpcall list ran but no expected tools (headroom_compress, headroom_retrieve, headroom_stats) found",
+                        );
                         println!("  raw output: {}", combined.trim());
                     } else {
-                        UI::success(&format!(
-                            "Found MCP tools: {}",
-                            tool_names.join(", ")
-                        ));
+                        UI::success(&format!("Found MCP tools: {}", tool_names.join(", ")));
                     }
                 }
                 tool_names
@@ -1651,8 +1656,7 @@ async fn handle_headroom_mcp(_ctx: &CommandContext, command: &HeadroomMcpCommand
 
             // Step 2: Read sample content
             let sample_content: String = if let Some(sample_path) = sample_file {
-                std::fs::read_to_string(sample_path)
-                    .context("Failed to read sample file")?
+                std::fs::read_to_string(sample_path).context("Failed to read sample file")?
             } else {
                 "Hello, headroom MCP test! This is sample content for testing the compress and retrieve round-trip.".to_string()
             };
@@ -1708,7 +1712,11 @@ async fn handle_headroom_mcp(_ctx: &CommandContext, command: &HeadroomMcpCommand
                 UI::info("--- Testing headroom_retrieve ---");
             }
 
-            let hash = compress_text.lines().last().unwrap_or(&compress_text).trim();
+            let hash = compress_text
+                .lines()
+                .last()
+                .unwrap_or(&compress_text)
+                .trim();
             let retrieve_ok = if compress_ok && !hash.is_empty() {
                 let retrieve_output = std::process::Command::new(&vx_exe)
                     .args([
@@ -1740,10 +1748,7 @@ async fn handle_headroom_mcp(_ctx: &CommandContext, command: &HeadroomMcpCommand
                         if roundtrip_ok {
                             UI::success("retrieve: content matches original");
                         } else {
-                            UI::warn(&format!(
-                                "retrieve result: {}",
-                                retrieve_text
-                            ));
+                            UI::warn(&format!("retrieve result: {}", retrieve_text));
                         }
                     }
                     roundtrip_ok
@@ -1767,7 +1772,15 @@ async fn handle_headroom_mcp(_ctx: &CommandContext, command: &HeadroomMcpCommand
             }
 
             let stats_output = std::process::Command::new(&vx_exe)
-                .args(["mcpcall", "--url", url, "call", "headroom_stats", "--args", "{}"])
+                .args([
+                    "mcpcall",
+                    "--url",
+                    url,
+                    "call",
+                    "headroom_stats",
+                    "--args",
+                    "{}",
+                ])
                 .output()
                 .context("Failed to run mcpcall stats")?;
 
@@ -1805,10 +1818,30 @@ async fn handle_headroom_mcp(_ctx: &CommandContext, command: &HeadroomMcpCommand
                 UI::header("Summary");
                 println!();
                 UI::info(&format!("  Tools found:     {}", tools_found.join(", ")));
-                UI::info(&format!("  compress:       {}", if compress_ok { "PASS" } else { "FAIL" }));
-                UI::info(&format!("  retrieve:       {}", if retrieve_ok { "PASS" } else { "FAIL" }));
-                UI::info(&format!("  stats:          {}", if stats_output.status.success() { "PASS" } else { "FAIL" }));
-                UI::info(&format!("  round-trip:     {}", if compress_ok && retrieve_ok { "PASS" } else { "FAIL" }));
+                UI::info(&format!(
+                    "  compress:       {}",
+                    if compress_ok { "PASS" } else { "FAIL" }
+                ));
+                UI::info(&format!(
+                    "  retrieve:       {}",
+                    if retrieve_ok { "PASS" } else { "FAIL" }
+                ));
+                UI::info(&format!(
+                    "  stats:          {}",
+                    if stats_output.status.success() {
+                        "PASS"
+                    } else {
+                        "FAIL"
+                    }
+                ));
+                UI::info(&format!(
+                    "  round-trip:     {}",
+                    if compress_ok && retrieve_ok {
+                        "PASS"
+                    } else {
+                        "FAIL"
+                    }
+                ));
             }
 
             Ok(())

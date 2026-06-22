@@ -208,6 +208,36 @@ jobs:
             Write-Warning "MSVC not found in standard paths — vx will attempt to install it"
           }
 
+      - name: Ensure Spectre-mitigated VC libraries are installed
+        shell: pwsh
+        run: |
+          $vsRoot = "C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools"
+          $hasSpectre = @(
+            "$vsRoot\VC\Tools\MSVC\*\lib\x64\spectre",
+            "$vsRoot\VC\Tools\MSVC\*\lib\arm64\spectre"
+          ) | ForEach-Object { Test-Path $_ } | Where-Object { $_ } | Select-Object -First 1
+
+          if ($hasSpectre) {
+            Write-Host "Spectre libraries already installed"
+            exit 0
+          }
+
+          $installer = "C:\Program Files (x86)\Microsoft Visual Studio\Installer\vs_installer.exe"
+          if (-not (Test-Path $installer)) {
+            throw "Visual Studio Installer not found at $installer"
+          }
+
+          & $installer modify `
+            --installPath $vsRoot `
+            --add Microsoft.VisualStudio.Component.VC.ATL.Spectre `
+            --add Microsoft.VisualStudio.Component.VC.MFC.Spectre `
+            --add Microsoft.VisualStudio.Component.VC.Runtimes.x86.x64.Spectre `
+            --quiet --norestart
+
+          if ($LASTEXITCODE -ne 0) {
+            throw "Failed to install Spectre-mitigated VC libraries"
+          }
+
       - name: Run example — fmt (cmake + MSVC)
         shell: pwsh
         run: |
