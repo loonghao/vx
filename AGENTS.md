@@ -462,6 +462,14 @@ crates/vx-starlark/stdlib/   # Starlark standard library
 - **Logging**: `tracing::info!` — never `println!`
 - **Docs**: All `pub` items need doc comments
 
+### Cross-Language Formatting
+
+- **Go**: Use `vx gofmt -w <file>` or `vx go fmt ./...` — do **not** use `vx go::gofmt`. The `::` syntax is for runtime executable overrides (e.g. `python::pip`), but `go` is also a package ecosystem name which causes a parsing ambiguity (PIP-1977).
+- **Rust**: `vx cargo fmt`
+- **Python**: `vx ruff format`
+- **JavaScript/TypeScript**: `vx npx prettier --write`
+- **C/C++**: `vx clang-format -i`
+
 ### Testing Conventions
 
 - Tests go in `crates/<name>/tests/` — **never** inline `#[cfg(test)]`

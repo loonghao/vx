@@ -260,9 +260,14 @@ async fn execute_tool(
 
     // Check if this is an RFC 0027 package request (ecosystem:package syntax)
     // Priority:
-    // 1. Check against dynamic package_prefixes from provider registry
-    // 2. Fallback to built-in list in vx-shim for backwards compatibility
-    let is_pkg_req = if let Some(colon_pos) = tool_spec.find(':') {
+    // 1. If :: appears without a preceding :, it's runtime::executable (e.g. go::gofmt)
+    // 2. Check against dynamic package_prefixes from provider registry
+    // 3. Fallback to built-in list in vx-shim for backwards compatibility
+    let is_pkg_req = if let Some(double_colon) = tool_spec.find("::") {
+        // :: with a preceding : is ecosystem:package::executable
+        // :: without a preceding : is runtime::executable — not a package request
+        tool_spec[..double_colon].contains(':')
+    } else if let Some(colon_pos) = tool_spec.find(':') {
         let ecosystem_part = &tool_spec[..colon_pos];
         let ecosystem = ecosystem_part.split('@').next().unwrap_or("");
 
