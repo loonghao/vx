@@ -98,6 +98,13 @@ impl PackageRequest {
 
     /// Check if a string looks like a package request (contains ecosystem:)
     pub fn is_package_request(input: &str) -> bool {
+        // If there's a :: without a preceding :, it's runtime::executable (e.g. go::gofmt)
+        // If there's a :: with a preceding :, it's ecosystem:package::executable (e.g. npm:pkg::exe)
+        if let Some(double_colon) = input.find("::")
+            && !input[..double_colon].contains(':')
+        {
+            return false;
+        }
         // Must have ecosystem: prefix
         if let Some(colon_pos) = input.find(':') {
             let ecosystem_part = &input[..colon_pos];
@@ -561,5 +568,35 @@ mod tests {
             assert_eq!(req.shell, Some(shell.to_string()));
             assert!(req.is_shell_request());
         }
+    }
+
+    // Regression tests for go::gofmt parsing bug (PIP-1977)
+    // :: should be recognized as runtime executable override, not package request
+
+    #[test]
+    fn test_double_colon_is_not_package_request() {
+        // go::gofmt is runtime executable, not package install
+        assert!(!PackageRequest::is_package_request("go::gofmt"));
+        assert!(!PackageRequest::is_package_request("go::powershell"));
+        assert!(!PackageRequest::is_package_request("node::npx"));
+        assert!(!PackageRequest::is_package_request("python::pip"));
+    }
+
+    #[test]
+    fn test_single_colon_is_package_request() {
+        // go:gofmt (single colon) is still a package request
+        assert!(PackageRequest::is_package_request("go:gofmt"));
+        assert!(PackageRequest::is_package_request("npm:typescript"));
+    }
+
+    #[test]
+    fn test_double_colon_with_runtime_name_matching_ecosystem() {
+        // Runtime names that match package ecosystems must not be confused
+        // go is both a runtime and a package ecosystem
+        assert!(!PackageRequest::is_package_request("go::gofmt"));
+        assert!(!PackageRequest::is_package_request("go::powershell"));
+        assert!(!PackageRequest::is_package_request("go::gopls"));
+        // node is not in the ecosystem list, but :: still means executable
+        assert!(!PackageRequest::is_package_request("node::npx"));
     }
 }
