@@ -941,16 +941,16 @@ fn extract_zip_robust(archive_path: &Path, dest: &Path) -> Result<()> {
         // Create parent directories before writing the file.
         // This handles archives where directory entries are implicit
         // (not stored as explicit entries), like Go's Windows archives.
-        if let Some(parent) = entry_path.parent() {
-            if !parent.exists() {
-                std::fs::create_dir_all(parent).map_err(|e| {
-                    anyhow::anyhow!(
-                        "Failed to create parent directory {}: {}",
-                        parent.display(),
-                        e
-                    )
-                })?;
-            }
+        if let Some(parent) = entry_path.parent()
+            && !parent.exists()
+        {
+            std::fs::create_dir_all(parent).map_err(|e| {
+                anyhow::anyhow!(
+                    "Failed to create parent directory {}: {}",
+                    parent.display(),
+                    e
+                )
+            })?;
         }
 
         if entry.is_dir() {
