@@ -832,24 +832,35 @@ impl Installer for RealInstaller {
         // Ensure extracted binaries have executable permissions on Unix.
         // Archive extraction (tar/zip/7z) does not guarantee execute bits,
         // unlike the single-file path which explicitly chmods 0o755.
+        // Many providers place executables at the archive root (not in bin/),
+        // so we must cover both locations.
         #[cfg(unix)]
         {
             use std::os::unix::fs::PermissionsExt;
-            let bin_dir = dest.join("bin");
-            if bin_dir.is_dir() {
-                if let Ok(entries) = std::fs::read_dir(&bin_dir) {
-                    for entry in entries.filter_map(|e| e.ok()) {
-                        let path = entry.path();
-                        if path.is_file() {
-                            if let Ok(meta) = std::fs::metadata(&path) {
-                                let mut perms = meta.permissions();
-                                perms.set_mode(0o755);
-                                let _ = std::fs::set_permissions(&path, perms);
+
+            // Helper: set 0o755 on all regular files under a directory.
+            let chmod_dir = |dir: &std::path::Path| {
+                if dir.is_dir() {
+                    if let Ok(entries) = std::fs::read_dir(dir) {
+                        for entry in entries.filter_map(|e| e.ok()) {
+                            let path = entry.path();
+                            if path.is_file() {
+                                if let Ok(meta) = std::fs::metadata(&path) {
+                                    let mut perms = meta.permissions();
+                                    perms.set_mode(0o755);
+                                    let _ = std::fs::set_permissions(&path, perms);
+                                }
                             }
                         }
                     }
                 }
-            }
+            };
+
+            // Cover bins placed in a bin/ subdirectory (e.g. github_binary_provider).
+            chmod_dir(&dest.join("bin"));
+            // Cover bins placed at the archive root (e.g. github_rust_provider,
+            // github_go_provider, and many custom archive layouts).
+            chmod_dir(dest);
         }
 
         Ok(())
