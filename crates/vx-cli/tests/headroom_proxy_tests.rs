@@ -147,12 +147,12 @@ fn build_proxy_command_includes_uv_tool_run_args() {
 
     // Verify the bridge path: vx uv tool run --from headroom-ai[proxy] headroom proxy ...
     assert!(args.iter().any(|a| a == "uv"), "expected 'uv' subcommand");
-    assert!(args.iter().any(|a| a == "tool"), "expected 'tool' subcommand");
-    assert!(args.iter().any(|a| a == "run"), "expected 'run' subcommand");
     assert!(
-        args.iter().any(|a| a == "--from"),
-        "expected '--from' flag"
+        args.iter().any(|a| a == "tool"),
+        "expected 'tool' subcommand"
     );
+    assert!(args.iter().any(|a| a == "run"), "expected 'run' subcommand");
+    assert!(args.iter().any(|a| a == "--from"), "expected '--from' flag");
     assert!(
         args.iter().any(|a| a == "headroom-ai[proxy]"),
         "expected 'headroom-ai[proxy]' package"
@@ -341,4 +341,3 @@ fn build_proxy_command_program_is_this_vx_binary() {
         program_str
     );
 }
-
