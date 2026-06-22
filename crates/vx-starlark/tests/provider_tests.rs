@@ -712,8 +712,8 @@ install_layout = _p["install_layout"]
     let ctx = vx_starlark::ProviderContext::new("ripgrep", std::env::temp_dir().join("vx-test"));
     let result = engine
         .call_function(
-            &provider.script_path(),
-            &content,
+            provider.script_path(),
+            content,
             "download_url",
             &ctx,
             &[serde_json::json!("14.1.1")],
