@@ -6,6 +6,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [0.9.26](https://github.com/loonghao/vx/compare/v0.9.25...v0.9.26) (2026-06-23)
+
+
+### Bug Fixes
+
+* **deps:** update rust crate tower-http to 0.7 ([2f29d93](https://github.com/loonghao/vx/commit/2f29d936aa4df3e4fcab44d2ca8094f0f95ad318))
+* **deps:** update rust crate tower-http to 0.7 ([88f6cc6](https://github.com/loonghao/vx/commit/88f6cc66e7f9b06f83caff1d012651dd8099ec5c))
+* resolve clippy warnings (needless_borrow, collapsible_if) ([71ff993](https://github.com/loonghao/vx/commit/71ff993e2cc3dbde4db33d721ab672c217cb06ea))
+* resolve go::gofmt parsing bug — :: without preceding : is runtime executable, not package install ([e5cc357](https://github.com/loonghao/vx/commit/e5cc35778e078574fb8881a2fc30b7bc7c132d93))
+* set executable permissions on root-level archive files on Unix ([a0b9a59](https://github.com/loonghao/vx/commit/a0b9a59437bfe2b56bb399c289608db51a48c8e2))
+
 ## [0.9.25](https://github.com/loonghao/vx/compare/v0.9.24...v0.9.25) (2026-06-18)
 
 
