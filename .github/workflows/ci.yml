@@ -425,7 +425,7 @@ jobs:
           ./bin/vx --version
 
       - name: Cache vx tools
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: ~/.vx
           key: ${{ runner.os }}-vx-tools-quality-${{ hashFiles('vx.toml') }}
@@ -539,7 +539,7 @@ jobs:
           ./bin/${{ matrix.platform.binary }} list
 
       - name: Cache vx tools
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: ~/.vx
           key: ${{ runner.os }}-vx-tools-test-${{ hashFiles('vx.toml') }}
@@ -662,7 +662,7 @@ jobs:
           ./bin/${{ matrix.platform.binary }} list
 
       - name: Cache vx tools
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: ~/.vx
           key: ${{ runner.os }}-vx-tools-test-${{ hashFiles('vx.toml') }}

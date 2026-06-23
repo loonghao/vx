@@ -111,7 +111,7 @@ jobs:
 
       - name: Cache sccache
         if: steps.download-release.outputs.used_release_binary != 'true'
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: ${{ github.workspace }}/.cache/sccache
           key: sccache-msvc-examples-${{ hashFiles('Cargo.lock') }}
@@ -124,7 +124,7 @@ jobs:
 
       - name: Cache Cargo
         if: steps.download-release.outputs.used_release_binary != 'true'
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: |
             ~/.cargo/bin/
