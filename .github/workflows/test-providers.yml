@@ -277,7 +277,7 @@ jobs:
         run: chmod +x ./bin/vx
 
       - name: Cache VX runtime store
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: ${{ env.VX_TEST_ROOT }}
           key: ${{ runner.os }}-vx-provider-e2e-${{ hashFiles('Cargo.lock', '.github/workflows/test-providers.yml', '.github/scripts/discover-providers.sh', 'crates/vx-providers/**/provider.star', 'crates/vx-runtime/**', 'crates/vx-installer/**', 'crates/vx-starlark/**', 'crates/vx-star-metadata/**', 'crates/vx-manifest/**') }}-${{ strategy.job-index }}
@@ -340,7 +340,7 @@ jobs:
         run: chmod +x ./bin/vx
 
       - name: Cache VX runtime store
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: ${{ env.VX_TEST_ROOT }}
           key: ${{ runner.os }}-vx-provider-e2e-${{ hashFiles('Cargo.lock', '.github/workflows/test-providers.yml', '.github/scripts/discover-providers.sh', 'crates/vx-providers/**/provider.star', 'crates/vx-runtime/**', 'crates/vx-installer/**', 'crates/vx-starlark/**', 'crates/vx-star-metadata/**', 'crates/vx-manifest/**') }}-${{ strategy.job-index }}
@@ -401,7 +401,7 @@ jobs:
           path: ./bin
 
       - name: Cache VX runtime store
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: ${{ env.VX_TEST_ROOT }}
           key: ${{ runner.os }}-vx-provider-e2e-${{ hashFiles('Cargo.lock', '.github/workflows/test-providers.yml', '.github/scripts/discover-providers.sh', 'crates/vx-providers/**/provider.star', 'crates/vx-runtime/**', 'crates/vx-installer/**', 'crates/vx-starlark/**', 'crates/vx-star-metadata/**', 'crates/vx-manifest/**') }}-${{ strategy.job-index }}
@@ -460,7 +460,7 @@ jobs:
         run: chmod +x ./bin/vx
 
       - name: Cache VX runtime store
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: ${{ env.VX_TEST_ROOT }}
           key: ${{ runner.os }}-vx-provider-quick-${{ hashFiles('Cargo.lock', '.github/workflows/test-providers.yml', '.github/scripts/discover-providers.sh', 'crates/vx-providers/**/provider.star', 'crates/vx-runtime/**', 'crates/vx-installer/**', 'crates/vx-starlark/**', 'crates/vx-star-metadata/**', 'crates/vx-manifest/**') }}
