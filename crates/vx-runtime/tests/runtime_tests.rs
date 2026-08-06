@@ -8,8 +8,8 @@ use async_trait::async_trait;
 use rstest::rstest;
 use tempfile::TempDir;
 use vx_runtime::{
-    Arch, Ecosystem, HttpClient, Installer, Os, Platform, RealFileSystem, RealPathProvider,
-    Runtime, RuntimeContext, VersionInfo,
+    Arch, Ecosystem, HttpClient, Installer, ManifestDrivenRuntime, Os, Platform, ProviderSource,
+    RealFileSystem, RealPathProvider, Runtime, RuntimeContext, VersionInfo,
 };
 
 #[derive(Debug)]
@@ -63,6 +63,23 @@ fn test_context() -> (TempDir, RuntimeContext) {
     );
 
     (temp_dir, ctx)
+}
+
+#[tokio::test]
+async fn manifest_runtime_reports_provider_declared_system_installation() {
+    let (temp_dir, ctx) = test_context();
+    let executable = temp_dir.path().join("cl.exe");
+    std::fs::write(&executable, b"").expect("mock compiler should be created");
+    let runtime = ManifestDrivenRuntime::new("msvc", "cl", ProviderSource::BuiltIn)
+        .with_system_paths(vec![executable.to_string_lossy().to_string()]);
+
+    assert_eq!(
+        runtime
+            .installed_versions(&ctx)
+            .await
+            .expect("system path detection should succeed"),
+        vec!["system"]
+    );
 }
 
 /// Test runtime implementation

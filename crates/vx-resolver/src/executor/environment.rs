@@ -565,8 +565,13 @@ impl<'a> EnvironmentManager<'a> {
 
                 // Call prepare_environment() (NOT execution_environment())
                 // This gives us marker/discovery variables without full compilation env
+                let companion_context = self
+                    .project_config
+                    .and_then(|config| config.get_install_options(companion_name))
+                    .map(|options| context.clone().with_install_options(options.clone()))
+                    .unwrap_or_else(|| context.clone());
                 match companion_runtime
-                    .prepare_environment(&companion_installed_version, context)
+                    .prepare_environment(&companion_installed_version, &companion_context)
                     .await
                 {
                     Ok(companion_env) => {
