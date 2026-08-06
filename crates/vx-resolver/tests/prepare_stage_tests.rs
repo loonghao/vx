@@ -93,13 +93,18 @@ impl Runtime for CountingRuntime {
     async fn prepare_environment(
         &self,
         version: &str,
-        _ctx: &RuntimeContext,
+        ctx: &RuntimeContext,
     ) -> Result<HashMap<String, String>> {
         self.prepare_count.fetch_add(1, Ordering::SeqCst);
-        Ok(HashMap::from([(
-            "VX_COMPANION_MARKER".to_string(),
-            version.to_string(),
-        )]))
+        let mut environment =
+            HashMap::from([("VX_COMPANION_MARKER".to_string(), version.to_string())]);
+        if let Some(components) = ctx.get_install_option("VX_MSVC_COMPONENTS") {
+            environment.insert(
+                "VX_COMPANION_COMPONENTS".to_string(),
+                components.to_string(),
+            );
+        }
+        Ok(environment)
     }
 }
 
@@ -223,8 +228,13 @@ async fn prepare_stage_skips_missing_companion_without_auto_installing() {
         ],
     }));
 
-    let project_config =
-        ProjectToolsConfig::from_tools(HashMap::from([("msvc".to_string(), "14.42".to_string())]));
+    let project_config = ProjectToolsConfig::from_tools_with_install_options(
+        HashMap::from([("msvc".to_string(), "14.42".to_string())]),
+        HashMap::from([(
+            "msvc".to_string(),
+            HashMap::from([("VX_MSVC_COMPONENTS".to_string(), "spectre".to_string())]),
+        )]),
+    );
     let stage = PrepareStage::new(&resolver, &config, Some(&registry), Some(&context))
         .with_project_config(&project_config);
     let plan = ExecutionPlan::new(
@@ -269,8 +279,13 @@ async fn prepare_stage_injects_already_installed_companion_environment() {
         ],
     }));
 
-    let project_config =
-        ProjectToolsConfig::from_tools(HashMap::from([("msvc".to_string(), "14.42".to_string())]));
+    let project_config = ProjectToolsConfig::from_tools_with_install_options(
+        HashMap::from([("msvc".to_string(), "14.42".to_string())]),
+        HashMap::from([(
+            "msvc".to_string(),
+            HashMap::from([("VX_MSVC_COMPONENTS".to_string(), "spectre".to_string())]),
+        )]),
+    );
     let stage = PrepareStage::new(&resolver, &config, Some(&registry), Some(&context))
         .with_project_config(&project_config);
     let plan = ExecutionPlan::new(
@@ -288,6 +303,13 @@ async fn prepare_stage_injects_already_installed_companion_environment() {
     assert_eq!(
         prepared.env.get("VX_COMPANION_MARKER").map(String::as_str),
         Some("system")
+    );
+    assert_eq!(
+        prepared
+            .env
+            .get("VX_COMPANION_COMPONENTS")
+            .map(String::as_str),
+        Some("spectre")
     );
 }
 

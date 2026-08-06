@@ -27,6 +27,8 @@ use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
+#[cfg(windows)]
+use anyhow::Context;
 use anyhow::Result;
 use async_trait::async_trait;
 use tracing::{debug, warn};
@@ -92,6 +94,141 @@ pub fn find_first_glob_match(patterns: &[String]) -> Option<PathBuf> {
         }
     }
     None
+}
+
+#[cfg(windows)]
+fn msvc_toolset_dir(cl_path: &Path) -> Option<&Path> {
+    cl_path.ancestors().nth(4)
+}
+
+#[cfg(windows)]
+fn has_spectre_libs(cl_path: &Path) -> bool {
+    let Some(toolset_dir) = msvc_toolset_dir(cl_path) else {
+        return false;
+    };
+    let Some(arch) = cl_path.parent().and_then(Path::file_name) else {
+        return false;
+    };
+    toolset_dir.join("lib").join("spectre").join(arch).is_dir()
+}
+
+#[cfg(windows)]
+fn find_msvc_cl(patterns: &[String], require_spectre: bool) -> Option<PathBuf> {
+    patterns.iter().find_map(|pattern| {
+        glob::glob(pattern)
+            .ok()?
+            .filter_map(Result::ok)
+            .find(|path| path.is_file() && (!require_spectre || has_spectre_libs(path)))
+    })
+}
+
+#[cfg(windows)]
+fn read_msvc_environment(cl_path: &Path) -> Result<HashMap<String, String>> {
+    let toolset_dir = msvc_toolset_dir(cl_path)
+        .with_context(|| format!("unexpected MSVC compiler path: {}", cl_path.display()))?;
+    let vc_dir = toolset_dir
+        .ancestors()
+        .nth(3)
+        .with_context(|| format!("cannot locate VC root from {}", cl_path.display()))?;
+    let arch = cl_path
+        .parent()
+        .and_then(Path::file_name)
+        .with_context(|| {
+            format!(
+                "cannot determine MSVC architecture from {}",
+                cl_path.display()
+            )
+        })?;
+    let sdk_root = [
+        Path::new(r"C:\Program Files (x86)\Windows Kits\10"),
+        Path::new(r"C:\Program Files\Windows Kits\10"),
+    ]
+    .into_iter()
+    .find(|root| root.join("Include").is_dir())
+    .context("Windows 10 SDK was not found")?;
+    let mut sdk_versions = std::fs::read_dir(sdk_root.join("Include"))?
+        .filter_map(Result::ok)
+        .filter(|entry| entry.path().join("ucrt").is_dir())
+        .filter_map(|entry| entry.file_name().into_string().ok())
+        .collect::<Vec<_>>();
+    sdk_versions.sort();
+    let sdk_version = sdk_versions
+        .last()
+        .context("Windows 10 SDK has no usable version")?;
+    let sdk_include = sdk_root.join("Include").join(sdk_version);
+    let sdk_lib = sdk_root.join("Lib").join(sdk_version);
+    let sdk_bin = sdk_root.join("bin").join(sdk_version).join(arch);
+
+    let join = |paths: Vec<PathBuf>| -> Result<String> {
+        Ok(std::env::join_paths(paths)?.to_string_lossy().into_owned())
+    };
+    let mut path = vec![
+        cl_path
+            .parent()
+            .expect("compiler has a parent")
+            .to_path_buf(),
+        sdk_bin,
+    ];
+    path.extend(std::env::split_paths(
+        &std::env::var_os("PATH").unwrap_or_default(),
+    ));
+
+    Ok(HashMap::from([
+        ("PATH".to_string(), join(path)?),
+        (
+            "INCLUDE".to_string(),
+            join(
+                [
+                    toolset_dir.join("include"),
+                    sdk_include.join("ucrt"),
+                    sdk_include.join("shared"),
+                    sdk_include.join("um"),
+                    sdk_include.join("winrt"),
+                    sdk_include.join("cppwinrt"),
+                ]
+                .into_iter()
+                .filter(|path| path.is_dir())
+                .collect(),
+            )?,
+        ),
+        (
+            "LIB".to_string(),
+            join(vec![
+                toolset_dir.join("lib").join(arch),
+                sdk_lib.join("ucrt").join(arch),
+                sdk_lib.join("um").join(arch),
+            ])?,
+        ),
+        (
+            "VCINSTALLDIR".to_string(),
+            vc_dir.to_string_lossy().into_owned(),
+        ),
+        (
+            "VCToolsInstallDir".to_string(),
+            toolset_dir.to_string_lossy().into_owned(),
+        ),
+        (
+            "VCToolsVersion".to_string(),
+            toolset_dir
+                .file_name()
+                .expect("toolset has a version")
+                .to_string_lossy()
+                .into_owned(),
+        ),
+        (
+            "VSINSTALLDIR".to_string(),
+            vc_dir
+                .parent()
+                .expect("VC root has a parent")
+                .to_string_lossy()
+                .into_owned(),
+        ),
+        (
+            "WindowsSdkDir".to_string(),
+            sdk_root.to_string_lossy().into_owned(),
+        ),
+        ("WindowsSDKVersion".to_string(), format!("{sdk_version}\\")),
+    ]))
 }
 
 use crate::{Ecosystem, InstallResult, Platform, Runtime, RuntimeContext, VersionInfo};
@@ -671,6 +808,34 @@ impl Runtime for ManifestDrivenRuntime {
         meta
     }
 
+    async fn prepare_environment(
+        &self,
+        _version: &str,
+        ctx: &RuntimeContext,
+    ) -> Result<HashMap<String, String>> {
+        #[cfg(windows)]
+        if self.name == "msvc" {
+            let require_spectre = ctx
+                .get_install_option("VX_MSVC_COMPONENTS")
+                .map(|components| {
+                    components
+                        .split(',')
+                        .any(|component| component.trim().eq_ignore_ascii_case("spectre"))
+                })
+                .unwrap_or(false);
+            let cl_path = find_msvc_cl(&self.system_paths, require_spectre).with_context(|| {
+                if require_spectre {
+                    "no MSVC toolchain with Spectre-mitigated libraries was found".to_string()
+                } else {
+                    "no MSVC toolchain was found".to_string()
+                }
+            })?;
+            return read_msvc_environment(&cl_path);
+        }
+
+        Ok(HashMap::new())
+    }
+
     async fn versioned_dependencies(
         &self,
         version: &str,
@@ -988,7 +1153,13 @@ impl Runtime for ManifestDrivenRuntime {
             }
         }
 
-        // 2. Fall back to system PATH detection.
+        // 2. Honor provider-declared system paths for tools such as MSVC that
+        // are intentionally not added to the global PATH.
+        if !self.system_paths.is_empty() && find_first_glob_match(&self.system_paths).is_some() {
+            return Ok(vec!["system".to_string()]);
+        }
+
+        // 3. Fall back to system PATH detection.
         if which::which(&self.executable).is_ok() {
             if let Ok(Some(version)) = detection::detect_version(
                 &self.executable,
