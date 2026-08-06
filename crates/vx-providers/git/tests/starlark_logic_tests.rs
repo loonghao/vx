@@ -75,7 +75,7 @@ not ("shells" in rt)
 // ── download_url logic ────────────────────────────────────────────────────────
 
 #[test]
-fn test_download_url_windows_x64_returns_zip() {
+fn test_download_url_windows_x64_returns_tar_bz2() {
     let mut a = Assert::new();
     a.dialect(&Dialect::Standard);
     a.is_true(&format!(
@@ -83,7 +83,7 @@ fn test_download_url_windows_x64_returns_zip() {
 {}
 ctx = struct(platform = struct(os = "windows", arch = "x64", target = ""))
 url = download_url(ctx, "2.44.0")
-url != None and url.endswith(".zip")
+url != None and url.endswith(".tar.bz2")
 "#,
         provider_star_prefix()
     ));
@@ -187,7 +187,7 @@ len(env) == 0
 #[test]
 fn test_download_url_windows_version_with_windows_2_suffix() {
     // Regression test: version "2.53.0.windows.2" must produce
-    // tag "v2.53.0.windows.2" and asset "MinGit-2.53.0.2-64-bit.zip"
+    // tag "v2.53.0.windows.2" and asset "Git-2.53.0.2-64-bit.tar.bz2"
     let mut a = Assert::new();
     a.dialect(&Dialect::Standard);
     a.is_true(&format!(
@@ -195,7 +195,7 @@ fn test_download_url_windows_version_with_windows_2_suffix() {
 {}
 ctx = struct(platform = struct(os = "windows", arch = "x64", target = ""))
 url = download_url(ctx, "2.53.0.windows.2")
-url != None and "v2.53.0.windows.2" in url and "MinGit-2.53.0.2-64-bit.zip" in url
+url != None and "v2.53.0.windows.2" in url and "Git-2.53.0.2-64-bit.tar.bz2" in url
 "#,
         provider_star_prefix()
     ));
@@ -211,7 +211,7 @@ fn test_download_url_windows_version_with_windows_1_suffix() {
 {}
 ctx = struct(platform = struct(os = "windows", arch = "x64", target = ""))
 url = download_url(ctx, "2.53.0.windows.1")
-url != None and "v2.53.0.windows.1" in url and "MinGit-2.53.0-64-bit.zip" in url
+url != None and "v2.53.0.windows.1" in url and "Git-2.53.0-64-bit.tar.bz2" in url
 "#,
         provider_star_prefix()
     ));
@@ -227,7 +227,7 @@ fn test_download_url_windows_arm64() {
 {}
 ctx = struct(platform = struct(os = "windows", arch = "arm64", target = ""))
 url = download_url(ctx, "2.53.0.windows.2")
-url != None and "arm64.zip" in url
+url != None and "arm64.tar.bz2" in url
 "#,
         provider_star_prefix()
     ));
