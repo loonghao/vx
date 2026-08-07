@@ -12,10 +12,68 @@
 //! especially on Windows CI). See plan_tests.rs for executable propagation tests.
 
 use std::path::PathBuf;
+use std::sync::{
+    Arc,
+    atomic::{AtomicBool, Ordering},
+};
+
+use anyhow::Result;
+use async_trait::async_trait;
 use vx_resolver::{
     EnsureError, EnsureStage, ExecutionConfig, ExecutionPlan, InstallStatus, PlannedRuntime,
     Resolver, ResolverConfig, RuntimeMap, Stage,
 };
+use vx_runtime::{
+    InstallResult, Provider, ProviderRegistry, Runtime, RuntimeContext, VersionInfo, mock_context,
+};
+
+struct IncompleteRuntime {
+    installed: Arc<AtomicBool>,
+}
+
+#[async_trait]
+impl Runtime for IncompleteRuntime {
+    fn name(&self) -> &str {
+        "tool"
+    }
+
+    async fn fetch_versions(&self, _ctx: &RuntimeContext) -> Result<Vec<VersionInfo>> {
+        Ok(Vec::new())
+    }
+
+    async fn is_installed(&self, _version: &str, _ctx: &RuntimeContext) -> Result<bool> {
+        Ok(false)
+    }
+
+    async fn install(&self, version: &str, _ctx: &RuntimeContext) -> Result<InstallResult> {
+        self.installed.store(true, Ordering::SeqCst);
+        Ok(InstallResult::success(
+            PathBuf::from("system"),
+            PathBuf::from("system"),
+            version.to_string(),
+        ))
+    }
+}
+
+struct TestProvider {
+    installed: Arc<AtomicBool>,
+}
+
+impl Provider for TestProvider {
+    fn name(&self) -> &str {
+        "test"
+    }
+
+    fn description(&self) -> &str {
+        "Test provider"
+    }
+
+    fn runtimes(&self) -> Vec<Arc<dyn Runtime>> {
+        vec![Arc::new(IncompleteRuntime {
+            installed: Arc::clone(&self.installed),
+        })]
+    }
+}
 
 fn create_ensure_stage<'a>(resolver: &'a Resolver, config: &'a ResolverConfig) -> EnsureStage<'a> {
     EnsureStage::new(resolver, config, None, None)
@@ -44,9 +102,60 @@ async fn test_ensure_stage_already_installed() {
     let plan = ExecutionPlan::new(primary, ExecutionConfig::default());
 
     let result: Result<ExecutionPlan, EnsureError> = stage.execute(plan).await;
-    assert!(result.is_ok());
+    assert!(result.is_ok(), "{result:?}");
     let plan = result.unwrap();
     assert!(!plan.needs_install());
+}
+
+#[tokio::test]
+async fn test_ensure_stage_rechecks_managed_installation() {
+    let config = ResolverConfig::default();
+    let runtime_map = RuntimeMap::empty();
+    let resolver = Resolver::new(config.clone(), runtime_map).unwrap();
+    let registry = ProviderRegistry::new();
+    registry.register(Arc::new(TestProvider {
+        installed: Arc::new(AtomicBool::new(false)),
+    }));
+    let context = mock_context();
+    let stage = EnsureStage::new(&resolver, &config, Some(&registry), Some(&context));
+    let primary =
+        PlannedRuntime::installed("tool", "1.0.0".to_string(), PathBuf::from("stale/tool"));
+    let plan = ExecutionPlan::new(
+        primary,
+        ExecutionConfig {
+            auto_install: false,
+            ..Default::default()
+        },
+    );
+
+    let result = stage.execute(plan).await;
+
+    assert!(matches!(
+        result,
+        Err(EnsureError::AutoInstallDisabled { .. })
+    ));
+}
+
+#[tokio::test]
+async fn test_ensure_stage_repairs_exact_installed_version_without_resolution() {
+    let config = ResolverConfig::default();
+    let runtime_map = RuntimeMap::empty();
+    let resolver = Resolver::new(config.clone(), runtime_map).unwrap();
+    let installed = Arc::new(AtomicBool::new(false));
+    let registry = ProviderRegistry::new();
+    registry.register(Arc::new(TestProvider {
+        installed: Arc::clone(&installed),
+    }));
+    let context = mock_context();
+    let stage = EnsureStage::new(&resolver, &config, Some(&registry), Some(&context));
+    let primary =
+        PlannedRuntime::installed("tool", "1.0.0".to_string(), PathBuf::from("stale/tool"));
+    let plan = ExecutionPlan::new(primary, ExecutionConfig::default());
+
+    let result = stage.execute(plan).await;
+
+    assert!(result.is_ok(), "{result:?}");
+    assert!(installed.load(Ordering::SeqCst));
 }
 
 #[tokio::test]

@@ -109,20 +109,23 @@ def download_url(ctx, version):
 
 # Full Git tar.bz2 extracted layout:
 #   <install_dir>/
-#     cmd/git.exe          ← cmd-style wrapper (primary entry point)
+#     bin/git.exe          ← full-distribution entry point and migration marker
+#     cmd/git.exe          ← cmd-style wrapper
 #     mingw64/bin/git.exe  ← real MinGW git binary
 #     mingw64/bin/...      ← other git tools
 #     usr/bin/bash.exe     ← interpreter for common Git hooks
 #
 # The archive is extracted directly into install_dir with no top-level directory,
 # so strip_prefix="" (auto-detect) will NOT attempt to strip any prefix.
-# We list candidate paths so the installer can verify the correct one.
+# MinGit lacks bin/git.exe and usr/bin/bash.exe. Requiring both full-distribution
+# paths lets vx repair older cached MinGit installs automatically.
 def install_layout(ctx, _version):
     if ctx.platform.os == "windows":
         return {
             "type":             "archive",
             "strip_prefix":     "",
-            "executable_paths": ["cmd/git.exe", "mingw64/bin/git.exe", "git.exe"],
+            "executable_paths": ["bin/git.exe"],
+            "required_paths":   ["usr/bin/bash.exe"],
         }
     # Non-Windows: plain archive (or system install — download_url returns None)
     return {
@@ -156,14 +159,14 @@ def get_execute_path(ctx, _version):
     """Return the path to the git executable inside the install dir.
 
     Git for Windows extracts to a directory tree; the canonical
-    entry point is cmd/git.exe (the cmd-shell wrapper) which is on PATH.
-    The real MinGW binary lives at mingw64/bin/git.exe.
+    entry point is bin/git.exe. Its presence also distinguishes the full
+    distribution from older MinGit installs that do not include Bash.
 
     On non-Windows the tool is managed by the system package manager,
     so install_dir points to the vx store where we placed the binary.
     """
     if ctx.platform.os == "windows":
-        return ctx.install_dir + "/cmd/git.exe"
+        return ctx.install_dir + "/bin/git.exe"
     return ctx.install_dir + "/bin/git"
 
 def post_install(_ctx, _version):

@@ -59,13 +59,18 @@ impl ManifestDrivenRuntime {
                     self.name, url
                 );
 
-                if ctx.fs.exists(&install_path) {
+                if ctx.fs.exists(&install_path)
+                    && self.layout_executable_exists(&install_path, &layout, ctx)
+                {
                     let exe_path = self.resolve_exe_path_from_layout(&install_path, &layout);
                     return Ok(InstallResult::already_installed(
                         install_path,
                         exe_path,
                         version.to_string(),
                     ));
+                }
+                if ctx.fs.exists(&install_path) {
+                    ctx.fs.remove_dir_all(&install_path)?;
                 }
 
                 let mut layout_meta = HashMap::new();
@@ -111,7 +116,11 @@ impl ManifestDrivenRuntime {
         // Resolve install_layout once for strip_prefix / executable_paths hints
         let layout_hint = self.resolve_layout_hint(version).await;
 
-        if ctx.fs.exists(install_path) {
+        if ctx.fs.exists(install_path)
+            && layout_hint
+                .as_ref()
+                .is_none_or(|layout| self.layout_executable_exists(install_path, layout, ctx))
+        {
             let exe_path = if let Some(ref layout) = layout_hint {
                 self.resolve_exe_path_from_layout(install_path, layout)
             } else {
@@ -122,6 +131,9 @@ impl ManifestDrivenRuntime {
                 exe_path,
                 version.to_string(),
             ));
+        }
+        if ctx.fs.exists(install_path) {
+            ctx.fs.remove_dir_all(install_path)?;
         }
 
         // Build layout metadata for download_with_layout

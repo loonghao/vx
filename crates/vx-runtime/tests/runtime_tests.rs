@@ -1,7 +1,10 @@
 //! Runtime trait tests
 
 use std::path::Path;
-use std::sync::Arc;
+use std::sync::{
+    Arc,
+    atomic::{AtomicBool, Ordering},
+};
 
 use anyhow::{Result, bail};
 use async_trait::async_trait;
@@ -53,6 +56,27 @@ impl Installer for NoopInstaller {
     }
 }
 
+#[derive(Debug)]
+struct RepairingInstaller {
+    called: Arc<AtomicBool>,
+}
+
+#[async_trait]
+impl Installer for RepairingInstaller {
+    async fn extract(&self, _archive: &Path, _dest: &Path) -> Result<()> {
+        bail!("not used in runtime_tests")
+    }
+
+    async fn download_and_extract(&self, _url: &str, dest: &Path) -> Result<()> {
+        self.called.store(true, Ordering::SeqCst);
+        std::fs::create_dir_all(dest.join("bin"))?;
+        std::fs::create_dir_all(dest.join("usr/bin"))?;
+        std::fs::write(dest.join("bin/tool.exe"), b"")?;
+        std::fs::write(dest.join("usr/bin/bash.exe"), b"")?;
+        Ok(())
+    }
+}
+
 fn test_context() -> (TempDir, RuntimeContext) {
     let temp_dir = tempfile::tempdir().expect("temp dir should be created");
     let ctx = RuntimeContext::new(
@@ -80,6 +104,45 @@ async fn manifest_runtime_reports_provider_declared_system_installation() {
             .expect("system path detection should succeed"),
         vec!["system"]
     );
+}
+
+#[tokio::test]
+async fn manifest_runtime_repairs_incomplete_managed_installation() {
+    let temp_dir = tempfile::tempdir().expect("temp dir should be created");
+    let called = Arc::new(AtomicBool::new(false));
+    let ctx = RuntimeContext::new(
+        Arc::new(RealPathProvider::with_base_dir(temp_dir.path())),
+        Arc::new(NoopHttpClient),
+        Arc::new(RealFileSystem::new()),
+        Arc::new(RepairingInstaller {
+            called: Arc::clone(&called),
+        }),
+    );
+    let runtime = ManifestDrivenRuntime::new("tool", "tool", ProviderSource::BuiltIn)
+        .with_download_url(|_| {
+            Box::pin(async { Ok(Some("https://example.invalid/tool.zip".to_string())) })
+        })
+        .with_install_layout(|_| {
+            Box::pin(async {
+                Ok(Some(serde_json::json!({
+                    "executable_paths": ["bin/tool.exe"],
+                    "required_paths": ["usr/bin/bash.exe"]
+                })))
+            })
+        });
+    let install_dir = ctx.paths.version_store_dir("tool", "1.0.0");
+    std::fs::create_dir_all(install_dir.join("cmd")).unwrap();
+    std::fs::create_dir_all(install_dir.join("bin")).unwrap();
+    std::fs::write(install_dir.join("cmd/tool.exe"), b"").unwrap();
+    std::fs::write(install_dir.join("bin/tool.exe"), b"").unwrap();
+
+    assert!(!runtime.is_installed("1.0.0", &ctx).await.unwrap());
+    runtime.install("1.0.0", &ctx).await.unwrap();
+
+    assert!(called.load(Ordering::SeqCst));
+    assert!(install_dir.join("bin/tool.exe").is_file());
+    assert!(!install_dir.join("cmd/tool.exe").exists());
+    assert!(runtime.is_installed("1.0.0", &ctx).await.unwrap());
 }
 
 /// Test runtime implementation
