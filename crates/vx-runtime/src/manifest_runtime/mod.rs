@@ -866,11 +866,11 @@ impl Runtime for ManifestDrivenRuntime {
     async fn prepare_environment(
         &self,
         _version: &str,
-        ctx: &RuntimeContext,
+        _ctx: &RuntimeContext,
     ) -> Result<HashMap<String, String>> {
         #[cfg(windows)]
         if self.name == "msvc" {
-            let require_spectre = ctx
+            let require_spectre = _ctx
                 .get_install_option("VX_MSVC_COMPONENTS")
                 .map(|components| {
                     components
