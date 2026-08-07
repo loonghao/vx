@@ -840,17 +840,17 @@ impl Installer for RealInstaller {
 
             // Helper: set 0o755 on all regular files under a directory.
             let chmod_dir = |dir: &std::path::Path| {
-                if dir.is_dir() {
-                    if let Ok(entries) = std::fs::read_dir(dir) {
-                        for entry in entries.filter_map(|e| e.ok()) {
-                            let path = entry.path();
-                            if path.is_file() {
-                                if let Ok(meta) = std::fs::metadata(&path) {
-                                    let mut perms = meta.permissions();
-                                    perms.set_mode(0o755);
-                                    let _ = std::fs::set_permissions(&path, perms);
-                                }
-                            }
+                if dir.is_dir()
+                    && let Ok(entries) = std::fs::read_dir(dir)
+                {
+                    for entry in entries.filter_map(|e| e.ok()) {
+                        let path = entry.path();
+                        if path.is_file()
+                            && let Ok(meta) = std::fs::metadata(&path)
+                        {
+                            let mut perms = meta.permissions();
+                            perms.set_mode(0o755);
+                            let _ = std::fs::set_permissions(&path, perms);
                         }
                     }
                 }

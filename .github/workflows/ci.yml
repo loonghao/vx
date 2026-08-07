@@ -675,6 +675,11 @@ jobs:
           shared-key: test
           install-nextest: "true"
 
+      - name: Preinstall Node.js on Windows
+        if: runner.os == 'Windows'
+        shell: bash
+        run: vx node --version
+
       - name: Run full workspace tests
         shell: bash
         run: cargo nextest run --workspace --no-fail-fast
