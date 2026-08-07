@@ -11,7 +11,7 @@ use tracing::{debug, info};
 
 use crate::executor::installation::InstallationManager;
 use crate::executor::pipeline::error::EnsureError;
-use crate::executor::pipeline::plan::{ExecutionPlan, InstallStatus};
+use crate::executor::pipeline::plan::{ExecutionPlan, InstallStatus, VersionResolution};
 use crate::executor::pipeline::stage::Stage;
 use crate::executor::project_config::ProjectToolsConfig;
 use crate::{Resolver, ResolverConfig};
@@ -71,6 +71,36 @@ impl<'a> EnsureStage<'a> {
         }
         mgr
     }
+
+    async fn mark_incomplete_primary_for_install(&self, plan: &mut ExecutionPlan) -> bool {
+        if plan.primary.status != InstallStatus::Installed {
+            return false;
+        }
+        let (Some(registry), Some(context)) = (self.registry, self.context) else {
+            return false;
+        };
+        let Some(runtime) = registry.get_runtime(&plan.primary.name) else {
+            return false;
+        };
+        let version = match plan.primary.version_string() {
+            Some("unknown") | None => "latest".to_string(),
+            Some(version) => version.to_string(),
+        };
+
+        if matches!(runtime.is_installed(&version, context).await, Ok(false)) {
+            debug!(
+                "[EnsureStage] {}@{} is incomplete; repairing installation",
+                plan.primary.name, version
+            );
+            plan.primary.status = InstallStatus::NeedsInstall;
+            plan.primary.version = VersionResolution::NeedsInstall { version };
+            plan.primary.executable = None;
+            plan.primary.install_dir = None;
+            return true;
+        }
+
+        false
+    }
 }
 
 #[async_trait]
@@ -78,6 +108,8 @@ impl<'a> Stage<ExecutionPlan, ExecutionPlan> for EnsureStage<'a> {
     type Error = EnsureError;
 
     async fn execute(&self, mut plan: ExecutionPlan) -> Result<ExecutionPlan, EnsureError> {
+        let repair_primary = self.mark_incomplete_primary_for_install(&mut plan).await;
+
         // Check if auto-install is enabled
         if !plan.config.auto_install && plan.needs_install() {
             let missing: Vec<String> = plan
@@ -216,7 +248,19 @@ impl<'a> Stage<ExecutionPlan, ExecutionPlan> for EnsureStage<'a> {
                 // ── Normal (non-bundled) runtime installation ─────────────
                 let version = plan.primary.version_string().map(|s| s.to_string());
 
-                let install_result = if let Some(ver) = &version {
+                let install_result = if repair_primary && version.as_deref() != Some("latest") {
+                    install_mgr
+                        .install_runtime_with_version(
+                            &plan.primary.name,
+                            version.as_deref().unwrap_or("latest"),
+                        )
+                        .await
+                        .map_err(|e| EnsureError::InstallFailed {
+                            runtime: plan.primary.name.clone(),
+                            version: version.clone().unwrap_or_else(|| "latest".to_string()),
+                            reason: e.to_string(),
+                        })?
+                } else if let Some(ver) = &version {
                     install_mgr
                         .ensure_version_installed(&plan.primary.name, ver)
                         .await

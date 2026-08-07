@@ -5,7 +5,7 @@ use vx_starlark::{ProviderContext, StarlarkEngine};
 #[rstest::rstest]
 #[case("x64", "Git-2.54.0-64-bit.tar.bz2")]
 #[case("arm64", "Git-2.54.0-arm64.tar.bz2")]
-fn windows_download_includes_bash(#[case] arch: &str, #[case] asset: &str) {
+fn windows_distribution_is_full_git(#[case] arch: &str, #[case] asset: &str) {
     let star_path = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .parent()
         .unwrap()
@@ -26,6 +26,24 @@ fn windows_download_includes_bash(#[case] arch: &str, #[case] asset: &str) {
         .unwrap();
 
     assert!(url.as_str().unwrap().ends_with(asset));
+
+    let layout = StarlarkEngine::new()
+        .call_function(
+            &star_path,
+            &content,
+            "install_layout",
+            &ctx,
+            &[serde_json::json!("2.54.0.windows.1")],
+        )
+        .unwrap();
+    assert_eq!(
+        layout["executable_paths"],
+        serde_json::json!(["bin/git.exe"])
+    );
+    assert_eq!(
+        layout["required_paths"],
+        serde_json::json!(["usr/bin/bash.exe"])
+    );
 }
 
 #[cfg(windows)]
@@ -87,14 +105,23 @@ fn windows_shebang_hook_resolves_external_path_tool() {
     ));
     let path = std::env::join_paths(path_entries).unwrap();
     let vx_home = temp.path().join("vx-home");
+    let version = "2.54.0.windows.1";
+    let stale_git = vx_home.join("store").join("git").join(version);
+    std::fs::create_dir_all(stale_git.join("cmd")).unwrap();
+    std::fs::copy(
+        which::which("git.exe").expect("system Git is required for the stale-cache fixture"),
+        stale_git.join("cmd").join("git.exe"),
+    )
+    .unwrap();
 
     assert_success(&run_vx(
         &vx,
         &repo,
         &vx_home,
         &path,
-        &["git@latest", "init", "--quiet"],
+        &[&format!("git@{version}"), "init", "--quiet"],
     ));
+    assert!(stale_git.join("usr").join("bin").join("bash.exe").is_file());
 
     let hook = repo.join(".git").join("hooks").join("pre-push");
     std::fs::write(
@@ -109,7 +136,7 @@ fn windows_shebang_hook_resolves_external_path_tool() {
         &vx_home,
         &path,
         &[
-            "git@latest",
+            &format!("git@{version}"),
             "-c",
             "core.hooksPath=.git/hooks",
             "hook",
