@@ -6,6 +6,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [0.9.28](https://github.com/loonghao/vx/compare/v0.9.27...v0.9.28) (2026-08-10)
+
+
+### Bug Fixes
+
+* isolate action caches by architecture ([11b13aa](https://github.com/loonghao/vx/commit/11b13aadaacd895516567a4bb6ad98c02e020dac))
+
 ## [0.9.27](https://github.com/loonghao/vx/compare/v0.9.26...v0.9.27) (2026-08-07)
 
 
