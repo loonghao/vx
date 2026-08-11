@@ -269,7 +269,7 @@ dependencies = [
  "reqwest",
  "serde",
  "serde_json",
- "thiserror 2.0.18",
+ "thiserror 2.0.20",
  "url",
  "walkdir",
 ]
@@ -281,7 +281,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8a4b4798a6c02e91378537c63cd6e91726900b595450daa5d487bc3c11e95e1b"
 dependencies = [
  "miette",
- "thiserror 2.0.18",
+ "thiserror 2.0.20",
  "tracing",
 ]
 
@@ -293,7 +293,7 @@ checksum = "dc923121fbc4cc72e9008436b5650b98e56f94b5799df59a1b4f572b5c6a7e6b"
 dependencies = [
  "miette",
  "semver",
- "thiserror 2.0.18",
+ "thiserror 2.0.20",
 ]
 
 [[package]]
@@ -311,7 +311,7 @@ dependencies = [
  "self-replace",
  "serde",
  "tempfile",
- "thiserror 2.0.18",
+ "thiserror 2.0.20",
  "url",
 ]
 
@@ -1530,7 +1530,7 @@ dependencies = [
  "ipnet",
  "jni",
  "rand 0.10.1",
- "thiserror 2.0.18",
+ "thiserror 2.0.20",
  "tinyvec",
  "tokio",
  "tracing",
@@ -1555,7 +1555,7 @@ dependencies = [
  "once_cell",
  "rand 0.9.4",
  "ring",
- "thiserror 2.0.18",
+ "thiserror 2.0.20",
  "tinyvec",
  "tokio",
  "tracing",
@@ -1576,7 +1576,7 @@ dependencies = [
  "prefix-trie",
  "rand 0.10.1",
  "ring",
- "thiserror 2.0.18",
+ "thiserror 2.0.20",
  "tinyvec",
  "tracing",
  "url",
@@ -1598,7 +1598,7 @@ dependencies = [
  "rand 0.9.4",
  "resolv-conf",
  "smallvec",
- "thiserror 2.0.18",
+ "thiserror 2.0.20",
  "tokio",
  "tracing",
 ]
@@ -1624,7 +1624,7 @@ dependencies = [
  "resolv-conf",
  "smallvec",
  "system-configuration",
- "thiserror 2.0.18",
+ "thiserror 2.0.20",
  "tokio",
  "tracing",
 ]
@@ -2022,7 +2022,7 @@ dependencies = [
  "jni-sys",
  "log",
  "simd_cesu8",
- "thiserror 2.0.18",
+ "thiserror 2.0.20",
  "walkdir",
  "windows-link 0.2.1",
 ]
@@ -2525,7 +2525,7 @@ dependencies = [
  "futures-sink",
  "js-sys",
  "pin-project-lite",
- "thiserror 2.0.18",
+ "thiserror 2.0.20",
  "tracing",
 ]
 
@@ -2553,7 +2553,7 @@ dependencies = [
  "percent-encoding",
  "portable-atomic",
  "rand 0.9.4",
- "thiserror 2.0.18",
+ "thiserror 2.0.20",
  "tokio",
  "tokio-stream",
 ]
@@ -2642,7 +2642,7 @@ checksum = "044b1fa4f259f4df9ad5078e587b208f5d288a25407575fcddb9face30c7c692"
 dependencies = [
  "rand 0.9.4",
  "socket2",
- "thiserror 2.0.18",
+ "thiserror 1.0.69",
 ]
 
 [[package]]
@@ -2782,7 +2782,7 @@ dependencies = [
  "rustc-hash",
  "rustls",
  "socket2",
- "thiserror 2.0.18",
+ "thiserror 2.0.20",
  "tokio",
  "tracing",
  "web-time",
@@ -2804,7 +2804,7 @@ dependencies = [
  "rustls",
  "rustls-pki-types",
  "slab",
- "thiserror 2.0.18",
+ "thiserror 2.0.20",
  "tinyvec",
  "tracing",
  "web-time",
@@ -2938,7 +2938,7 @@ checksum = "a4e608c6638b9c18977b00b475ac1f28d14e84b27d8d42f70e0bf1e3dec127ac"
 dependencies = [
  "getrandom 0.2.17",
  "libredox",
- "thiserror 2.0.18",
+ "thiserror 2.0.20",
 ]
 
 [[package]]
@@ -3977,11 +3977,11 @@ dependencies = [
 
 [[package]]
 name = "thiserror"
-version = "2.0.18"
+version = "2.0.20"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4288b5bcbc7920c07a1149a35cf9590a2aa808e0bc1eafaade0b80947865fbc4"
+checksum = "ec86235f5fcc2a73650310756d2ac5b138a5780bbbdfae3eeccec992c435ba4f"
 dependencies = [
- "thiserror-impl 2.0.18",
+ "thiserror-impl 2.0.20",
 ]
 
 [[package]]
@@ -3997,13 +3997,13 @@ dependencies = [
 
 [[package]]
 name = "thiserror-impl"
-version = "2.0.18"
+version = "2.0.20"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ebc4ee7f67670e9b64d05fa4253e753e016c6c95ff35b89b7941d6b856dec1d5"
+checksum = "bc04cd3e1236dd4a98afca4569f2deb3f120e5422a4023be2cb683f8486292af"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.119",
+ "syn 3.0.3",
 ]
 
 [[package]]
@@ -4224,7 +4224,7 @@ dependencies = [
  "indexmap",
  "serde",
  "serde_json",
- "thiserror 2.0.18",
+ "thiserror 2.0.20",
 ]
 
 [[package]]
@@ -4296,7 +4296,7 @@ checksum = "050686193eb999b4bb3bc2acfa891a13da00f79734704c4b8b4ef1a10b368a3c"
 dependencies = [
  "crossbeam-channel",
  "symlink",
- "thiserror 2.0.18",
+ "thiserror 2.0.20",
  "time",
  "tracing-subscriber",
 ]
@@ -4416,7 +4416,7 @@ dependencies = [
  "rustls-webpki",
  "serde",
  "serde_json",
- "thiserror 2.0.18",
+ "thiserror 2.0.20",
  "tokio",
  "tokio-util",
  "toml",
@@ -4555,7 +4555,7 @@ checksum = "051eb1abcf10076295e815102942cc58f9d5e3b4560e46e53c21e8ff6f3af7b1"
 
 [[package]]
 name = "vx"
-version = "0.9.27"
+version = "0.9.28"
 dependencies = [
  "anyhow",
  "assert_cmd",
@@ -4572,20 +4572,20 @@ dependencies = [
 
 [[package]]
 name = "vx-args"
-version = "0.9.27"
+version = "0.9.28"
 dependencies = [
  "indexmap",
  "regex",
  "rstest",
  "serde",
- "thiserror 2.0.18",
+ "thiserror 2.0.20",
  "vx-paths",
  "workspace-hack",
 ]
 
 [[package]]
 name = "vx-bridge"
-version = "0.9.27"
+version = "0.9.28"
 dependencies = [
  "tempfile",
  "tracing",
@@ -4595,7 +4595,7 @@ dependencies = [
 
 [[package]]
 name = "vx-cache"
-version = "0.9.27"
+version = "0.9.28"
 dependencies = [
  "anyhow",
  "bincode",
@@ -4610,7 +4610,7 @@ dependencies = [
 
 [[package]]
 name = "vx-cli"
-version = "0.9.27"
+version = "0.9.28"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4675,7 +4675,7 @@ dependencies = [
 
 [[package]]
 name = "vx-config"
-version = "0.9.27"
+version = "0.9.28"
 dependencies = [
  "anyhow",
  "chrono",
@@ -4688,7 +4688,7 @@ dependencies = [
  "sha2 0.11.0",
  "shellexpand",
  "tempfile",
- "thiserror 2.0.18",
+ "thiserror 2.0.20",
  "toml",
  "toml_edit",
  "tracing",
@@ -4697,7 +4697,7 @@ dependencies = [
 
 [[package]]
 name = "vx-console"
-version = "0.9.27"
+version = "0.9.28"
 dependencies = [
  "anstream",
  "anstyle",
@@ -4710,7 +4710,7 @@ dependencies = [
  "serde",
  "serde_json",
  "terminal_size",
- "thiserror 2.0.18",
+ "thiserror 2.0.20",
  "tokio",
  "windows-sys 0.61.2",
  "workspace-hack",
@@ -4718,7 +4718,7 @@ dependencies = [
 
 [[package]]
 name = "vx-ecosystem-pm"
-version = "0.9.27"
+version = "0.9.28"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4726,7 +4726,7 @@ dependencies = [
  "serde",
  "serde_json",
  "tempfile",
- "thiserror 2.0.18",
+ "thiserror 2.0.20",
  "tokio",
  "tokio-test",
  "tracing",
@@ -4736,7 +4736,7 @@ dependencies = [
 
 [[package]]
 name = "vx-env"
-version = "0.9.27"
+version = "0.9.28"
 dependencies = [
  "anyhow",
  "colored",
@@ -4746,7 +4746,7 @@ dependencies = [
  "rust-embed",
  "shell-words",
  "tempfile",
- "thiserror 2.0.18",
+ "thiserror 2.0.20",
  "tracing",
  "vx-config",
  "vx-paths",
@@ -4758,7 +4758,7 @@ dependencies = [
 
 [[package]]
 name = "vx-extension"
-version = "0.9.27"
+version = "0.9.28"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4766,7 +4766,7 @@ dependencies = [
  "rstest",
  "serde",
  "tempfile",
- "thiserror 2.0.18",
+ "thiserror 2.0.20",
  "tokio",
  "toml",
  "tracing",
@@ -4780,7 +4780,7 @@ dependencies = [
 
 [[package]]
 name = "vx-installer"
-version = "0.9.27"
+version = "0.9.28"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4798,7 +4798,7 @@ dependencies = [
  "sha2 0.11.0",
  "tar",
  "tempfile",
- "thiserror 2.0.18",
+ "thiserror 2.0.20",
  "tokio",
  "tokio-test",
  "tracing",
@@ -4814,14 +4814,14 @@ dependencies = [
 
 [[package]]
 name = "vx-manifest"
-version = "0.9.27"
+version = "0.9.28"
 dependencies = [
  "pretty_assertions",
  "rstest",
  "serde",
  "serde_json",
  "tempfile",
- "thiserror 2.0.18",
+ "thiserror 2.0.20",
  "toml",
  "tracing",
  "vx-paths",
@@ -4832,7 +4832,7 @@ dependencies = [
 
 [[package]]
 name = "vx-metrics"
-version = "0.9.27"
+version = "0.9.28"
 dependencies = [
  "anyhow",
  "chrono",
@@ -4855,7 +4855,7 @@ dependencies = [
 
 [[package]]
 name = "vx-migration"
-version = "0.9.27"
+version = "0.9.28"
 dependencies = [
  "async-trait",
  "chrono",
@@ -4866,7 +4866,7 @@ dependencies = [
  "serde",
  "serde_json",
  "tempfile",
- "thiserror 2.0.18",
+ "thiserror 2.0.20",
  "tokio",
  "toml",
  "tracing",
@@ -4877,14 +4877,14 @@ dependencies = [
 
 [[package]]
 name = "vx-msbuild-bridge"
-version = "0.9.27"
+version = "0.9.28"
 dependencies = [
  "workspace-hack",
 ]
 
 [[package]]
 name = "vx-output-filter"
-version = "0.9.27"
+version = "0.9.28"
 dependencies = [
  "anyhow",
  "regex",
@@ -4898,7 +4898,7 @@ dependencies = [
 
 [[package]]
 name = "vx-paths"
-version = "0.9.27"
+version = "0.9.28"
 dependencies = [
  "anyhow",
  "chrono",
@@ -4907,7 +4907,7 @@ dependencies = [
  "serde",
  "serde_json",
  "tempfile",
- "thiserror 2.0.18",
+ "thiserror 2.0.20",
  "tracing",
  "vx-cache",
  "walkdir",
@@ -4917,7 +4917,7 @@ dependencies = [
 
 [[package]]
 name = "vx-project-analyzer"
-version = "0.9.27"
+version = "0.9.28"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4928,7 +4928,7 @@ dependencies = [
  "serde",
  "serde_json",
  "tempfile",
- "thiserror 2.0.18",
+ "thiserror 2.0.20",
  "tokio",
  "toml",
  "tracing",
@@ -4942,7 +4942,7 @@ dependencies = [
 
 [[package]]
 name = "vx-resolver"
-version = "0.9.27"
+version = "0.9.28"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4955,7 +4955,7 @@ dependencies = [
  "serde_json",
  "sha2 0.11.0",
  "tempfile",
- "thiserror 2.0.18",
+ "thiserror 2.0.20",
  "tokio",
  "tokio-test",
  "toml",
@@ -4976,7 +4976,7 @@ dependencies = [
 
 [[package]]
 name = "vx-runtime"
-version = "0.9.27"
+version = "0.9.28"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4989,7 +4989,7 @@ dependencies = [
  "serde",
  "serde_json",
  "tempfile",
- "thiserror 2.0.18",
+ "thiserror 2.0.20",
  "tokio",
  "tokio-test",
  "toml",
@@ -5006,7 +5006,7 @@ dependencies = [
 
 [[package]]
 name = "vx-runtime-archive"
-version = "0.9.27"
+version = "0.9.28"
 dependencies = [
  "anyhow",
  "flate2",
@@ -5014,7 +5014,7 @@ dependencies = [
  "sevenz-rust",
  "tar",
  "tempfile",
- "thiserror 2.0.18",
+ "thiserror 2.0.20",
  "tokio",
  "tracing",
  "workspace-hack",
@@ -5025,7 +5025,7 @@ dependencies = [
 
 [[package]]
 name = "vx-runtime-core"
-version = "0.9.27"
+version = "0.9.28"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -5033,7 +5033,7 @@ dependencies = [
  "rstest",
  "serde",
  "serde_json",
- "thiserror 2.0.18",
+ "thiserror 2.0.20",
  "tokio",
  "tracing",
  "vx-versions",
@@ -5042,7 +5042,7 @@ dependencies = [
 
 [[package]]
 name = "vx-runtime-http"
-version = "0.9.27"
+version = "0.9.28"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -5075,7 +5075,7 @@ dependencies = [
 
 [[package]]
 name = "vx-setup"
-version = "0.9.27"
+version = "0.9.28"
 dependencies = [
  "anyhow",
  "chrono",
@@ -5084,7 +5084,7 @@ dependencies = [
  "serde_json",
  "shellexpand",
  "tempfile",
- "thiserror 2.0.18",
+ "thiserror 2.0.20",
  "tokio",
  "vx-paths",
  "workspace-hack",
@@ -5092,13 +5092,13 @@ dependencies = [
 
 [[package]]
 name = "vx-shim"
-version = "0.9.27"
+version = "0.9.28"
 dependencies = [
  "anyhow",
  "serde",
  "serde_json",
  "tempfile",
- "thiserror 2.0.18",
+ "thiserror 2.0.20",
  "tokio",
  "tracing",
  "vx-env",
@@ -5110,11 +5110,11 @@ dependencies = [
 
 [[package]]
 name = "vx-star-metadata"
-version = "0.9.27"
+version = "0.9.28"
 
 [[package]]
 name = "vx-starlark"
-version = "0.9.27"
+version = "0.9.28"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -5129,7 +5129,7 @@ dependencies = [
  "starlark",
  "starlark_derive 0.14.2",
  "tempfile",
- "thiserror 2.0.18",
+ "thiserror 2.0.20",
  "tokio",
  "tokio-test",
  "tracing",
@@ -5144,7 +5144,7 @@ dependencies = [
 
 [[package]]
 name = "vx-system-pm"
-version = "0.9.27"
+version = "0.9.28"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -5154,7 +5154,7 @@ dependencies = [
  "serde",
  "serde_json",
  "tempfile",
- "thiserror 2.0.18",
+ "thiserror 2.0.20",
  "tokio",
  "tokio-test",
  "toml",
@@ -5167,14 +5167,14 @@ dependencies = [
 
 [[package]]
 name = "vx-version-fetcher"
-version = "0.9.27"
+version = "0.9.28"
 dependencies = [
  "anyhow",
  "async-trait",
  "rstest",
  "serde",
  "serde_json",
- "thiserror 2.0.18",
+ "thiserror 2.0.20",
  "tokio",
  "tokio-test",
  "tracing",
@@ -5185,7 +5185,7 @@ dependencies = [
 
 [[package]]
 name = "vx-versions"
-version = "0.9.27"
+version = "0.9.28"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -5195,7 +5195,7 @@ dependencies = [
  "serde",
  "serde_json",
  "tempfile",
- "thiserror 2.0.18",
+ "thiserror 2.0.20",
  "tracing",
  "vx-cache",
  "workspace-hack",
@@ -5690,7 +5690,7 @@ dependencies = [
  "slab",
  "smallvec",
  "syn 2.0.119",
- "thiserror 2.0.18",
+ "thiserror 2.0.20",
  "time",
  "time-macros",
  "tokio",
