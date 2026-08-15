@@ -104,6 +104,20 @@ impl Runtime for CountingRuntime {
                 components.to_string(),
             );
         }
+        // Simulate a toolchain environment whose PATH/INCLUDE/LIB must be
+        // prepended to the primary runtime's environment (not dropped).
+        environment.insert(
+            "PATH".to_string(),
+            "C:/companion/toolchain/bin".to_string(),
+        );
+        environment.insert(
+            "INCLUDE".to_string(),
+            "C:/companion/toolchain/include".to_string(),
+        );
+        environment.insert(
+            "LIB".to_string(),
+            "C:/companion/toolchain/lib".to_string(),
+        );
         Ok(environment)
     }
 }
@@ -149,6 +163,10 @@ fn create_mock_executable(dir: &std::path::Path, name: &str) -> PathBuf {
 }
 
 fn create_runtime_map(path_prepend: &str) -> RuntimeMap {
+    create_runtime_map_named("uvx", "uv", path_prepend)
+}
+
+fn create_runtime_map_named(name: &str, executable: &str, path_prepend: &str) -> RuntimeMap {
     let escaped_path = path_prepend.replace('\\', "\\\\");
     let manifest = ProviderManifest::parse(&format!(
         r#"
@@ -157,13 +175,12 @@ name = "test"
 ecosystem = "custom"
 
 [[runtimes]]
-name = "uvx"
-executable = "uv"
+name = "{name}"
+executable = "{executable}"
 
 [runtimes.env.advanced]
-path_prepend = ["{}"]
-"#,
-        escaped_path
+path_prepend = ["{escaped_path}"]
+"#
     ))
     .expect("manifest should parse");
 
@@ -362,4 +379,74 @@ async fn prepare_stage_skips_broken_companion_with_install_options_without_repai
     assert_eq!(install_count.load(Ordering::SeqCst), 0);
     assert_eq!(prepare_count.load(Ordering::SeqCst), 0);
     assert!(!prepared.env.contains_key("VX_COMPANION_MARKER"));
+}
+
+#[tokio::test]
+async fn prepare_stage_prepends_companion_toolchain_environment() {
+    let temp_dir = tempdir().expect("temp dir should be created");
+    let primary_bin = temp_dir.path().join("primary-bin");
+
+    let config = ResolverConfig::default();
+    let runtime_map =
+        create_runtime_map_named("cargo", "cargo", &primary_bin.to_string_lossy());
+    let resolver = Resolver::new(config.clone(), runtime_map).expect("resolver should build");
+    let registry = ProviderRegistry::new();
+    let context = mock_context();
+    let install_count = Arc::new(AtomicUsize::new(0));
+    let prepare_count = Arc::new(AtomicUsize::new(0));
+
+    registry.register(Arc::new(TestProvider {
+        runtimes: vec![
+            Arc::new(BundledRuntime {
+                name: "cargo",
+                executable: "cargo",
+            }),
+            Arc::new(CountingRuntime {
+                name: "msvc",
+                executable: "cl",
+                installed_versions: vec!["system".to_string()],
+                installed_error: None,
+                install_count: install_count.clone(),
+                prepare_count: prepare_count.clone(),
+            }),
+        ],
+    }));
+
+    let project_config = ProjectToolsConfig::from_tools(HashMap::from([(
+        "msvc".to_string(),
+        "14.42".to_string(),
+    )]));
+    let stage = PrepareStage::new(&resolver, &config, Some(&registry), Some(&context))
+        .with_project_config(&project_config);
+    let plan = ExecutionPlan::new(
+        PlannedRuntime::installed(
+            "cargo",
+            "1.0.0".to_string(),
+            PathBuf::from("/usr/bin/cargo"),
+        ),
+        ExecutionConfig::default(),
+    );
+
+    let prepared = stage
+        .execute(plan)
+        .await
+        .expect("companion environment should be prepended to primary PATH");
+
+    let path = prepared.env.get("PATH").expect("PATH should be present");
+    assert!(
+        path.starts_with("C:/companion/toolchain/bin"),
+        "companion toolchain bin should be first on PATH, got: {path}"
+    );
+    assert!(
+        path.contains(&primary_bin.to_string_lossy().to_string()),
+        "primary bin dir should remain on PATH, got: {path}"
+    );
+    assert_eq!(
+        prepared.env.get("INCLUDE").map(String::as_str),
+        Some("C:/companion/toolchain/include")
+    );
+    assert_eq!(
+        prepared.env.get("LIB").map(String::as_str),
+        Some("C:/companion/toolchain/lib")
+    );
 }

@@ -582,9 +582,37 @@ impl<'a> EnvironmentManager<'a> {
                                 companion_env.len()
                             );
                             // Merge companion env, but don't override existing vars
-                            // (primary runtime's vars take precedence)
+                            // (primary runtime's vars take precedence).
+                            //
+                            // Exception: PATH/INCLUDE/LIB from a companion (e.g. MSVC)
+                            // must be PREPENDED rather than dropped. The primary runtime
+                            // (e.g. cargo) already sets PATH, so a plain `or_insert`
+                            // would discard the companion's toolchain directories and
+                            // leave build tools (cc::windows_registry, cargo) resolving
+                            // the wrong compiler/toolset.
                             for (key, value) in companion_env {
-                                env.entry(key).or_insert(value);
+                                if key.eq_ignore_ascii_case("PATH")
+                                    || key.eq_ignore_ascii_case("INCLUDE")
+                                    || key.eq_ignore_ascii_case("LIB")
+                                {
+                                    // Look up case-insensitively: Windows env vars
+                                    // are case-insensitive and the inherited primary
+                                    // environment may store them as "Path" etc.
+                                    let existing = env
+                                        .iter()
+                                        .find(|(k, _)| k.eq_ignore_ascii_case(&key))
+                                        .map(|(_, v)| v.clone());
+                                    let merged = match existing {
+                                        Some(existing) => {
+                                            vx_paths::prepend_to_path(&existing, &[value.as_str()])
+                                        }
+                                        None => value,
+                                    };
+                                    env.retain(|k, _| !k.eq_ignore_ascii_case(&key));
+                                    env.insert(key, merged);
+                                } else {
+                                    env.entry(key).or_insert(value);
+                                }
                             }
                         }
                     }

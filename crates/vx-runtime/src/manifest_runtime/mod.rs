@@ -114,12 +114,33 @@ fn has_spectre_libs(cl_path: &Path) -> bool {
 
 #[cfg(windows)]
 fn find_msvc_cl(patterns: &[String], require_spectre: bool) -> Option<PathBuf> {
-    patterns.iter().find_map(|pattern| {
-        glob::glob(pattern)
-            .ok()?
-            .filter_map(Result::ok)
-            .find(|path| path.is_file() && (!require_spectre || has_spectre_libs(path)))
-    })
+    // Prefer a toolchain that ships Spectre-mitigated libraries so that build
+    // scripts (e.g. `msvc_spectre_libs`) which resolve `cl.exe` through
+    // `cc::windows_registry` pick a toolchain whose `lib\spectre\<arch>`
+    // directory exists. When no toolchain has Spectre libs, fall back to the
+    // first available `cl.exe` (unless Spectre is explicitly required).
+    let mut fallback = None;
+    for pattern in patterns {
+        let Ok(paths) = glob::glob(pattern) else {
+            continue;
+        };
+        for path in paths.filter_map(Result::ok) {
+            if !path.is_file() {
+                continue;
+            }
+            if has_spectre_libs(&path) {
+                return Some(path);
+            }
+            if fallback.is_none() {
+                fallback = Some(path);
+            }
+        }
+    }
+    if require_spectre {
+        None
+    } else {
+        fallback
+    }
 }
 
 #[cfg(windows)]
@@ -1529,5 +1550,92 @@ mod tests {
         assert_eq!(runtime.name(), "fd");
         assert_eq!(runtime.description(), "A simple, fast alternative to find");
         assert_eq!(runtime.install_strategies.len(), 1);
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn test_find_msvc_cl_prefers_spectre_toolchain() {
+        let temp = tempfile::tempdir().expect("temp dir should be created");
+        let root = temp.path();
+
+        // Toolchain without Spectre-mitigated libraries.
+        let old_cl = root
+            .join("MSVC")
+            .join("14.36.32532")
+            .join("bin")
+            .join("Hostx64")
+            .join("x64")
+            .join("cl.exe");
+        std::fs::create_dir_all(old_cl.parent().expect("parent exists"))
+            .expect("directories should be created");
+        std::fs::write(&old_cl, b"").expect("cl.exe should be created");
+
+        // Toolchain with Spectre-mitigated libraries.
+        let new_cl = root
+            .join("MSVC")
+            .join("14.44.35207")
+            .join("bin")
+            .join("Hostx64")
+            .join("x64")
+            .join("cl.exe");
+        std::fs::create_dir_all(new_cl.parent().expect("parent exists"))
+            .expect("directories should be created");
+        std::fs::write(&new_cl, b"").expect("cl.exe should be created");
+        std::fs::create_dir_all(
+            root.join("MSVC")
+                .join("14.44.35207")
+                .join("lib")
+                .join("spectre")
+                .join("x64"),
+        )
+        .expect("spectre lib directory should be created");
+
+        let root_fwd = root
+            .to_string_lossy()
+            .to_string()
+            .replace(std::path::MAIN_SEPARATOR, "/");
+        let pattern = format!("{root_fwd}/MSVC/*/bin/Hostx64/x64/cl.exe");
+        let patterns = vec![pattern];
+
+        // The Spectre-capable toolchain must be preferred over the spectre-less one.
+        assert_eq!(
+            find_msvc_cl(&patterns, false).as_deref(),
+            Some(new_cl.as_path())
+        );
+        // Explicitly requiring Spectre still resolves the Spectre-capable toolchain.
+        assert_eq!(
+            find_msvc_cl(&patterns, true).as_deref(),
+            Some(new_cl.as_path())
+        );
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn test_find_msvc_cl_requires_spectre_when_none_available() {
+        let temp = tempfile::tempdir().expect("temp dir should be created");
+        let root = temp.path();
+
+        let cl = root
+            .join("MSVC")
+            .join("14.36.32532")
+            .join("bin")
+            .join("Hostx64")
+            .join("x64")
+            .join("cl.exe");
+        std::fs::create_dir_all(cl.parent().expect("parent exists"))
+            .expect("directories should be created");
+        std::fs::write(&cl, b"").expect("cl.exe should be created");
+
+        let root_fwd = root
+            .to_string_lossy()
+            .to_string()
+            .replace(std::path::MAIN_SEPARATOR, "/");
+        let pattern = format!("{root_fwd}/MSVC/*/bin/Hostx64/x64/cl.exe");
+        let patterns = vec![pattern];
+
+        // Without a Spectre requirement the plain toolchain is still usable.
+        assert_eq!(find_msvc_cl(&patterns, false).as_deref(), Some(cl.as_path()));
+        // With a Spectre requirement and none available, resolution fails.
+        assert!(find_msvc_cl(&patterns, true).is_none());
     }
 }
