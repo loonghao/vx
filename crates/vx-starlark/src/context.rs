@@ -31,6 +31,61 @@ impl PlatformInfo {
         }
     }
 
+    /// Create platform info from a [`vx_runtime::Platform`].
+    ///
+    /// Maps the runtime platform enums to the string values expected by
+    /// `provider.star` scripts (`ctx.platform.os` / `ctx.platform.arch`), e.g.
+    /// `Os::MacOS` maps to `"macos"` (not `"darwin"`).
+    ///
+    /// Used by `vx lock` to generate per-platform download URLs: the download
+    /// URL closure overrides `ctx.platform` with the requested target platform
+    /// before evaluating the script's `download_url(ctx, version)` function.
+    pub fn from_runtime_platform(platform: &vx_runtime::Platform) -> Self {
+        let os = match platform.os {
+            vx_runtime::Os::Windows => "windows",
+            vx_runtime::Os::MacOS => "macos",
+            vx_runtime::Os::Linux => "linux",
+            vx_runtime::Os::FreeBSD => "freebsd",
+            vx_runtime::Os::Unknown => "unknown",
+        };
+        let arch = match platform.arch {
+            vx_runtime::Arch::X86_64 => "x64",
+            vx_runtime::Arch::Aarch64 => "arm64",
+            vx_runtime::Arch::Arm => "arm",
+            vx_runtime::Arch::Armv7 => "armv7",
+            vx_runtime::Arch::X86 => "x86",
+            vx_runtime::Arch::PowerPC64 => "ppc64",
+            vx_runtime::Arch::PowerPC64LE => "ppc64le",
+            vx_runtime::Arch::S390x => "s390x",
+            vx_runtime::Arch::Riscv64 => "riscv64",
+            vx_runtime::Arch::Unknown => "unknown",
+        };
+        let arch_triple = match platform.arch {
+            vx_runtime::Arch::X86_64 => "x86_64",
+            vx_runtime::Arch::Aarch64 => "aarch64",
+            vx_runtime::Arch::Arm => "arm",
+            vx_runtime::Arch::Armv7 => "armv7",
+            vx_runtime::Arch::X86 => "i686",
+            vx_runtime::Arch::PowerPC64 => "powerpc64",
+            vx_runtime::Arch::PowerPC64LE => "powerpc64le",
+            vx_runtime::Arch::S390x => "s390x",
+            vx_runtime::Arch::Riscv64 => "riscv64",
+            vx_runtime::Arch::Unknown => "unknown",
+        };
+        let os_triple = match platform.os {
+            vx_runtime::Os::Windows => "pc-windows-msvc",
+            vx_runtime::Os::MacOS => "apple-darwin",
+            vx_runtime::Os::Linux => "unknown-linux-gnu",
+            vx_runtime::Os::FreeBSD => "unknown-freebsd",
+            vx_runtime::Os::Unknown => "unknown",
+        };
+        Self {
+            os: os.to_string(),
+            arch: arch.to_string(),
+            target: format!("{}-{}", arch_triple, os_triple),
+        }
+    }
+
     fn detect_os() -> String {
         if cfg!(target_os = "windows") {
             "windows".to_string()
@@ -353,6 +408,15 @@ impl ProviderContext {
         self
     }
 
+    /// Override the platform exposed to scripts.
+    ///
+    /// Used when generating download URLs for a target platform other than
+    /// the host (see [`PlatformInfo::from_runtime_platform`]).
+    pub fn with_platform(mut self, platform: PlatformInfo) -> Self {
+        self.platform = platform;
+        self
+    }
+
     /// Set environment variables
     pub fn with_env(mut self, env: HashMap<String, String>) -> Self {
         self.env = env;
@@ -500,5 +564,32 @@ impl ProviderContext {
         } else {
             s == pattern
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_platform_info_from_runtime_platform() {
+        let macos = vx_runtime::Platform::new(vx_runtime::Os::MacOS, vx_runtime::Arch::Aarch64);
+        let info = PlatformInfo::from_runtime_platform(&macos);
+        assert_eq!(info.os, "macos");
+        assert_eq!(info.arch, "arm64");
+        assert_eq!(info.target, "aarch64-apple-darwin");
+
+        let windows =
+            vx_runtime::Platform::new(vx_runtime::Os::Windows, vx_runtime::Arch::X86_64);
+        let info = PlatformInfo::from_runtime_platform(&windows);
+        assert_eq!(info.os, "windows");
+        assert_eq!(info.arch, "x64");
+        assert_eq!(info.target, "x86_64-pc-windows-msvc");
+
+        let linux = vx_runtime::Platform::new(vx_runtime::Os::Linux, vx_runtime::Arch::X86);
+        let info = PlatformInfo::from_runtime_platform(&linux);
+        assert_eq!(info.os, "linux");
+        assert_eq!(info.arch, "x86");
+        assert_eq!(info.target, "i686-unknown-linux-gnu");
     }
 }
