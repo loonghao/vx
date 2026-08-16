@@ -248,10 +248,14 @@ pub type FetchVersionsFn = Arc<
 
 /// Type alias for an async `download_url` function injected from Starlark providers.
 ///
-/// Signature: `(version: String) -> Option<String>`
+/// Signature: `(version: String, platform: Platform) -> Option<String>`
+///
+/// The platform parameter lets Starlark-backed runtimes compute download URLs
+/// for a specific target platform (used by `vx lock` to fill `platform_urls`).
 pub type DownloadUrlFn = Arc<
     dyn Fn(
             String,
+            crate::platform::Platform,
         )
             -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<Option<String>>> + Send>>
         + Send
@@ -582,6 +586,7 @@ impl ManifestDrivenRuntime {
     where
         F: Fn(
                 String,
+                crate::platform::Platform,
             ) -> std::pin::Pin<
                 Box<dyn std::future::Future<Output = Result<Option<String>>> + Send>,
             > + Send
@@ -1286,7 +1291,7 @@ impl Runtime for ManifestDrivenRuntime {
 
     async fn download_url(&self, version: &str, platform: &Platform) -> Result<Option<String>> {
         if let Some(ref f) = self.download_url_fn {
-            return f(version.to_string()).await;
+            return f(version.to_string(), platform.clone()).await;
         }
 
         for strategy in &self.install_strategies {
