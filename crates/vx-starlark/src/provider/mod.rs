@@ -386,7 +386,7 @@ impl StarlarkProvider {
             .with_version(version);
 
         if let Some(platform) = platform {
-            ctx = ctx.with_platform(platform.clone());
+            ctx = ctx.with_platform(platform);
         }
         if let Some(date) = version_date {
             ctx = ctx.with_version_date(date);
