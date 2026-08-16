@@ -339,3 +339,26 @@ fn test_platform_os_checks() {
     assert!(!macos.is_linux());
     assert!(macos.is_macos());
 }
+
+/// `download_url_fn` must receive the requested target platform so
+/// Starlark-backed providers can compute per-platform URLs
+/// (e.g. for `vx lock` `platform_urls`).
+#[tokio::test]
+async fn test_download_url_fn_receives_requested_platform() {
+    let runtime = ManifestDrivenRuntime::new("test-tool", "test-tool", ProviderSource::BuiltIn)
+        .with_download_url(|version: String, platform: Platform| {
+            Box::pin(async move { Ok(Some(format!("{version}-{}", platform.as_str()))) })
+        });
+
+    let url = runtime
+        .download_url("1.2.3", &Platform::new(Os::Linux, Arch::Aarch64))
+        .await
+        .expect("download_url should resolve");
+    assert_eq!(url.as_deref(), Some("1.2.3-linux-arm64"));
+
+    let url = runtime
+        .download_url("1.2.3", &Platform::new(Os::Windows, Arch::X86_64))
+        .await
+        .expect("download_url should resolve");
+    assert_eq!(url.as_deref(), Some("1.2.3-windows-x64"));
+}
