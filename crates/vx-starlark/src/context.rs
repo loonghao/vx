@@ -412,8 +412,8 @@ impl ProviderContext {
     ///
     /// Used when generating download URLs for a target platform other than
     /// the host (see [`PlatformInfo::from_runtime_platform`]).
-    pub fn with_platform(mut self, platform: PlatformInfo) -> Self {
-        self.platform = platform;
+    pub fn with_platform(mut self, platform: &PlatformInfo) -> Self {
+        self.platform = platform.clone();
         self
     }
 
