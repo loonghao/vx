@@ -25,7 +25,7 @@ pub mod types;
 pub mod version_cache;
 mod versions;
 
-use crate::context::{InstallResult, ProviderContext, VersionInfo};
+use crate::context::{InstallResult, PlatformInfo, ProviderContext, VersionInfo};
 use crate::engine::{FrozenProviderInfo, StarlarkEngine};
 use crate::error::{Error, Result};
 use crate::sandbox::SandboxConfig;
@@ -323,13 +323,17 @@ impl StarlarkProvider {
 
     /// Call the `download_url` function
     pub async fn download_url(&self, version: &str) -> Result<Option<String>> {
-        self.download_url_for_runtime(version, None).await
+        self.download_url_for_runtime(version, None, None).await
     }
 
     /// Call the `download_url` function for a specific runtime within a multi-runtime provider.
     ///
     /// Passes `ctx.runtime_name` so that providers can dispatch to the correct
     /// download URL for each runtime (e.g. different GitHub repos for yazi vs starship).
+    ///
+    /// When `platform` is provided, `ctx.platform` is overridden with it before
+    /// evaluation, so the script computes the download URL for that platform.
+    /// This is used by `vx lock` to populate per-platform `platform_urls`.
     ///
     /// For providers that depend on `ctx.version_date` (e.g. python-build-standalone),
     /// this method will automatically trigger a `fetch_versions` call to populate the
@@ -339,6 +343,7 @@ impl StarlarkProvider {
         &self,
         version: &str,
         runtime_name: Option<&str>,
+        platform: Option<&PlatformInfo>,
     ) -> Result<Option<String>> {
         // Look up the build tag (date) for this version from the version cache.
         // This is needed by providers like python-build-standalone where the
@@ -380,6 +385,9 @@ impl StarlarkProvider {
             .with_sandbox(self.sandbox.clone())
             .with_version(version);
 
+        if let Some(platform) = platform {
+            ctx = ctx.with_platform(platform.clone());
+        }
         if let Some(date) = version_date {
             ctx = ctx.with_version_date(date);
         }
