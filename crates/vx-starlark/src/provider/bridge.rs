@@ -59,6 +59,8 @@ pub fn make_download_url_fn(
     let name: Arc<str> = Arc::from(name.into());
     let content: Arc<str> = Arc::from(content.into());
     move |version: String, platform: vx_runtime::Platform| {
+        let name = Arc::clone(&name);
+        let content = Arc::clone(&content);
         Box::pin(async move {
             let provider = StarlarkProvider::from_content(&*name, &*content)
                 .await
