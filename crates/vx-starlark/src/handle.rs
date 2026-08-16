@@ -548,7 +548,7 @@ impl ProviderHandle {
     /// Delegates to provider.star::download_url
     pub async fn download_url(&self, version: &str) -> Result<Option<String>> {
         self.star
-            .download_url_for_runtime(version, self.runtime_name.as_deref())
+            .download_url_for_runtime(version, self.runtime_name.as_deref(), None)
             .await
     }
 
