@@ -6,6 +6,21 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [0.9.29](https://github.com/loonghao/vx/compare/v0.9.28...v0.9.29) (2026-08-16)
+
+
+### Bug Fixes
+
+* **providers:** repair compile errors in platform threading ([e250808](https://github.com/loonghao/vx/commit/e2508084930ef6d83e89ae6a5a38acaa6290b6b8))
+* **providers:** repair compile errors in platform threading ([69b42bf](https://github.com/loonghao/vx/commit/69b42bf6094bcc329a6b2ef2ba4330cf6bc1f3eb))
+* **providers:** repair compile errors in platform threading ([f608c7f](https://github.com/loonghao/vx/commit/f608c7f132288d510e083b1bade66000a2a38582))
+* **providers:** repair compile errors in platform threading ([caeeaa6](https://github.com/loonghao/vx/commit/caeeaa637ea7b44748652ec34ac7f5dfcf893a9a))
+* **providers:** thread target platform through Starlark download_url for cross-platform lock URLs ([0c342c2](https://github.com/loonghao/vx/commit/0c342c2d16e30148d1c567572616d9f8615c8a68))
+* **providers:** thread target platform through Starlark download_url for cross-platform lock URLs ([1e97989](https://github.com/loonghao/vx/commit/1e97989d15442f493b8cc3aff976d48ffffe6420))
+* **providers:** thread target platform through Starlark download_url for cross-platform lock URLs ([213ce58](https://github.com/loonghao/vx/commit/213ce58df6ddb0172d27cf5c6d59f0493f1a0017))
+* **providers:** thread target platform through Starlark download_url for cross-platform lock URLs ([8f90184](https://github.com/loonghao/vx/commit/8f90184bf7bda6ffe47155c5017a519bae85ede3))
+* **providers:** thread target platform through Starlark download_url for cross-platform lock URLs ([c1efe59](https://github.com/loonghao/vx/commit/c1efe59f57095f1e950a2ed7943d371ab0978b2e))
+
 ## [0.9.28](https://github.com/loonghao/vx/compare/v0.9.27...v0.9.28) (2026-08-10)
 
 
