@@ -579,8 +579,7 @@ mod tests {
         assert_eq!(info.arch, "arm64");
         assert_eq!(info.target, "aarch64-apple-darwin");
 
-        let windows =
-            vx_runtime::Platform::new(vx_runtime::Os::Windows, vx_runtime::Arch::X86_64);
+        let windows = vx_runtime::Platform::new(vx_runtime::Os::Windows, vx_runtime::Arch::X86_64);
         let info = PlatformInfo::from_runtime_platform(&windows);
         assert_eq!(info.os, "windows");
         assert_eq!(info.arch, "x64");

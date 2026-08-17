@@ -119,7 +119,7 @@ async fn manifest_runtime_repairs_incomplete_managed_installation() {
         }),
     );
     let runtime = ManifestDrivenRuntime::new("tool", "tool", ProviderSource::BuiltIn)
-        .with_download_url(|_| {
+        .with_download_url(|_, _| {
             Box::pin(async { Ok(Some("https://example.invalid/tool.zip".to_string())) })
         })
         .with_install_layout(|_| {
