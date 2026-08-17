@@ -6,6 +6,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [0.9.30](https://github.com/loonghao/vx/compare/v0.9.29...v0.9.30) (2026-08-17)
+
+
+### Bug Fixes
+
+* repair Scoop publishing for vx releases ([2ac9a1e](https://github.com/loonghao/vx/commit/2ac9a1e7629bd7d62fadaeca26c8f748b349f30e))
+
 ## [0.9.29](https://github.com/loonghao/vx/compare/v0.9.28...v0.9.29) (2026-08-16)
 
 
