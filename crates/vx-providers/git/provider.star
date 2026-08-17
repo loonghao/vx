@@ -1,7 +1,7 @@
 # provider.star - Git provider
 #
 # Git - Distributed version control system
-# Windows: portable Git from git-for-windows (7z.exe self-extracting)
+# Windows: full Git for Windows tar archive
 # macOS/Linux: system package manager
 #
 # Uses stdlib templates from @vx//stdlib:provider.star
@@ -47,7 +47,7 @@ permissions = github_permissions()
 fetch_versions = make_fetch_versions("git-for-windows", "git")
 
 # ---------------------------------------------------------------------------
-# download_url — Windows-only portable Git (MinGit ZIP)
+# download_url — Windows-only full Git archive
 # macOS/Linux use system package manager
 #
 # Version format: "{base}.windows.{N}" (e.g. "2.53.0.windows.2")
@@ -56,13 +56,9 @@ fetch_versions = make_fetch_versions("git-for-windows", "git")
 #   N=1 → "{base}"       (e.g. "2.53.0")
 #   N>1 → "{base}.{N}"   (e.g. "2.53.0.2")
 #
-# We use MinGit (minimal portable git) rather than PortableGit because:
-# - MinGit ships as a plain ZIP archive (reliable extraction, no 7z/SFX needed)
-# - PortableGit ships as a .7z.exe self-extracting archive (7z SFX extraction
-#   is fragile: `sevenz_rust` may fail to find the 7z archive inside the PE stub)
-# - MinGit contains cmd/git.exe + mingw64/bin/git.exe — identical layout to
-#   PortableGit, just without GUI tools (git-gui, gitk) and bash interactivity
-# - For vx use-cases (scripted git execution), MinGit is fully sufficient
+# The full tar.bz2 distribution includes bash for #!/usr/bin/env bash hooks.
+# Unlike PortableGit's .7z.exe, it is also a regular archive vx can extract
+# without handling a self-extracting PE wrapper.
 # ---------------------------------------------------------------------------
 
 def _parse_git_version(version):
@@ -98,14 +94,10 @@ def download_url(ctx, version):
     # Asset filename uses "{base}" for .windows.1, "{base}.{N}" for .windows.N>1
     asset_ver = "{}.{}".format(base, n) if n > 1 else base
 
-    # Use MinGit ZIP (standard ZIP, reliably extractable) instead of PortableGit
-    # .7z.exe (self-extracting archive requiring 7z SFX support).
     if ctx.platform.arch == "x64":
-        asset = "MinGit-{}-64-bit.zip".format(asset_ver)
+        asset = "Git-{}-64-bit.tar.bz2".format(asset_ver)
     elif ctx.platform.arch == "arm64":
-        asset = "MinGit-{}-arm64.zip".format(asset_ver)
-    elif ctx.platform.arch == "x86":
-        asset = "MinGit-{}-32-bit.zip".format(asset_ver)
+        asset = "Git-{}-arm64.tar.bz2".format(asset_ver)
     else:
         return None
 
@@ -115,21 +107,25 @@ def download_url(ctx, version):
 # install_layout
 # ---------------------------------------------------------------------------
 
-# MinGit ZIP extracted layout:
+# Full Git tar.bz2 extracted layout:
 #   <install_dir>/
-#     cmd/git.exe          ← cmd-style wrapper (primary entry point)
+#     bin/git.exe          ← full-distribution entry point and migration marker
+#     cmd/git.exe          ← cmd-style wrapper
 #     mingw64/bin/git.exe  ← real MinGW git binary
 #     mingw64/bin/...      ← other git tools
+#     usr/bin/bash.exe     ← interpreter for common Git hooks
 #
-# The ZIP is extracted directly into install_dir with no top-level directory,
+# The archive is extracted directly into install_dir with no top-level directory,
 # so strip_prefix="" (auto-detect) will NOT attempt to strip any prefix.
-# We list candidate paths so the installer can verify the correct one.
+# MinGit lacks bin/git.exe and usr/bin/bash.exe. Requiring both full-distribution
+# paths lets vx repair older cached MinGit installs automatically.
 def install_layout(ctx, _version):
     if ctx.platform.os == "windows":
         return {
             "type":             "archive",
             "strip_prefix":     "",
-            "executable_paths": ["cmd/git.exe", "mingw64/bin/git.exe", "git.exe"],
+            "executable_paths": ["bin/git.exe"],
+            "required_paths":   ["usr/bin/bash.exe"],
         }
     # Non-Windows: plain archive (or system install — download_url returns None)
     return {
@@ -162,15 +158,15 @@ store_root = _paths["store_root"]
 def get_execute_path(ctx, _version):
     """Return the path to the git executable inside the install dir.
 
-    PortableGit for Windows extracts to a directory tree; the canonical
-    entry point is cmd/git.exe (the cmd-shell wrapper) which is on PATH.
-    The real MinGW binary lives at mingw64/bin/git.exe.
+    Git for Windows extracts to a directory tree; the canonical
+    entry point is bin/git.exe. Its presence also distinguishes the full
+    distribution from older MinGit installs that do not include Bash.
 
     On non-Windows the tool is managed by the system package manager,
     so install_dir points to the vx store where we placed the binary.
     """
     if ctx.platform.os == "windows":
-        return ctx.install_dir + "/cmd/git.exe"
+        return ctx.install_dir + "/bin/git.exe"
     return ctx.install_dir + "/bin/git"
 
 def post_install(_ctx, _version):

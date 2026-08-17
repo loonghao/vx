@@ -25,6 +25,7 @@ pub enum InstallLayout {
         url: Option<String>,
         strip_prefix: Option<String>,
         executable_paths: Vec<String>,
+        required_paths: Vec<String>,
     },
     /// Single binary installation
     Binary {
@@ -57,6 +58,7 @@ impl InstallLayout {
                 url,
                 strip_prefix,
                 executable_paths,
+                required_paths,
             } => {
                 let mut map = serde_json::Map::new();
                 if let Some(u) = url {
@@ -74,6 +76,17 @@ impl InstallLayout {
                             .collect(),
                     ),
                 );
+                if !required_paths.is_empty() {
+                    map.insert(
+                        "required_paths".into(),
+                        serde_json::Value::Array(
+                            required_paths
+                                .into_iter()
+                                .map(serde_json::Value::String)
+                                .collect(),
+                        ),
+                    );
+                }
                 serde_json::Value::Object(map)
             }
             InstallLayout::Binary {

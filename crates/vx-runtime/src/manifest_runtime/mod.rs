@@ -136,11 +136,7 @@ fn find_msvc_cl(patterns: &[String], require_spectre: bool) -> Option<PathBuf> {
             }
         }
     }
-    if require_spectre {
-        None
-    } else {
-        fallback
-    }
+    if require_spectre { None } else { fallback }
 }
 
 #[cfg(windows)]
@@ -269,10 +265,14 @@ pub type FetchVersionsFn = Arc<
 
 /// Type alias for an async `download_url` function injected from Starlark providers.
 ///
-/// Signature: `(version: String) -> Option<String>`
+/// Signature: `(version: String, platform: Platform) -> Option<String>`
+///
+/// The platform parameter lets Starlark-backed runtimes compute download URLs
+/// for a specific target platform (used by `vx lock` to fill `platform_urls`).
 pub type DownloadUrlFn = Arc<
     dyn Fn(
             String,
+            crate::platform::Platform,
         )
             -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<Option<String>>> + Send>>
         + Send
@@ -603,6 +603,7 @@ impl ManifestDrivenRuntime {
     where
         F: Fn(
                 String,
+                crate::platform::Platform,
             ) -> std::pin::Pin<
                 Box<dyn std::future::Future<Output = Result<Option<String>>> + Send>,
             > + Send
@@ -719,6 +720,61 @@ impl ManifestDrivenRuntime {
         }
 
         install_dir.join(vx_paths::with_executable_extension(&self.executable))
+    }
+
+    pub(crate) fn layout_executable_exists(
+        &self,
+        install_dir: &std::path::Path,
+        layout: &serde_json::Value,
+        ctx: &RuntimeContext,
+    ) -> bool {
+        ctx.fs
+            .exists(&self.resolve_exe_path_from_layout(install_dir, layout))
+            && layout
+                .get("required_paths")
+                .and_then(|paths| paths.as_array())
+                .is_none_or(|paths| {
+                    paths.iter().all(|path| {
+                        path.as_str()
+                            .is_some_and(|path| ctx.fs.exists(&install_dir.join(path)))
+                    })
+                })
+    }
+
+    async fn managed_installation_is_complete(
+        &self,
+        version: &str,
+        install_dir: &std::path::Path,
+        ctx: &RuntimeContext,
+    ) -> bool {
+        let Some(layout_fn) = &self.install_layout_fn else {
+            return true;
+        };
+
+        match layout_fn(version.to_string()).await {
+            Ok(Some(layout)) => {
+                let executable = self.resolve_exe_path_from_layout(install_dir, &layout);
+                let complete = self.layout_executable_exists(install_dir, &layout, ctx);
+                debug!(
+                    runtime = %self.name,
+                    version,
+                    path = %executable.display(),
+                    complete,
+                    "validated managed installation"
+                );
+                complete
+            }
+            Ok(None) => true,
+            Err(error) => {
+                debug!(
+                    runtime = %self.name,
+                    version,
+                    %error,
+                    "failed to validate managed installation"
+                );
+                false
+            }
+        }
     }
 
     /// Select the best available installation strategy for the current platform.
@@ -1104,17 +1160,31 @@ impl Runtime for ManifestDrivenRuntime {
         let runtime_dir = ctx.paths.runtime_store_dir(self.store_name());
         if runtime_dir.exists() {
             if version == "latest" {
-                // Any version directory present → tool is installed.
-                let has_version = std::fs::read_dir(&runtime_dir)
-                    .ok()
-                    .map(|entries| entries.filter_map(|e| e.ok()).any(|e| e.path().is_dir()))
-                    .unwrap_or(false);
-                if has_version {
+                if let Ok(entries) = std::fs::read_dir(&runtime_dir) {
+                    for entry in entries.filter_map(|entry| entry.ok()) {
+                        let path = entry.path();
+                        let Some(installed_version) = entry.file_name().to_str().map(str::to_owned)
+                        else {
+                            continue;
+                        };
+                        if path.is_dir()
+                            && self
+                                .managed_installation_is_complete(&installed_version, &path, ctx)
+                                .await
+                        {
+                            return Ok(true);
+                        }
+                    }
+                }
+            } else {
+                let install_dir = runtime_dir.join(version);
+                if install_dir.is_dir()
+                    && self
+                        .managed_installation_is_complete(version, &install_dir, ctx)
+                        .await
+                {
                     return Ok(true);
                 }
-            } else if runtime_dir.join(version).is_dir() {
-                // Specific version directory exists → that version is installed.
-                return Ok(true);
             }
         }
 
@@ -1223,7 +1293,7 @@ impl Runtime for ManifestDrivenRuntime {
             && let Ok(Some(layout)) = layout_fn(version.to_string()).await
         {
             let exe_path = self.resolve_exe_path_from_layout(&install_path, &layout);
-            if ctx.fs.exists(&exe_path) {
+            if self.layout_executable_exists(&install_path, &layout, ctx) {
                 return Ok(Some(exe_path));
             }
         }
@@ -1238,7 +1308,7 @@ impl Runtime for ManifestDrivenRuntime {
 
     async fn download_url(&self, version: &str, platform: &Platform) -> Result<Option<String>> {
         if let Some(ref f) = self.download_url_fn {
-            return f(version.to_string()).await;
+            return f(version.to_string(), platform.clone()).await;
         }
 
         for strategy in &self.install_strategies {
@@ -1634,7 +1704,10 @@ mod tests {
         let patterns = vec![pattern];
 
         // Without a Spectre requirement the plain toolchain is still usable.
-        assert_eq!(find_msvc_cl(&patterns, false).as_deref(), Some(cl.as_path()));
+        assert_eq!(
+            find_msvc_cl(&patterns, false).as_deref(),
+            Some(cl.as_path())
+        );
         // With a Spectre requirement and none available, resolution fails.
         assert!(find_msvc_cl(&patterns, true).is_none());
     }

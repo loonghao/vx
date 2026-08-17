@@ -6,6 +6,24 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [0.9.28](https://github.com/loonghao/vx/compare/v0.9.27...v0.9.28) (2026-08-10)
+
+
+### Bug Fixes
+
+* isolate action caches by architecture ([11b13aa](https://github.com/loonghao/vx/commit/11b13aadaacd895516567a4bb6ad98c02e020dac))
+
+## [0.9.27](https://github.com/loonghao/vx/compare/v0.9.26...v0.9.27) (2026-08-07)
+
+
+### Bug Fixes
+
+* prepare MSVC Spectre toolchains ([fb14976](https://github.com/loonghao/vx/commit/fb14976de1e51197e92c9aefaa5bed868600369f))
+* preserve PATH for Windows Git hooks ([d899570](https://github.com/loonghao/vx/commit/d899570bff1b7db7ba4f8b1fc111ad78c17907b4))
+* repair Windows Git installs and main CI ([#1050](https://github.com/loonghao/vx/issues/1050)) ([b09543f](https://github.com/loonghao/vx/commit/b09543f888b133e05a99875c916c9adeb928fd5d))
+* stabilize cross-platform CI ([#1052](https://github.com/loonghao/vx/issues/1052)) ([b035415](https://github.com/loonghao/vx/commit/b03541547636a6aa07d7ce5a7d8fb5c0384978aa))
+* stabilize remaining CI checks ([#1053](https://github.com/loonghao/vx/issues/1053)) ([0f831f0](https://github.com/loonghao/vx/commit/0f831f0731e45281aa9f7a04fadff36c2c4b8928))
+
 ## [0.9.26](https://github.com/loonghao/vx/compare/v0.9.25...v0.9.26) (2026-06-23)
 
 

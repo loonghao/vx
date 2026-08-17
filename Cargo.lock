@@ -1422,9 +1422,9 @@ dependencies = [
 
 [[package]]
 name = "glob"
-version = "0.3.3"
+version = "0.3.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0cc23270f6e1808e30a928bdc84dea0b9b4136a8bc82338574f23baf47bbd280"
+checksum = "e4eba85ea1d0a966a983acd07deee566e67395d2d96b6fb39e62b5a833f1eb0b"
 
 [[package]]
 name = "gloo-timers"
@@ -2126,9 +2126,9 @@ checksum = "b3a6a8c165077efc8f3a971534c50ea6a1a18b329ef4a66e897a7e3a1494565f"
 
 [[package]]
 name = "libc"
-version = "0.2.186"
+version = "0.2.189"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "68ab91017fe16c622486840e4c83c9a37afeff978bd239b5293d61ece587de66"
+checksum = "3eaf3ede3fee6db1a4c2ee091bf8a8b4dccdc6d17f656fb07896ee72867612f2"
 
 [[package]]
 name = "libmimalloc-sys"
@@ -3333,9 +3333,9 @@ dependencies = [
 
 [[package]]
 name = "schemars"
-version = "1.2.1"
+version = "1.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a2b42f36aa1cd011945615b92222f6bf73c599a102a300334cd7f8dbeec726cc"
+checksum = "687274d293b6cdc6e73e0fee520bf2049650090d7164f87672d212a3c530cf4a"
 dependencies = [
  "dyn-clone",
  "ref-cast",
@@ -3346,14 +3346,14 @@ dependencies = [
 
 [[package]]
 name = "schemars_derive"
-version = "1.2.1"
+version = "1.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7d115b50f4aaeea07e79c1912f645c7513d81715d0420f8bc77a18c6260b307f"
+checksum = "d98c67716b46af2f0b8cf752abc930f6f9aecfbf671ecfb531db8a31dbe4e2ba"
 dependencies = [
  "proc-macro2",
  "quote",
  "serde_derive_internals",
- "syn 2.0.119",
+ "syn 3.0.3",
 ]
 
 [[package]]
@@ -3434,13 +3434,13 @@ dependencies = [
 
 [[package]]
 name = "serde_derive_internals"
-version = "0.29.1"
+version = "0.30.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "18d26a20a969b9e3fdf2fc2d9f21eda6c40e2de84c9408bb5d3b05d499aae711"
+checksum = "f852137cce035d6a4df67ccce505ff6b3e9fd3a10e3e52b24dc71e650bb1a9bd"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.119",
+ "syn 3.0.3",
 ]
 
 [[package]]
@@ -3809,6 +3809,17 @@ name = "syn"
 version = "2.0.119"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "872831b642d1a07999a962a351ed35b955ea2cfc8f3862091e2a240a84f17297"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "unicode-ident",
+]
+
+[[package]]
+name = "syn"
+version = "3.0.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "53e9bae58849f64dfa4f5d5ae372c8341f7305f82a3868709269343628b659a3"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -4515,9 +4526,9 @@ checksum = "06abde3611657adf66d383f00b093d7faecc7fa57071cce2578660c9f1010821"
 
 [[package]]
 name = "uuid"
-version = "1.23.4"
+version = "1.24.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bf80a72845275afea99e7f2b434723d3bc7e38470fcd1c7ed39a599c73319a53"
+checksum = "bf3923a6f5c4c6382e0b653c4117f48d631ea17f38ed86e2a828e6f7412f5239"
 dependencies = [
  "getrandom 0.4.3",
  "js-sys",
@@ -4544,7 +4555,7 @@ checksum = "051eb1abcf10076295e815102942cc58f9d5e3b4560e46e53c21e8ff6f3af7b1"
 
 [[package]]
 name = "vx"
-version = "0.9.26"
+version = "0.9.28"
 dependencies = [
  "anyhow",
  "assert_cmd",
@@ -4561,7 +4572,7 @@ dependencies = [
 
 [[package]]
 name = "vx-args"
-version = "0.9.26"
+version = "0.9.28"
 dependencies = [
  "indexmap",
  "regex",
@@ -4574,7 +4585,7 @@ dependencies = [
 
 [[package]]
 name = "vx-bridge"
-version = "0.9.26"
+version = "0.9.28"
 dependencies = [
  "tempfile",
  "tracing",
@@ -4584,7 +4595,7 @@ dependencies = [
 
 [[package]]
 name = "vx-cache"
-version = "0.9.26"
+version = "0.9.28"
 dependencies = [
  "anyhow",
  "bincode",
@@ -4599,7 +4610,7 @@ dependencies = [
 
 [[package]]
 name = "vx-cli"
-version = "0.9.26"
+version = "0.9.28"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4664,7 +4675,7 @@ dependencies = [
 
 [[package]]
 name = "vx-config"
-version = "0.9.26"
+version = "0.9.28"
 dependencies = [
  "anyhow",
  "chrono",
@@ -4686,7 +4697,7 @@ dependencies = [
 
 [[package]]
 name = "vx-console"
-version = "0.9.26"
+version = "0.9.28"
 dependencies = [
  "anstream",
  "anstyle",
@@ -4707,7 +4718,7 @@ dependencies = [
 
 [[package]]
 name = "vx-ecosystem-pm"
-version = "0.9.26"
+version = "0.9.28"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4725,7 +4736,7 @@ dependencies = [
 
 [[package]]
 name = "vx-env"
-version = "0.9.26"
+version = "0.9.28"
 dependencies = [
  "anyhow",
  "colored",
@@ -4747,7 +4758,7 @@ dependencies = [
 
 [[package]]
 name = "vx-extension"
-version = "0.9.26"
+version = "0.9.28"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4769,7 +4780,7 @@ dependencies = [
 
 [[package]]
 name = "vx-installer"
-version = "0.9.26"
+version = "0.9.28"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4803,7 +4814,7 @@ dependencies = [
 
 [[package]]
 name = "vx-manifest"
-version = "0.9.26"
+version = "0.9.28"
 dependencies = [
  "pretty_assertions",
  "rstest",
@@ -4821,7 +4832,7 @@ dependencies = [
 
 [[package]]
 name = "vx-metrics"
-version = "0.9.26"
+version = "0.9.28"
 dependencies = [
  "anyhow",
  "chrono",
@@ -4844,7 +4855,7 @@ dependencies = [
 
 [[package]]
 name = "vx-migration"
-version = "0.9.26"
+version = "0.9.28"
 dependencies = [
  "async-trait",
  "chrono",
@@ -4866,14 +4877,14 @@ dependencies = [
 
 [[package]]
 name = "vx-msbuild-bridge"
-version = "0.9.26"
+version = "0.9.28"
 dependencies = [
  "workspace-hack",
 ]
 
 [[package]]
 name = "vx-output-filter"
-version = "0.9.26"
+version = "0.9.28"
 dependencies = [
  "anyhow",
  "regex",
@@ -4887,7 +4898,7 @@ dependencies = [
 
 [[package]]
 name = "vx-paths"
-version = "0.9.26"
+version = "0.9.28"
 dependencies = [
  "anyhow",
  "chrono",
@@ -4906,7 +4917,7 @@ dependencies = [
 
 [[package]]
 name = "vx-project-analyzer"
-version = "0.9.26"
+version = "0.9.28"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4931,7 +4942,7 @@ dependencies = [
 
 [[package]]
 name = "vx-resolver"
-version = "0.9.26"
+version = "0.9.28"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4965,7 +4976,7 @@ dependencies = [
 
 [[package]]
 name = "vx-runtime"
-version = "0.9.26"
+version = "0.9.28"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4995,7 +5006,7 @@ dependencies = [
 
 [[package]]
 name = "vx-runtime-archive"
-version = "0.9.26"
+version = "0.9.28"
 dependencies = [
  "anyhow",
  "flate2",
@@ -5014,7 +5025,7 @@ dependencies = [
 
 [[package]]
 name = "vx-runtime-core"
-version = "0.9.26"
+version = "0.9.28"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -5031,7 +5042,7 @@ dependencies = [
 
 [[package]]
 name = "vx-runtime-http"
-version = "0.9.26"
+version = "0.9.28"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -5064,7 +5075,7 @@ dependencies = [
 
 [[package]]
 name = "vx-setup"
-version = "0.9.26"
+version = "0.9.28"
 dependencies = [
  "anyhow",
  "chrono",
@@ -5081,7 +5092,7 @@ dependencies = [
 
 [[package]]
 name = "vx-shim"
-version = "0.9.26"
+version = "0.9.28"
 dependencies = [
  "anyhow",
  "serde",
@@ -5099,11 +5110,11 @@ dependencies = [
 
 [[package]]
 name = "vx-star-metadata"
-version = "0.9.26"
+version = "0.9.28"
 
 [[package]]
 name = "vx-starlark"
-version = "0.9.26"
+version = "0.9.28"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -5133,7 +5144,7 @@ dependencies = [
 
 [[package]]
 name = "vx-system-pm"
-version = "0.9.26"
+version = "0.9.28"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -5156,7 +5167,7 @@ dependencies = [
 
 [[package]]
 name = "vx-version-fetcher"
-version = "0.9.26"
+version = "0.9.28"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -5174,7 +5185,7 @@ dependencies = [
 
 [[package]]
 name = "vx-versions"
-version = "0.9.26"
+version = "0.9.28"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -5606,9 +5617,9 @@ checksum = "589f6da84c646204747d1270a2a5661ea66ed1cced2631d546fdfb155959f9ec"
 
 [[package]]
 name = "winnow"
-version = "1.0.3"
+version = "1.0.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0592e1c9d151f854e6fd382574c3a0855250e1d9b2f99d9281c6e6391af352f1"
+checksum = "23b97319f7b8343df12cc98938e5c3eb436064524c8d2b4e30a1d3a36eecdf81"
 dependencies = [
  "memchr",
 ]

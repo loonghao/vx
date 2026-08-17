@@ -280,6 +280,7 @@ mod tests {
             let mut header = tar::Header::new_gnu();
             header.set_path("sample.txt").unwrap();
             header.set_size(data.len() as u64);
+            header.set_mode(0o644);
             header.set_cksum();
             builder.append(&header, &data[..]).unwrap();
             let encoder = builder.into_inner().unwrap();

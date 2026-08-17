@@ -301,11 +301,21 @@ impl StarlarkProvider {
                                     .collect()
                             })
                             .unwrap_or_default();
+                        let required_paths = json
+                            .get("required_paths")
+                            .and_then(|p| p.as_array())
+                            .map(|arr| {
+                                arr.iter()
+                                    .filter_map(|v| v.as_str().map(|s| s.to_string()))
+                                    .collect()
+                            })
+                            .unwrap_or_default();
                         debug!(provider = %self.meta.name, url = ?url, strip_prefix = ?strip_prefix, "Resolved archive_install/archive descriptor");
                         Ok(Some(InstallLayout::Archive {
                             url,
                             strip_prefix,
                             executable_paths,
+                            required_paths,
                         }))
                     }
                     "binary_install" | "binary" => {

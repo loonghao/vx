@@ -181,7 +181,7 @@ security-audit-ci:
 
 # Coverage (CI)
 coverage-ci:
-    vx cargo llvm-cov --all-features --workspace --lcov --output-path lcov.info
+    cargo llvm-cov --all-features --workspace --lcov --output-path lcov.info
 
 # Cross build (release) — installs cross via cargo, then builds with optimizations
 cross-build TARGET:

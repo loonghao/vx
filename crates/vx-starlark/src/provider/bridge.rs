@@ -50,6 +50,7 @@ pub fn make_download_url_fn(
     content: impl Into<String>,
 ) -> impl Fn(
     String,
+    vx_runtime::Platform,
 ) -> std::pin::Pin<
     Box<dyn std::future::Future<Output = anyhow::Result<Option<String>>> + Send>,
 > + Send
@@ -57,7 +58,7 @@ pub fn make_download_url_fn(
 + 'static {
     let name: Arc<str> = Arc::from(name.into());
     let content: Arc<str> = Arc::from(content.into());
-    move |version: String| {
+    move |version: String, platform: vx_runtime::Platform| {
         let name = Arc::clone(&name);
         let content = Arc::clone(&content);
         Box::pin(async move {
@@ -65,8 +66,9 @@ pub fn make_download_url_fn(
                 .await
                 .map_err(|e| anyhow::anyhow!("Failed to load {} provider.star: {e}", name))?;
 
+            let platform_info = crate::context::PlatformInfo::from_runtime_platform(&platform);
             provider
-                .download_url(&version)
+                .download_url_for_runtime(&version, None, Some(&platform_info))
                 .await
                 .map_err(|e| anyhow::anyhow!("{} download_url failed: {e}", name))
         })
@@ -153,12 +155,13 @@ pub(super) fn make_download_url_fn_owned(
     runtime_name: String,
 ) -> impl Fn(
     String,
+    vx_runtime::Platform,
 ) -> std::pin::Pin<
     Box<dyn std::future::Future<Output = anyhow::Result<Option<String>>> + Send>,
 > + Send
 + Sync
 + 'static {
-    move |version: String| {
+    move |version: String, platform: vx_runtime::Platform| {
         let provider_name = Arc::clone(&provider_name);
         let content = Arc::clone(&content);
         let rt_name = runtime_name.clone();
@@ -169,8 +172,9 @@ pub(super) fn make_download_url_fn_owned(
                     anyhow::anyhow!("Failed to load {} provider.star: {e}", provider_name)
                 })?;
 
+            let platform_info = crate::context::PlatformInfo::from_runtime_platform(&platform);
             provider
-                .download_url_for_runtime(&version, Some(&rt_name))
+                .download_url_for_runtime(&version, Some(&rt_name), Some(&platform_info))
                 .await
                 .map_err(|e| anyhow::anyhow!("{} download_url failed: {e}", provider_name))
         })

@@ -106,18 +106,12 @@ impl Runtime for CountingRuntime {
         }
         // Simulate a toolchain environment whose PATH/INCLUDE/LIB must be
         // prepended to the primary runtime's environment (not dropped).
-        environment.insert(
-            "PATH".to_string(),
-            "C:/companion/toolchain/bin".to_string(),
-        );
+        environment.insert("PATH".to_string(), "C:/companion/toolchain/bin".to_string());
         environment.insert(
             "INCLUDE".to_string(),
             "C:/companion/toolchain/include".to_string(),
         );
-        environment.insert(
-            "LIB".to_string(),
-            "C:/companion/toolchain/lib".to_string(),
-        );
+        environment.insert("LIB".to_string(), "C:/companion/toolchain/lib".to_string());
         Ok(environment)
     }
 }
@@ -387,8 +381,7 @@ async fn prepare_stage_prepends_companion_toolchain_environment() {
     let primary_bin = temp_dir.path().join("primary-bin");
 
     let config = ResolverConfig::default();
-    let runtime_map =
-        create_runtime_map_named("cargo", "cargo", &primary_bin.to_string_lossy());
+    let runtime_map = create_runtime_map_named("cargo", "cargo", &primary_bin.to_string_lossy());
     let resolver = Resolver::new(config.clone(), runtime_map).expect("resolver should build");
     let registry = ProviderRegistry::new();
     let context = mock_context();
@@ -412,10 +405,8 @@ async fn prepare_stage_prepends_companion_toolchain_environment() {
         ],
     }));
 
-    let project_config = ProjectToolsConfig::from_tools(HashMap::from([(
-        "msvc".to_string(),
-        "14.42".to_string(),
-    )]));
+    let project_config =
+        ProjectToolsConfig::from_tools(HashMap::from([("msvc".to_string(), "14.42".to_string())]));
     let stage = PrepareStage::new(&resolver, &config, Some(&registry), Some(&context))
         .with_project_config(&project_config);
     let plan = ExecutionPlan::new(
