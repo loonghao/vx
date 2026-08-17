@@ -58,7 +58,7 @@ brew install loonghao/vx/vx
 ### Scoop (Windows)
 
 ```powershell
-scoop bucket add loonghao https://github.com/loonghao/scoop-bucket
+scoop bucket add vx https://github.com/loonghao/scoop-vx
 scoop install vx
 ```
 
