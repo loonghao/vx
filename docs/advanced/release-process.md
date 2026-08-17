@@ -102,7 +102,7 @@ installers-regex: 'vx-(x86_64|aarch64)-pc-windows-msvc\.zip$'
 
 ### Package Managers Workflow (`.github/workflows/package-managers.yml`)
 
-This workflow runs after the Release workflow completes and publishes to package managers.
+This workflow runs whenever a GitHub Release is published (`release: published` event) and publishes to package managers.
 It serves as a **backup** for WinGet publishing (in case the `release.yml` publish-winget
 job fails) and as the **primary** publisher for Chocolatey and Scoop.
 
