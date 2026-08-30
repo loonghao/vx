@@ -37,6 +37,8 @@ examples/msvc/aionui
 *.tmp
 *.temp
 node_modules/
+__pycache__/
+*.py[cod]
 
 .shrimp-config.json
 dist/
