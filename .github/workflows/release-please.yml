@@ -52,6 +52,7 @@ permissions:
   contents: write
   pull-requests: write
   actions: write
+  statuses: write
 
 jobs:
   # Job 1: Handle release creation (tag + GitHub Release)
@@ -195,6 +196,102 @@ jobs:
           token: ${{ secrets.PERSONAL_ACCESS_TOKEN || secrets.GITHUB_TOKEN }}
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
+
+      # Resources created with GITHUB_TOKEN do not emit another workflow event.
+      # Validate the exact Release Please PR head here, from trusted main code,
+      # and publish the same required statuses as the event-driven workflows.
+      - name: Checkout trusted main commit
+        if: >-
+          ${{
+            steps.current-main.outputs.is_current == 'true' &&
+            steps.release.outputs.prs_created == 'true'
+          }}
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+
+      - name: Validate and report Release Please pull requests
+        if: >-
+          ${{
+            steps.current-main.outputs.is_current == 'true' &&
+            steps.release.outputs.prs_created == 'true'
+          }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_PRS: ${{ steps.release.outputs.prs }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if ! pr_numbers_json="$(
+            jq -er '
+              if type == "array" and length > 0 and
+                 all(.[]; (.number | type) == "number")
+              then [.[].number]
+              else error("release-please returned no valid pull request numbers")
+              end
+            ' <<< "$RELEASE_PRS"
+          )"; then
+            echo "::error::Could not parse release-please pull request output."
+            exit 1
+          fi
+
+          mapfile -t pr_numbers < <(jq -r '.[]' <<< "$pr_numbers_json")
+          validation_failed=0
+
+          post_status() {
+            local sha="$1"
+            local state="$2"
+            local context="$3"
+            local description="$4"
+            gh api --method POST \
+              "repos/${GITHUB_REPOSITORY}/statuses/${sha}" \
+              --raw-field state="$state" \
+              --raw-field context="$context" \
+              --raw-field description="$description" \
+              --raw-field target_url="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+          }
+
+          for number in "${pr_numbers[@]}"; do
+            pull_json="$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${number}")"
+            title="$(jq -er '.title' <<< "$pull_json")"
+            head_ref="$(jq -er '.head.ref' <<< "$pull_json")"
+            head_sha="$(jq -er '.head.sha' <<< "$pull_json")"
+            base_ref="$(jq -er '.base.ref' <<< "$pull_json")"
+            author="$(jq -er '.user.login' <<< "$pull_json")"
+            mapfile -t files < <(
+              gh api --paginate \
+                "repos/${GITHUB_REPOSITORY}/pulls/${number}/files?per_page=100" \
+                --jq '.[].filename'
+            )
+
+            if python3 scripts/validate_pr_title.py "$title"; then
+              title_state="success"
+              title_description="Conventional Commit title is valid"
+            else
+              title_state="failure"
+              title_description="Use a Conventional Commit title"
+              validation_failed=1
+            fi
+            post_status "$head_sha" "$title_state" "PR Title" "$title_description"
+
+            if python3 scripts/validate_release_pr.py \
+              --head-ref "$head_ref" \
+              --base-ref "$base_ref" \
+              --author "$author" \
+              -- "${files[@]}"; then
+              release_state="success"
+              release_description="Trusted Release Please version update"
+            else
+              release_state="failure"
+              release_description="Release PR metadata or files are invalid"
+              validation_failed=1
+            fi
+            post_status "$head_sha" "$release_state" "CI / CI Success" "$release_description"
+          done
+
+          exit "$validation_failed"
 
       # release-please-action can create a release here too (when it detects
       # a just-merged release PR). Trigger cargo-dist in that case so that
