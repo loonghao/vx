@@ -10,6 +10,7 @@
 //! - **Compile-time platform detection**: Use `cfg!()` for efficient platform checks
 //! - **Safe PATH handling**: Provide utilities that work correctly with `std::env::join_paths`
 
+use std::collections::HashSet;
 use std::ffi::OsString;
 use std::path::PathBuf;
 
@@ -242,8 +243,34 @@ pub fn join_paths_env<S: AsRef<str>>(paths: &[S]) -> Result<OsString, std::env::
 /// // Result: "/my/custom/bin:/usr/bin:/bin"
 /// ```
 pub fn prepend_to_path<S: AsRef<str>>(original: &str, entries: &[S]) -> String {
-    let mut parts: Vec<String> = entries.iter().map(|s| s.as_ref().to_string()).collect();
-    parts.extend(split_path_owned(original));
+    let mut seen = HashSet::new();
+    let mut parts = Vec::new();
+
+    // `entries` may contain a complete PATH block (as it does when nested vx
+    // processes pass `vx_tools_path`). Split each entry before composing the
+    // result so that repeatedly prepending the same block remains bounded.
+    for path in entries.iter().flat_map(|entry| split_path(entry.as_ref())) {
+        let key = if cfg!(windows) {
+            path.to_ascii_lowercase()
+        } else {
+            path.to_string()
+        };
+        if seen.insert(key) {
+            parts.push(path.to_string());
+        }
+    }
+
+    for path in split_path(original) {
+        let key = if cfg!(windows) {
+            path.to_ascii_lowercase()
+        } else {
+            path.to_string()
+        };
+        if seen.insert(key) {
+            parts.push(path.to_string());
+        }
+    }
+
     join_paths_simple(&parts)
 }
 
