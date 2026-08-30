@@ -6,6 +6,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [0.9.31](https://github.com/loonghao/vx/compare/v0.9.30...v0.9.31) (2026-08-30)
+
+
+### Bug Fixes
+
+* preserve user-facing fixes in release automation ([8f7ed12](https://github.com/loonghao/vx/commit/8f7ed1282d3e19b4f58dd3bdb8f03b309ab802dc))
+* validate bot-created release pull requests ([ae948db](https://github.com/loonghao/vx/commit/ae948db3d11e3116a23c3cb7d2f44a42806a481f))
+
 ## [0.9.30](https://github.com/loonghao/vx/compare/v0.9.29...v0.9.30) (2026-08-17)
 
 
