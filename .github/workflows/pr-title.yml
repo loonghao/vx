@@ -1,0 +1,58 @@
+name: Pull Request Title
+
+on:
+  pull_request_target:
+    types: [opened, edited, synchronize, reopened]
+
+permissions:
+  contents: read
+  statuses: write
+
+jobs:
+  validate:
+    name: PR Title Policy
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      # pull_request_target is privileged. Execute only the validator from the
+      # trusted base commit; never check out or execute pull request code here.
+      - name: Checkout trusted base commit
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          persist-credentials: false
+
+      - name: Validate title
+        id: policy
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+        shell: bash
+        run: |
+          if python3 scripts/validate_pr_title.py "$PR_TITLE"; then
+            echo "state=success" >> "$GITHUB_OUTPUT"
+            echo "description=Conventional Commit title is valid" >> "$GITHUB_OUTPUT"
+          else
+            echo "state=failure" >> "$GITHUB_OUTPUT"
+            echo "description=Use a Conventional Commit title" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Publish required status on pull request head
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          POLICY_STATE: ${{ steps.policy.outputs.state || 'failure' }}
+          POLICY_DESCRIPTION: ${{ steps.policy.outputs.description || 'Title policy could not be evaluated' }}
+        shell: bash
+        run: |
+          gh api --method POST \
+            "repos/${GITHUB_REPOSITORY}/statuses/${PR_HEAD_SHA}" \
+            --raw-field state="$POLICY_STATE" \
+            --raw-field context="PR Title" \
+            --raw-field description="$POLICY_DESCRIPTION" \
+            --raw-field target_url="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+
+      - name: Enforce title policy
+        if: steps.policy.outputs.state != 'success'
+        shell: bash
+        run: exit 1
