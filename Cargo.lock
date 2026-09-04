@@ -617,7 +617,7 @@ dependencies = [
  "heck",
  "proc-macro2",
  "quote",
- "syn 3.0.3",
+ "syn 3.0.5",
 ]
 
 [[package]]
@@ -3353,7 +3353,7 @@ dependencies = [
  "proc-macro2",
  "quote",
  "serde_derive_internals",
- "syn 3.0.3",
+ "syn 3.0.5",
 ]
 
 [[package]]
@@ -3440,7 +3440,7 @@ checksum = "f852137cce035d6a4df67ccce505ff6b3e9fd3a10e3e52b24dc71e650bb1a9bd"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 3.0.3",
+ "syn 3.0.5",
 ]
 
 [[package]]
@@ -3817,9 +3817,9 @@ dependencies = [
 
 [[package]]
 name = "syn"
-version = "3.0.3"
+version = "3.0.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "53e9bae58849f64dfa4f5d5ae372c8341f7305f82a3868709269343628b659a3"
+checksum = "12df2e0110f65b775f769bb17ef989067a1d931b2eb822bd4346631eeada89f9"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -4003,7 +4003,7 @@ checksum = "bc04cd3e1236dd4a98afca4569f2deb3f120e5422a4023be2cb683f8486292af"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 3.0.3",
+ "syn 3.0.5",
 ]
 
 [[package]]
@@ -4556,7 +4556,7 @@ checksum = "051eb1abcf10076295e815102942cc58f9d5e3b4560e46e53c21e8ff6f3af7b1"
 
 [[package]]
 name = "vx"
-version = "0.9.30"
+version = "0.9.31"
 dependencies = [
  "anyhow",
  "assert_cmd",
@@ -4573,7 +4573,7 @@ dependencies = [
 
 [[package]]
 name = "vx-args"
-version = "0.9.30"
+version = "0.9.31"
 dependencies = [
  "indexmap",
  "regex",
@@ -4586,7 +4586,7 @@ dependencies = [
 
 [[package]]
 name = "vx-bridge"
-version = "0.9.30"
+version = "0.9.31"
 dependencies = [
  "tempfile",
  "tracing",
@@ -4596,7 +4596,7 @@ dependencies = [
 
 [[package]]
 name = "vx-cache"
-version = "0.9.30"
+version = "0.9.31"
 dependencies = [
  "anyhow",
  "bincode",
@@ -4611,7 +4611,7 @@ dependencies = [
 
 [[package]]
 name = "vx-cli"
-version = "0.9.30"
+version = "0.9.31"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4676,7 +4676,7 @@ dependencies = [
 
 [[package]]
 name = "vx-config"
-version = "0.9.30"
+version = "0.9.31"
 dependencies = [
  "anyhow",
  "chrono",
@@ -4698,7 +4698,7 @@ dependencies = [
 
 [[package]]
 name = "vx-console"
-version = "0.9.30"
+version = "0.9.31"
 dependencies = [
  "anstream",
  "anstyle",
@@ -4719,7 +4719,7 @@ dependencies = [
 
 [[package]]
 name = "vx-ecosystem-pm"
-version = "0.9.30"
+version = "0.9.31"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4737,7 +4737,7 @@ dependencies = [
 
 [[package]]
 name = "vx-env"
-version = "0.9.30"
+version = "0.9.31"
 dependencies = [
  "anyhow",
  "colored",
@@ -4759,7 +4759,7 @@ dependencies = [
 
 [[package]]
 name = "vx-extension"
-version = "0.9.30"
+version = "0.9.31"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4781,7 +4781,7 @@ dependencies = [
 
 [[package]]
 name = "vx-installer"
-version = "0.9.30"
+version = "0.9.31"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4815,7 +4815,7 @@ dependencies = [
 
 [[package]]
 name = "vx-manifest"
-version = "0.9.30"
+version = "0.9.31"
 dependencies = [
  "pretty_assertions",
  "rstest",
@@ -4833,7 +4833,7 @@ dependencies = [
 
 [[package]]
 name = "vx-metrics"
-version = "0.9.30"
+version = "0.9.31"
 dependencies = [
  "anyhow",
  "chrono",
@@ -4856,7 +4856,7 @@ dependencies = [
 
 [[package]]
 name = "vx-migration"
-version = "0.9.30"
+version = "0.9.31"
 dependencies = [
  "async-trait",
  "chrono",
@@ -4878,14 +4878,14 @@ dependencies = [
 
 [[package]]
 name = "vx-msbuild-bridge"
-version = "0.9.30"
+version = "0.9.31"
 dependencies = [
  "workspace-hack",
 ]
 
 [[package]]
 name = "vx-output-filter"
-version = "0.9.30"
+version = "0.9.31"
 dependencies = [
  "anyhow",
  "regex",
@@ -4899,7 +4899,7 @@ dependencies = [
 
 [[package]]
 name = "vx-paths"
-version = "0.9.30"
+version = "0.9.31"
 dependencies = [
  "anyhow",
  "chrono",
@@ -4918,7 +4918,7 @@ dependencies = [
 
 [[package]]
 name = "vx-project-analyzer"
-version = "0.9.30"
+version = "0.9.31"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4943,7 +4943,7 @@ dependencies = [
 
 [[package]]
 name = "vx-resolver"
-version = "0.9.30"
+version = "0.9.31"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4977,7 +4977,7 @@ dependencies = [
 
 [[package]]
 name = "vx-runtime"
-version = "0.9.30"
+version = "0.9.31"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -5007,7 +5007,7 @@ dependencies = [
 
 [[package]]
 name = "vx-runtime-archive"
-version = "0.9.30"
+version = "0.9.31"
 dependencies = [
  "anyhow",
  "flate2",
@@ -5026,7 +5026,7 @@ dependencies = [
 
 [[package]]
 name = "vx-runtime-core"
-version = "0.9.30"
+version = "0.9.31"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -5043,7 +5043,7 @@ dependencies = [
 
 [[package]]
 name = "vx-runtime-http"
-version = "0.9.30"
+version = "0.9.31"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -5076,7 +5076,7 @@ dependencies = [
 
 [[package]]
 name = "vx-setup"
-version = "0.9.30"
+version = "0.9.31"
 dependencies = [
  "anyhow",
  "chrono",
@@ -5093,7 +5093,7 @@ dependencies = [
 
 [[package]]
 name = "vx-shim"
-version = "0.9.30"
+version = "0.9.31"
 dependencies = [
  "anyhow",
  "serde",
@@ -5111,11 +5111,11 @@ dependencies = [
 
 [[package]]
 name = "vx-star-metadata"
-version = "0.9.30"
+version = "0.9.31"
 
 [[package]]
 name = "vx-starlark"
-version = "0.9.30"
+version = "0.9.31"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -5145,7 +5145,7 @@ dependencies = [
 
 [[package]]
 name = "vx-system-pm"
-version = "0.9.30"
+version = "0.9.31"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -5168,7 +5168,7 @@ dependencies = [
 
 [[package]]
 name = "vx-version-fetcher"
-version = "0.9.30"
+version = "0.9.31"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -5186,7 +5186,7 @@ dependencies = [
 
 [[package]]
 name = "vx-versions"
-version = "0.9.30"
+version = "0.9.31"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -5691,7 +5691,7 @@ dependencies = [
  "slab",
  "smallvec",
  "syn 2.0.119",
- "syn 3.0.3",
+ "syn 3.0.5",
  "thiserror 2.0.20",
  "time",
  "time-macros",
