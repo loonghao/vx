@@ -132,6 +132,10 @@ impl MemoryCacheEntry {
     fn is_valid(&self, script_hash_hex: &str) -> bool {
         self.cached_at.elapsed() < self.ttl && self.script_hash_hex == script_hash_hex
     }
+
+    fn is_stale_for_hash(&self, script_hash_hex: &str) -> bool {
+        self.cached_at.elapsed() >= self.ttl && self.script_hash_hex == script_hash_hex
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -203,6 +207,28 @@ impl VersionCache {
         }
 
         None
+    }
+
+    /// Look up an expired entry for fallback after a version source fails.
+    ///
+    /// Only entries produced by the exact same provider script hash qualify.
+    /// Fresh entries should be read with [`Self::get`], and entries from a
+    /// changed script are never returned as a fallback.
+    pub async fn get_stale(
+        &self,
+        provider: &str,
+        script_hash_hex: &str,
+    ) -> Option<Vec<VersionInfo>> {
+        {
+            let mem = self.memory.read().await;
+            if let Some(entry) = mem.get(provider)
+                && entry.is_stale_for_hash(script_hash_hex)
+            {
+                return Some(entry.versions.clone());
+            }
+        }
+
+        self.read_stale_disk_cache(provider, script_hash_hex).await
     }
 
     /// Store versions in both L1 and L2 cache
@@ -380,6 +406,27 @@ impl VersionCache {
             "L2 disk version cache hit"
         );
 
+        Some(entry.versions.into_iter().map(VersionInfo::from).collect())
+    }
+
+    async fn read_stale_disk_cache(
+        &self,
+        provider: &str,
+        script_hash_hex: &str,
+    ) -> Option<Vec<VersionInfo>> {
+        let content = std::fs::read_to_string(self.disk_path(provider)).ok()?;
+        let entry: CachedVersionEntry = serde_json::from_str(&content).ok()?;
+
+        if !entry.is_expired() || entry.script_hash_hex != script_hash_hex {
+            return None;
+        }
+
+        debug!(
+            provider = %provider,
+            count = %entry.versions.len(),
+            age_secs = %entry.age_secs(),
+            "Using expired L2 version cache as network fallback candidate"
+        );
         Some(entry.versions.into_iter().map(VersionInfo::from).collect())
     }
 

@@ -71,6 +71,10 @@ impl StarlarkProvider {
             "fetch_versions: cache miss, executing Starlark"
         );
 
+        // Preserve an expired entry as a last-resort network fallback. Cache
+        // entries from a different provider script are deliberately excluded.
+        let stale_versions = cache.get_stale(&cache_key, &hash_hex).await;
+
         // ── Execute Starlark ──────────────────────────────────────────────────
         let engine = StarlarkEngine::new();
         let result = engine.call_function(
@@ -81,29 +85,30 @@ impl StarlarkProvider {
             &[],
         );
 
-        let versions = match result {
+        let versions_result = match result {
             Ok(json) => {
                 // Shape 1: github_versions descriptor from http.star
                 if let Some(type_str) = json.get("__type").and_then(|t| t.as_str())
                     && type_str == "github_versions"
                 {
-                    self.resolve_github_versions_descriptor(&json).await?
+                    self.resolve_github_versions_descriptor(&json).await
                 }
                 // Shape 2: unified fetch_json_versions descriptor (replaces go_versions etc.)
                 else if let Some(type_str) = json.get("__type").and_then(|t| t.as_str())
                     && type_str == "fetch_json_versions"
                 {
-                    self.resolve_fetch_json_versions_descriptor(&json).await?
+                    self.resolve_fetch_json_versions_descriptor(&json).await
                 }
                 // Shape 3: legacy go_versions descriptor (kept for backward compat)
                 else if let Some(type_str) = json.get("__type").and_then(|t| t.as_str())
                     && type_str == "go_versions"
                 {
-                    self.resolve_go_versions_descriptor(&json).await?
+                    self.resolve_go_versions_descriptor(&json).await
                 }
                 // Shape 4: plain list of version dicts
                 else if let Some(arr) = json.as_array() {
-                    arr.iter()
+                    Ok(arr
+                        .iter()
                         .filter_map(|v| {
                             let version = v.get("version")?.as_str()?.to_string();
                             Some(VersionInfo {
@@ -116,9 +121,9 @@ impl StarlarkProvider {
                                     .map(|s| s.to_string()),
                             })
                         })
-                        .collect()
+                        .collect())
                 } else {
-                    vec![]
+                    Ok(vec![])
                 }
             }
             Err(Error::FunctionNotFound { .. }) => {
@@ -129,6 +134,24 @@ impl StarlarkProvider {
                 return Ok(vec![]);
             }
             Err(e) => return Err(e),
+        };
+
+        let versions = match versions_result {
+            Ok(versions) => versions,
+            Err(source_error) => {
+                if let Some(stale) = stale_versions {
+                    warn!(
+                        provider = %provider_name,
+                        cache_key = %cache_key,
+                        count = stale.len(),
+                        error = %source_error,
+                        "Version source unavailable; using expired cache from the same provider script"
+                    );
+                    stale
+                } else {
+                    return Err(source_error);
+                }
+            }
         };
 
         // ── Cache write (L1 + L2) ─────────────────────────────────────────────
@@ -1178,7 +1201,8 @@ impl StarlarkHttpClient {
 
     /// Fetch a URL and return the response body as a JSON Value.
     /// Adds GitHub token if available and the URL is a GitHub API endpoint.
-    /// Retries up to 3 times on 5xx errors.
+    /// Retries up to 3 times on transport errors, timeouts, rate limiting,
+    /// and transient server failures.
     async fn fetch_json(&self, url: &str) -> anyhow::Result<serde_json::Value> {
         let mut last_err = anyhow::anyhow!("No attempts made");
         for attempt in 0..3u32 {
@@ -1210,8 +1234,7 @@ impl StarlarkHttpClient {
                     }
                     let body = response.text().await.unwrap_or_default();
                     last_err = anyhow::anyhow!("HTTP {} from {}: {}", status, url, body);
-                    // Only retry on 5xx errors
-                    if !status.is_server_error() {
+                    if !is_retryable_version_status(status) {
                         return Err(last_err);
                     }
                 }
@@ -1232,24 +1255,7 @@ impl vx_runtime::HttpClient for StarlarkHttpClient {
     }
 
     async fn get_json_value(&self, url: &str) -> anyhow::Result<serde_json::Value> {
-        // Support GITHUB_TOKEN for GitHub API requests
-        let mut req = self
-            .client
-            .get(url)
-            .header("Accept", "application/vnd.github+json")
-            .header("X-GitHub-Api-Version", "2022-11-28");
-        if url.contains("api.github.com")
-            && let Ok(token) = std::env::var("GITHUB_TOKEN").or_else(|_| std::env::var("GH_TOKEN"))
-        {
-            req = req.bearer_auth(token);
-        }
-        let response = req.send().await?;
-        let status = response.status();
-        if !status.is_success() {
-            let body = response.text().await.unwrap_or_default();
-            return Err(anyhow::anyhow!("HTTP {} from {}: {}", status, url, body));
-        }
-        Ok(response.json().await?)
+        self.fetch_json(url).await
     }
 
     async fn download(&self, url: &str, dest: &std::path::Path) -> anyhow::Result<()> {
@@ -1266,4 +1272,10 @@ impl vx_runtime::HttpClient for StarlarkHttpClient {
     ) -> anyhow::Result<()> {
         self.download(url, dest).await
     }
+}
+
+fn is_retryable_version_status(status: reqwest::StatusCode) -> bool {
+    status == reqwest::StatusCode::REQUEST_TIMEOUT
+        || status == reqwest::StatusCode::TOO_MANY_REQUESTS
+        || status.is_server_error()
 }
