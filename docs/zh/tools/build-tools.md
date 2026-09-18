@@ -215,13 +215,15 @@ vcpkg 本身安装在 `~/.vx/store/vcpkg/<version>/`（例如 `~/.vx/store/vcpkg
 | 不在锁内 | 影响 |
 |----------|------|
 | Triplet（`x64-windows`、`x64-windows-static` 等） | 同一个 CLI 针对不同 triplet 会构建出不同的二进制。 |
-| Ports 树（`~/.vx/store/vcpkg/<version>/` 内的 registry 克隆） | registry 刷新时 port 版本会随之变化。 |
-| `VCPKG_ROOT` | 决定 CLI 读取哪个 registry 克隆。 |
+| Ports 树 | vx 只安装 vcpkg CLI 这一个二进制，不自带 ports 树；CLI 从 `VCPKG_ROOT` 读取 ports。 |
+| `VCPKG_ROOT` | 决定 CLI 读取哪个 registry checkout，也就决定了它解析出的 port 版本。 |
 
 要让依赖图也可复现，需要另外固定这些：
 
-- 提交带 `builtin-baseline` 的 [`vcpkg.json`](https://learn.microsoft.com/vcpkg/users/manifests) manifest，或把 ports 树固化下来并把 `VCPKG_ROOT` 指向固定的 checkout。
+- 提交带 `builtin-baseline` 的 [`vcpkg.json`](https://learn.microsoft.com/vcpkg/users/manifests) manifest，并通过 `VCPKG_ROOT` 提供与之匹配的 registry checkout（固化进仓库，或作为 git submodule 引入）。
 - 显式指定 triplet（`vx vcpkg install openssl:x64-windows`），不要依赖默认值。
+
+只有直接调用 vcpkg（`vx vcpkg …`）时，`VCPKG_ROOT` 才会取自你的环境。在 `vx dev` 内，vcpkg provider 会把 `VCPKG_ROOT` 设为它自己的安装目录（`~/.vx/store/vcpkg/<version>/`），而该目录只有 CLI 二进制，因此你事先 export 的值会在那里被覆盖。
 
 `vx lock` 保证你拿到同一个 vcpkg **可执行文件**，不保证拿到同一份 C++ 依赖图。
 
