@@ -4,10 +4,15 @@ name: Package Managers
 # Downloads binaries from GitHub Release
 # No building - only packaging and distribution
 #
-# Triggered by the "release published" event: fires whenever a GitHub Release is
-# published (including releases created by the cargo-dist Release workflow when
-# it is run via workflow_dispatch, which the workflow_run trigger misses).
+# Triggered by the "release published" event, or by an explicit dispatch.
+# Note that release.yml publishes with `gh release edit --draft=false`, and
+# publishing through the API does not emit a `release: published` event, so
+# that job dispatches this workflow directly once the release is public.
 # A manual dispatch can publish an arbitrary version.
+#
+# Chocolatey pushes to a public external repository, which cannot be undone
+# (a package can only be deprecated, not deleted). Publishing there is
+# therefore opt-in: it only runs on a manual dispatch that asks for it.
 
 on:
   release:
@@ -19,6 +24,16 @@ on:
         description: "Version to publish (e.g., v0.9.29)"
         required: true
         type: string
+      publish_scoop:
+        description: "Update the Scoop manifest in loonghao/scoop-vx"
+        required: false
+        default: true
+        type: boolean
+      publish_chocolatey:
+        description: "Push to the Chocolatey Community Repository (public, irreversible)"
+        required: false
+        default: false
+        type: boolean
 
 permissions:
   contents: read
@@ -102,7 +117,9 @@ jobs:
   publish-chocolatey:
     needs: check-release
     runs-on: windows-latest
-    if: needs.check-release.outputs.should-publish == 'true'
+    # Opt-in only: pushing to the Chocolatey Community Repository is a public,
+    # irreversible publish, so it requires an explicit manual dispatch.
+    if: ${{ needs.check-release.outputs.should-publish == 'true' && github.event_name == 'workflow_dispatch' && inputs.publish_chocolatey }}
     steps:
       - name: Download Windows binary from release
         run: |
@@ -206,7 +223,9 @@ jobs:
   publish-scoop:
     needs: check-release
     runs-on: ubuntu-latest
-    if: needs.check-release.outputs.should-publish == 'true'
+    # Runs for published releases and for manual dispatches that did not opt
+    # out of it, which is the path release.yml uses to keep the bucket current.
+    if: ${{ needs.check-release.outputs.should-publish == 'true' && (github.event_name != 'workflow_dispatch' || inputs.publish_scoop) }}
     steps:
       - name: Generate and push Scoop manifest
         env:
