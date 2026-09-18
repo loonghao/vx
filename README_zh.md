@@ -461,6 +461,7 @@ vx 通过 Starlark DSL provider 管理 142 个工具。以下是部分亮点：
 | **Meson** | `meson` | 高生产力构建系统 |
 | **xmake** | `xmake` | 跨平台构建工具 |
 | **protoc** | `protoc` | Protocol Buffers 编译器 |
+| **vcpkg** | `vcpkg` | C++ 库管理器 —— vx 只锁定 CLI，不含 triplets、ports 与 `VCPKG_ROOT` |
 
 ### DevOps 和云工具
 
