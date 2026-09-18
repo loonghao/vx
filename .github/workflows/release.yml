@@ -413,6 +413,8 @@ jobs:
         # `release: published` event, so package-managers.yml (Scoop,
         # Chocolatey) never ran and the published manifests went stale.
         # Dispatch it explicitly once the release is public.
+        # Only the Scoop manifest is published this way; Chocolatey is opt-in
+        # in that workflow because pushing there cannot be undone.
         if: ${{ !fromJson(steps.host.outputs.manifest).announcement_is_prerelease }}
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
