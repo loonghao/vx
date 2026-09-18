@@ -576,7 +576,7 @@ vx self-update
 ```bash
 # Windows
 winget install loonghao.vx
-choco install vx
+scoop bucket add vx https://github.com/loonghao/scoop-vx
 scoop install vx
 
 # macOS
