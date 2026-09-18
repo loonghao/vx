@@ -208,6 +208,23 @@ vcpkg 使用 vx 管理的缓存目录来存储下载文件和二进制缓存：
 
 vcpkg 本身安装在 `~/.vx/store/vcpkg/<version>/`（例如 `~/.vx/store/vcpkg/2025.12.16/`）。安装包含 vcpkg registry 的浅克隆（triplets、scripts、ports、versions），其中文档文件已被排除以节省磁盘空间。
 
+### `vx lock` 锁定什么
+
+`vx lock` 只锁定 **vcpkg CLI 的版本**。决定最终会拿到哪些 C++ 库的因素都不在锁的范围内：
+
+| 不在锁内 | 影响 |
+|----------|------|
+| Triplet（`x64-windows`、`x64-windows-static` 等） | 同一个 CLI 针对不同 triplet 会构建出不同的二进制。 |
+| Ports 树（`~/.vx/store/vcpkg/<version>/` 内的 registry 克隆） | registry 刷新时 port 版本会随之变化。 |
+| `VCPKG_ROOT` | 决定 CLI 读取哪个 registry 克隆。 |
+
+要让依赖图也可复现，需要另外固定这些：
+
+- 提交带 `builtin-baseline` 的 [`vcpkg.json`](https://learn.microsoft.com/vcpkg/users/manifests) manifest，或把 ports 树固化下来并把 `VCPKG_ROOT` 指向固定的 checkout。
+- 显式指定 triplet（`vx vcpkg install openssl:x64-windows`），不要依赖默认值。
+
+`vx lock` 保证你拿到同一个 vcpkg **可执行文件**，不保证拿到同一份 C++ 依赖图。
+
 ### 卸载
 
 ```bash

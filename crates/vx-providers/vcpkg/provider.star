@@ -4,6 +4,11 @@ load("@vx//stdlib:system_install.star", "cross_platform_install")
 # C++ library manager. Tags are date-based: "2025-12-16" (no "v" prefix).
 # Assets are single binaries with platform-specific names.
 #
+# Scope: vx pins the vcpkg CLI version only. The triplet, the ports tree and
+# VCPKG_ROOT are not part of the lock, so the C++ dependency graph is only
+# reproducible if the project pins those separately (vcpkg.json builtin-baseline
+# or a vendored ports tree).
+#
 # Uses stdlib templates from @vx//stdlib:provider.star
 
 load("@vx//stdlib:provider.star",
@@ -15,7 +20,7 @@ load("@vx//stdlib:env.star", "env_set", "env_prepend")
 # Provider metadata
 # ---------------------------------------------------------------------------
 name        = "vcpkg"
-description = "C++ library manager for Windows, Linux, and macOS"
+description = "C++ library manager (vx pins the vcpkg CLI only, not triplets, ports or VCPKG_ROOT)"
 homepage    = "https://vcpkg.io/"
 repository  = "https://github.com/microsoft/vcpkg-tool"
 license     = "MIT"

@@ -239,6 +239,23 @@ This ensures:
 
 vcpkg itself is installed at `~/.vx/store/vcpkg/<version>/` (e.g., `~/.vx/store/vcpkg/2025.12.16/`). The installation includes a shallow clone of the vcpkg registry (triplets, scripts, ports, versions) with documentation excluded to save disk space.
 
+### What `vx lock` Pins
+
+`vx lock` pins the **vcpkg CLI version only**. Everything that decides which C++ libraries you actually get stays outside the lock:
+
+| Outside the lock | Effect |
+|------------------|--------|
+| Triplet (`x64-windows`, `x64-windows-static`, …) | The same CLI builds different binaries for different triplets. |
+| Ports tree (the registry clone inside `~/.vx/store/vcpkg/<version>/`) | Port versions move as the registry is refreshed. |
+| `VCPKG_ROOT` | Selects which registry clone the CLI reads. |
+
+To make the dependency graph reproducible as well, pin those separately:
+
+- Commit a [`vcpkg.json`](https://learn.microsoft.com/vcpkg/users/manifests) manifest with a `builtin-baseline`, or vendor the ports tree and point `VCPKG_ROOT` at a fixed checkout.
+- Pass the triplet explicitly (`vx vcpkg install openssl:x64-windows`) instead of relying on the default.
+
+`vx lock` guarantees you always get the same vcpkg **executable** — not the same C++ dependency graph.
+
 ### Uninstalling
 
 ```bash

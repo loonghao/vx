@@ -461,6 +461,7 @@ vx manages 142 tools via Starlark DSL providers. Below are some highlights:
 | **Meson** | `meson` | High-productivity build system |
 | **xmake** | `xmake` | Cross-platform build utility |
 | **protoc** | `protoc` | Protocol Buffers compiler |
+| **vcpkg** | `vcpkg` | C++ library manager — vx pins the CLI only, not triplets, ports or `VCPKG_ROOT` |
 
 ### DevOps and Cloud Tools
 
