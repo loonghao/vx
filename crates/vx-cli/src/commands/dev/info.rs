@@ -1,7 +1,9 @@
 //! Environment info display for `vx dev --info`
 
 use super::tools::{ToolStatus, find_system_tool, get_tool_status, get_vx_tool_path};
+use crate::commands::common::get_system_tool_version;
 use crate::commands::setup::ConfigView;
+use crate::commands::tool_paths::find_system_executable;
 use anyhow::Result;
 use colored::Colorize;
 use std::env;
@@ -22,6 +24,25 @@ pub async fn handle_info(config: &ConfigView) -> Result<()> {
 
     for (tool, version) in &config.tools {
         let (status, actual_path, actual_version) = get_tool_status(&path_manager, tool, version)?;
+
+        // `check_tool_status()` only looks at the vx store and the system PATH.
+        // Tools that live in a well-known directory declared through
+        // `provider.star::runtimes[].system_paths` (MSVC's `cl`, LLVM's
+        // `clang-cl`) are therefore reported as missing even though the dev
+        // shell does put them on PATH. Fall back to that same detection here so
+        // the report matches the environment `vx dev` actually builds.
+        let (status, actual_path, actual_version) = if status == ToolStatus::NotInstalled {
+            match find_system_executable(tool).await {
+                Some(path) => (
+                    ToolStatus::SystemFallback,
+                    Some(path),
+                    actual_version.or_else(|| get_system_tool_version(tool)),
+                ),
+                None => (status, actual_path, actual_version),
+            }
+        } else {
+            (status, actual_path, actual_version)
+        };
 
         let status_icon = match status {
             ToolStatus::Installed => "✓".green(),

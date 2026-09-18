@@ -131,6 +131,12 @@ impl VersionStrategy for SemverStrategy {
         // Return the best match
         matching.first().map(|(version, info)| {
             let mut resolved = ResolvedVersion::new(version.clone(), constraint.to_string());
+            // Date-based releases (e.g. vcpkg's "2025-12-16") do not round-trip
+            // through the normalized "2025.12.16" form, so keep the original tag
+            // around for download URLs and lock entries.
+            if Version::is_calver(&info.version) {
+                resolved.original_version = Some(info.version.clone());
+            }
             if let Some(url) = &info.download_url {
                 resolved = resolved.with_metadata("download_url", url.clone());
             }

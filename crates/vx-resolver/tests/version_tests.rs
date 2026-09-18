@@ -681,6 +681,41 @@ mod strategy_tests {
         assert_eq!(result.unwrap().version_string(), "3.11.11");
     }
 
+    #[test]
+    fn test_semver_select_best_match_calver_latest() {
+        let strategy = SemverStrategy::generic();
+        let available = vec![
+            make_version_info("2024-05-24"),
+            make_version_info("2025-01-13"),
+            make_version_info("2025-12-16"),
+        ];
+        let result = strategy
+            .select_best_match(&VersionConstraint::Latest, &available)
+            .expect("date-based releases must resolve to a stable 'latest'");
+
+        // The upstream tag is preserved: the normalized "2025.12.16" form does not
+        // match the release tag used by download URLs and lock entries.
+        assert_eq!(result.version_string(), "2025-12-16");
+        assert_eq!(result.normalized_version_string(), "2025.12.16");
+    }
+
+    #[test]
+    fn test_semver_select_best_match_calver_exact() {
+        let strategy = SemverStrategy::generic();
+        let available = vec![
+            make_version_info("2024-05-24"),
+            make_version_info("2025-12-16"),
+        ];
+        let result = strategy
+            .select_best_match(
+                &VersionConstraint::Exact(Version::new(2024, 5, 24)),
+                &available,
+            )
+            .expect("an exact date must resolve to that date");
+
+        assert_eq!(result.version_string(), "2024-05-24");
+    }
+
     // ── GitVersionStrategy ──────────────────────────────────────────────────
 
     #[test]
