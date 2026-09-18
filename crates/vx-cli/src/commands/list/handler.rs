@@ -20,13 +20,35 @@ fn is_platform_supported(runtime: &Arc<dyn Runtime>, platform: &Platform) -> boo
     runtime.as_ref().is_platform_supported(platform)
 }
 
+/// Decide whether a runtime survives the `--installed` / `--available` filters.
+///
+/// The two flags are mutually exclusive; when neither is set every runtime is
+/// listed and the per-runtime `installed` field carries the real state.
+fn passes_install_filter(versions: &[String], installed_only: bool, available_only: bool) -> bool {
+    let is_installed = !versions.is_empty();
+    if installed_only && !is_installed {
+        return false;
+    }
+    if available_only && is_installed {
+        return false;
+    }
+    true
+}
+
 /// Handle list command with Args
 pub async fn handle(ctx: &CommandContext, args: &Args) -> Result<()> {
+    // `vx list` reads installed versions through ProviderHandle, which lives in the
+    // global starlark registry. Without this the registry is empty and every tool
+    // reports zero versions (`installed: false`).
+    crate::registry::ensure_provider_metadata_initialized().await;
+
     handle_list(
         ctx.registry(),
         ctx.runtime_context(),
         args.tool.as_deref(),
         args.status,
+        args.installed,
+        args.available,
         args.all,
         args.system,
         args.version_check,
@@ -42,6 +64,8 @@ pub async fn handle_list(
     _context: &RuntimeContext,
     tool: Option<&str>,
     show_status: bool,
+    installed_only: bool,
+    available_only: bool,
     show_all: bool,
     show_system: bool,
     version_check: bool,
@@ -62,7 +86,16 @@ pub async fn handle_list(
             list_tool_versions(registry, &resolver, tool_name, show_status, format).await?;
         }
         None => {
-            list_all_tools(registry, &resolver, show_status, show_all, format).await?;
+            list_all_tools(
+                registry,
+                &resolver,
+                show_status,
+                installed_only,
+                available_only,
+                show_all,
+                format,
+            )
+            .await?;
         }
     }
     Ok(())
@@ -101,6 +134,7 @@ async fn list_system_tools(
         total: discovery.available.len(),
         installed_count: discovery.available.len(),
         platform: current_platform.as_str().to_string(),
+        title: None,
     };
 
     if !renderer.is_text() {
@@ -371,6 +405,8 @@ async fn list_all_tools(
     registry: &ProviderRegistry,
     _resolver: &PathResolver,
     _show_status: bool,
+    installed_only: bool,
+    available_only: bool,
     show_all: bool,
     format: OutputFormat,
 ) -> Result<()> {
@@ -415,6 +451,10 @@ async fn list_all_tools(
             vec![]
         };
 
+        if !passes_install_filter(&versions, installed_only, available_only) {
+            continue;
+        }
+
         let is_available = !versions.is_empty();
         if is_available {
             installed_count += 1;
@@ -445,24 +485,66 @@ async fn list_all_tools(
 
     let renderer = OutputRenderer::new(format);
     let runtimes_count = runtimes.len();
+    let title = if installed_only {
+        Some(format!("Installed Tools ({})", current_platform.as_str()))
+    } else if available_only {
+        Some(format!(
+            "Tools Without Installed Versions ({})",
+            current_platform.as_str()
+        ))
+    } else if show_all {
+        Some(format!(
+            "Available Tools ({}, showing all, including unsupported)",
+            current_platform.as_str()
+        ))
+    } else {
+        None
+    };
     let output = ListOutput {
         runtimes,
         total: runtimes_count,
         installed_count,
         platform: current_platform.as_str().to_string(),
+        title,
     };
 
-    if renderer.is_text() {
-        if show_all {
-            UI::info("📦 Available Tools (showing all, including unsupported)");
-        } else {
-            UI::info(&format!(
-                "📦 Available Tools ({})",
-                current_platform.as_str()
-            ));
-        }
-    }
     renderer.render(&output)?;
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::passes_install_filter;
+
+    fn versions(entries: &[&str]) -> Vec<String> {
+        entries.iter().map(|v| v.to_string()).collect()
+    }
+
+    #[test]
+    fn install_filter_keeps_everything_when_no_flag_is_set() {
+        for v in [versions(&["1.2.3"]), versions(&[])] {
+            assert!(passes_install_filter(&v, false, false));
+        }
+    }
+
+    #[test]
+    fn install_filter_installed_only_drops_tools_without_versions() {
+        assert!(passes_install_filter(&versions(&["1.2.3"]), true, false));
+        assert!(!passes_install_filter(&versions(&[]), true, false));
+    }
+
+    #[test]
+    fn install_filter_available_only_drops_installed_tools() {
+        assert!(!passes_install_filter(&versions(&["1.2.3"]), false, true));
+        assert!(passes_install_filter(&versions(&[]), false, true));
+    }
+
+    #[test]
+    fn install_filter_treats_system_placeholder_as_installed() {
+        // `installed_versions()` reports `["system"]` for tools that come from the
+        // host package manager, so they must count as installed for both filters.
+        assert!(passes_install_filter(&versions(&["system"]), true, false));
+        assert!(!passes_install_filter(&versions(&["system"]), false, true));
+    }
 }

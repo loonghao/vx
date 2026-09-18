@@ -57,6 +57,8 @@ mod list_tests {
             false,
             false,
             false,
+            false,
+            false,
             vx_cli::OutputFormat::Text,
         )
         .await;
@@ -74,6 +76,8 @@ mod list_tests {
             &ctx,
             None,
             true,
+            false,
+            false,
             false,
             false,
             false,
@@ -105,6 +109,8 @@ mod list_tests {
             false,
             false,
             false,
+            false,
+            false,
             vx_cli::OutputFormat::Text,
         )
         .await;
@@ -113,6 +119,80 @@ mod list_tests {
             "List for {} should succeed: {:?}",
             tool_name,
             result
+        );
+        cleanup_test_env();
+    }
+
+    /// `vx list` reads installed versions from the global ProviderHandle registry.
+    /// If `handle` forgets to initialize it, every tool silently reports zero
+    /// versions and `--installed` matches nothing (vx#1083).
+    #[rstest]
+    #[tokio::test]
+    async fn test_list_populates_provider_handle_registry(#[future] registry: ProviderRegistry) {
+        let registry = registry.await;
+        let ctx = create_test_context();
+        let args = list::Args {
+            tool: None,
+            status: false,
+            installed: false,
+            available: false,
+            all: false,
+            system: false,
+            version_check: false,
+        };
+        let cmd_ctx = vx_cli::CommandContext::new(
+            registry,
+            ctx,
+            vx_cli::GlobalOptions {
+                output_format: vx_cli::OutputFormat::Json,
+                ..Default::default()
+            },
+        );
+
+        list::handle(&cmd_ctx, &args)
+            .await
+            .expect("List command should succeed");
+
+        let handle_registry = vx_starlark::handle::global_registry().await;
+        assert!(
+            !handle_registry.is_empty(),
+            "vx list must initialize the ProviderHandle registry, otherwise no \
+             installed version can ever be reported"
+        );
+        drop(handle_registry);
+        cleanup_test_env();
+    }
+
+    /// `--installed` and `--available` must survive the `Commands::List` dispatch —
+    /// they were previously hardcoded to `false` in `cli.rs`.
+    #[rstest]
+    #[case(true, false)]
+    #[case(false, true)]
+    #[case(false, false)]
+    #[tokio::test]
+    async fn test_list_install_filters_run(
+        #[future] registry: ProviderRegistry,
+        #[case] installed: bool,
+        #[case] available: bool,
+    ) {
+        let registry = registry.await;
+        let ctx = create_test_context();
+        let result = list::handle_list(
+            &registry,
+            &ctx,
+            None,
+            false,
+            installed,
+            available,
+            false,
+            false,
+            false,
+            vx_cli::OutputFormat::Text,
+        )
+        .await;
+        assert!(
+            result.is_ok(),
+            "list with --installed={installed} --available={available} should succeed: {result:?}"
         );
         cleanup_test_env();
     }
@@ -126,6 +206,8 @@ mod list_tests {
             &registry,
             &ctx,
             Some("nonexistent-tool-xyz"),
+            false,
+            false,
             false,
             false,
             false,
