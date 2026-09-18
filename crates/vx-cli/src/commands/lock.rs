@@ -11,7 +11,7 @@ use vx_paths::project::{LOCK_FILE_NAME, find_vx_config};
 use vx_resolver::{
     Ecosystem, LockFile, LockedTool, ResolvedVersion, Version, VersionRequest, VersionSolver,
 };
-use vx_runtime::{Arch, Os, Platform, ProviderRegistry, RuntimeContext};
+use vx_runtime::{Arch, Os, Platform, ProviderRegistry, RuntimeContext, VersionInfo};
 
 /// Common platforms to generate download URLs for in the lock file.
 /// These are the primary supported platforms for most tools.
@@ -438,6 +438,15 @@ async fn resolve_tool_version(
         return Err(anyhow::anyhow!("No versions available for {}", tool_name));
     }
 
+    // ── System-only providers ────────────────────────────────────────────
+    // Some providers (msvc/cl, msbuild, curl, podman, systemctl, xcodebuild)
+    // cannot be downloaded: `fetch_versions()` reports a single `system`
+    // pseudo-version meaning "use whatever the host provides". There is no
+    // version to pin, so only an explicit `system` request can be locked.
+    if is_system_only(&versions) {
+        return lock_system_only_tool(tool_name, version_str, verbose);
+    }
+
     // Get ecosystem from runtime and convert to vx_resolver::Ecosystem
     let runtime_ecosystem = runtime.ecosystem();
     let ecosystem = match runtime_ecosystem {
@@ -544,6 +553,51 @@ async fn resolve_tool_version(
     }
 
     Ok(locked)
+}
+
+/// The pseudo-version reported by providers that only use the host's copy of a tool.
+///
+/// See [`is_system_only`].
+pub(crate) const SYSTEM_VERSION: &str = "system";
+
+/// Whether `fetch_versions()` reports only the `system` pseudo-version.
+///
+/// Providers such as `msvc` (`cl`), `msbuild`, `curl`, `podman`, `systemctl` and
+/// `xcodebuild` cannot be downloaded — the tool comes from the host, so the only
+/// entry they report is `system`.
+fn is_system_only(versions: &[VersionInfo]) -> bool {
+    !versions.is_empty() && versions.iter().all(|v| v.version == SYSTEM_VERSION)
+}
+
+/// Lock a system-only tool.
+///
+/// Only an explicit `system` request is lockable: it records that the tool is
+/// taken from the host. Any other request (`latest`, `*`, a version number)
+/// fails instead, because a lock entry that names a version while silently
+/// depending on the host environment is a false reproducibility guarantee.
+fn lock_system_only_tool(tool_name: &str, version_str: &str, verbose: bool) -> Result<LockedTool> {
+    if version_str != SYSTEM_VERSION {
+        return Err(anyhow::anyhow!(
+            "{} is provided by the host system and has no installable versions. \
+             Request it as `{} = \"system\"` in vx.toml (got \"{}\").",
+            tool_name,
+            tool_name,
+            version_str
+        ));
+    }
+
+    if verbose {
+        println!(
+            "    ℹ {} is host-provided, locking the system version",
+            tool_name
+        );
+    }
+
+    Ok(
+        LockedTool::new(SYSTEM_VERSION.to_string(), "system".to_string())
+            .with_resolved_from(version_str)
+            .with_ecosystem(Ecosystem::Generic),
+    )
 }
 
 /// Try to create a LockedTool entry from a version already installed in the vx store.
@@ -717,4 +771,79 @@ pub async fn handle_check(verbose: bool) -> Result<()> {
         "Lock file has {} inconsistencies",
         inconsistencies.len()
     ))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{SYSTEM_VERSION, is_system_only, lock_system_only_tool, resolve_tool_version};
+    use crate::registry::create_registry;
+    use vx_resolver::VersionSolver;
+    use vx_runtime::{ProviderRegistry, VersionInfo, mock_context};
+
+    fn version_info(version: &str) -> VersionInfo {
+        VersionInfo::new(version)
+    }
+
+    fn registry() -> ProviderRegistry {
+        create_registry()
+    }
+
+    #[test]
+    fn system_only_detection() {
+        assert!(!is_system_only(&[]), "no versions is not system-only");
+
+        let only_system = vec![version_info(SYSTEM_VERSION)];
+        assert!(is_system_only(&only_system));
+
+        let mixed = vec![version_info(SYSTEM_VERSION), version_info("1.2.3")];
+        assert!(!is_system_only(&mixed));
+
+        let normal = vec![version_info("1.2.3"), version_info("1.2.4")];
+        assert!(!is_system_only(&normal));
+    }
+
+    #[test]
+    fn system_only_tool_locks_explicit_system_request() {
+        let locked = lock_system_only_tool("cl", SYSTEM_VERSION, false)
+            .expect("an explicit `system` request must lock");
+        assert_eq!(locked.version, SYSTEM_VERSION);
+        assert_eq!(locked.source, "system");
+        assert_eq!(locked.resolved_from, SYSTEM_VERSION);
+    }
+
+    #[test]
+    fn system_only_tool_rejects_any_other_request() {
+        for request in ["latest", "*", "1.2.3", ""] {
+            let err = lock_system_only_tool("cl", request, false)
+                .expect_err("only `system` may be locked");
+            let message = err.to_string();
+            assert!(
+                message.contains("system"),
+                "error for request {request:?} must point at the `system` pseudo-version, got: {message}"
+            );
+        }
+    }
+
+    /// End-to-end through `resolve_tool_version`: `cl` (msvc) reports only the
+    /// `system` pseudo-version, so `vx lock` must accept `system` and reject
+    /// `latest` with a message that names `system`.
+    #[tokio::test]
+    async fn resolve_tool_version_locks_system_only_providers() {
+        let registry = registry();
+        let ctx = mock_context();
+        let solver = VersionSolver::new();
+
+        let locked = resolve_tool_version(&registry, &ctx, &solver, "cl", "system", false)
+            .await
+            .expect("cl@system should resolve");
+        assert_eq!(locked.version, SYSTEM_VERSION);
+
+        let err = resolve_tool_version(&registry, &ctx, &solver, "cl", "latest", false)
+            .await
+            .expect_err("cl@latest must not resolve");
+        assert!(
+            err.to_string().contains("system"),
+            "the error must tell the user to request `system`, got: {err}"
+        );
+    }
 }
