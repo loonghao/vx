@@ -325,6 +325,11 @@ jobs:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       RUSTC_WRAPPER: ""
     runs-on: "ubuntu-24.04"
+    permissions:
+      # `contents` mirrors the workflow-level grant; `actions` is needed to
+      # dispatch package-managers.yml once the release is public.
+      "contents": "write"
+      "actions": "write"
     outputs:
       val: ${{ steps.host.outputs.manifest }}
     steps:
@@ -402,6 +407,20 @@ jobs:
           gh release upload "${{ needs.plan.outputs.tag }}" artifacts/*
 
           gh release edit "${{ needs.plan.outputs.tag }}" --target "$RELEASE_COMMIT" $PRERELEASE_FLAG --draft=false
+
+      - name: Trigger package manager publishing
+        # Undrafting a release through the API does not emit a
+        # `release: published` event, so package-managers.yml (Scoop,
+        # Chocolatey) never ran and the published manifests went stale.
+        # Dispatch it explicitly once the release is public.
+        if: ${{ !fromJson(steps.host.outputs.manifest).announcement_is_prerelease }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh workflow run package-managers.yml \
+            --repo loonghao/vx \
+            -f version="${{ needs.plan.outputs.tag }}"
+          echo "Dispatched package-managers.yml for ${{ needs.plan.outputs.tag }}"
       - name: Create legacy compatibility release
         env:
           RELEASE_COMMIT: "${{ github.sha }}"
