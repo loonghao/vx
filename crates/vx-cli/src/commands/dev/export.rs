@@ -2,6 +2,7 @@
 
 use crate::commands::dev::tools::get_registry;
 use crate::commands::setup::ConfigView;
+use crate::commands::tool_paths::build_runtime_spec;
 use anyhow::Result;
 use std::collections::HashMap;
 use std::env;
@@ -83,6 +84,10 @@ pub async fn handle_export(config: &ConfigView, format: Option<String>) -> Resul
 /// - PowerShell: `Invoke-Expression (vx env --export --format powershell)`
 /// - GitHub Actions: `vx env --export --format github >> $GITHUB_ENV`
 pub async fn generate_env_export(config: &ConfigView, format: ExportFormat) -> Result<String> {
+    // System tool detection reads the Starlark provider handles, which are
+    // registered lazily. Make sure they are available before resolving tools.
+    crate::registry::ensure_provider_metadata_initialized().await;
+
     // Merge env from vx.toml with setenv from settings
     let mut env_vars = config.env.clone();
     env_vars.extend(config.setenv.clone());
@@ -93,48 +98,17 @@ pub async fn generate_env_export(config: &ConfigView, format: ExportFormat) -> R
     // Create RuntimeSpecs with proper bin directories from runtime providers
     let mut tool_specs = Vec::new();
     for (tool_name, version) in &config.tools {
-        // Find the runtime for this tool to get bin directories
-        let (bin_dirs, resolved_bin_dir) =
-            if let Some(provider) = registry.providers().iter().find(|p| p.supports(tool_name)) {
-                if let Some(runtime) = provider.get_runtime(tool_name) {
-                    // Call prepare_environment to get runtime-specific environment variables
-                    if let Ok(runtime_env) = runtime.prepare_environment(version, &context).await {
-                        // Merge runtime-specific environment variables (e.g., MSVC's INCLUDE, LIB)
-                        for (key, value) in runtime_env {
-                            env_vars.insert(key, value);
-                        }
-                    }
-
-                    // Try to get the resolved bin directory from the runtime
-                    let resolved = if let Ok(Some(exe_path)) = runtime
-                        .get_executable_path_for_version(version, &context)
-                        .await
-                    {
-                        // Get the parent directory of the executable as the bin directory
-                        exe_path.parent().map(|p| p.to_path_buf())
-                    } else {
-                        None
-                    };
-
-                    let dirs = runtime
-                        .possible_bin_dirs()
-                        .into_iter()
-                        .map(|s| s.to_string())
-                        .collect();
-                    (dirs, resolved)
-                } else {
-                    (vec!["bin".to_string()], None)
-                }
-            } else {
-                (vec!["bin".to_string()], None)
-            };
-
-        let mut spec =
-            vx_env::RuntimeSpec::with_bin_dirs(tool_name.clone(), version.clone(), bin_dirs);
-        if let Some(bin_dir) = resolved_bin_dir {
-            spec = spec.set_resolved_bin_dir(bin_dir);
+        // Merge runtime-specific environment variables (e.g., MSVC's INCLUDE, LIB)
+        if let Some(provider) = registry.providers().iter().find(|p| p.supports(tool_name))
+            && let Some(runtime) = provider.get_runtime(tool_name)
+            && let Ok(runtime_env) = runtime.prepare_environment(version, &context).await
+        {
+            for (key, value) in runtime_env {
+                env_vars.insert(key, value);
+            }
         }
-        tool_specs.push(spec);
+
+        tool_specs.push(build_runtime_spec(&registry, &context, tool_name, version).await);
     }
 
     // Build environment using ToolEnvironment

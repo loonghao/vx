@@ -507,11 +507,14 @@ async fn resolve_tool_version(
             .map(|v| v.version.clone())
             .unwrap_or_else(|| resolved.version.to_string())
     } else {
-        resolved.version.to_string()
+        resolved.version_string()
     };
 
     // Create locked tool entry
-    let mut locked = LockedTool::new(resolved.version.to_string(), resolved.source.clone())
+    //
+    // `version_string()` keeps the upstream tag for version schemes that do not
+    // round-trip through a normalized `Version` (e.g. vcpkg's "2025-12-16").
+    let mut locked = LockedTool::new(resolved.version_string(), resolved.source.clone())
         .with_resolved_from(version_str)
         .with_ecosystem(ecosystem);
 

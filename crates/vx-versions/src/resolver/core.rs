@@ -58,6 +58,13 @@ impl Version {
         let s = s.strip_prefix('v').unwrap_or(s);
         let s = s.split('+').next().unwrap_or(s);
 
+        // Calendar versions (`2025-12-16`, used by vcpkg) must be recognized
+        // before the prerelease split below: the `-` separators belong to the
+        // version itself there, not to a prerelease tag.
+        if let Some(version) = Self::parse_calver(s) {
+            return Some(version);
+        }
+
         let (version_part, prerelease) = if let Some(idx) = s.find('-') {
             (&s[..idx], Some(s[idx + 1..].to_string()))
         } else {
@@ -90,6 +97,47 @@ impl Version {
     /// Check if this is a prerelease version
     pub fn is_prerelease(&self) -> bool {
         self.prerelease.is_some()
+    }
+
+    /// Parse a `YYYY-MM-DD` calendar version such as `2025-12-16`.
+    ///
+    /// The generic parser treats the first `-` as the start of a prerelease tag,
+    /// which turns a date release into `2025.0.0-12-16`. Every release then looks
+    /// like a prerelease, `latest` resolution finds no candidate, and the
+    /// normalized `2025.12.16` form no longer matches the real release tag.
+    /// Mapping the date onto major.minor.patch keeps releases in date order and
+    /// makes them comparable with the regular semver rules.
+    pub fn parse_calver(s: &str) -> Option<Self> {
+        let parts: Vec<&str> = s.split('-').collect();
+        if parts.len() != 3 {
+            return None;
+        }
+
+        // Year is exactly 4 digits, month/day at most 2, everything numeric.
+        if parts[0].len() != 4
+            || parts[1].len() > 2
+            || parts[2].len() > 2
+            || parts
+                .iter()
+                .any(|p| p.is_empty() || !p.chars().all(|c| c.is_ascii_digit()))
+        {
+            return None;
+        }
+
+        let year: u32 = parts[0].parse().ok()?;
+        let month: u32 = parts[1].parse().ok()?;
+        let day: u32 = parts[2].parse().ok()?;
+
+        if year < 1000 || !(1..=12).contains(&month) || !(1..=31).contains(&day) {
+            return None;
+        }
+
+        Some(Self::new(year, month, day))
+    }
+
+    /// Whether a version string is a `YYYY-MM-DD` calendar version
+    pub fn is_calver(s: &str) -> bool {
+        Self::parse_calver(s).is_some()
     }
 }
 

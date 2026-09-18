@@ -463,31 +463,17 @@ fn find_in_global_packages(exe_name: &str) -> Result<Option<std::path::PathBuf>>
 
 /// Find an executable via `provider.star::runtimes[].system_paths` glob patterns
 async fn find_via_system_paths(runtime_name: &str) -> Result<Option<std::path::PathBuf>> {
-    let reg = global_registry().await;
-    if let Some(handle) = reg.get(runtime_name) {
-        for runtime_meta in handle.runtime_metas() {
-            for pattern in &runtime_meta.system_paths {
-                if let Ok(paths) = glob::glob(pattern) {
-                    let mut found: Vec<std::path::PathBuf> = paths
-                        .filter_map(|p| p.ok())
-                        .filter(|p| p.exists())
-                        .collect();
-                    // Sort descending so newest version wins (e.g. VS 2022 > 2019)
-                    #[allow(clippy::unnecessary_sort_by)]
-                    found.sort_by(|a, b| b.cmp(a));
-                    if let Some(path) = found.into_iter().next() {
-                        UI::debug(&format!(
-                            "Found '{}' via system_paths: {}",
-                            runtime_name,
-                            path.display()
-                        ));
-                        return Ok(Some(path));
-                    }
-                }
-            }
-        }
+    let path = crate::commands::tool_paths::find_system_executable(runtime_name).await;
+
+    if let Some(ref path) = path {
+        UI::debug(&format!(
+            "Found '{}' via system_paths: {}",
+            runtime_name,
+            path.display()
+        ));
     }
-    Ok(None)
+
+    Ok(path)
 }
 
 /// Extract version string from an executable path

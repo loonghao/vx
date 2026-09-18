@@ -178,6 +178,71 @@ fn test_registry_clear() {
 }
 
 #[test]
+fn test_registry_get_provider_by_runtime_name_and_alias() {
+    let registry = ProviderRegistry::new();
+
+    registry.register(Arc::new(TestProvider::new(
+        "msvc",
+        vec![
+            Arc::new(TestRuntime {
+                name: "msvc",
+                aliases: &["cl", "vs-build-tools"],
+            }),
+            Arc::new(TestRuntime {
+                name: "clang-cl",
+                aliases: &[],
+            }),
+        ],
+    )));
+
+    // By provider name
+    let provider = registry.get_provider("msvc").expect("provider name lookup");
+    assert_eq!(provider.name(), "msvc");
+
+    // By alias — this is how tools are named in vx.toml
+    let provider = registry
+        .get_provider("cl")
+        .expect("alias 'cl' must resolve to the owning provider");
+    assert_eq!(provider.name(), "msvc");
+
+    // By runtime name that differs from the provider name
+    let provider = registry
+        .get_provider("clang-cl")
+        .expect("runtime name 'clang-cl' must resolve to the owning provider");
+    assert_eq!(provider.name(), "msvc");
+
+    assert!(registry.get_provider("nonexistent").is_none());
+}
+
+#[test]
+fn test_registry_get_provider_materializes_pending_provider_by_alias() {
+    let registry = ProviderRegistry::new();
+
+    let factory: Box<dyn Fn() -> Arc<dyn Provider> + Send + Sync> = Box::new(|| {
+        Arc::new(TestProvider::new(
+            "llvm",
+            vec![Arc::new(TestRuntime {
+                name: "clang-cl",
+                aliases: &[],
+            })],
+        ))
+    });
+
+    registry.register_lazy(
+        "llvm".to_string(),
+        vec!["llvm".to_string(), "clang-cl".to_string()],
+        factory,
+    );
+    assert!(registry.has_pending());
+
+    let provider = registry
+        .get_provider("clang-cl")
+        .expect("a lazy provider must be materialized through its runtime name");
+    assert_eq!(provider.name(), "llvm");
+    assert!(!registry.has_pending());
+}
+
+#[test]
 fn test_registry_multiple_providers() {
     let registry = ProviderRegistry::new();
 

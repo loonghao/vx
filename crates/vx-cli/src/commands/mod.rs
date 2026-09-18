@@ -80,6 +80,7 @@ pub mod services;
 pub mod setup;
 pub mod shell;
 pub mod sync;
+pub mod tool_paths;
 pub mod version;
 pub mod where_cmd;
 

@@ -7,17 +7,23 @@ use super::shell::spawn_dev_shell;
 use super::tools::get_registry;
 use crate::commands::common::load_config_view_cwd;
 use crate::commands::setup::ConfigView;
+use crate::commands::tool_paths::build_runtime_spec;
 use crate::ui::UI;
 use anyhow::{Context, Result};
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::env;
 use std::process::Command;
-use vx_env::{RuntimeSpec, ToolEnvironment};
+use vx_env::ToolEnvironment;
 use vx_starlark::handle::global_registry;
 use vx_starlark::provider::{EnvOp, apply_env_ops};
 
 /// Handle dev command with Args
 pub async fn handle(args: &Args) -> Result<()> {
+    // Populate the Starlark provider handles used for dep expansion (Phase 1),
+    // env ops (Phase 2) and system tool detection. The registry is built lazily
+    // and `vx dev` never triggered it, so every lookup silently found nothing.
+    ensure_starlark_handles().await;
+
     // Use common configuration loading
     let (config_path, mut config) = load_config_view_cwd()?;
 
@@ -86,6 +92,19 @@ pub async fn handle(args: &Args) -> Result<()> {
     }
 
     Ok(())
+}
+
+/// Register the Starlark provider handles before resolving any tool.
+///
+/// `vx dev` reads a tool's `deps()` and `environment()` through the global
+/// Starlark handle registry (`vx_starlark::handle::global_registry`), which is
+/// populated lazily on first use. Commands like `vx run` and `vx where` trigger
+/// that initialization, but `vx dev` did not — so the registry was empty here,
+/// dependency expansion found no handles, env ops were never collected, and
+/// tools that only exist outside the vx store (`cl`, `clang-cl`) stayed off
+/// PATH.
+async fn ensure_starlark_handles() {
+    crate::registry::ensure_provider_metadata_initialized().await;
 }
 
 /// Build environment variables for the dev shell.
@@ -287,6 +306,10 @@ async fn build_dev_environment(
         }
     }
 
+    // Release the Starlark registry guard: Phase 4 resolves tools through
+    // `build_runtime_spec`, which takes the same lock.
+    drop(reg);
+
     // ── Phase 3: Apply non-PATH EnvOps ───────────────────────────────────────
     //
     // EnvOps from provider.star::environment() are applied here.
@@ -309,35 +332,7 @@ async fn build_dev_environment(
     // Build RuntimeSpecs for all resolved tools (direct + transitive deps)
     let mut tool_specs = Vec::new();
     for (tool_name, version) in &resolved_order {
-        // Find the runtime for this tool to get bin directories
-        let (bin_dirs, resolved_bin_dir) =
-            if let Some(provider) = registry.providers().iter().find(|p| p.supports(tool_name)) {
-                if let Some(runtime) = provider.get_runtime(tool_name) {
-                    if let Ok(Some(exe_path)) = runtime
-                        .get_executable_path_for_version(version, &context)
-                        .await
-                    {
-                        let dirs = runtime
-                            .possible_bin_dirs()
-                            .into_iter()
-                            .map(|s| s.to_string())
-                            .collect();
-                        (dirs, exe_path.parent().map(|p| p.to_path_buf()))
-                    } else {
-                        (vec!["bin".to_string()], None)
-                    }
-                } else {
-                    (vec!["bin".to_string()], None)
-                }
-            } else {
-                (vec!["bin".to_string()], None)
-            };
-
-        let mut spec = RuntimeSpec::with_bin_dirs(tool_name.clone(), version.clone(), bin_dirs);
-        if let Some(bin_dir) = resolved_bin_dir {
-            spec = spec.set_resolved_bin_dir(bin_dir);
-        }
-        tool_specs.push(spec);
+        tool_specs.push(build_runtime_spec(&registry, &context, tool_name, version).await);
     }
 
     // Inject system-PATH deps (discovered in Phase 1) into env_vars PATH
@@ -458,46 +453,24 @@ pub fn build_script_environment(config: &ConfigView) -> Result<HashMap<String, S
                 .expect("Failed to build local Tokio runtime for build_script_environment")
         });
 
-    // Create RuntimeSpecs with proper bin directories from runtime providers
-    let mut tool_specs = Vec::new();
-    for (tool_name, version) in &config.tools {
-        let (bin_dirs, resolved_bin_dir) = if let Some(provider) =
-            registry.providers().iter().find(|p| p.supports(tool_name))
-        {
-            if let Some(runtime) = provider.get_runtime(tool_name) {
-                let exe_path = if let Some(ref rt) = local_rt {
-                    // No active Tokio runtime — use our temporary one.
-                    rt.block_on(runtime.get_executable_path_for_version(version, &context))
-                } else {
-                    // Inside an active Tokio runtime — block the thread.
-                    tokio::task::block_in_place(|| {
-                        tokio::runtime::Handle::current()
-                            .block_on(runtime.get_executable_path_for_version(version, &context))
-                    })
-                };
-                if let Ok(Some(exe_path)) = exe_path {
-                    let dirs = runtime
-                        .possible_bin_dirs()
-                        .into_iter()
-                        .map(|s| s.to_string())
-                        .collect();
-                    (dirs, exe_path.parent().map(|p| p.to_path_buf()))
-                } else {
-                    (vec!["bin".to_string()], None)
-                }
-            } else {
-                (vec!["bin".to_string()], None)
-            }
-        } else {
-            (vec!["bin".to_string()], None)
-        };
+    // Register the Starlark provider handles and build one RuntimeSpec per tool.
+    let build_specs = async {
+        ensure_starlark_handles().await;
 
-        let mut spec = RuntimeSpec::with_bin_dirs(tool_name.clone(), version.clone(), bin_dirs);
-        if let Some(bin_dir) = resolved_bin_dir {
-            spec = spec.set_resolved_bin_dir(bin_dir);
+        let mut tool_specs = Vec::with_capacity(config.tools.len());
+        for (tool_name, version) in &config.tools {
+            tool_specs.push(build_runtime_spec(&registry, &context, tool_name, version).await);
         }
-        tool_specs.push(spec);
-    }
+        tool_specs
+    };
+
+    let tool_specs = if let Some(ref rt) = local_rt {
+        // No active Tokio runtime — use our temporary one.
+        rt.block_on(build_specs)
+    } else {
+        // Inside an active Tokio runtime — block the thread.
+        tokio::task::block_in_place(|| tokio::runtime::Handle::current().block_on(build_specs))
+    };
 
     let mut builder = ToolEnvironment::new()
         .tools_from_specs(tool_specs)

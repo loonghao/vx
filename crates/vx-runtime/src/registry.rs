@@ -297,6 +297,12 @@ impl ProviderRegistry {
     }
 
     /// Get a provider by name
+    ///
+    /// In addition to the provider name itself, this resolves the name of any
+    /// runtime the provider owns, and any alias declared for those runtimes.
+    /// Tools are declared in `vx.toml` by the name users invoke them with
+    /// (`cl`, `clang-cl`, …), which is frequently an alias of a multi-runtime
+    /// provider (`msvc`, `llvm`), so a strict provider-name match is not enough.
     pub fn get_provider(&self, name: &str) -> Option<Arc<dyn Provider>> {
         // Try materialized providers first
         {
@@ -306,13 +312,55 @@ impl ProviderRegistry {
             }
         }
 
-        // Try to materialize from pending
-        if self.materialize_provider(name) {
+        // Runtime name or alias of an already-materialized provider
+        if let Some(index) = self.runtime_index(name) {
             let providers = self.providers.read().expect("providers lock poisoned");
-            return providers.iter().find(|p| p.name() == name).cloned();
+            if let Some(p) = providers.get(index) {
+                return Some(p.clone());
+            }
+        }
+
+        // Materialize the provider owning this runtime name/alias on demand
+        let pending_provider = {
+            let index = self
+                .pending_index
+                .read()
+                .expect("pending_index lock poisoned");
+            index.get(name).cloned()
+        };
+        if let Some(provider_name) = pending_provider {
+            self.materialize_provider(&provider_name);
+            return self.get_provider_materialized(name);
+        }
+
+        // `name` may itself be a pending provider name
+        if self.materialize_provider(name) {
+            return self.get_provider_materialized(name);
         }
 
         None
+    }
+
+    /// Index of the materialized provider owning `name` (a runtime name or alias)
+    fn runtime_index(&self, name: &str) -> Option<usize> {
+        let cache = self
+            .runtime_cache
+            .read()
+            .expect("runtime_cache lock poisoned");
+        cache.get(name).copied()
+    }
+
+    /// Look up `name` among materialized providers only (by provider name,
+    /// runtime name, or alias) without triggering lazy materialization.
+    fn get_provider_materialized(&self, name: &str) -> Option<Arc<dyn Provider>> {
+        let providers = self.providers.read().expect("providers lock poisoned");
+
+        if let Some(p) = providers.iter().find(|p| p.name() == name) {
+            return Some(p.clone());
+        }
+
+        let index = self.runtime_index(name)?;
+        providers.get(index).cloned()
     }
 
     /// Get all registered providers (materializes all pending factories)
