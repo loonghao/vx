@@ -6,6 +6,22 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [0.9.32](https://github.com/loonghao/vx/compare/v0.9.31...v0.9.32) (2026-09-18)
+
+
+### Bug Fixes
+
+* **dev:** expose system-detected tools such as cl and clang-cl in the dev shell ([ba918f1](https://github.com/loonghao/vx/commit/ba918f1fb60429df1104f58ffe590ada3dd25053)), closes [#1083](https://github.com/loonghao/vx/issues/1083)
+* harden version source resolution ([#1084](https://github.com/loonghao/vx/issues/1084)) ([4bc9e55](https://github.com/loonghao/vx/commit/4bc9e55cf5762318036aaf4f1e5cdbbadf974cd3))
+* **list:** report installed versions from the store and honour --installed ([5d851c4](https://github.com/loonghao/vx/commit/5d851c44290af46fb54223607a6a52729916b1e4))
+* **lock:** lock system-only providers as "system", reject latest ([857c31b](https://github.com/loonghao/vx/commit/857c31baa33e61ca0d82ed7c5d758f3af3d6060b))
+
+
+### Documentation
+
+* document the Scoop bucket required by scoop install vx ([88af723](https://github.com/loonghao/vx/commit/88af723f8aef5beaaf1d92bb71342a60e680bfc4))
+* **vcpkg:** state that vx pins the CLI only, not triplets, ports or VCPKG_ROOT ([fa42c05](https://github.com/loonghao/vx/commit/fa42c05ff761d94ee0ca740cef9faa41d1a79712))
+
 ## [0.9.31](https://github.com/loonghao/vx/compare/v0.9.30...v0.9.31) (2026-08-30)
 
 
