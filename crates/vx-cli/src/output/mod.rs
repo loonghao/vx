@@ -277,6 +277,11 @@ pub struct ListOutput {
     pub installed_count: usize,
     /// Current platform
     pub platform: String,
+    /// Optional heading that replaces the default "Available Tools" one
+    /// (`vx list --installed`, `--available`, `--all`). Presentation-only, so
+    /// it is excluded from JSON/TOON to keep the machine-readable shape stable.
+    #[serde(skip)]
+    pub title: Option<String>,
 }
 
 /// A single runtime entry in the list
@@ -301,7 +306,11 @@ pub struct RuntimeEntry {
 impl CommandOutput for ListOutput {
     fn render_text(&self, writer: &mut dyn std::io::Write) -> Result<()> {
         writeln!(writer)?;
-        writeln!(writer, "📦 Available Tools ({})", self.platform)?;
+        match &self.title {
+            // A caller-supplied title is a complete heading (platform included).
+            Some(title) => writeln!(writer, "📦 {}", title)?,
+            None => writeln!(writer, "📦 Available Tools ({})", self.platform)?,
+        }
         writeln!(writer)?;
 
         for rt in &self.runtimes {

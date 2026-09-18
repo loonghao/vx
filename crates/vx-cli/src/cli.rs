@@ -1763,8 +1763,8 @@ impl CommandHandler for Commands {
             Commands::List {
                 tool,
                 status,
-                installed: _,
-                available: _,
+                installed,
+                available,
                 all,
                 system,
                 version_check,
@@ -1772,8 +1772,8 @@ impl CommandHandler for Commands {
                 let args = commands::list::Args {
                     tool: tool.clone(),
                     status: *status,
-                    installed: false,
-                    available: false,
+                    installed: *installed,
+                    available: *available,
                     all: *all,
                     system: *system,
                     version_check: *version_check,
