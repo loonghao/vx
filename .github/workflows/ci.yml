@@ -81,7 +81,11 @@ jobs:
       test_packages: ${{ steps.compute-affected.outputs.test_packages }}
 
     steps:
+      # fetch-depth: 0 is required: change detection diffs against the PR base
+      # SHA, which a default shallow clone does not contain.
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
 
       - name: Detect file changes
         id: filter
@@ -97,7 +101,28 @@ jobs:
           if [ -z "$BASE" ] || [ "$BASE" = "0000000000000000000000000000000000000000" ]; then
             BASE="HEAD~1"
           fi
-          CHANGED=$(git diff --name-only "$BASE" HEAD 2>/dev/null || echo "")
+          # Fail loudly instead of silently reporting "nothing changed". Swallowing the
+          # diff error is what made every downstream job skip: an unresolvable BASE
+          # produced an empty file list, so every crate pattern matched false.
+          if ! git cat-file -e "${BASE}^{commit}" 2>/dev/null; then
+            echo "::error::Cannot resolve base commit '${BASE}'. The checkout is too shallow to diff against it." >&2
+            exit 1
+          fi
+          CHANGED=$(git diff --name-only "$BASE" HEAD)
+
+          {
+            echo "### Change detection"
+            echo ""
+            printf 'Base: `%s`\n' "${BASE}"
+            echo ""
+            echo '```'
+            echo "${CHANGED}"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          if [ -z "$CHANGED" ]; then
+            echo "::warning::No files detected as changed against '${BASE}'."
+          fi
 
           check_pattern() {
             local pattern="$1"
