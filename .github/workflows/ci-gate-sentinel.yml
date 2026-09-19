@@ -1,0 +1,200 @@
+name: CI Gate Sentinel
+
+# Fallback detector for a CI gate that was bypassed instead of blocked.
+#
+# GitHub suppresses every workflow run of a push event when the head commit
+# message contains a skip marker, so a commit that carries one cannot report its
+# own problem: no workflow runs, no red check, nothing to look at. Only a run
+# that is not triggered by that push can notice, which is why this workflow is
+# scheduled rather than triggered by push.
+#
+# `CI Skip Marker Guard` blocks the marker on the pull request. This sentinel
+# covers what that guard cannot see: pull requests raised before it existed,
+# direct pushes to main, and markers arriving through any other path.
+
+on:
+  schedule:
+    # Hourly. A bypass is invisible until something looks for it, and the only
+    # cost of one more pass is a handful of Actions API calls.
+    - cron: "23 * * * *"
+  workflow_dispatch:
+    inputs:
+      depth:
+        description: "Number of commits on the branch to inspect"
+        type: number
+        default: 25
+      min-age-minutes:
+        description: "Ignore commits younger than this many minutes"
+        type: number
+        default: 20
+      strict:
+        description: "Also fail on warnings"
+        type: boolean
+        default: false
+      create-issue:
+        description: "Open a tracking issue for confirmed bypasses"
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+  actions: read
+  issues: write
+
+concurrency:
+  group: ci-gate-sentinel
+  cancel-in-progress: true
+
+jobs:
+  sentinel:
+    name: Main CI Coverage
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Inspect recent commits for suppressed push runs
+        id: inspect
+        env:
+          GH_TOKEN: ${{ github.token }}
+          DEPTH: ${{ inputs.depth || 25 }}
+          MIN_AGE: ${{ inputs.min_age_minutes || 20 }}
+          STRICT: ${{ inputs.strict || false }}
+        shell: bash
+        run: |
+          set -uo pipefail
+
+          # Defaults keep `set -u` from aborting when the inputs the workflow
+          # normally provides are missing (they are unset for scheduled runs).
+          DEPTH="${DEPTH:-25}"
+          MIN_AGE="${MIN_AGE:-20}"
+          STRICT="${STRICT:-false}"
+
+          args=(
+            "--branch" "main"
+            "--depth" "$DEPTH"
+            "--min-age-minutes" "$MIN_AGE"
+            "--output" "sentinel-report.json"
+          )
+
+          if [ "$STRICT" = "true" ]; then
+            args+=("--strict")
+          fi
+
+          # Exit codes: 0 clean, 1 bypass found, 2 could not evaluate.
+          # Only 1 is evidence of a bypass, so only 1 may open an issue.
+          status=0
+          python3 scripts/check_main_ci_runs.py "${args[@]}" || status=$?
+
+          case "$status" in
+            0) state=clean ;;
+            1) state=alert ;;
+            *) state=unknown ;;
+          esac
+
+          # /dev/null keeps a local run (no GITHUB_OUTPUT) from tripping set -u.
+          echo "status=$status" >> "${GITHUB_OUTPUT:-/dev/null}"
+          echo "state=$state" >> "${GITHUB_OUTPUT:-/dev/null}"
+
+      - name: Upload report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: ci-gate-sentinel-report
+          path: sentinel-report.json
+          retention-days: 30
+
+      # A failing scheduled run notifies the workflow author. An issue is what
+      # makes the bypass visible to everyone else, and it survives the run log.
+      - name: Open a tracking issue for confirmed bypasses
+        if: |
+          steps.inspect.outputs.state == 'alert' &&
+          (inputs.create-issue || github.event_name == 'schedule')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -uo pipefail
+
+          # Defaults keep `set -u` from aborting when a variable the runner
+          # normally provides is missing.
+          GITHUB_SERVER_URL="${GITHUB_SERVER_URL:-https://github.com}"
+          GITHUB_REPOSITORY="${GITHUB_REPOSITORY:-}"
+          GITHUB_RUN_ID="${GITHUB_RUN_ID:-}"
+
+          python3 - <<'PY' > bypasses.txt
+          import json
+          import os
+
+          with open("sentinel-report.json", encoding="utf-8") as handle:
+              report = json.load(handle)
+
+          for finding in report.get("findings", []):
+              if finding["severity"] == "error":
+                  print(finding["sha"])
+          PY
+
+          if [ ! -s bypasses.txt ]; then
+            echo "No error-severity finding; nothing to file."
+            exit 0
+          fi
+
+          gh label create "ci-gate" --description "CI gate integrity" --color "B60205" 2>/dev/null || true
+
+          while read -r sha; do
+            short="${sha:0:12}"
+            existing="$(gh issue list --label ci-gate --state open --search "$short" --json number --jq '.[0].number // empty')"
+            if [ -n "$existing" ]; then
+              echo "Issue #$existing already tracks $short."
+              continue
+            fi
+
+            # Written by Python rather than a heredoc: the body contains a
+            # bullet list, which a heredoc inside this YAML block would indent
+            # and mis-render.
+            # Values are passed as explicit assignments so the script does not
+            # depend on which variables the runner exports to a heredoc process.
+            SHA="$sha" RUN_URL="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}" python3 - <<'PY'
+          import os
+
+          sha = os.environ["SHA"]
+          run_url = os.environ["RUN_URL"]
+
+          body = f"""The CI gate sentinel found a commit on `main` whose push-event
+          workflow runs were suppressed.
+
+          - commit: `{sha}`
+          - report: {run_url}
+
+          A skip marker reached the commit message through the generated bullet list
+          of a squash merge, so every workflow run for this commit was suppressed.
+          Re-run the checks for this commit (an empty commit on main, or a re-run
+          of the CI workflow) and remove the marker before it is squashed anywhere
+          else.
+
+          See `scripts/check_main_ci_runs.py` and the `Main CI Coverage` workflow.
+          """
+
+          with open("issue-body.md", "w", encoding="utf-8") as handle:
+              handle.write(body)
+          PY
+
+            gh issue create \
+              --title "CI gate bypassed on main by $short" \
+              --label "ci-gate" \
+              --body-file issue-body.md
+          done < bypasses.txt
+
+      - name: Report the gate state
+        if: steps.inspect.outputs.state != 'clean'
+        shell: bash
+        run: |
+          if [ "${{ steps.inspect.outputs.state }}" = "unknown" ]; then
+            echo "::error::The sentinel could not evaluate main (exit ${{ steps.inspect.outputs.status }}). This is an infrastructure problem, not a bypass."
+          else
+            echo "::error::At least one commit on main has no push-event workflow run. The CI gate was bypassed."
+          fi
+          exit 1

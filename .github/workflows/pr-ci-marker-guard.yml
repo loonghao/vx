@@ -1,0 +1,85 @@
+name: CI Skip Marker Guard
+
+# A squash merge composes its commit message from the pull request title plus a
+# generated bullet list of every commit on the branch. GitHub suppresses all
+# workflow runs of a push when the head commit message contains a skip marker
+# ([skip ci], [ci skip], [no ci], [skip actions], [actions skip]), so one
+# marker on one branch commit silently disables CI for the merge commit on the
+# base branch. Fail the pull request while the marker can still be rewritten.
+#
+# The marker has to be removed before the merge: once the merge commit exists
+# with the marker in its message, the push event for it has already been
+# suppressed and no workflow can react to it.
+
+on:
+  pull_request_target:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+  statuses: write
+
+concurrency:
+  group: ci-skip-marker-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  guard:
+    name: CI Skip Marker
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      # pull_request_target is privileged. Execute only the validator from the
+      # trusted base commit; never check out or execute pull request code here.
+      - name: Checkout trusted base commit
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          persist-credentials: false
+
+      - name: Scan pull request commits for CI-skip markers
+        id: scan
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        shell: bash
+        run: |
+          set -uo pipefail
+
+          if [ ! -f scripts/check_pr_ci_markers.sh ]; then
+            # The base commit predates the guard. Skip instead of failing every
+            # pull request that is not based on a commit carrying the script.
+            echo "::notice::CI skip marker guard is unavailable in the base commit; skipping."
+            echo "state=success" >> "$GITHUB_OUTPUT"
+            echo "description=Guard not present in base commit" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          if bash scripts/check_pr_ci_markers.sh "$PR_NUMBER"; then
+            echo "state=success" >> "$GITHUB_OUTPUT"
+            echo "description=No CI-skip markers in the title or commit messages" >> "$GITHUB_OUTPUT"
+          else
+            echo "state=failure" >> "$GITHUB_OUTPUT"
+            echo "description=Title or commit message carries a CI-skip marker" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Publish required status on pull request head
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          POLICY_STATE: ${{ steps.scan.outputs.state || 'failure' }}
+          POLICY_DESCRIPTION: ${{ steps.scan.outputs.description || 'Marker policy could not be evaluated' }}
+        shell: bash
+        run: |
+          gh api --method POST \
+            "repos/${GITHUB_REPOSITORY}/statuses/${PR_HEAD_SHA}" \
+            --raw-field state="$POLICY_STATE" \
+            --raw-field context="CI Skip Marker" \
+            --raw-field description="$POLICY_DESCRIPTION" \
+            --raw-field target_url="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+
+      - name: Enforce marker policy
+        if: steps.scan.outputs.state != 'success'
+        shell: bash
+        run: exit 1

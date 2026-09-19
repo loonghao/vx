@@ -620,10 +620,23 @@ jobs:
         env:
           HEAD_REF: ${{ github.head_ref }}
         run: |
+          # No [skip ci] in this message, on purpose.
+          #
+          # The push below uses the repository GITHUB_TOKEN, and commits pushed
+          # with that token never start a new workflow run, so the marker is not
+          # needed to prevent a commit loop. What the marker did do was poison
+          # the squash merge: GitHub builds the squash message from the pull
+          # request title plus a bullet list of every branch commit, the marker
+          # survived into the merge commit on main, and GitHub then suppressed
+          # every workflow run for that commit. main silently lost its whole CI
+          # gate for one commit (merge of #1097, 4562a26a, zero push runs).
+          #
+          # Keep this message marker-free. `CI Skip Marker Guard` fails any pull
+          # request that reintroduces one.
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add crates/workspace-hack/Cargo.toml Cargo.lock
-          git commit -m "chore: regenerate workspace-hack (cargo-hakari) [skip ci]"
+          git commit -m "chore: regenerate workspace-hack (cargo-hakari)"
           git push origin "HEAD:${HEAD_REF}"
 
       - name: Fail if workspace-hack is outdated (non-PR)

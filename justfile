@@ -164,6 +164,20 @@ check-inline-tests:
 validate-version-scripts:
     ./scripts/test-version-extraction.sh && ./scripts/test-winget-version.sh
 
+# Run the unit tests of the shell and Python CI helpers
+test-scripts:
+    python3 -m unittest discover -s scripts/tests -p "test_*.py" -v
+
+# Fail if a pull request carries a CI-skip marker into its squash merge
+# Usage: just check-pr-ci-markers 1097
+check-pr-ci-markers PR:
+    bash scripts/check_pr_ci_markers.sh {{PR}}
+
+# Report commits on main whose push-event CI runs were suppressed
+# Usage: just check-main-ci 25
+check-main-ci DEPTH="25":
+    python3 scripts/check_main_ci_runs.py --branch main --depth {{DEPTH}}
+
 # Run E2E benchmark tests (local)
 benchmark-run:
     vx cargo test --release --test e2e_benchmark_tests -- --nocapture
