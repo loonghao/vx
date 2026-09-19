@@ -30,11 +30,27 @@ fix(ci): stop skipping every test job in change detection
 进入 `main`，push 事件产生 0 个运行。代码本身是对的（在之后的提交上验证为绿），而这正
 是这种失效模式危险的地方：除非有人按 head SHA 查运行记录，否则它完全不可见。
 
+## 只是引用标记同样会生效
+
+GitHub 是对**整个提交信息**做纯文本匹配。反引号、引号、缩进都不影响匹配结果，所以一条
+只是*讨论*这个标记的提交信息，和一条真的想跳过 CI 的提交信息效果完全一样：
+
+```text
+fix: explain why the housekeeping commit used a skip marker
+
+The commit read: chore: regenerate workspace-hack (cargo-hakari) [skip ci]
+```
+
+这条提交同样不会运行任何 workflow。**提交信息里请用文字描述这个标记**（例如「skip
+marker」「跳过标记」），不要粘贴带方括号的原始形式；否则守卫会拒绝该提交，包括这条本身。
+
+文件内容不受影响：被扫描的只有提交信息。
+
 ## 三层防护
 
 | 层次 | 位置 | 作用 |
 | --- | --- | --- |
-| 阻断 | [CI Skip Marker Guard](https://github.com/loonghao/vx/actions/workflows/pr-ci-marker-guard.yml) | PR 标题或分支任一提交带标记时让 PR 失败 |
+| 阻断 | [CI Skip Marker Guard](https://github.com/loonghao/vx/actions/workflows/pr-ci-marker-guard.yml) | PR 标题或分支任一提交带标记时让 PR 失败；它使用 `pull_request_target`，GitHub 只按默认分支上的定义执行，因此本次改动合入 `main` 后即生效 |
 | 预防 | `ci.yml` | CI 自己推回 PR 分支的提交不再写这个标记 |
 | 发现 | [CI Gate Sentinel](https://github.com/loonghao/vx/actions/workflows/ci-gate-sentinel.yml) | 每小时扫描 `main`，找出没有 push 事件运行的提交 |
 

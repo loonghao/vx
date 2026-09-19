@@ -97,6 +97,20 @@ class ValidateCommitMarkersTests(unittest.TestCase):
         self.assertEqual(result.returncode, 1)
         self.assertIn("pr-title", result.stderr)
 
+    def test_rejects_a_marker_that_is_only_quoted(self) -> None:
+        # GitHub matches the marker as plain text over the whole message, so a
+        # message that merely discusses the marker suppresses CI just as well.
+        message = (
+            "docs: explain the housekeeping commit\n"
+            "\n"
+            "The commit read: chore: regenerate workspace-hack (cargo-hakari) [skip ci]\n"
+        )
+
+        result = self.run_validator(["--message", message])
+
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("line 3", result.stderr)
+
     def test_reports_unreadable_input_file(self) -> None:
         result = self.run_validator(["does-not-exist.txt"])
 

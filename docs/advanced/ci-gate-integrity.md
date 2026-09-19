@@ -35,11 +35,29 @@ The code was fine — it was verified green on a later commit — which is exact
 what makes this failure mode dangerous. It is invisible unless someone queries
 runs by head SHA.
 
+## Quoting a marker still triggers it
+
+GitHub matches the marker as plain text over the whole commit message. Backticks,
+quotation marks and indentation make no difference, so a commit message that
+*discusses* the marker suppresses CI just as effectively as one that intends to:
+
+```text
+fix: explain why the housekeeping commit used a skip marker
+
+The commit read: chore: regenerate workspace-hack (cargo-hakari) [skip ci]
+```
+
+That commit runs no workflow either. **Describe the marker in words in commit
+messages** ("a skip marker", "the CI skip marker") and never paste the bracketed
+form. The guard rejects any commit message containing it, including this one.
+
+File contents are unaffected: only commit messages are scanned.
+
 ## The three layers
 
 | Layer | Workflow | What it does |
 | --- | --- | --- |
-| Block | [CI Skip Marker Guard](https://github.com/loonghao/vx/actions/workflows/pr-ci-marker-guard.yml) | Fails the pull request when the title or any branch commit carries a marker |
+| Block | [CI Skip Marker Guard](https://github.com/loonghao/vx/actions/workflows/pr-ci-marker-guard.yml) | Fails the pull request when the title or any branch commit carries a marker. It runs on `pull_request_target`, which GitHub evaluates on the default branch, so it becomes active once this change reaches `main` |
 | Prevent | `ci.yml` | No longer writes the marker in the commit CI itself pushes to pull request branches |
 | Detect | [CI Gate Sentinel](https://github.com/loonghao/vx/actions/workflows/ci-gate-sentinel.yml) | Hourly scan of `main` for commits with no push-event run |
 
