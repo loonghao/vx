@@ -196,24 +196,29 @@ jobs:
           if [ "$EVENT_NAME" != "pull_request" ]; then
             CROSS_EVENT="run"
             HEAD_SHA=$(git rev-parse HEAD)
+            # Resolve BASE to a concrete SHA before handing it to the API. `HEAD~1`, the
+            # fallback used by workflow_dispatch and merge_group, is meaningful to git
+            # but the compare endpoint would resolve it against the default branch and
+            # silently report a different range than the one diffed locally.
+            BASE_SHA=$(git rev-parse "${BASE}^{commit}")
 
             # Only trust the API answer when it is a usable number; an empty or
             # non-numeric value means the call did not produce a file count.
-            API_FILES=$(gh api "repos/${GITHUB_REPOSITORY}/compare/${BASE}...${HEAD_SHA}" \
+            API_FILES=$(gh api "repos/${GITHUB_REPOSITORY}/compare/${BASE_SHA}...${HEAD_SHA}" \
               --jq '(.files // []) | length' 2>/dev/null || echo "")
             if [ -n "$API_FILES" ] && [ "$API_FILES" -ge 0 ] 2>/dev/null; then
               CROSS_FILES="$API_FILES"
             fi
 
-            CROSS_COMMITS=$(git rev-list --count "${BASE}..${HEAD_SHA}" 2>/dev/null || echo "")
+            CROSS_COMMITS=$(git rev-list --count "${BASE_SHA}..${HEAD_SHA}" 2>/dev/null || echo "")
 
             if [ "$CHANGED_COUNT" -eq 0 ] && [ -n "$CROSS_FILES" ] && [ "$CROSS_FILES" -gt 0 ] 2>/dev/null; then
-              echo "::error::Change detection found 0 files against '${BASE}', but GitHub compare '${BASE}...${HEAD_SHA}' reports ${CROSS_FILES} changed file(s). Refusing to report an empty changeset and skip every job." >&2
+              echo "::error::Change detection found 0 files against '${BASE}', but GitHub compare '${BASE_SHA}...${HEAD_SHA}' reports ${CROSS_FILES} changed file(s). Refusing to report an empty changeset and skip every job." >&2
               exit 1
             fi
 
             if [ "$CHANGED_COUNT" -eq 0 ] && [ -n "$CROSS_COMMITS" ] && [ "$CROSS_COMMITS" -gt 0 ] 2>/dev/null; then
-              echo "::error::Change detection found 0 files against '${BASE}', but '${BASE}..${HEAD_SHA}' holds ${CROSS_COMMITS} commit(s). Refusing to report an empty changeset and skip every job." >&2
+              echo "::error::Change detection found 0 files against '${BASE}', but '${BASE_SHA}..${HEAD_SHA}' holds ${CROSS_COMMITS} commit(s). Refusing to report an empty changeset and skip every job." >&2
               exit 1
             fi
           fi
