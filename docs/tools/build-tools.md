@@ -246,13 +246,15 @@ vcpkg itself is installed at `~/.vx/store/vcpkg/<version>/` (e.g., `~/.vx/store/
 | Outside the lock | Effect |
 |------------------|--------|
 | Triplet (`x64-windows`, `x64-windows-static`, …) | The same CLI builds different binaries for different triplets. |
-| Ports tree (the registry clone inside `~/.vx/store/vcpkg/<version>/`) | Port versions move as the registry is refreshed. |
-| `VCPKG_ROOT` | Selects which registry clone the CLI reads. |
+| Ports tree | vx ships the vcpkg CLI as a single binary and no ports tree of its own; the CLI reads ports from `VCPKG_ROOT`. |
+| `VCPKG_ROOT` | Selects the registry checkout the CLI reads, and therefore the port versions it resolves. |
 
 To make the dependency graph reproducible as well, pin those separately:
 
-- Commit a [`vcpkg.json`](https://learn.microsoft.com/vcpkg/users/manifests) manifest with a `builtin-baseline`, or vendor the ports tree and point `VCPKG_ROOT` at a fixed checkout.
+- Commit a [`vcpkg.json`](https://learn.microsoft.com/vcpkg/users/manifests) manifest with a `builtin-baseline`, and supply the matching registry checkout (vendored into the repo or added as a git submodule) through `VCPKG_ROOT`.
 - Pass the triplet explicitly (`vx vcpkg install openssl:x64-windows`) instead of relying on the default.
+
+`VCPKG_ROOT` is taken from your environment only when you invoke vcpkg directly (`vx vcpkg …`). Inside `vx dev`, the vcpkg provider sets `VCPKG_ROOT` to its own install dir (`~/.vx/store/vcpkg/<version>/`), which holds the CLI binary only, so a value you export beforehand is replaced there.
 
 `vx lock` guarantees you always get the same vcpkg **executable** — not the same C++ dependency graph.
 
