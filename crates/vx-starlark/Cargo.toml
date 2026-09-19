@@ -46,5 +46,6 @@ workspace-hack = { version = "0.1", path = "../workspace-hack" }
 
 [dev-dependencies]
 rstest = { workspace = true }
+regex = { workspace = true }
 tempfile = { workspace = true }
 tokio-test = { workspace = true }

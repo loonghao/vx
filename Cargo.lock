@@ -5123,6 +5123,7 @@ dependencies = [
  "chrono",
  "dirs",
  "once_cell",
+ "regex",
  "reqwest",
  "rstest",
  "semver",
