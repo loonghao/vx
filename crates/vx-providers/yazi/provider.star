@@ -30,8 +30,18 @@ ecosystem   = "devtools"
 # Runtime definitions
 # ---------------------------------------------------------------------------
 
+# yazi changed the shape of `yazi --version` in 26.9.1:
+#
+#   <= 25.x (single line)        >= 26.9.1 (multi-line banner)
+#   Yazi 25.5.31 (e7d1a2b ...)   Yazi
+#                                    Version: 26.9.1 (8dd895c 2026-09-01)
+#                                    Debug  : false
+#                                    ...
+#
+# The pattern therefore allows an optional `Version:` label between the program
+# name and the version number, and always requires the full X.Y[.Z] version.
 runtimes = [runtime_def("yazi", aliases=["ya"],
-                         version_pattern="Yazi \\d+")]
+                         version_pattern="Yazi\\s+(?:Version:\\s*)?\\d+\\.\\d+(?:\\.\\d+)?")]
 
 # ---------------------------------------------------------------------------
 # Permissions
