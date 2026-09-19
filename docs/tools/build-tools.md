@@ -219,25 +219,24 @@ vcpkg is a C++ library manager that simplifies the installation of C++ libraries
 # Install vcpkg
 vx install vcpkg
 
-# This downloads vcpkg-tool binary and shallow-clones the vcpkg registry from GitHub
-# Requires git to be available on PATH
+# This downloads the vcpkg-tool binary only. vx ships no ports tree, triplets or
+# scripts; the CLI reads ports from VCPKG_ROOT, which you supply.
 ```
 
 ### vx-Managed Cache Directories
 
-vcpkg uses vx-managed cache directories to store downloads and binary caches:
+vcpkg stores its downloads and binary caches inside its own install directory:
 
 | Directory | Purpose | Location |
 |-----------|---------|----------|
-| Downloads | Source archives and assets | `~/.vx/cache/vcpkg/downloads/` |
-| Archives | Binary cache for compiled packages | `~/.vx/cache/vcpkg/archives/` |
+| Downloads | Source archives and assets | `~/.vx/store/vcpkg/<version>/.cache/downloads/` |
+| Archives | Binary cache for compiled packages | `~/.vx/store/vcpkg/<version>/.cache/archives/` |
 
-This ensures:
-- **Consistent storage**: All vcpkg artifacts are in the vx cache directory
-- **Easy cleanup**: Remove `~/.vx/cache/vcpkg/` to clear all vcpkg caches
-- **Shared across versions**: Multiple vcpkg versions share the same cache
+This means:
+- **Per version**: each vcpkg version has its own cache, so upgrading vcpkg does not reuse the previous cache
+- **Easy cleanup**: uninstalling that version removes its cache along with it
 
-vcpkg itself is installed at `~/.vx/store/vcpkg/<version>/` (e.g., `~/.vx/store/vcpkg/2025.12.16/`). The installation includes a shallow clone of the vcpkg registry (triplets, scripts, ports, versions) with documentation excluded to save disk space.
+vcpkg itself is installed at `~/.vx/store/vcpkg/<version>/` (e.g., `~/.vx/store/vcpkg/2025.12.16/`). The installation contains the vcpkg CLI binary only — no ports tree, triplets, scripts or registry checkout. The CLI reads ports from `VCPKG_ROOT`, which you provide.
 
 ### What `vx lock` Pins
 
@@ -264,10 +263,8 @@ To make the dependency graph reproducible as well, pin those separately:
 # Uninstall vcpkg
 vx uninstall vcpkg
 
-# This removes the installation directory (including the registry clone).
-# Shared caches at ~/.vx/cache/vcpkg/ are preserved.
-# To clean caches manually:
-# rm -rf ~/.vx/cache/vcpkg/
+# This removes the installation directory, including that version's downloads
+# and binary caches. Other vcpkg versions are unaffected.
 ```
 
 ### Installing C++ Packages
