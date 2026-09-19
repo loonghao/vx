@@ -97,6 +97,9 @@ jobs:
           PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
           PR_CHANGED_FILES: ${{ github.event.pull_request.changed_files }}
           PUSH_BEFORE: ${{ github.event.before }}
+          # Used by the compare-API cross-check below. Only read access to the
+          # repository is needed, which the workflow's `contents` permission grants.
+          GH_TOKEN: ${{ github.token }}
         run: |
           # ---------------------------------------------------------------------------
           # Resolve the base commit for the diff.
@@ -147,13 +150,17 @@ jobs:
           CHANGED_COUNT=$(printf '%s' "$CHANGED" | grep -c . || true)
 
           # ---------------------------------------------------------------------------
-          # Cross-check against the event payload.
+          # Cross-check #1: the event payload.
           #
           # An empty changeset makes every pattern below match false, which skips every
           # job and lets ci-success report green with no work done. That is only correct
           # when there really is nothing to diff. The payload tells us how many files the
           # event itself reports as changed, so "payload says N > 0, we detected 0" means
           # detection is broken — fail instead of silently going green.
+          #
+          # This check only bites on `pull_request`: push payloads can report 0 files for
+          # a push that really changed files, and `workflow_dispatch` carries no file list
+          # at all. Those events are covered by cross-check #2 below.
           # ---------------------------------------------------------------------------
           EXPECTED="$PR_CHANGED_FILES"
           if [ "$EVENT_NAME" = "push" ]; then
@@ -161,6 +168,59 @@ jobs:
             # may omit older commits on very large pushes, so this is a lower bound:
             # any file it does list really is part of the push.
             EXPECTED=$(jq -r '[.commits[]? | ((.added // []) + (.modified // []) + (.removed // []))] | add // [] | length' "$GITHUB_EVENT_PATH" 2>/dev/null || echo "")
+          fi
+
+          # ---------------------------------------------------------------------------
+          # Cross-check #2: sources that do not come from the event payload.
+          #
+          # Without this, `push` and `workflow_dispatch` had no working empty-changeset
+          # guard at all: the payload check above no-ops on both, so a base that resolves
+          # to "nothing to diff" could still skip every job and let the run go green with
+          # nothing tested.
+          #
+          # Two independent sources, both reported in the log so the verdict is never
+          # left at "unknown":
+          #   1. `GET /repos/{owner}/{repo}/compare/{base}...{head}` — computed
+          #      server-side, shares nothing with the local diff or the payload. Only the
+          #      zero / non-zero signal is used, so neither the API's 300-file cap nor its
+          #      three-dot (merge-base) form can affect the verdict.
+          #   2. The commit range `BASE..HEAD`. If it holds commits, an empty file diff
+          #      means the diff did not run, not that nothing changed.
+          #
+          # The payload check is deliberately left as the only guard for `pull_request`,
+          # where it is already effective.
+          # ---------------------------------------------------------------------------
+          CROSS_EVENT="skipped"
+          CROSS_FILES=""
+          CROSS_COMMITS=""
+          if [ "$EVENT_NAME" != "pull_request" ]; then
+            CROSS_EVENT="run"
+            HEAD_SHA=$(git rev-parse HEAD)
+            # Resolve BASE to a concrete SHA before handing it to the API. `HEAD~1`, the
+            # fallback used by workflow_dispatch and merge_group, is meaningful to git
+            # but the compare endpoint would resolve it against the default branch and
+            # silently report a different range than the one diffed locally.
+            BASE_SHA=$(git rev-parse "${BASE}^{commit}")
+
+            # Only trust the API answer when it is a usable number; an empty or
+            # non-numeric value means the call did not produce a file count.
+            API_FILES=$(gh api "repos/${GITHUB_REPOSITORY}/compare/${BASE_SHA}...${HEAD_SHA}" \
+              --jq '(.files // []) | length' 2>/dev/null || echo "")
+            if [ -n "$API_FILES" ] && [ "$API_FILES" -ge 0 ] 2>/dev/null; then
+              CROSS_FILES="$API_FILES"
+            fi
+
+            CROSS_COMMITS=$(git rev-list --count "${BASE_SHA}..${HEAD_SHA}" 2>/dev/null || echo "")
+
+            if [ "$CHANGED_COUNT" -eq 0 ] && [ -n "$CROSS_FILES" ] && [ "$CROSS_FILES" -gt 0 ] 2>/dev/null; then
+              echo "::error::Change detection found 0 files against '${BASE}', but GitHub compare '${BASE_SHA}...${HEAD_SHA}' reports ${CROSS_FILES} changed file(s). Refusing to report an empty changeset and skip every job." >&2
+              exit 1
+            fi
+
+            if [ "$CHANGED_COUNT" -eq 0 ] && [ -n "$CROSS_COMMITS" ] && [ "$CROSS_COMMITS" -gt 0 ] 2>/dev/null; then
+              echo "::error::Change detection found 0 files against '${BASE}', but '${BASE_SHA}..${HEAD_SHA}' holds ${CROSS_COMMITS} commit(s). Refusing to report an empty changeset and skip every job." >&2
+              exit 1
+            fi
           fi
 
           # Written to the log and to the job summary so the resolved base and the
@@ -172,6 +232,11 @@ jobs:
             echo "- base: \`${BASE}\`"
             echo "- changed files: **${CHANGED_COUNT}**"
             echo "- payload reported: \`${EXPECTED:-unknown}\`"
+            if [ "$CROSS_EVENT" = "run" ]; then
+              echo "- independent cross-check: compare API \`${CROSS_FILES:-unavailable}\` file(s), commit range \`${CROSS_COMMITS:-unavailable}\` commit(s)"
+            else
+              echo "- independent cross-check: n/a (\`pull_request\` is covered by the payload cross-check)"
+            fi
             echo ""
             echo '```'
             echo "$CHANGED"
@@ -182,6 +247,9 @@ jobs:
           echo "base=$BASE"
           echo "changed_file_count=$CHANGED_COUNT"
           echo "payload_changed_files=${EXPECTED:-unknown}"
+          echo "cross_check_event=${CROSS_EVENT}"
+          echo "cross_check_files=${CROSS_FILES:-unavailable}"
+          echo "cross_check_commits=${CROSS_COMMITS:-unavailable}"
           echo "changed_files:"
           echo "$CHANGED"
 
@@ -1027,28 +1095,42 @@ jobs:
 
           failed=0
 
-          # Check a required job — must succeed (skipped/cancelled are acceptable)
+          # Check a required job — must succeed.
+          #
+          # `skipped` stays acceptable: change detection skips jobs whose crates the
+          # changeset does not touch, and that is by design.
+          # `cancelled` is NOT acceptable: a cancelled job ran no checks at all, so
+          # counting it as green is the same false-green this gate exists to prevent.
+          # Concurrency cancellation is routine here, and a cancelled run going red is
+          # the intended outcome — do not re-classify it as success to keep runs green.
           check_job() {
             local job_name="$1"
             local result="$2"
             if [[ "$result" == "success" ]]; then
               echo "- ✅ $job_name" >> $GITHUB_STEP_SUMMARY
-            elif [[ "$result" == "skipped" || "$result" == "cancelled" ]]; then
+            elif [[ "$result" == "skipped" ]]; then
               echo "- ⏭️ $job_name (skipped)" >> $GITHUB_STEP_SUMMARY
+            elif [[ "$result" == "cancelled" ]]; then
+              echo "- ❌ $job_name (cancelled — no checks ran, treated as failure)" >> $GITHUB_STEP_SUMMARY
+              failed=1
             else
               echo "- ❌ $job_name ($result)" >> $GITHUB_STEP_SUMMARY
               failed=1
             fi
           }
 
-          # Check an optional/conditional job — only fail on explicit "failure"
+          # Check an optional/conditional job — `skipped` and an empty result stay
+          # acceptable (the job's condition did not select it), `cancelled` does not.
           check_optional_job() {
             local job_name="$1"
             local result="$2"
             if [[ "$result" == "success" ]]; then
               echo "- ✅ $job_name" >> $GITHUB_STEP_SUMMARY
-            elif [[ "$result" == "skipped" || "$result" == "cancelled" || -z "$result" ]]; then
+            elif [[ "$result" == "skipped" || -z "$result" ]]; then
               echo "- ⏭️ $job_name (skipped)" >> $GITHUB_STEP_SUMMARY
+            elif [[ "$result" == "cancelled" ]]; then
+              echo "- ❌ $job_name (cancelled — no checks ran, treated as failure)" >> $GITHUB_STEP_SUMMARY
+              failed=1
             else
               echo "- ❌ $job_name ($result)" >> $GITHUB_STEP_SUMMARY
               failed=1
