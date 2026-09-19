@@ -11,6 +11,13 @@ use std::sync::Arc;
 
 use super::StarlarkProvider;
 
+/// Boxed, `Send` future returned by the closures built in this module.
+///
+/// Named to keep `clippy::type_complexity` off the `impl Fn(..)` return types
+/// below without changing what callers receive.
+pub type StarlarkHookFuture<T> =
+    std::pin::Pin<Box<dyn std::future::Future<Output = anyhow::Result<T>> + Send>>;
+
 // ---------------------------------------------------------------------------
 // Public single-runtime variants
 // ---------------------------------------------------------------------------
@@ -48,14 +55,8 @@ pub fn make_fetch_versions_fn(
 pub fn make_download_url_fn(
     name: impl Into<String>,
     content: impl Into<String>,
-) -> impl Fn(
-    String,
-    vx_runtime::Platform,
-) -> std::pin::Pin<
-    Box<dyn std::future::Future<Output = anyhow::Result<Option<String>>> + Send>,
-> + Send
-+ Sync
-+ 'static {
+) -> impl Fn(String, vx_runtime::Platform) -> StarlarkHookFuture<Option<String>> + Send + Sync + 'static
+{
     let name: Arc<str> = Arc::from(name.into());
     let content: Arc<str> = Arc::from(content.into());
     move |version: String, platform: vx_runtime::Platform| {
@@ -153,14 +154,8 @@ pub(super) fn make_download_url_fn_owned(
     provider_name: Arc<str>,
     content: Arc<str>,
     runtime_name: String,
-) -> impl Fn(
-    String,
-    vx_runtime::Platform,
-) -> std::pin::Pin<
-    Box<dyn std::future::Future<Output = anyhow::Result<Option<String>>> + Send>,
-> + Send
-+ Sync
-+ 'static {
+) -> impl Fn(String, vx_runtime::Platform) -> StarlarkHookFuture<Option<String>> + Send + Sync + 'static
+{
     move |version: String, platform: vx_runtime::Platform| {
         let provider_name = Arc::clone(&provider_name);
         let content = Arc::clone(&content);

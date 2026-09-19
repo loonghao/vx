@@ -885,6 +885,9 @@ impl Runtime for ManifestDrivenRuntime {
         meta
     }
 
+    // `ctx` is only consumed by the Windows-only MSVC branch below; on other
+    // targets it is legitimately unused, so scope the allowance to them.
+    #[cfg_attr(not(windows), allow(unused_variables))]
     async fn prepare_environment(
         &self,
         _version: &str,
