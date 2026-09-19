@@ -131,7 +131,7 @@ predicates = { workspace = true }
 vx-runtime-core = { workspace = true }
 walkdir.workspace = true
 serde_json = { workspace = true }
-rstest = "0.26"
+rstest = "0.27"
 
 
 [workspace.package]
@@ -313,7 +313,7 @@ rust-embed = "8.5"
 backon = "1.6.0"
 
 # Testing frameworks and utilities
-rstest = "0.26"
+rstest = "0.27"
 tokio-test = "0.4"
 test-case = "3.3"
 pretty_assertions = "1.4"
