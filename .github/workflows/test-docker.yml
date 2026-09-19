@@ -41,21 +41,127 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       should_run: ${{ steps.filter.outputs.should_run }}
+      changed_file_count: ${{ steps.filter.outputs.changed_file_count }}
+      base: ${{ steps.filter.outputs.base }}
     steps:
+      # fetch-depth: 0 is required: change detection diffs against the PR base
+      # SHA, which a default shallow clone does not contain.
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
       - name: Detect file changes
         id: filter
         shell: bash
+        # Event values are passed through env (not interpolated into the script) so a
+        # crafted branch or ref name cannot inject shell commands.
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          PR_CHANGED_FILES: ${{ github.event.pull_request.changed_files }}
+          PUSH_BEFORE: ${{ github.event.before }}
         run: |
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
-            BASE="${{ github.event.pull_request.base.sha }}"
-          else
-            BASE="${{ github.event.before }}"
-          fi
+          # ---------------------------------------------------------------------------
+          # Resolve the base commit for the diff.
+          #
+          # pull_request: `base.sha` is the base branch TIP at event time; once the base
+          #   branch moves ahead of the branch point, diffing against it reports the
+          #   branch as reverting base-only commits and over-includes unrelated files.
+          # push: `before` is the pre-push tip, which is the correct base. It is the
+          #   zero SHA for a newly created branch and is empty for non-push events.
+          # workflow_dispatch: no base is available in the payload, so fall back to
+          #   HEAD~1. This is the same resolution order as .github/workflows/ci.yml.
+          # ---------------------------------------------------------------------------
+          case "$EVENT_NAME" in
+            pull_request) BASE="$PR_BASE_SHA" ;;
+            push)         BASE="$PUSH_BEFORE" ;;
+            *)            BASE="" ;;
+          esac
+
           if [ -z "$BASE" ] || [ "$BASE" = "0000000000000000000000000000000000000000" ]; then
             BASE="HEAD~1"
           fi
-          CHANGED=$(git diff --name-only "$BASE" HEAD 2>/dev/null || echo "")
+
+          # Fail loudly instead of silently reporting "nothing changed". Swallowing the
+          # diff error is what made every downstream job skip: an unresolvable BASE
+          # produced an empty file list, so the pattern below matched false and the
+          # Docker Success gate reported green with no work done.
+          if ! git cat-file -e "${BASE}^{commit}" 2>/dev/null; then
+            echo "::error::Cannot resolve base commit '${BASE}'. The checkout is too shallow to diff against it." >&2
+            exit 1
+          fi
+
+          if [ "$EVENT_NAME" = "pull_request" ]; then
+            # `base.sha` is on the base branch, so the merge-base with HEAD is the real
+            # branch point. Only needed when the two are not the same commit.
+            MERGE_BASE=$(git merge-base "$BASE" HEAD) || {
+              echo "::error::Cannot compute merge-base between '${BASE}' and HEAD." >&2
+              exit 1
+            }
+            if [ -n "$MERGE_BASE" ] && [ "$MERGE_BASE" != "$BASE" ]; then
+              echo "Base '${BASE}' is ahead of the branch point; using merge-base '${MERGE_BASE}'."
+              BASE="$MERGE_BASE"
+            fi
+          fi
+
+          # No `2>/dev/null || echo ""` here: the shell runs with -e, so a failing diff
+          # aborts this job instead of yielding an empty changeset.
+          CHANGED=$(git diff --name-only "$BASE" HEAD)
+          CHANGED_COUNT=$(printf '%s' "$CHANGED" | grep -c . || true)
+
+          # ---------------------------------------------------------------------------
+          # Cross-check against the event payload.
+          #
+          # An empty changeset makes the pattern below match false, which skips every
+          # job and lets docker-success report green with no work done. That is only
+          # correct when there really is nothing to diff. The payload tells us how many
+          # files the event itself reports as changed, so "payload says N > 0, we
+          # detected 0" means detection is broken — fail instead of going green.
+          # ---------------------------------------------------------------------------
+          EXPECTED="$PR_CHANGED_FILES"
+          if [ "$EVENT_NAME" = "push" ]; then
+            # Sum the file lists the push payload carries for its commits. The payload
+            # may omit older commits on very large pushes, so this is a lower bound:
+            # any file it does list really is part of the push.
+            EXPECTED=$(jq -r '[.commits[]? | ((.added // []) + (.modified // []) + (.removed // []))] | add // [] | length' "$GITHUB_EVENT_PATH" 2>/dev/null || echo "")
+          fi
+
+          # Written to the log and to the job summary so the resolved base and the
+          # changed-file list stay verifiable from `gh run view --log`.
+          {
+            echo "### Change detection"
+            echo ""
+            echo "- event: \`${EVENT_NAME}\`"
+            echo "- base: \`${BASE}\`"
+            echo "- changed files: **${CHANGED_COUNT}**"
+            echo "- payload reported: \`${EXPECTED:-unknown}\`"
+            echo ""
+            echo '```'
+            echo "$CHANGED"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          echo "event=$EVENT_NAME"
+          echo "base=$BASE"
+          echo "changed_file_count=$CHANGED_COUNT"
+          echo "payload_changed_files=${EXPECTED:-unknown}"
+          echo "changed_files:"
+          echo "$CHANGED"
+
+          echo "base=$BASE" >> $GITHUB_OUTPUT
+          echo "changed_file_count=$CHANGED_COUNT" >> $GITHUB_OUTPUT
+
+          if [ -n "$EXPECTED" ] && [ "$EXPECTED" != "null" ] && [ "$EXPECTED" -gt 0 ] 2>/dev/null; then
+            if [ "$CHANGED_COUNT" -eq 0 ]; then
+              echo "::error::Change detection found 0 files against '${BASE}', but the ${EVENT_NAME} payload reports ${EXPECTED} changed file(s). Refusing to report an empty changeset and skip every job." >&2
+              exit 1
+            fi
+          fi
+
+          if [ "$CHANGED_COUNT" -eq 0 ]; then
+            echo "::warning::No files detected as changed against '${BASE}'. Every downstream job will be skipped; this is only correct if the event really carries no file changes."
+          fi
+
           if echo "$CHANGED" | grep -qE '^(pkg/docker/|Dockerfile|\.github/workflows/test-docker\.yml|crates/|Cargo\.(toml|lock))'; then
             echo "should_run=true" >> $GITHUB_OUTPUT
           else
@@ -318,12 +424,6 @@ jobs:
           echo "## Docker Workflow Results" >> "$GITHUB_STEP_SUMMARY"
           echo "" >> "$GITHUB_STEP_SUMMARY"
 
-          # If no relevant files changed, all jobs are skipped — that's a pass
-          if [[ "${{ needs.check-changes.outputs.should_run }}" != "true" && "${{ github.event_name }}" != "workflow_dispatch" ]]; then
-            echo "No relevant files changed — skipping Docker tests" >> "$GITHUB_STEP_SUMMARY"
-            exit 0
-          fi
-
           failed=0
 
           check_job() {
@@ -339,6 +439,23 @@ jobs:
               failed=1
             fi
           }
+
+          # Check change detection first: when it fails it emits no `should_run`
+          # output, and reading that as "nothing changed" is exactly what made this
+          # gate report green with every test job skipped.
+          check_job "check-changes" "${{ needs.check-changes.result }}"
+
+          if [[ $failed -eq 1 ]]; then
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+            echo "❌**Docker workflow failed**" >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
+
+          # If no relevant files changed, all jobs are skipped — that's a pass
+          if [[ "${{ needs.check-changes.outputs.should_run }}" != "true" && "${{ github.event_name }}" != "workflow_dispatch" ]]; then
+            echo "No relevant files changed — skipping Docker tests" >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
 
           check_job "build" "${{ needs.build.result }}"
           check_job "test-dockerfile-syntax" "${{ needs.test-dockerfile-syntax.result }}"
