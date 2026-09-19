@@ -5665,6 +5665,7 @@ dependencies = [
  "futures-core",
  "futures-executor",
  "futures-sink",
+ "futures-task",
  "futures-util",
  "getrandom 0.4.3",
  "hashbrown 0.14.5",

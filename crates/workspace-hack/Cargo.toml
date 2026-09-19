@@ -25,6 +25,7 @@ futures-channel = { version = "0.3", features = ["sink"] }
 futures-core = { version = "0.3" }
 futures-executor = { version = "0.3" }
 futures-sink = { version = "0.3" }
+futures-task = { version = "0.3", default-features = false, features = ["std"] }
 futures-util = { version = "0.3", features = ["channel", "io", "sink"] }
 hashbrown = { version = "0.14", features = ["raw"] }
 indexmap = { version = "2", features = ["serde"] }
@@ -70,6 +71,7 @@ futures-channel = { version = "0.3", features = ["sink"] }
 futures-core = { version = "0.3" }
 futures-executor = { version = "0.3" }
 futures-sink = { version = "0.3" }
+futures-task = { version = "0.3", default-features = false, features = ["std"] }
 futures-util = { version = "0.3", features = ["channel", "io", "sink"] }
 hashbrown = { version = "0.14", features = ["raw"] }
 indexmap = { version = "2", features = ["serde"] }
