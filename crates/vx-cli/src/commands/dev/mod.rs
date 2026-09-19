@@ -34,4 +34,10 @@ pub use args::Args;
 pub use export::{ExportFormat, generate_env_export};
 pub use handler::build_script_environment;
 pub use handler::handle;
+// Dev shell nesting contract: exposed so the depth/warning helpers can be
+// covered by integration tests under crates/vx-cli/tests/.
+pub use handler::{
+    DEV_SHELL_DEPTH_VAR, DEV_SHELL_VAR, is_inside_dev_shell, nested_dev_shell_warning,
+    next_dev_shell_depth,
+};
 pub use tools::get_registry;

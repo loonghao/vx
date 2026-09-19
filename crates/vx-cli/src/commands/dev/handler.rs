@@ -10,6 +10,7 @@ use crate::commands::setup::ConfigView;
 use crate::commands::tool_paths::build_runtime_spec;
 use crate::ui::UI;
 use anyhow::{Context, Result};
+use colored::*;
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::env;
 use std::process::Command;
@@ -83,6 +84,24 @@ pub async fn handle(args: &Args) -> Result<()> {
     if let Some(cmd) = &args.command {
         execute_command_in_env(cmd, &env_vars)?;
     } else {
+        // Spawning always nests one more interactive shell. Warn rather than
+        // block: a nested dev shell bound to another directory or vx.toml is a
+        // legitimate use, but each layer needs its own `exit`.
+        if is_inside_dev_shell(&ambient_dev_shell_env()) {
+            let depth = env_vars
+                .get(DEV_SHELL_DEPTH_VAR)
+                .and_then(|value| value.parse::<u32>().ok())
+                .unwrap_or(1);
+            // Deliberately stderr, not `UI::warn`: `UI::warn` writes to stdout,
+            // and a diagnostic about shell nesting must not pollute the
+            // command's output stream.
+            eprintln!(
+                "{} {}",
+                "⚠".yellow(),
+                nested_dev_shell_warning(depth).yellow()
+            );
+        }
+
         spawn_dev_shell(
             args.shell.clone(),
             &env_vars,
@@ -107,6 +126,77 @@ async fn ensure_starlark_handles() {
     crate::registry::ensure_provider_metadata_initialized().await;
 }
 
+// ----------------------------------------------------------------------------
+// Dev shell nesting
+// ----------------------------------------------------------------------------
+
+/// Marks the process as running inside a vx dev shell.
+///
+/// Written by [`build_dev_environment`] and by the shell integration scripts in
+/// [`super::export`]. It carries no depth information on its own — see
+/// [`DEV_SHELL_DEPTH_VAR`].
+pub const DEV_SHELL_VAR: &str = "VX_DEV";
+
+/// How many dev shells deep the *current* process is.
+///
+/// `1` means "outermost dev shell". Each nested `vx dev` increments it, which
+/// is what lets [`nested_dev_shell_warning`] tell the user how many `exit`s
+/// they will need. Older shells and the shell integration scripts only write
+/// [`DEV_SHELL_VAR`], so a missing or unparsable value is treated as depth `1`.
+pub const DEV_SHELL_DEPTH_VAR: &str = "VX_DEV_DEPTH";
+
+/// Whether the given environment is already inside a vx dev shell.
+///
+/// An empty [`DEV_SHELL_VAR`] counts as "not inside" so that `VX_DEV=` does
+/// not produce a spurious warning.
+pub fn is_inside_dev_shell(env: &HashMap<String, String>) -> bool {
+    env.get(DEV_SHELL_VAR)
+        .map(|value| !value.is_empty())
+        .unwrap_or(false)
+}
+
+/// Depth of the dev shell that `vx dev` is about to spawn.
+///
+/// The outermost shell is depth `1`; re-running `vx dev` from inside it spawns
+/// depth `2`, and so on. [`DEV_SHELL_DEPTH_VAR`] is read from `env` when set,
+/// otherwise an existing [`DEV_SHELL_VAR`] implies depth `1`. Saturating add
+/// keeps a corrupted value from wrapping back to `0`.
+pub fn next_dev_shell_depth(env: &HashMap<String, String>) -> u32 {
+    if !is_inside_dev_shell(env) {
+        return 1;
+    }
+
+    let current = env
+        .get(DEV_SHELL_DEPTH_VAR)
+        .and_then(|value| value.parse::<u32>().ok())
+        .filter(|depth| *depth > 0)
+        .unwrap_or(1);
+
+    current.saturating_add(1)
+}
+
+/// Warning shown when `vx dev` is invoked from inside an existing dev shell.
+///
+/// `vx dev` nests one interactive shell per invocation, so leaving an N-deep
+/// stack takes N `exit`s. This only warns — nesting stays allowed, because
+/// re-opening a dev shell for a different directory or `vx.toml` is legitimate.
+pub fn nested_dev_shell_warning(depth: u32) -> String {
+    format!(
+        "vx dev: already inside a dev shell (depth {depth}); each nested shell needs its own 'exit'."
+    )
+}
+
+/// Read the ambient dev-shell variables into a map for the helpers above.
+///
+/// Only the two variables this module cares about are read, so callers never
+/// depend on the full process environment.
+fn ambient_dev_shell_env() -> HashMap<String, String> {
+    [DEV_SHELL_VAR, DEV_SHELL_DEPTH_VAR]
+        .into_iter()
+        .filter_map(|key| env::var(key).ok().map(|value| (key.to_string(), value)))
+        .collect()
+}
+
 /// Build environment variables for the dev shell.
 ///
 /// Implements rez-style dependency resolution:
@@ -123,15 +213,6 @@ async fn ensure_starlark_handles() {
 ///   get the list of [`EnvOp`]s that describe how to set up the environment
 ///   (PATH prepends, variable sets, etc.). Deps' ops come first so their
 ///   PATH entries take lower precedence than direct tools.
-///
-/// **Phase 3 — Apply non-PATH EnvOps**
-///   Apply all collected EnvOps. PATH-like vars are handled by `vx-env`'s
-///   `ToolEnvironment` (Phase 4), so we only apply non-PATH vars here
-///   (e.g. GOROOT, JAVA_HOME, GIT_EXEC_PATH).
-///
-/// **Phase 4 — Build final environment via vx-env**
-///   `ToolEnvironment` handles PATH construction with proper isolation,
-///   passenv filtering, and bin-dir resolution for vx-managed tools.
 async fn build_dev_environment(
     config: &ConfigView,
     verbose: bool,
@@ -364,8 +445,12 @@ async fn build_dev_environment(
         env_result.insert("PATH".to_string(), new_path);
     }
 
-    // Set VX_DEV environment variable to indicate we're in a dev shell
-    env_result.insert("VX_DEV".to_string(), "1".to_string());
+    // Set VX_DEV environment variable to indicate we're in a dev shell.
+    // VX_DEV_DEPTH records how deep the *new* shell is, so a nested `vx dev`
+    // can tell the user how many `exit`s it will take to get back out.
+    let shell_depth = next_dev_shell_depth(&ambient_dev_shell_env());
+    env_result.insert(DEV_SHELL_VAR.to_string(), "1".to_string());
+    env_result.insert(DEV_SHELL_DEPTH_VAR.to_string(), shell_depth.to_string());
 
     // Set VX_PROJECT_NAME for prompt customization
     env_result.insert("VX_PROJECT_NAME".to_string(), config.project_name.clone());
