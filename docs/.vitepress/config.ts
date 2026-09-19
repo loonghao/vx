@@ -166,6 +166,7 @@ const enSidebar = {
         { text: 'Provider Development', link: '/advanced/plugin-development' },
         { text: 'CLI Command Development', link: '/advanced/cli-development' },
         { text: 'Extension Development', link: '/advanced/extension-development' },
+        { text: 'CI Gate Integrity', link: '/advanced/ci-gate-integrity' },
         { text: 'Release Process', link: '/advanced/release-process' }
       ]
     }
@@ -339,6 +340,7 @@ const zhSidebar = {
         { text: 'Provider 开发', link: '/zh/advanced/plugin-development' },
         { text: 'CLI 命令开发', link: '/zh/advanced/cli-development' },
         { text: 'Extension 开发', link: '/zh/advanced/extension-development' },
+        { text: 'CI 门禁完整性', link: '/zh/advanced/ci-gate-integrity' },
         { text: '发布流程', link: '/zh/advanced/release-process' }
       ]
     }
