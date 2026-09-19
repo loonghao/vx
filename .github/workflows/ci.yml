@@ -802,21 +802,23 @@ jobs:
       fail-fast: false
       matrix:
         platform:
+          # Retries on the network-dependent E2E groups spend wall-clock on a
+          # later attempt, so keep headroom over the observed ~35-40m runtime.
           - name: Linux-x86_64
             os: ubuntu-latest
             artifact: vx-linux-x64
             binary: vx
-            timeout_minutes: 45
+            timeout_minutes: 60
           - name: Windows-x86_64
             os: windows-latest
             artifact: vx-windows-x64
             binary: vx.exe
-            timeout_minutes: 90
+            timeout_minutes: 120
           - name: macOS-x86_64
             os: macos-latest
             artifact: vx-macos-x64
             binary: vx
-            timeout_minutes: 45
+            timeout_minutes: 60
 
     steps:
       - uses: actions/checkout@v7
