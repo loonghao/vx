@@ -90,17 +90,37 @@ jobs:
       - name: Detect file changes
         id: filter
         shell: bash
+        # Event values are passed through env (not interpolated into the script) so a
+        # crafted branch or ref name cannot inject shell commands.
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          PR_CHANGED_FILES: ${{ github.event.pull_request.changed_files }}
+          PUSH_BEFORE: ${{ github.event.before }}
         run: |
-          # Get changed files compared to base branch
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
-            BASE="${{ github.event.pull_request.base.sha }}"
-          else
-            BASE="${{ github.event.before }}"
-          fi
-          # Fallback to HEAD~1 if BASE is empty or zero commit
+          # ---------------------------------------------------------------------------
+          # Resolve the base commit for the diff.
+          #
+          # pull_request: diff against the merge-base with the base branch, not against
+          #   `base.sha`. `base.sha` is the base branch TIP at event time; once the base
+          #   branch moves ahead of the branch point, diffing against it reports the
+          #   branch as reverting base-only commits and over-includes unrelated files.
+          # push: `before` is the pre-push tip, which is the correct base. It is the
+          #   zero SHA for a newly created branch and is empty for non-push events.
+          # merge_group / workflow_dispatch: no base is available in the payload, so
+          #   fall back to HEAD~1 (the merge queue's temp commit has the base branch tip
+          #   as its first parent, which is exactly the base we want).
+          # ---------------------------------------------------------------------------
+          case "$EVENT_NAME" in
+            pull_request) BASE="$PR_BASE_SHA" ;;
+            push)         BASE="$PUSH_BEFORE" ;;
+            *)            BASE="" ;;
+          esac
+
           if [ -z "$BASE" ] || [ "$BASE" = "0000000000000000000000000000000000000000" ]; then
             BASE="HEAD~1"
           fi
+
           # Fail loudly instead of silently reporting "nothing changed". Swallowing the
           # diff error is what made every downstream job skip: an unresolvable BASE
           # produced an empty file list, so every crate pattern matched false.
@@ -108,20 +128,72 @@ jobs:
             echo "::error::Cannot resolve base commit '${BASE}'. The checkout is too shallow to diff against it." >&2
             exit 1
           fi
+
+          if [ "$EVENT_NAME" = "pull_request" ]; then
+            # `base.sha` is on the base branch, so the merge-base with HEAD is the real
+            # branch point. Only needed when the two are not the same commit.
+            MERGE_BASE=$(git merge-base "$BASE" HEAD) || {
+              echo "::error::Cannot compute merge-base between '${BASE}' and HEAD." >&2
+              exit 1
+            }
+            if [ -n "$MERGE_BASE" ] && [ "$MERGE_BASE" != "$BASE" ]; then
+              echo "Base '${BASE}' is ahead of the branch point; using merge-base '${MERGE_BASE}'."
+              BASE="$MERGE_BASE"
+            fi
+          fi
+
           CHANGED=$(git diff --name-only "$BASE" HEAD)
 
+          CHANGED_COUNT=$(printf '%s' "$CHANGED" | grep -c . || true)
+
+          # ---------------------------------------------------------------------------
+          # Cross-check against the event payload.
+          #
+          # An empty changeset makes every pattern below match false, which skips every
+          # job and lets ci-success report green with no work done. That is only correct
+          # when there really is nothing to diff. The payload tells us how many files the
+          # event itself reports as changed, so "payload says N > 0, we detected 0" means
+          # detection is broken — fail instead of silently going green.
+          # ---------------------------------------------------------------------------
+          EXPECTED="$PR_CHANGED_FILES"
+          if [ "$EVENT_NAME" = "push" ]; then
+            # Sum the file lists the push payload carries for its commits. The payload
+            # may omit older commits on very large pushes, so this is a lower bound:
+            # any file it does list really is part of the push.
+            EXPECTED=$(jq -r '[.commits[]? | ((.added // []) + (.modified // []) + (.removed // []))] | add // [] | length' "$GITHUB_EVENT_PATH" 2>/dev/null || echo "")
+          fi
+
+          # Written to the log and to the job summary so the resolved base and the
+          # changed-file list stay verifiable from `gh run view --log`.
           {
             echo "### Change detection"
             echo ""
-            printf 'Base: `%s`\n' "${BASE}"
+            echo "- event: \`${EVENT_NAME}\`"
+            echo "- base: \`${BASE}\`"
+            echo "- changed files: **${CHANGED_COUNT}**"
+            echo "- payload reported: \`${EXPECTED:-unknown}\`"
             echo ""
             echo '```'
-            echo "${CHANGED}"
+            echo "$CHANGED"
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
 
-          if [ -z "$CHANGED" ]; then
-            echo "::warning::No files detected as changed against '${BASE}'."
+          echo "event=$EVENT_NAME"
+          echo "base=$BASE"
+          echo "changed_file_count=$CHANGED_COUNT"
+          echo "payload_changed_files=${EXPECTED:-unknown}"
+          echo "changed_files:"
+          echo "$CHANGED"
+
+          if [ -n "$EXPECTED" ] && [ "$EXPECTED" != "null" ] && [ "$EXPECTED" -gt 0 ] 2>/dev/null; then
+            if [ "$CHANGED_COUNT" -eq 0 ]; then
+              echo "::error::Change detection found 0 files against '${BASE}', but the ${EVENT_NAME} payload reports ${EXPECTED} changed file(s). Refusing to report an empty changeset and skip every job." >&2
+              exit 1
+            fi
+          fi
+
+          if [ "$CHANGED_COUNT" -eq 0 ]; then
+            echo "::warning::No files detected as changed against '${BASE}'. Every downstream job will be skipped; this is only correct if the event really carries no file changes."
           fi
 
           check_pattern() {
