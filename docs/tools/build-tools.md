@@ -220,7 +220,8 @@ vcpkg is a C++ library manager that simplifies the installation of C++ libraries
 vx install vcpkg
 
 # This downloads the vcpkg-tool binary only. vx ships no ports tree, triplets or
-# scripts; the CLI reads ports from VCPKG_ROOT, which you supply.
+# scripts; the CLI reads ports from VCPKG_ROOT, which you supply when invoking
+# vcpkg directly.
 ```
 
 ### vx-Managed Cache Directories
@@ -236,7 +237,7 @@ This means:
 - **Per version**: each vcpkg version has its own cache, so upgrading vcpkg does not reuse the previous cache
 - **Easy cleanup**: uninstalling that version removes its cache along with it
 
-vcpkg itself is installed at `~/.vx/store/vcpkg/<version>/` (e.g., `~/.vx/store/vcpkg/2025.12.16/`). The installation contains the vcpkg CLI binary only — no ports tree, triplets, scripts or registry checkout. The CLI reads ports from `VCPKG_ROOT`, which you provide.
+vcpkg itself is installed at `~/.vx/store/vcpkg/<version>/` (e.g., `~/.vx/store/vcpkg/2025.12.16/`). The installation contains the vcpkg CLI binary only — no ports tree, triplets, scripts or registry checkout. The CLI reads ports from `VCPKG_ROOT`, which you supply when invoking vcpkg directly.
 
 ### What `vx lock` Pins
 

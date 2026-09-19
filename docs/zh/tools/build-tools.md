@@ -189,7 +189,7 @@ vcpkg 是一个 C++ 库管理器，简化了 C++ 库及其依赖项的安装。�
 vx install vcpkg
 
 # 这只下载 vcpkg-tool 二进制。vx 不自带 ports 树、triplets 和 scripts；
-# CLI 从 VCPKG_ROOT 读取 ports，该目录由你自己提供。
+# CLI 从 VCPKG_ROOT 读取 ports；直接调用 vcpkg 时，该目录由你提供。
 ```
 
 ### vx 管理的缓存目录
@@ -205,7 +205,7 @@ vcpkg 把下载文件和二进制缓存存放在它自己的安装目录内：
 - **按版本隔离**：每个 vcpkg 版本都有自己的缓存，升级 vcpkg 不会复用旧版本的缓存
 - **易于清理**：卸载该版本时，它的缓存会随之删除
 
-vcpkg 本身安装在 `~/.vx/store/vcpkg/<version>/`（例如 `~/.vx/store/vcpkg/2025.12.16/`）。安装内容只有 vcpkg CLI 这一个二进制 —— 没有 ports 树、triplets、scripts，也没有 registry checkout。CLI 从 `VCPKG_ROOT` 读取 ports，该目录由你自己提供。
+vcpkg 本身安装在 `~/.vx/store/vcpkg/<version>/`（例如 `~/.vx/store/vcpkg/2025.12.16/`）。安装内容只有 vcpkg CLI 这一个二进制 —— 没有 ports 树、triplets、scripts，也没有 registry checkout。CLI 从 `VCPKG_ROOT` 读取 ports；直接调用 vcpkg 时，该目录由你提供。
 
 ### `vx lock` 锁定什么
 

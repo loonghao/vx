@@ -119,7 +119,7 @@ def environment(ctx, _version):
 
 def deps(_ctx, _version):
     return [
-        dep_def("git",   reason = "Git is required to clone the vcpkg package registry"),
+        dep_def("git",   reason = "The vcpkg CLI needs Git to fetch ports and version data"),
         dep_def("cmake", optional = True, reason = "CMake is commonly used with vcpkg"),
         dep_def("ninja", optional = True, reason = "Ninja provides faster builds"),
     ]
