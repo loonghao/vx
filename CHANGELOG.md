@@ -6,6 +6,28 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [0.9.33](https://github.com/loonghao/vx/compare/v0.9.32...v0.9.33) (2026-09-19)
+
+
+### Features
+
+* **dev:** warn when nesting a dev shell and track its depth ([890b576](https://github.com/loonghao/vx/commit/890b5760d3b60d2feca37328f6420dde4d3d2e10))
+
+
+### Bug Fixes
+
+* **ci:** cross-check empty changesets off-payload in the three sibling workflows ([#1116](https://github.com/loonghao/vx/issues/1116)) ([38e2046](https://github.com/loonghao/vx/commit/38e2046a3f6e7419ed483db0d2ef1e6341a0f6eb))
+* **ci:** stop skipping every test job in change detection ([4562a26](https://github.com/loonghao/vx/commit/4562a26afd426aa56f7775a7454d27bc9612de0c))
+* **ci:** stop skipping sibling workflow jobs and fix yazi version detection ([a3c6648](https://github.com/loonghao/vx/commit/a3c66487cf0e440d77469b17ab99f511fcfe37ff))
+* **ci:** treat cancelled jobs as failures and cross-check empty changesets off-payload ([#1103](https://github.com/loonghao/vx/issues/1103)) ([d82a78a](https://github.com/loonghao/vx/commit/d82a78a037228f60c30fc836ca2305797585297e))
+
+
+### Documentation
+
+* **vcpkg:** correct ports tree and VCPKG_ROOT claims ([#1096](https://github.com/loonghao/vx/issues/1096)) ([a89ac5d](https://github.com/loonghao/vx/commit/a89ac5d395a3d211d6a9a3d12f1db35d8525f034))
+* **vcpkg:** qualify VCPKG_ROOT wording and fix stale git dep reason ([6e18fd1](https://github.com/loonghao/vx/commit/6e18fd158cb73df79a2c899530d9b10e2fa786c2))
+* **vcpkg:** remove stale registry-clone and cache-path claims ([#1098](https://github.com/loonghao/vx/issues/1098)) ([7e50089](https://github.com/loonghao/vx/commit/7e50089f3182f6c50513e0ab44970ea84cf970cc))
+
 ## [0.9.32](https://github.com/loonghao/vx/compare/v0.9.31...v0.9.32) (2026-09-18)
 
 
