@@ -68,7 +68,47 @@ jobs:
         uses: actions/checkout@v7
         with:
           ref: ${{ github.event.pull_request.base.sha || github.event.repository.default_branch }}
+          fetch-depth: 0
           persist-credentials: false
+
+      # The publisher arrived later than the base commit of some pull
+      # requests, and this path deliberately checks out the base, so for those
+      # runs the checkout has no `scripts/pr_title_status.py` and the step
+      # fails before it can report anything.
+      #
+      # Take the code from the base when the base has it and fall back to the
+      # default branch, which is trusted for the same reason the base is: both
+      # are refs the pull request cannot write to. The pull request head is
+      # never a source, here or anywhere else in this workflow.
+      #
+      # Both files are extracted because the publisher imports the validator,
+      # and they are written outside the checkout so the working-tree copies
+      # are never the ones that run.
+      - name: Extract the title policy code
+        id: policy-code
+        env:
+          BASE_REF: ${{ github.event.pull_request.base.sha || github.event.repository.default_branch }}
+          FALLBACK_REF: ${{ github.event.repository.default_branch }}
+        shell: bash
+        run: |
+          set -uo pipefail
+
+          target="${RUNNER_TEMP:-/tmp}/pr-title-policy"
+          rm -rf "${target}"
+          mkdir -p "${target}"
+
+          source_ref="${BASE_REF}"
+          if ! git cat-file -e "${BASE_REF}:scripts/pr_title_status.py" 2>/dev/null; then
+            source_ref="${FALLBACK_REF}"
+            echo "::notice::The base ref predates the title policy publisher; using the default branch copy."
+          fi
+
+          git show "${source_ref}:scripts/pr_title_status.py" > "${target}/pr_title_status.py"
+          git show "${source_ref}:scripts/validate_pr_title.py" > "${target}/validate_pr_title.py"
+          python3 -m compileall -q "${target}"
+
+          echo "source_ref=${source_ref}" >> "${GITHUB_OUTPUT:-/dev/null}"
+          echo "policy_dir=${target}" >> "${GITHUB_OUTPUT:-/dev/null}"
 
       - name: Validate titles and publish the required status
         id: policy
@@ -79,6 +119,7 @@ jobs:
           GITHUB_REPOSITORY: ${{ github.repository }}
           PR_INPUT: ${{ inputs.pr }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          POLICY_DIR: ${{ steps.policy-code.outputs.policy_dir }}
         shell: bash
         run: |
           set -uo pipefail
@@ -92,11 +133,14 @@ jobs:
             exit 1
           fi
 
+          # Run the extracted copy, not the checkout: the checkout is the base
+          # commit, which may not contain this publisher at all.
+          #
           # Exit codes: 0 valid, 1 invalid title (status published), 2 nothing
           # could be published. Only 2 leaves the pull request without a
           # verdict, so only 2 may fail the run here.
           status=0
-          python3 scripts/pr_title_status.py \
+          python3 "${POLICY_DIR}/pr_title_status.py" \
             --event-name "${GITHUB_EVENT_NAME}" \
             --event-path "${GITHUB_EVENT_PATH}" \
             --repository "${GITHUB_REPOSITORY}" \
