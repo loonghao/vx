@@ -615,29 +615,44 @@ jobs:
             echo "changed=true" >> $GITHUB_OUTPUT
           fi
 
-      - name: Commit workspace-hack changes
+      # Report only, on pull requests.
+      #
+      # This used to commit and push the regenerated files back onto the pull
+      # request branch. That silently undid work: when a bumped crate changes
+      # what hakari unifies, regeneration removes the very package the branch
+      # was opened to bump. Measured on a real branch, the bump package
+      # disappeared from Cargo.lock and the pull request became a no-op with a
+      # green job, because the commit that did it was the CI's own.
+      #
+      # So: show what regeneration would change, then put it back. The tree is
+      # left exactly as the branch committed it, the job stays green, and the
+      # difference is visible in the log instead of arriving later as a commit
+      # nobody asked for. Making this a failure is a deliberate, separate
+      # decision about the gate, and is not taken here.
+      - name: Report workspace-hack drift (pull requests)
         if: steps.hakari.outputs.changed == 'true' && github.event_name == 'pull_request'
-        env:
-          HEAD_REF: ${{ github.head_ref }}
         run: |
-          # No [skip ci] in this message, on purpose.
-          #
-          # The push below uses the repository GITHUB_TOKEN, and commits pushed
-          # with that token never start a new workflow run, so the marker is not
-          # needed to prevent a commit loop. What the marker did do was poison
-          # the squash merge: GitHub builds the squash message from the pull
-          # request title plus a bullet list of every branch commit, the marker
-          # survived into the merge commit on main, and GitHub then suppressed
-          # every workflow run for that commit. main silently lost its whole CI
-          # gate for one commit (merge of #1097, 4562a26a, zero push runs).
-          #
-          # Keep this message marker-free. `CI Skip Marker Guard` fails any pull
-          # request that reintroduces one.
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add crates/workspace-hack/Cargo.toml Cargo.lock
-          git commit -m "chore: regenerate workspace-hack (cargo-hakari)"
-          git push origin "HEAD:${HEAD_REF}"
+          set -uo pipefail
+
+          echo "::warning::workspace-hack is out of date for this branch."
+          echo "::warning::Regenerate it locally and commit the result:"
+          echo "::warning::  cargo hakari generate && cargo hakari manage-deps"
+          echo
+          echo "Regenerating would change:"
+          git diff --stat
+          echo
+          echo "Full difference:"
+          git diff
+
+          # Put the tree back. Nothing this job writes is committed.
+          git checkout -- crates/workspace-hack/Cargo.toml Cargo.lock
+
+          if ! git diff --quiet; then
+            echo "::error::Could not restore the tree after checking workspace-hack."
+            exit 1
+          fi
+
+          echo "Tree restored; the branch is unchanged."
 
       - name: Fail if workspace-hack is outdated (non-PR)
         if: steps.hakari.outputs.changed == 'true' && github.event_name != 'pull_request'
