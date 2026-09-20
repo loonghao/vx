@@ -1,0 +1,93 @@
+name: Lockfile Drift
+
+# Fails a pull request whose real merge result would move a dependency
+# backwards, relative to the base branch.
+#
+# `Cargo.lock` here resolves some edges to one of several versions of the same
+# crate that are all present in the lockfile: `workspace-hack` (cargo-hakari)
+# pins both `windows-sys 0.52` and `windows-sys 0.61` because different
+# third-party crates genuinely require each of them, so crates whose own
+# requirement accepts either candidate are free edges.
+#
+# That resolution is not stable: re-running an identical
+# `cargo update -p <crate> --precise <version>` on an unchanged tree flips the
+# `windows-sys` edges between `0.52.0` and `0.61.2` on every pass. Rebasing
+# does not settle it either — the drift shows up in branches already rebased
+# onto the current `main`. So no lockfile state prevents it, and what is left
+# to do is check the outcome.
+#
+# The check compares the `Cargo.lock` of `git merge-tree --write-tree` output
+# against the base branch, so a branch lagging behind the base does not get
+# blamed for the base's own progress.
+#
+# The script reads lockfile text only. Nothing is built and no pull request
+# code is executed.
+
+on:
+  pull_request:
+    paths:
+      - "Cargo.lock"
+      - "Cargo.toml"
+      - "crates/**/Cargo.toml"
+      - ".github/workflows/lockfile-drift.yml"
+      - "scripts/check_lockfile_drift.py"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: lockfile-drift-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  drift:
+    name: Lockfile Drift
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      # Only text is read, but the ref is still the trusted default branch:
+      # nothing from the pull request is checked out to be executed.
+      #
+      # `fetch-depth: 0` is not decoration: `git merge-tree` refuses to merge
+      # unrelated histories, and a shallow fetch of two unrelated commits is
+      # exactly that. Without the merge base present the check silently falls
+      # back to the head, which would blame the branch for the base's own
+      # progress.
+      - name: Checkout base ref
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.base.sha || github.event.repository.default_branch }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      # `merge-tree` needs both commits locally, so fetch the head explicitly
+      # instead of checking it out. Unshallow the head as well, for the same
+      # reason as above.
+      - name: Fetch pull request head
+        if: github.event_name == 'pull_request'
+        run: |
+          git fetch origin "${{ github.event.pull_request.head.sha }}" \
+            --no-tags --prune --no-recurse-submodules --unshallow || \
+          git fetch origin "${{ github.event.pull_request.head.sha }}" \
+            --no-tags --prune --no-recurse-submodules --depth=2147483647
+
+      - name: Report dependencies that move backwards
+        env:
+          BASE_REF: ${{ github.event.pull_request.base.sha || github.event.repository.default_branch }}
+          HEAD_REF: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          set -uo pipefail
+          python3 scripts/check_lockfile_drift.py \
+            --base "${BASE_REF}" \
+            --head "${HEAD_REF}" \
+            --format json \
+            --output lockfile-drift.json
+
+      - name: Upload report
+        if: always() && hashFiles('lockfile-drift.json') != ''
+        uses: actions/upload-artifact@v7
+        with:
+          name: lockfile-drift-report
+          path: lockfile-drift.json
+          retention-days: 30

@@ -176,7 +176,8 @@ const enSidebar = {
       text: 'Appendix',
       items: [
         { text: 'FAQ', link: '/appendix/faq' },
-        { text: 'Troubleshooting', link: '/appendix/troubleshooting' }
+        { text: 'Troubleshooting', link: '/appendix/troubleshooting' },
+        { text: 'Lockfile Drift', link: '/appendix/lockfile-drift' }
       ]
     }
   ]
