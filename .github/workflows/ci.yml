@@ -829,9 +829,14 @@ jobs:
         platform:
           # Retries on the network-dependent E2E groups spend wall-clock on a
           # later attempt, so keep headroom over the observed runtime. Measured
-          # on Windows: nextest 3974.7s (66.2m) / whole job 83.9m, against a
-          # 120m budget - ~30% headroom, since a flaking test adds up to
-          # 2 x 360s (12m). Roughly three flaking tests would exhaust it.
+          # on the Windows full job of PR #1155 (CI run 35526018102, head
+          # 2b591680, 2026-09-20; nextest from its `Summary [3712.823s]` line,
+          # job wall-clock from the run's job timings): nextest 3712.823s
+          # (61.9m) / whole job 1h20m20s (80.3m), against a 120m budget -
+          # ~40m of headroom, ~33% of the budget, since a flaking test adds up
+          # to 2 x 360s (12m). Roughly three flaking tests would exhaust it.
+          # Drifts with suite size and grouping: re-measure from a Windows
+          # full job before relying on these numbers.
           - name: Linux-x86_64
             os: ubuntu-latest
             artifact: vx-linux-x64

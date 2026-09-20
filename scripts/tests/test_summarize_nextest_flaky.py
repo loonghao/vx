@@ -6,6 +6,7 @@ import sys
 import unittest
 from pathlib import Path
 from tempfile import TemporaryDirectory
+from unittest.mock import patch
 
 SCRIPTS_DIR = Path(__file__).resolve().parents[1]
 if str(SCRIPTS_DIR) not in sys.path:
@@ -32,15 +33,33 @@ def passing(test: str) -> str:
     return f'<testcase name="{test}" classname="vx-cli::rust" />'
 
 
-def flaky(test: str, attempts: int = 1, message: str = "boom") -> str:
-    """A test that failed `attempts` times and then passed."""
+def _flaky_attempt(message: str, text: str, attempt: int) -> str:
+    """One `<flakyFailure>`, with a body only when nextest would write one."""
 
-    failures = "\n".join(
-        f'<flakyFailure message="{message} #{n}" type="test failure" />'
-        for n in range(1, attempts + 1)
-    )
+    attribute = f' message="{message} #{attempt}"' if message else ""
+    if not text:
+        return f"<flakyFailure{attribute} type=\"test failure\" />"
     return (
-        f'<testcase name="{test}" classname="vx-cli::rust">\n{failures}\n</testcase>'
+        f"<flakyFailure{attribute} type=\"test failure\">{text}</flakyFailure>"
+    )
+
+
+def flaky(
+    test: str, attempts: int = 1, message: str = "boom", text: str = ""
+) -> str:
+    """A test that failed `attempts` times and then passed.
+
+    `message` is the attribute nextest fills with the panic location and
+    `text` the element body it fills with the panic reason, so both are
+    settable here.
+    """
+
+    attempts_markup = [
+        _flaky_attempt(message, text, n) for n in range(1, attempts + 1)
+    ]
+    return (
+        f'<testcase name="{test}" classname="vx-cli::rust">\n'
+        f'{"\n".join(attempts_markup)}\n</testcase>'
     )
 
 
@@ -99,6 +118,107 @@ class CollectFlakyTests(unittest.TestCase):
             )
             found = summary.collect_flaky(path)
         self.assertEqual(found[0].first_failure, "timed out #1")
+
+    def test_prefers_the_reason_over_the_panic_location(self) -> None:
+        # Real nextest output: the `message` attribute carries only the panic
+        # location, so the reason has to come from the element body.
+        with TemporaryDirectory() as tmp:
+            path = Path(tmp) / "junit.xml"
+            path.write_text(
+                junit(
+                    flaky(
+                        "test_a",
+                        message=(
+                            "thread 'always_fails' (102064) panicked at "
+                            "tests\\probe.rs:3:5"
+                        ),
+                        text=(
+                            "thread 'always_fails' (102064) panicked at "
+                            "tests\\probe.rs:3:5:\n"
+                            "assertion `left == right` failed\n"
+                            "  left: 1\n"
+                            " right: 2\n"
+                            "note: run with `RUST_BACKTRACE=1` ..."
+                        ),
+                    )
+                ),
+                encoding="utf-8",
+            )
+            found = summary.collect_flaky(path)
+        self.assertEqual(
+            found[0].first_failure,
+            "assertion `left == right` failed left: 1 right: 2 "
+            "(at tests\\probe.rs:3:5)",
+        )
+
+    def test_skips_a_location_header_that_is_not_in_the_attribute(self) -> None:
+        with TemporaryDirectory() as tmp:
+            path = Path(tmp) / "junit.xml"
+            path.write_text(
+                junit(
+                    flaky(
+                        "test_a",
+                        message="",
+                        text=(
+                            "thread 'main' panicked at tests/foo.rs:24:9:\n"
+                            "explicit panic\n"
+                            "note: run with `RUST_BACKTRACE=1` ..."
+                        ),
+                    )
+                ),
+                encoding="utf-8",
+            )
+            found = summary.collect_flaky(path)
+        self.assertEqual(found[0].first_failure, "explicit panic")
+
+    def test_keeps_a_non_location_attribute_as_detail(self) -> None:
+        with TemporaryDirectory() as tmp:
+            path = Path(tmp) / "junit.xml"
+            path.write_text(
+                junit(
+                    flaky(
+                        "test_a",
+                        message="timed out",
+                        text=(
+                            "command exited after 120s\n"
+                            "stdout:\n"
+                            "  (empty)"
+                        ),
+                    )
+                ),
+                encoding="utf-8",
+            )
+            found = summary.collect_flaky(path)
+        self.assertEqual(
+            found[0].first_failure,
+            "command exited after 120s stdout: (empty) (timed out #1)",
+        )
+
+    def test_drops_an_attribute_that_repeats_the_body(self) -> None:
+        with TemporaryDirectory() as tmp:
+            path = Path(tmp) / "junit.xml"
+            path.write_text(
+                junit(flaky("test_a", message="boom", text="boom\nnote: rerun")),
+                encoding="utf-8",
+            )
+            found = summary.collect_flaky(path)
+        self.assertEqual(found[0].first_failure, "boom")
+
+    def test_caps_a_long_failure_body(self) -> None:
+        with TemporaryDirectory() as tmp:
+            path = Path(tmp) / "junit.xml"
+            path.write_text(
+                junit(
+                    flaky(
+                        "test_a",
+                        message="",
+                        text="\n".join(f"line {n}" for n in range(1, 10)),
+                    )
+                ),
+                encoding="utf-8",
+            )
+            found = summary.collect_flaky(path)
+        self.assertEqual(found[0].first_failure, "line 1 line 2 line 3")
 
     def test_orders_results_by_binary_then_test(self) -> None:
         xml = (
@@ -201,7 +321,30 @@ class MainTests(unittest.TestCase):
     def test_unparseable_report_warns_without_failing(self) -> None:
         code, written, _ = self._run("<not xml")
         self.assertEqual(code, 0)
-        self.assertIn("could not be parsed", written)
+        self.assertIn("could not be read", written)
+
+    def test_os_error_while_reading_warns_without_failing(self) -> None:
+        # A summary helper that raises here would turn a green job red, so
+        # every OSError - permission denied, I/O failure, a path that is
+        # really a directory - has to degrade to the same warning.
+        with TemporaryDirectory() as tmp:
+            report = Path(tmp) / "junit.xml"
+            report.write_text(junit(passing("test_a")), encoding="utf-8")
+            with patch.object(summary.ET, "parse", side_effect=OSError("denied")):
+                markdown = summary.summarize(report)
+        self.assertIn("could not be read", markdown)
+        self.assertIn("denied", markdown)
+
+    def test_permission_error_on_stat_warns_without_failing(self) -> None:
+        with TemporaryDirectory() as tmp:
+            report = Path(tmp) / "junit.xml"
+            report.write_text(junit(passing("test_a")), encoding="utf-8")
+            with patch.object(
+                Path, "is_file", side_effect=PermissionError("denied")
+            ):
+                markdown = summary.summarize(report)
+        self.assertIn("could not be read", markdown)
+        self.assertIn("denied", markdown)
 
 
 if __name__ == "__main__":
