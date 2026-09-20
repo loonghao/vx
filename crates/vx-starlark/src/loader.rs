@@ -100,36 +100,48 @@ impl VxModuleLoader {
             .map_err(|e| anyhow::anyhow!("Failed to parse vx module '{}': {}", path, e))?;
 
         let globals = starlark::environment::GlobalsBuilder::standard().build();
-        let module = starlark::environment::Module::new();
-        {
-            // Use a recursive loader so modules can load each other.
-            let recursive_loader = VxModuleLoader::new();
-            let dialect_clone = dialect.clone();
-            let file_loader = RecursiveVxLoader {
-                loader: recursive_loader,
-                dialect: dialect_clone,
-            };
-            let mut eval = starlark::eval::Evaluator::new(&module);
-            eval.set_loader(&file_loader);
-            eval.eval_module(ast, &globals)
-                .map_err(|e| anyhow::anyhow!("Failed to evaluate vx module '{}': {}", path, e))?;
-        }
+        // starlark 0.14 removed `Module::new()`: a thawed module borrows a
+        // temporary heap, so evaluation happens inside a scoped callback.
+        starlark::environment::Module::with_temp_heap(|module| {
+            {
+                // Use a recursive loader so modules can load each other.
+                let recursive_loader = VxModuleLoader::new();
+                let dialect_clone = dialect.clone();
+                let file_loader = RecursiveVxLoader {
+                    loader: recursive_loader,
+                    dialect: dialect_clone,
+                };
+                let mut eval = starlark::eval::Evaluator::new(&module);
+                eval.set_loader(&file_loader);
+                eval.eval_module(ast, &globals).map_err(|e| {
+                    anyhow::anyhow!("Failed to evaluate vx module '{}': {}", path, e)
+                })?;
+            }
 
-        module
-            .freeze()
-            .map_err(|e| anyhow::anyhow!("Failed to freeze vx module '{}': {:?}", path, e))
+            module
+                .freeze()
+                .map_err(|e| anyhow::anyhow!("Failed to freeze vx module '{}': {:?}", path, e))
+        })
     }
 
-    /// Load and evaluate a vx virtual module, returning a non-frozen Module.
+    /// Load and evaluate a vx virtual module, handing the thawed `Module` to `f`.
     ///
-    /// Unlike [`load_module`], this returns a thawed `Module` that allows
-    /// individual function lookups and calls. Used by the Rust runtime to
-    /// invoke scoring functions in `smart_detect.star`.
-    pub fn evaluable_module(
+    /// Unlike [`load_module`], the module is not frozen, so it allows individual
+    /// function lookups and calls. Used by the Rust runtime to invoke scoring
+    /// functions in `smart_detect.star`.
+    ///
+    /// starlark 0.14 removed `Module::new()`: a thawed module borrows a temporary
+    /// heap that only lives for the duration of a scope, so the module cannot be
+    /// returned. Callers receive it inside `f` instead.
+    pub fn with_evaluable_module<R, F>(
         &self,
         path: &str,
         dialect: &Dialect,
-    ) -> anyhow::Result<starlark::environment::Module> {
+        f: F,
+    ) -> anyhow::Result<R>
+    where
+        F: for<'v> FnOnce(starlark::environment::Module<'v>) -> anyhow::Result<R>,
+    {
         let source = self.get_source(path).ok_or_else(|| {
             anyhow::anyhow!(
                 "Unknown vx module: '{}'. Available modules: {}",
@@ -142,21 +154,23 @@ impl VxModuleLoader {
             .map_err(|e| anyhow::anyhow!("Failed to parse vx module '{}': {}", path, e))?;
 
         let globals = starlark::environment::GlobalsBuilder::standard().build();
-        let module = starlark::environment::Module::new();
-        {
-            let recursive_loader = VxModuleLoader::new();
-            let dialect_clone = dialect.clone();
-            let file_loader = RecursiveVxLoader {
-                loader: recursive_loader,
-                dialect: dialect_clone,
-            };
-            let mut eval = starlark::eval::Evaluator::new(&module);
-            eval.set_loader(&file_loader);
-            eval.eval_module(ast, &globals)
-                .map_err(|e| anyhow::anyhow!("Failed to evaluate vx module '{}': {}", path, e))?;
-        }
+        starlark::environment::Module::with_temp_heap(|module| {
+            {
+                let recursive_loader = VxModuleLoader::new();
+                let dialect_clone = dialect.clone();
+                let file_loader = RecursiveVxLoader {
+                    loader: recursive_loader,
+                    dialect: dialect_clone,
+                };
+                let mut eval = starlark::eval::Evaluator::new(&module);
+                eval.set_loader(&file_loader);
+                eval.eval_module(ast, &globals).map_err(|e| {
+                    anyhow::anyhow!("Failed to evaluate vx module '{}': {}", path, e)
+                })?;
+            }
 
-        Ok(module)
+            f(module)
+        })
     }
 
     /// List all available stdlib vx modules.

@@ -14,6 +14,7 @@ use starlark::analysis::AstModuleLint;
 use starlark::environment::{FrozenModule, GlobalsBuilder, Module};
 use starlark::eval::{Evaluator, FileLoader};
 use starlark::syntax::{AstModule, Dialect};
+use starlark::values::Heap;
 use starlark::values::Value;
 use starlark::values::structs::AllocStruct;
 use std::collections::HashMap;
@@ -230,31 +231,33 @@ impl StarlarkEngine {
         args: &[JsonValue],
     ) -> Result<JsonValue> {
         let loader = crate::loader::VxModuleLoader::new();
-        let module = loader
-            .evaluable_module(module_path, &self.dialect)
-            .map_err(|e| Error::EvalError(e.to_string()))?;
+        // starlark 0.14 removed `Module::new()`: a thawed module now borrows a
+        // temporary heap, so it can only be used inside a scoped callback.
+        loader
+            .with_evaluable_module(module_path, &self.dialect, |module| {
+                let func_value = module
+                    .get(func_name)
+                    .ok_or_else(|| Error::function_not_found(func_name))?;
 
-        let func_value = module
-            .get(func_name)
-            .ok_or_else(|| Error::function_not_found(func_name))?;
+                let heap = module.heap();
+                let pos_args: Vec<Value> = args
+                    .iter()
+                    .map(|a| self.json_to_starlark_value(heap, a))
+                    .collect();
 
-        let heap = module.heap();
-        let pos_args: Vec<Value> = args
-            .iter()
-            .map(|a| self.json_to_starlark_value(heap, a))
-            .collect();
+                let mut eval = Evaluator::new(&module);
+                let result = eval
+                    .eval_function(func_value, &pos_args, &[])
+                    .map_err(|e| {
+                        Error::EvalError(format!(
+                            "Error calling '{}' in '{}': {}",
+                            func_name, module_path, e
+                        ))
+                    })?;
 
-        let mut eval = Evaluator::new(&module);
-        let result = eval
-            .eval_function(func_value, &pos_args, &[])
-            .map_err(|e| {
-                Error::EvalError(format!(
-                    "Error calling '{}' in '{}': {}",
-                    func_name, module_path, e
-                ))
-            })?;
-
-        Ok(self.starlark_value_to_json(result))
+                Ok(self.starlark_value_to_json(result))
+            })
+            .map_err(|e| Error::EvalError(e.to_string()))
     }
 
     /// Get a named variable from a Starlark script (e.g. `runtimes`, `permissions`)
@@ -295,18 +298,21 @@ impl StarlarkEngine {
 
         let globals = GlobalsBuilder::standard().build();
         let loader = VxFileLoader::new(self.dialect.clone());
-        let module = Module::new();
-        {
-            let mut eval = Evaluator::new(&module);
-            eval.set_loader(&loader);
-            eval.eval_module(ast, &globals)
-                .map_err(|e| Error::EvalError(e.to_string()))?;
-        }
+        // starlark 0.14 removed `Module::new()`: the module borrows a temporary
+        // heap for the duration of the callback.
+        Module::with_temp_heap(|module| {
+            {
+                let mut eval = Evaluator::new(&module);
+                eval.set_loader(&loader);
+                eval.eval_module(ast, &globals)
+                    .map_err(|e| Error::EvalError(e.to_string()))?;
+            }
 
-        match module.get(var_name) {
-            Some(value) => Ok(Some(self.starlark_value_to_json(value))),
-            None => Ok(None),
-        }
+            match module.get(var_name) {
+                Some(value) => Ok(Some(self.starlark_value_to_json(value))),
+                None => Ok(None),
+            }
+        })
     }
 
     /// Execute a named function from a Starlark script
@@ -356,47 +362,50 @@ impl StarlarkEngine {
         let globals = GlobalsBuilder::standard().build();
 
         // Create module and evaluator with @vx//stdlib FileLoader
-        // This enables load("@vx//stdlib:github.star", ...) in provider scripts
+        // This enables load("@vx//stdlib:github.star", ...) in provider scripts.
+        // starlark 0.14 removed `Module::new()`: the module borrows a temporary
+        // heap for the duration of the callback.
         let loader = VxFileLoader::new(self.dialect.clone());
-        let module = Module::new();
-        {
+        Module::with_temp_heap(|module| {
+            {
+                let mut eval = Evaluator::new(&module);
+                eval.set_loader(&loader);
+                eval.eval_module(ast, &globals)
+                    .map_err(|e| Error::EvalError(e.to_string()))?;
+            }
+
+            // Build ctx JSON for injection
+            let ctx_json = self.context_to_json(ctx);
+
+            // Build positional args using the SAME module's heap
+            // (func_value lives in `module`, so we must use `module`'s heap for args)
+            let heap = module.heap();
+            let mut pos_args: Vec<Value> = Vec::new();
+
+            // Inject ctx as a Starlark dict
+            let ctx_value = self.json_to_starlark_value(heap, &ctx_json);
+            pos_args.push(ctx_value);
+
+            // Add extra args (e.g., version string)
+            for arg in extra_args {
+                pos_args.push(self.json_to_starlark_value(heap, arg));
+            }
+
+            // Look up the function by name (must happen after args are built,
+            // since get() returns a Value tied to the module's heap)
+            let func_value = module
+                .get(func_name)
+                .ok_or_else(|| Error::function_not_found(func_name))?;
+
+            // Call the function using the same module's evaluator
             let mut eval = Evaluator::new(&module);
-            eval.set_loader(&loader);
-            eval.eval_module(ast, &globals)
-                .map_err(|e| Error::EvalError(e.to_string()))?;
-        }
+            let result = eval
+                .eval_function(func_value, &pos_args, &[])
+                .map_err(|e| Error::EvalError(format!("Error calling '{}': {}", func_name, e)))?;
 
-        // Build ctx JSON for injection
-        let ctx_json = self.context_to_json(ctx);
-
-        // Build positional args using the SAME module's heap
-        // (func_value lives in `module`, so we must use `module`'s heap for args)
-        let heap = module.heap();
-        let mut pos_args: Vec<Value> = Vec::new();
-
-        // Inject ctx as a Starlark dict
-        let ctx_value = self.json_to_starlark_value(heap, &ctx_json);
-        pos_args.push(ctx_value);
-
-        // Add extra args (e.g., version string)
-        for arg in extra_args {
-            pos_args.push(self.json_to_starlark_value(heap, arg));
-        }
-
-        // Look up the function by name (must happen after args are built,
-        // since get() returns a Value tied to the module's heap)
-        let func_value = module
-            .get(func_name)
-            .ok_or_else(|| Error::function_not_found(func_name))?;
-
-        // Call the function using the same module's evaluator
-        let mut eval = Evaluator::new(&module);
-        let result = eval
-            .eval_function(func_value, &pos_args, &[])
-            .map_err(|e| Error::EvalError(format!("Error calling '{}': {}", func_name, e)))?;
-
-        // Convert result to JSON
-        Ok(self.starlark_value_to_json(result))
+            // Convert result to JSON
+            Ok(self.starlark_value_to_json(result))
+        })
     }
 
     /// Convert ProviderContext to a JSON value for injection into Starlark
@@ -458,11 +467,7 @@ impl StarlarkEngine {
     }
 
     /// Convert a JSON value to a Starlark Value using the heap
-    fn json_to_starlark_value<'v>(
-        &self,
-        heap: &'v starlark::values::Heap,
-        json: &JsonValue,
-    ) -> Value<'v> {
+    fn json_to_starlark_value<'v>(&self, heap: Heap<'v>, json: &JsonValue) -> Value<'v> {
         match json {
             JsonValue::Null => Value::new_none(),
             JsonValue::Bool(b) => Value::new_bool(*b),
