@@ -10,9 +10,10 @@ use std::sync::Arc;
 use vx_star_metadata::StarMetadata;
 
 use super::bridge::{
-    make_deps_fn_owned, make_download_url_fn, make_download_url_fn_owned, make_fetch_versions_fn,
-    make_fetch_versions_fn_owned, make_install_layout_fn, make_install_layout_fn_owned,
-    make_post_extract_fn_owned, make_version_info_fn_owned,
+    make_deps_fn_owned, make_download_url_fn, make_download_url_fn_owned, make_execute_path_fn,
+    make_execute_path_fn_owned, make_fetch_versions_fn, make_fetch_versions_fn_owned,
+    make_install_layout_fn, make_install_layout_fn_owned, make_post_extract_fn_owned,
+    make_version_info_fn_owned,
 };
 
 use crate::context::ProviderContext;
@@ -141,7 +142,11 @@ pub fn build_runtimes(
                 .with_install_layout(make_install_layout_fn(
                     Arc::clone(&provider_name).to_string(),
                     Arc::clone(&content).to_string(),
-                ));
+                ))
+                .with_execute_path(Arc::from(make_execute_path_fn(
+                    Arc::clone(&provider_name).to_string(),
+                    Arc::clone(&content).to_string(),
+                )));
         }
         rt = rt.with_deps_fn(make_deps_fn_owned(
             Arc::clone(&provider_name),
@@ -228,6 +233,11 @@ pub fn build_runtimes(
                         rt_name_owned.clone(),
                     ))
                     .with_install_layout(make_install_layout_fn_owned(
+                        Arc::clone(&provider_name),
+                        Arc::clone(&content),
+                        rt_name_owned.clone(),
+                    ))
+                    .with_execute_path(make_execute_path_fn_owned(
                         Arc::clone(&provider_name),
                         Arc::clone(&content),
                         rt_name_owned,

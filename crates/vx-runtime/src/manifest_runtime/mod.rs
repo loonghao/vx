@@ -311,6 +311,29 @@ pub type VersionInfoFn = Arc<
         + Sync,
 >;
 
+/// Type alias for the `get_execute_path(version)` function injected from Starlark providers.
+///
+/// Returns the executable the provider wants vx to run (see `get_execute_path` in
+/// `provider.star`), or `None` when the provider does not declare one. This is the
+/// authoritative "what to run" answer and can differ from the file the installer
+/// dropped into the store — Rust is the canonical case: `install_layout` places
+/// `bin/rustup-init` (a bootstrapper), while `get_execute_path` points at
+/// `cargo/bin/rustup` (the real manager created afterwards by `post_extract`).
+///
+/// The returned path is joined onto the `install_dir` argument, so providers that
+/// answer with a path relative to their own install directory (the vx-star contract
+/// is an absolute path built from `ctx.install_dir`) work against whichever store vx
+/// is currently using.
+pub type ExecutePathFn = Arc<
+    dyn Fn(
+            String, // version
+            String, // install_dir as string
+        ) -> std::pin::Pin<
+            Box<dyn std::future::Future<Output = Result<Option<std::path::PathBuf>>> + Send>,
+        > + Send
+        + Sync,
+>;
+
 /// Type alias for the `post_extract(version, install_dir)` function injected from
 /// Starlark providers.
 ///
@@ -364,6 +387,11 @@ pub struct ManifestDrivenRuntime {
     /// Used by providers like Rust that need to run an installer binary
     /// (e.g. `rustup-init`) after extraction before the tool is usable.
     pub post_extract_fn: Option<PostExtractFn>,
+    /// Optional Starlark-driven `get_execute_path(version)` implementation.
+    ///
+    /// Takes priority over the layout-derived path when it points at an existing
+    /// file. See [`ExecutePathFn`].
+    pub execute_path_fn: Option<ExecutePathFn>,
     /// Optional pip package name for Python-based tools.
     pub pip_package: Option<String>,
 
@@ -429,6 +457,7 @@ impl ManifestDrivenRuntime {
             deps_fn: None,
             version_info_fn: None,
             post_extract_fn: None,
+            execute_path_fn: None,
             pip_package: None,
 
             shells: Vec::new(),
@@ -471,6 +500,15 @@ impl ManifestDrivenRuntime {
     /// extra run step before `cargo`/`rustc` become available.
     pub fn with_post_extract(mut self, f: PostExtractFn) -> Self {
         self.post_extract_fn = Some(f);
+        self
+    }
+
+    /// Set the Starlark-driven `get_execute_path(version)` implementation.
+    ///
+    /// Providers that install a bootstrapper (Rust's `rustup-init`) declare the real
+    /// executable here so dispatch does not target the bootstrapper on a cold store.
+    pub fn with_execute_path(mut self, f: ExecutePathFn) -> Self {
+        self.execute_path_fn = Some(f);
         self
     }
 
@@ -645,6 +683,52 @@ impl ManifestDrivenRuntime {
     }
 
     // ========== Internal helpers ==========
+
+    /// Resolve the executable declared by the provider's `get_execute_path`.
+    ///
+    /// Returns `Some(path)` only when the provider declares a path **and** that
+    /// path exists on disk under `install_path`. A declared-but-missing path (for
+    /// example a multi-runtime provider whose store directory is keyed by runtime
+    /// name) is ignored so the layout-derived path stays in effect.
+    pub(crate) async fn declared_execute_path(
+        &self,
+        version: &str,
+        install_path: &std::path::Path,
+    ) -> Option<PathBuf> {
+        let execute_path_fn = self.execute_path_fn.as_ref()?;
+
+        match execute_path_fn(
+            version.to_string(),
+            install_path.to_string_lossy().to_string(),
+        )
+        .await
+        {
+            Ok(Some(relative)) => {
+                let candidate = install_path.join(relative);
+                if candidate.is_file() {
+                    Some(candidate)
+                } else {
+                    debug!(
+                        runtime = %self.name,
+                        version,
+                        path = %candidate.display(),
+                        "get_execute_path() points at a missing file, ignoring it"
+                    );
+                    None
+                }
+            }
+            Ok(None) => None,
+            Err(error) => {
+                debug!(
+                    runtime = %self.name,
+                    version,
+                    %error,
+                    "get_execute_path() failed, falling back to layout resolution"
+                );
+                None
+            }
+        }
+    }
 
     /// Resolve the executable path from a Starlark install_layout descriptor.
     pub(crate) fn resolve_exe_path_from_layout(
@@ -1292,6 +1376,13 @@ impl Runtime for ManifestDrivenRuntime {
             return Ok(None);
         }
 
+        // The provider's own `get_execute_path` wins over the layout-derived path:
+        // `install_layout` describes where the downloaded artifact lands, which is not
+        // necessarily what should be executed (Rust: `bin/rustup-init` vs `cargo/bin/rustup`).
+        if let Some(path) = self.declared_execute_path(version, &install_path).await {
+            return Ok(Some(path));
+        }
+
         if let Some(ref layout_fn) = self.install_layout_fn
             && let Ok(Some(layout)) = layout_fn(version.to_string()).await
         {
@@ -1330,6 +1421,10 @@ impl Runtime for ManifestDrivenRuntime {
 
     async fn install(&self, version: &str, ctx: &RuntimeContext) -> Result<InstallResult> {
         self.install_impl(version, ctx).await
+    }
+
+    fn has_post_extract_hook(&self) -> bool {
+        self.post_extract_fn.is_some()
     }
 
     /// Run the Starlark `post_extract` hook after a successful installation.

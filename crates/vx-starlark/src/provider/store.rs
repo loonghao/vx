@@ -53,10 +53,58 @@ impl StarlarkProvider {
     /// Returns the raw template string (e.g. `"{install_dir}/7z.exe"`),
     /// or `None` if the function returns `None` or is not defined.
     pub async fn call_get_execute_path(&self, version: &str) -> Result<Option<String>> {
-        let ctx = ProviderContext::new(&self.meta.name, self.vx_home.clone())
+        self.call_get_execute_path_for_runtime(version, None).await
+    }
+
+    /// Call `get_execute_path(ctx, version)` and return the path relative to the
+    /// version install directory.
+    ///
+    /// Providers build their answer from `ctx.install_dir`, which is derived from
+    /// the process-wide vx home. Callers that operate on a different store (tests,
+    /// or a relocated `VX_HOME`) must re-anchor the result on the install directory
+    /// they are actually using, so this returns `cargo/bin/rustup` instead of
+    /// `/home/u/.vx/store/rust/1.93.1/cargo/bin/rustup`.
+    ///
+    /// When the declared path is not under the install directory it is returned
+    /// unchanged (still absolute), so the caller can use it when it exists.
+    pub async fn call_get_execute_path_relative(
+        &self,
+        version: &str,
+        runtime_name: Option<&str>,
+    ) -> Result<Option<std::path::PathBuf>> {
+        let Some(declared) = self
+            .call_get_execute_path_for_runtime(version, runtime_name)
+            .await?
+        else {
+            return Ok(None);
+        };
+
+        let declared = std::path::PathBuf::from(declared);
+        let install_dir = crate::context::PathManager::new(&self.meta.name, self.vx_home.clone())
+            .install_dir(version);
+
+        Ok(Some(match declared.strip_prefix(&install_dir) {
+            Ok(relative) => relative.to_path_buf(),
+            Err(_) => declared,
+        }))
+    }
+
+    /// Call `get_execute_path(ctx, version)` for a specific runtime.
+    ///
+    /// Multi-runtime providers dispatch on `ctx.runtime_name`; pass the runtime
+    /// name so the script resolves the right executable.
+    pub async fn call_get_execute_path_for_runtime(
+        &self,
+        version: &str,
+        runtime_name: Option<&str>,
+    ) -> Result<Option<String>> {
+        let mut ctx = ProviderContext::new(&self.meta.name, self.vx_home.clone())
             .with_description(&self.meta.description)
             .with_sandbox(self.sandbox.clone())
             .with_version(version);
+        if let Some(runtime_name) = runtime_name {
+            ctx = ctx.with_runtime_name(runtime_name);
+        }
 
         let engine = StarlarkEngine::new();
         let result = engine.call_function(

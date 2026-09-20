@@ -130,9 +130,9 @@ pub use constraints::{
 
 // Manifest-driven runtimes (RFC 0021)
 pub use manifest_runtime::{
-    DetectionConfig as ManifestDetectionConfig, InstallStrategy, ManifestDrivenRuntime,
-    ProvidedTool, ProviderSource, ScriptType, ShellDefinition, SystemDepType, SystemDependency,
-    SystemDepsConfig,
+    DetectionConfig as ManifestDetectionConfig, ExecutePathFn, InstallStrategy,
+    ManifestDrivenRuntime, PostExtractFn, ProvidedTool, ProviderSource, ScriptType,
+    ShellDefinition, SystemDepType, SystemDependency, SystemDepsConfig,
 };
 pub use provider_loader::{
     LoadedProvider, ProviderLoader as ManifestProviderLoader, ProviderLoaderConfig,

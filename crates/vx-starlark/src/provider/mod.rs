@@ -30,7 +30,7 @@ use crate::engine::{FrozenProviderInfo, StarlarkEngine};
 use crate::error::{Error, Result};
 use crate::sandbox::SandboxConfig;
 pub use bridge::{
-    make_download_url_fn, make_fetch_versions_fn, make_install_layout_fn,
+    make_download_url_fn, make_execute_path_fn, make_fetch_versions_fn, make_install_layout_fn,
     make_version_info_fn_owned,
 };
 pub use builder::{build_runtimes, create_provider};
