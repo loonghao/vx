@@ -7,6 +7,15 @@
       "matchUpdateTypes": ["major"],
       "enabled": false,
       "description": "Disable major updates for bincode until msvc-kit supports bincode v3. See: https://github.com/loonghao/vx/pull/378"
+    },
+    {
+      "matchPackageNames": [
+        "opentelemetry",
+        "opentelemetry_sdk",
+        "opentelemetry-stdout"
+      ],
+      "allowedVersions": "<0.33.0",
+      "description": "Hold the opentelemetry monorepo below 0.33.0 until tracing-opentelemetry ships a release built against opentelemetry 0.33. tracing-opentelemetry 0.33.0 is the newest release and requires opentelemetry ^0.32.0, so bumping the monorepo to 0.33.0 splits the dependency graph and breaks the vx-metrics build. See: https://github.com/loonghao/vx/pull/1127"
     }
   ]
 }
