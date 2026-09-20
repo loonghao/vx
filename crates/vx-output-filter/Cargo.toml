@@ -16,5 +16,5 @@ workspace-hack = { version = "0.1", path = "../workspace-hack" }
 
 [dev-dependencies]
 rstest = { workspace = true }
-serial_test = "3"
+serial_test = "4"
 tokio = { workspace = true, features = ["rt", "macros"] }
