@@ -103,6 +103,25 @@ jobs:
 
           python3 -m compileall -q "${target}"
 
+      # A stub interpreter (the Microsoft Store `python3` alias on Windows is
+      # a 0-byte shim) exits 0 having printed nothing, which reads as "clean"
+      # to anything downstream. Checking the exit status is not enough, so the
+      # probe has to produce output and that output is checked.
+      - name: Verify the interpreter
+        run: |
+          set -uo pipefail
+
+          version="$(python3 -c 'import json, sys; print(sys.version.split()[0])' 2>/dev/null || true)"
+
+          if [ -z "${version}" ]; then
+            echo "::error::python3 ran but printed nothing, so nothing was checked."
+            echo "::error::On Windows this is usually the Microsoft Store alias, a stub"
+            echo "::error::that exits 0 silently. Use 'py -3' or an explicit path."
+            exit 1
+          fi
+
+          echo "Using python3 ${version}."
+
       - name: Report dependencies that move backwards
         env:
           BASE_REF: ${{ github.event.pull_request.base.sha || github.event.repository.default_branch }}
@@ -116,6 +135,18 @@ jobs:
             --title "${PR_TITLE}" \
             --format json \
             --output lockfile-drift.json
+
+          if [ ! -s lockfile-drift.json ]; then
+            echo "::error::No report was written, so nothing was checked. The"
+            echo "::error::interpreter exits 0 without running on some systems; use"
+            echo "::error::'py -3' or an explicit path and re-run."
+            exit 1
+          fi
+
+          python3 -c 'import json,sys; json.load(open("lockfile-drift.json"))' || {
+            echo "::error::The report is not valid JSON; the check did not complete."
+            exit 1
+          }
 
       - name: Upload report
         if: always() && hashFiles('lockfile-drift.json') != ''

@@ -138,6 +138,64 @@ The comparison uses `git merge-tree --write-tree`, so a branch that lags
 behind the base is not blamed for the base's own progress. `Lockfile Drift`
 runs it on every pull request that touches a manifest or the lockfile.
 
+## Running it
+
+The script shells out to `git` (`git show` for the lockfile at each ref, and
+`git merge-tree` for the merge result), so it has to be run **inside a clone
+of the repository** — any subdirectory works, the root is not required. Both
+refs have to be present locally first:
+
+```bash
+# Once per clone: make the pull request heads available by ref.
+git fetch --no-tags origin 'refs/pull/*/head:refs/remotes/pr/*'
+
+# The common case: a pull request against the default base.
+python3 scripts/check_lockfile_drift.py --base origin/main --head pr/1121
+
+# Any two refs work; the base does not have to be a branch.
+python3 scripts/check_lockfile_drift.py --base <sha> --head <sha>
+```
+
+A missing ref is reported as exit `2`, not as a clean result.
+
+Exit codes:
+
+| code | meaning |
+| --- | --- |
+| `0` | Nothing moved backwards, and every bump the title claims was delivered. |
+| `1` | At least one dependency moved backwards — or, with `--strict`, a claimed bump was not delivered. |
+| `2` | The comparison could not be made: a ref is missing, the lockfile is unreadable, or the merge conflicts. Never treat this as clean. |
+
+### If `python3` produces no output
+
+On Windows, `python3` can resolve to the Microsoft Store alias, which is a
+stub that exits `0` without running anything. The check then appears to pass
+having examined nothing, which is worse than not running it.
+
+To tell a real interpreter from the stub:
+
+```bash
+python3 -c 'print(1)'   # a real interpreter prints 1; the stub prints nothing
+```
+
+If it prints nothing, use the Python launcher or an explicit path:
+
+```bash
+py -3 scripts/check_lockfile_drift.py --base origin/main --head pr/1121
+```
+
+The `Lockfile Drift` job runs the same probe before the check and fails with
+this message rather than reporting a clean result it did not produce. Locally,
+confirm the report is non-empty before trusting a `0`.
+
+### Lockfile line endings
+
+`Cargo.lock` is read as text, so `\r\n` endings are handled. A parser that
+does not handle them silently resolves **no dependency edges at all**, which
+reads as "no findings" rather than as an error. If a lockfile check ever
+reports zero packages or zero edges, suspect the line endings before believing
+the result.
+
 Because the resolution oscillates, regenerating the lockfile is worth
 retrying: a fresh `cargo update` lands on a resolution without the unrelated
 moves often enough to be worth one attempt before investigating further.
