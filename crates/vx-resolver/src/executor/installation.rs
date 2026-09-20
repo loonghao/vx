@@ -244,13 +244,14 @@ impl<'a> InstallationManager<'a> {
         // Install the runtime with timeout protection
         debug!("Calling runtime.install() for {} {}", runtime_name, version);
         let install_timeout = effective_ctx.config.install_timeout;
-        let result = tokio::time::timeout(install_timeout, runtime.install(version, effective_ctx))
-            .await
-            .map_err(|_| EnsureError::Timeout {
-                runtime: runtime_name.to_string(),
-                version: version.to_string(),
-                seconds: install_timeout.as_secs(),
-            })??;
+        let mut result =
+            tokio::time::timeout(install_timeout, runtime.install(version, effective_ctx))
+                .await
+                .map_err(|_| EnsureError::Timeout {
+                    runtime: runtime_name.to_string(),
+                    version: version.to_string(),
+                    seconds: install_timeout.as_secs(),
+                })??;
         debug!(
             "Install result: path={}, exe={}, already_installed={}",
             result.install_path.display(),
@@ -277,6 +278,41 @@ impl<'a> InstallationManager<'a> {
 
         // Run post-install hook (for symlinks, PATH setup, etc.)
         runtime.post_install(version, effective_ctx).await?;
+
+        // Re-resolve the executable after `post_install`.
+        //
+        // Providers with a `post_extract` step change the store layout *after*
+        // `install()` already resolved an executable: Rust downloads `rustup-init`
+        // to `bin/`, then `post_extract` runs it, which is what actually creates
+        // `cargo/bin/rustup`. Without this re-resolution a cold store dispatches to
+        // the bootstrapper (`rustup-init` has no `component` subcommand) while a warm
+        // store dispatches to the real `rustup`.
+        //
+        // See <https://github.com/loonghao/vx/issues/1152>.
+        if !is_system_install && runtime.has_post_extract_hook() {
+            match runtime
+                .get_executable_path_for_version(version, effective_ctx)
+                .await
+            {
+                Ok(Some(executable_path)) if executable_path != result.executable_path => {
+                    debug!(
+                        "Re-resolved executable after post_install for {} {}: {} -> {}",
+                        runtime_name,
+                        version,
+                        result.executable_path.display(),
+                        executable_path.display()
+                    );
+                    result.executable_path = executable_path;
+                }
+                Ok(_) => {}
+                Err(error) => {
+                    debug!(
+                        "Failed to re-resolve executable after post_install for {} {}: {}",
+                        runtime_name, version, error
+                    );
+                }
+            }
+        }
 
         info!("Successfully installed {} {}", runtime_name, version);
         Ok(result)

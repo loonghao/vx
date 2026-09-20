@@ -287,6 +287,7 @@ impl<T: Runtime + ?Sized> RuntimeInstallable for T {
 pub trait RuntimeHooks: Send + Sync {
     async fn pre_install(&self, version: &str, ctx: &RuntimeContext) -> Result<()>;
     fn post_extract(&self, version: &str, install_path: &Path) -> Result<()>;
+    fn has_post_extract_hook(&self) -> bool;
     async fn post_install(&self, version: &str, ctx: &RuntimeContext) -> Result<()>;
     async fn pre_uninstall(&self, version: &str, ctx: &RuntimeContext) -> Result<()>;
     async fn post_uninstall(&self, version: &str, ctx: &RuntimeContext) -> Result<()>;
@@ -307,6 +308,9 @@ impl<T: Runtime + ?Sized> RuntimeHooks for T {
     }
     fn post_extract(&self, v: &str, p: &Path) -> Result<()> {
         Runtime::post_extract(self, v, p)
+    }
+    fn has_post_extract_hook(&self) -> bool {
+        Runtime::has_post_extract_hook(self)
     }
     async fn post_install(&self, v: &str, ctx: &RuntimeContext) -> Result<()> {
         Runtime::post_install(self, v, ctx).await

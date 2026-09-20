@@ -557,6 +557,18 @@ pub trait Runtime: Send + Sync {
         Ok(())
     }
 
+    /// Whether this runtime runs a `post_extract`-style step during `post_install`.
+    ///
+    /// Providers that bootstrap their real toolchain after extraction (Rust runs
+    /// `rustup-init`, which then creates `cargo/bin/rustup`) change the store layout
+    /// *after* `install()` resolved the executable. Callers use this to decide
+    /// whether the executable must be re-resolved once `post_install` returns.
+    ///
+    /// See <https://github.com/loonghao/vx/issues/1152>.
+    fn has_post_extract_hook(&self) -> bool {
+        false
+    }
+
     /// Called after successful installation
     ///
     /// Use this to:

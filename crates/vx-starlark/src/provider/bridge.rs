@@ -485,3 +485,85 @@ pub(super) fn make_post_extract_fn_owned(
         })
     })
 }
+
+// ---------------------------------------------------------------------------
+// get_execute_path — authoritative "what to run" for a version
+// ---------------------------------------------------------------------------
+
+/// Return type of [`make_execute_path_fn`].
+///
+/// Named to keep `clippy::type_complexity` off the `impl Fn(..)` return type
+/// without changing what callers receive; it matches `vx_runtime::ExecutePathFn`
+/// once boxed into an `Arc`.
+pub type ExecutePathClosure = Box<
+    dyn Fn(
+            String,
+            String,
+        ) -> std::pin::Pin<
+            Box<
+                dyn std::future::Future<Output = anyhow::Result<Option<std::path::PathBuf>>> + Send,
+            >,
+        > + Send
+        + Sync,
+>;
+
+/// Create an `ExecutePathFn` closure backed by an embedded `provider.star`.
+///
+/// The closure calls `get_execute_path(ctx, version)` and returns the declared
+/// path **relative to the version install directory**, so the caller can anchor it
+/// on whichever store it is using (providers compute the absolute path from the
+/// process-wide vx home).
+///
+/// Providers that install a bootstrapper (Rust downloads `bin/rustup-init` and
+/// only produces `cargo/bin/rustup` after `post_extract`) must declare the real
+/// executable here so dispatch never targets the bootstrapper on a cold store.
+///
+/// See <https://github.com/loonghao/vx/issues/1152>.
+pub fn make_execute_path_fn(
+    name: impl Into<String>,
+    content: impl Into<String>,
+) -> ExecutePathClosure {
+    let name: Arc<str> = Arc::from(name.into());
+    let content: Arc<str> = Arc::from(content.into());
+    Box::new(move |version: String, _install_dir: String| {
+        let name = Arc::clone(&name);
+        let content = Arc::clone(&content);
+        Box::pin(async move {
+            let provider = StarlarkProvider::from_content(&*name, &*content)
+                .await
+                .map_err(|e| anyhow::anyhow!("Failed to load {} provider.star: {e}", name))?;
+
+            provider
+                .call_get_execute_path_relative(&version, None)
+                .await
+                .map_err(|e| anyhow::anyhow!("{} get_execute_path failed: {e}", name))
+        })
+    })
+}
+
+/// Owned-string variant of [`make_execute_path_fn`] for multi-runtime providers.
+pub(super) fn make_execute_path_fn_owned(
+    provider_name: Arc<str>,
+    content: Arc<str>,
+    runtime_name: String,
+) -> vx_runtime::ExecutePathFn {
+    Arc::new(move |version: String, _install_dir: String| {
+        let provider_name = Arc::clone(&provider_name);
+        let content = Arc::clone(&content);
+        let runtime_name = runtime_name.clone();
+        Box::pin(async move {
+            let provider = StarlarkProvider::from_content(&*provider_name, &*content)
+                .await
+                .map_err(|e| {
+                    anyhow::anyhow!("Failed to load {} provider.star: {e}", provider_name)
+                })?;
+
+            provider
+                .call_get_execute_path_relative(&version, Some(&runtime_name))
+                .await
+                .map_err(|e| {
+                    anyhow::anyhow!("{} get_execute_path({}) failed: {e}", runtime_name, version)
+                })
+        })
+    })
+}

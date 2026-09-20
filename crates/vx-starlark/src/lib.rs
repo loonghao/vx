@@ -51,8 +51,8 @@ pub use provider::version_cache::{
 };
 pub use provider::{
     EnvOp, InstallLayout, PostExtractAction, ProviderMeta, RuntimeMeta, StarlarkProvider,
-    apply_env_ops, build_runtimes, create_provider, make_download_url_fn, make_fetch_versions_fn,
-    make_install_layout_fn,
+    apply_env_ops, build_runtimes, create_provider, make_download_url_fn, make_execute_path_fn,
+    make_fetch_versions_fn, make_install_layout_fn,
 };
 pub use sandbox::SandboxConfig;
 pub use vx_star_metadata::{StarMetadata, StarRuntimeMeta};
