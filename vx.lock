@@ -4,7 +4,7 @@
 version = 1
 
 [metadata]
-generated_at = "2026-09-20T10:15:24Z"
+generated_at = "2026-05-05T06:39:30Z"
 vx_version = "0.6.19"
 platform = "x86_64-pc-windows-msvc"
 
@@ -111,7 +111,7 @@ resolved_from = "7.4.13"
 ecosystem = "generic"
 
 [tools.python]
-version = "3.12.14"
+version = "3.12.13"
 source = "vx install"
 resolved_from = "3.12"
 ecosystem = "python"
