@@ -1,38 +1,102 @@
 #!/usr/bin/env bash
 # .githooks/pre-push
 #
-# Auto-regenerate workspace-hack (cargo-hakari) before pushing.
-# This prevents CI from having to commit a "chore: regenerate workspace-hack"
-# commit on every PR that adds or changes dependencies.
+# Checks that workspace-hack (cargo-hakari) and Cargo.lock are in the state
+# cargo would produce, and refuses to push if they are not.
+#
+# This hook is read-only on purpose. It used to run `cargo hakari generate`
+# and commit whatever that produced, which is fine for a branch that only
+# needs regenerating but destructive for a deliberate lockfile edit:
+# `cargo hakari generate` re-resolves the whole graph whenever the lockfile
+# does not match the manifests, and that rewrites Cargo.lock wholesale —
+# measured here at roughly twelve thousand changed lines, moving dependency
+# versions nothing on the branch asked to change. A targeted lockfile edit
+# was silently replaced by a full re-resolution before anyone could see the
+# diff, which is how a surgical fix stops being surgical.
+#
+# So: verify, never repair. If something is out of date, say what it is and
+# how to fix it, and let the person pushing decide.
 #
 # Install: git config core.hooksPath .githooks
 #       or: just setup-hooks
 
-set -euo pipefail
+set -uo pipefail
 
-# Skip if cargo-hakari is not installed (non-blocking)
-if ! command -v cargo-hakari &>/dev/null && ! cargo hakari --version &>/dev/null 2>&1; then
-    echo "[pre-push] cargo-hakari not installed, skipping workspace-hack check"
-    echo "[pre-push] Run: cargo install cargo-hakari --locked"
-    exit 0
-fi
+restore() {
+    # Safety net: a check must not leave the working tree different from what
+    # was committed. If one wrote to these files, put them back and fail
+    # loudly rather than pushing something else than what was reviewed.
+    local dirty=0
+    if [ -n "${lock_before:-}" ] \
+       && [ "$(git hash-object Cargo.lock 2>/dev/null || echo x)" != "$lock_before" ]; then
+        echo "[pre-push] ✗ Cargo.lock was modified by a check; restoring it."
+        git checkout -- Cargo.lock 2>/dev/null || true
+        dirty=1
+    fi
+    if [ -n "${hack_before:-}" ] \
+       && [ "$(git hash-object crates/workspace-hack/Cargo.toml 2>/dev/null || echo x)" != "$hack_before" ]; then
+        echo "[pre-push] ✗ workspace-hack was modified by a check; restoring it."
+        git checkout -- crates/workspace-hack/Cargo.toml 2>/dev/null || true
+        dirty=1
+    fi
+    if [ "$dirty" -ne 0 ]; then
+        echo "[pre-push]   The tree has been restored. Nothing was pushed."
+        return 1
+    fi
+    return 0
+}
 
-echo "[pre-push] Checking workspace-hack (cargo-hakari)..."
-
-# Run hakari and check if anything changed
-cargo hakari generate
-cargo hakari manage-deps
-
-if ! git diff --quiet crates/workspace-hack/Cargo.toml Cargo.lock 2>/dev/null; then
-    echo "[pre-push] workspace-hack was out of date — changes staged automatically"
-    git add crates/workspace-hack/Cargo.toml Cargo.lock
-    git commit -m "chore: regenerate workspace-hack (cargo-hakari) [skip ci]" \
-        --no-verify \
-        --author="$(git config user.name) <$(git config user.email)>"
-    echo "[pre-push] Committed workspace-hack update. Re-run git push to include it."
-    # Exit 1 to abort the push so the new commit gets included in the push
+# A dirty tree would make the checks ambiguous, and cargo would be free to
+# rewrite Cargo.lock while answering them.
+if ! git diff --quiet -- Cargo.lock crates/workspace-hack/Cargo.toml; then
+    echo "[pre-push] ✗ Cargo.lock or workspace-hack has uncommitted changes."
+    echo "[pre-push]   Commit or stash them first, then push."
+    echo "[pre-push]   (Refusing to run lockfile checks against a dirty tree.)"
     exit 1
 fi
 
-echo "[pre-push] workspace-hack is up-to-date ✓"
+lock_before="$(git rev-parse HEAD:Cargo.lock 2>/dev/null || true)"
+hack_before="$(git rev-parse HEAD:crates/workspace-hack/Cargo.toml 2>/dev/null || true)"
+
+if ! command -v cargo &>/dev/null; then
+    echo "[pre-push] cargo not found; skipping lockfile checks."
+    exit 0
+fi
+
+# 1. Does the lockfile satisfy the manifests as it stands?
+#    `--locked` is the read-only form: it fails instead of re-resolving.
+echo "[pre-push] Checking Cargo.lock against the manifests..."
+if ! cargo metadata --locked --format-version 1 >/dev/null 2>&1; then
+    echo "[pre-push] ✗ Cargo.lock does not match the manifests."
+    echo "[pre-push]"
+    echo "[pre-push]   Fix it deliberately, then review the diff and commit:"
+    echo "[pre-push]     cargo update -p <crate> --precise <version>   # targeted change"
+    echo "[pre-push]     cargo update                                  # full re-resolution"
+    echo "[pre-push]   Both re-resolve the graph, so check what else moved."
+    restore
+    exit 1
+fi
+
+# 2. Is workspace-hack what hakari would generate?
+if command -v cargo-hakari &>/dev/null || cargo hakari --version &>/dev/null 2>&1; then
+    echo "[pre-push] Checking workspace-hack (cargo-hakari)..."
+    if ! cargo hakari generate --diff >/dev/null 2>&1; then
+        echo "[pre-push] ✗ workspace-hack is out of date."
+        echo "[pre-push]"
+        echo "[pre-push]   Regenerate deliberately, review, and commit:"
+        echo "[pre-push]     cargo hakari generate && cargo hakari manage-deps"
+        echo "[pre-push]   These re-resolve the graph; check the Cargo.lock diff too."
+        restore
+        exit 1
+    fi
+else
+    echo "[pre-push] cargo-hakari not installed; skipping the workspace-hack check."
+    echo "[pre-push] Install it with: cargo install cargo-hakari --locked"
+fi
+
+if ! restore; then
+    exit 1
+fi
+
+echo "[pre-push] workspace-hack and Cargo.lock are in sync ✓"
 exit 0
