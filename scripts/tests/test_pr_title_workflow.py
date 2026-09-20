@@ -46,6 +46,46 @@ class PullRequestTitleWorkflowTests(unittest.TestCase):
         self.assertIn("schedule:", self.workflow)
         self.assertIn("workflow_dispatch:", self.workflow)
 
+    # Each trigger gets its own concurrency slot. The chained path is keyed by
+    # the source run, so two CI runs report independently; sharing one slot
+    # would let the hourly sweep cancel a manual backfill.
+    def test_concurrency_slots_are_keyed_per_trigger(self) -> None:
+        self.assertIn(
+            "github.event_name == 'pull_request_target' && format('pr-{0}', github.event.pull_request.number)",
+            self.workflow,
+        )
+        self.assertIn(
+            "github.event_name == 'workflow_run' && format('ci-{0}', github.event.workflow_run.id)",
+            self.workflow,
+        )
+        self.assertIn(
+            "github.event_name == 'workflow_dispatch' && format('dispatch-{0}', github.run_id)",
+            self.workflow,
+        )
+
+    # Scoped to the cancel line: the group expression legitimately mentions
+    # `workflow_dispatch`, and the point is that only the sweep may cancel.
+    def test_only_the_sweep_cancels_an_in_progress_run(self) -> None:
+        cancel_lines = [
+            line.strip()
+            for line in self.workflow.splitlines()
+            if line.strip().startswith("cancel-in-progress:")
+        ]
+
+        self.assertEqual(cancel_lines, ["cancel-in-progress: ${{ github.event_name == 'schedule' }}"])
+
+    # The dispatch input is an arbitrary string reaching a shell word inside
+    # double quotes, where `$(...)` would be expanded.
+    def test_dispatch_input_is_rejected_unless_it_is_a_pull_number(self) -> None:
+        self.assertIn("grep -qE '^[0-9]+$'", self.workflow)
+        self.assertIn("The 'pr' input must be a pull request number", self.workflow)
+        self.assertIn("PULL_NUMBER = re.compile", self.publisher)
+        self.assertIn("--pr must be a pull request number", self.publisher)
+
+    def test_the_sweep_is_documented_as_a_backstop_not_a_guarantee(self) -> None:
+        self.assertIn("best-effort", self.workflow)
+        self.assertIn("60 days", self.workflow)
+
     def test_backfill_never_overwrites_a_verdict_another_run_published(self) -> None:
         self.assertIn("def backfill_targets(", self.publisher)
         self.assertIn("def needs_status(", self.publisher)

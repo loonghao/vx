@@ -28,8 +28,10 @@ head which arrived without a ``pull_request_target`` event:
     ``pull_request`` workflow, so it does run for a token push.
 
 ``schedule``
-    Hourly sweep over the open pull requests. It is what guarantees the status
-    can never stay missing, whatever the event plumbing does next.
+    Hourly sweep over the open pull requests. Backstop for a head that ``CI``
+    never reported on. It runs on GitHub's schedule, which is delayed under
+    load and disabled after 60 days without repository activity, so it narrows
+    the window in which a status can be missing rather than closing it.
 
 ``workflow_dispatch``
     Manual backfill, optionally narrowed to one pull request number.
@@ -56,6 +58,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import subprocess
 import sys
 from dataclasses import dataclass
@@ -65,6 +68,11 @@ from urllib.parse import urlencode
 from validate_pr_title import is_valid_title
 
 STATUS_CONTEXT = "PR Title"
+
+# A pull request number is digits only. The workflow rejects anything else
+# before the value reaches a shell word; this is the same rule enforced where
+# it is used, so the script is safe to call from anywhere.
+PULL_NUMBER = re.compile(r"^[0-9]+$")
 
 VALID_DESCRIPTION = "Conventional Commit title is valid"
 INVALID_DESCRIPTION = "Use a Conventional Commit title"
@@ -156,9 +164,15 @@ class GitHub:
         query = {"state": "open", "per_page": "100"}
         if head:
             query["head"] = head
-        # `safe` keeps the `owner:branch` separator readable; the colon is
-        # part of the API's filter syntax, not a separator to be escaped.
-        return self.json(f"repos/{self.repository}/pulls?{urlencode(query, safe=':')}")
+        # `safe` keeps the `owner:branch` separator and the branch slashes
+        # readable; both are part of the filter syntax, not separators to be
+        # escaped. `--paginate` follows the Link headers, so a repository with
+        # more open pull requests than one page cannot lose the tail of the
+        # list.
+        return self.json(
+            "--paginate",
+            f"repos/{self.repository}/pulls?{urlencode(query, safe=':/')}",
+        )
 
     def statuses(self, sha: str) -> list[dict[str, Any]]:
         """Return the commit statuses already published on ``sha``."""
@@ -221,6 +235,13 @@ def backfill_targets(
 
     A backfill must not overwrite a verdict published by another run, so only
     heads with no ``context`` status at all are selected.
+
+    This costs one status request per head: the REST API has no bulk endpoint
+    for the statuses of several commits, and batching would mean a second code
+    path (GraphQL) for a job that runs hourly over the open pull requests of a
+    single repository. Left as is on purpose; the pagination in
+    :meth:`GitHub.open_pulls` is what keeps the sweep from silently skipping
+    part of the list.
     """
 
     pulls = list(pulls)
@@ -463,6 +484,10 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     if not args.repository:
         print("::error::--repository is required (it is unset for a local run).")
+        return EXIT_UNAVAILABLE
+
+    if args.pr and not PULL_NUMBER.match(args.pr):
+        print(f"::error::--pr must be a pull request number, got: {args.pr}")
         return EXIT_UNAVAILABLE
 
     github = GitHub(args.repository)

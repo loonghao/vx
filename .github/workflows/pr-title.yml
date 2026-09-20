@@ -30,9 +30,12 @@ on:
     workflows: ["CI"]
     types: [completed]
   schedule:
-    # Hourly. A head that arrives without a `pull_request_target` run is
-    # invisible until something looks for it, and the sweep is the only path
-    # that does not depend on another event firing first.
+    # Hourly best-effort sweep. `workflow_run` above is the primary self-heal:
+    # it reacts to a specific head within seconds of `CI` finishing. This sweep
+    # is the backstop for a head `CI` never reported on, and it runs on
+    # GitHub's schedule, which is delayed under load and disabled entirely
+    # after 60 days without repository activity. It narrows the window in
+    # which a status can be missing; it cannot promise that one never is.
     - cron: "17 * * * *"
   workflow_dispatch:
     inputs:
@@ -46,10 +49,12 @@ permissions:
   statuses: write
 
 concurrency:
-  # One run per pull request for the event paths. The sweep and the manual runs
-  # share one slot so a slow pass cannot leave a queue behind it.
-  group: pr-title-${{ github.event.pull_request.number || github.event.workflow_run.id || 'sweep' }}
-  cancel-in-progress: ${{ github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' }}
+  # One slot per pull request on the interactive path, one per source run on
+  # the chained path, and one per manual run. The sweep is the only path that
+  # cancels, and it has its own slot: an hourly pass must never cancel a
+  # targeted backfill someone dispatched by hand.
+  group: pr-title-${{ github.event_name == 'pull_request_target' && format('pr-{0}', github.event.pull_request.number) || github.event_name == 'workflow_run' && format('ci-{0}', github.event.workflow_run.id) || github.event_name == 'workflow_dispatch' && format('dispatch-{0}', github.run_id) || 'sweep' }}
+  cancel-in-progress: ${{ github.event_name == 'schedule' }}
 
 jobs:
   validate:
@@ -77,6 +82,15 @@ jobs:
         shell: bash
         run: |
           set -uo pipefail
+
+          # `inputs.pr` is an arbitrary string. Reject anything that is not a
+          # bare number before it reaches a shell word, rather than relying on
+          # quoting: a value such as `$(...)` would be expanded inside double
+          # quotes. The script enforces the same rule on its own side.
+          if [ -n "${PR_INPUT}" ] && ! printf '%s' "${PR_INPUT}" | grep -qE '^[0-9]+$'; then
+            echo "::error::The 'pr' input must be a pull request number, got: ${PR_INPUT}"
+            exit 1
+          fi
 
           # Exit codes: 0 valid, 1 invalid title (status published), 2 nothing
           # could be published. Only 2 leaves the pull request without a
