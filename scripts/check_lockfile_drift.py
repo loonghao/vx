@@ -25,15 +25,29 @@ of the **real merge result** against the one on the base branch, using
 the base's own progress as if the pull request had made it. Any edge whose
 resolved version goes down is reported.
 
+The same automation that produces that instability can also swallow a bump
+entirely. `cargo hakari generate` runs in `Code Quality (via vx)`, its commit
+is pushed back onto the pull request branch, and the re-resolution it
+performs has been observed removing the very package the branch was opened
+to bump: the lockfile ends up identical to the base, the pull request shows
+a net change of zero files, and the bump it advertises was never delivered.
+So a second check is applied when the title claims a bump: the claimed
+version has to be present in the merged lockfile.
+
+That check is scoped to titles that claim a bump, so a pull request that
+changes no dependencies at all is not reported: there is nothing it claimed
+and failed to deliver.
+
 No version numbers are hardcoded here: the comparison is semver on whatever
 the two lockfiles contain.
 
 Exit codes
 ----------
 0
-    No dependency moved backwards.
+    No dependency moved backwards, and every claimed bump was delivered.
 1
-    At least one dependency moved backwards.
+    At least one dependency moved backwards, or (with `--strict`) at least
+    one claimed bump was not delivered.
 2
     The comparison could not be made (missing ref, unreadable lockfile,
     conflicting merge, ...).
@@ -48,7 +62,7 @@ import subprocess
 import sys
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Sequence
+from typing import Any, Iterable, Sequence
 
 DEFAULT_LOCKFILE = "Cargo.lock"
 DEFAULT_BASE = "origin/main"
@@ -107,6 +121,44 @@ class Drift:
             "head_version": self.head_version,
             "direction": "downgrade",
         }
+
+
+@dataclass(frozen=True)
+class BumpClaim:
+    """A crate bump a pull request title says it delivers."""
+
+    crate: str
+    version: str
+
+
+@dataclass(frozen=True)
+class UnfulfilledBump:
+    """A claimed bump the merged lockfile does not contain."""
+
+    crate: str
+    claimed_version: str
+    found_versions: list[str]
+
+    def describe(self) -> str:
+        """Return the one-line human readable form."""
+
+        found = ", ".join(self.found_versions) if self.found_versions else "not in the lockfile"
+        return f"{self.crate} {self.claimed_version} is not delivered (lockfile has: {found})"
+
+    def as_dict(self) -> dict[str, object]:
+        """Return the report entry for this missed bump."""
+
+        return {
+            "crate": self.crate,
+            "claimed_version": self.claimed_version,
+            "found_versions": self.found_versions,
+        }
+
+
+def lockfile_packages(parsed: dict[str, dict[str, str]]) -> list[tuple[str, str]]:
+    """Return `(name, version)` for every package in a parsed lockfile."""
+
+    return [tuple(package.split(" ", 1)) for package in parsed]
 
 
 def parse_version(version: str) -> tuple[int, ...]:
@@ -221,6 +273,76 @@ def find_drift(
     return drift
 
 
+# Renovate states the bump it is making in the pull request title. Only
+# cargo-shaped claims are matched, so an Actions or Docker update is not held
+# to a lockfile it does not touch.
+BUMP_CLAIM = re.compile(
+    r"^update\s+(?:rust\s+crate\s+)?(?P<crate>[\w.-]+?)"
+    r"(?:\s+monorepo)?\s+to\s+v?(?P<version>[0-9][0-9A-Za-z.+-]*)",
+    re.IGNORECASE,
+)
+
+
+def parse_bump_claims(title: str) -> list[BumpClaim]:
+    """Return the crate bumps a pull request title claims to deliver.
+
+    Returns nothing for a title that claims no bump, which is what keeps a
+    pull request that legitimately touches no dependencies out of the report.
+    """
+
+    # Titles are conventional commits: `fix(deps): update rust crate x to 1`.
+    _, _, description = title.partition(":")
+    return [
+        BumpClaim(crate=match["crate"], version=match["version"])
+        for match in BUMP_CLAIM.finditer(description.strip())
+    ]
+
+
+def crate_matches(package: str, crate: str) -> bool:
+    """Return whether a lockfile package belongs to a claimed crate.
+
+    A monorepo claim covers the crates it publishes, so `serde` matches
+    `serde_derive` and `zstd` matches `zstd-sys`.
+    """
+
+    return package == crate or package.startswith((f"{crate}_", f"{crate}-"))
+
+
+def version_matches(actual: str, claimed: str) -> bool:
+    """Return whether a resolved version is the claimed one.
+
+    A claim may be shorter than the resolved version: `0.7` is delivered by
+    `0.7.1`.
+    """
+
+    return actual == claimed or actual.startswith(f"{claimed}.")
+
+
+def find_unfulfilled_bumps(
+    claims: Sequence[BumpClaim],
+    packages: Iterable[tuple[str, str]],
+) -> list[UnfulfilledBump]:
+    """Return the claimed bumps the merged lockfile does not contain."""
+
+    packages = list(packages)
+    unfulfilled: list[UnfulfilledBump] = []
+
+    for claim in claims:
+        found = sorted(
+            {version for name, version in packages if crate_matches(name, claim.crate)}
+        )
+        if any(version_matches(version, claim.version) for version in found):
+            continue
+        unfulfilled.append(
+            UnfulfilledBump(
+                crate=claim.crate,
+                claimed_version=claim.version,
+                found_versions=found,
+            )
+        )
+    return unfulfilled
+
+
 def git(*args: str) -> str:
     """Run `git` and return its stdout."""
 
@@ -272,7 +394,13 @@ def merged_lockfile(base: str, head: str, lockfile: str) -> tuple[str, str]:
     return read_lockfile(head, lockfile), "head (merge conflict)"
 
 
-def render_text(drift: Sequence[Drift], source: str, base: str, head: str) -> str:
+def render_text(
+    drift: Sequence[Drift],
+    missed: Sequence[UnfulfilledBump],
+    source: str,
+    base: str,
+    head: str,
+) -> str:
     """Return the human readable report."""
 
     lines = [
@@ -285,18 +413,33 @@ def render_text(drift: Sequence[Drift], source: str, base: str, head: str) -> st
 
     if not drift:
         lines.append("No dependency moves backwards. ✅")
+    else:
+        lines.append(f"{len(drift)} dependency edge(s) move backwards: ❌")
+        lines.append("")
+        for item in drift:
+            lines.append(f"  - {item.describe()}")
+        lines.append("")
+        lines.append(
+            "These are unrelated to the bumped crate: the resolver re-points free\n"
+            "edges onto another version of a crate that is already in the lockfile.\n"
+            "Regenerating the lockfile can land on a resolution without them."
+        )
+
+    lines.append("")
+
+    if not missed:
+        lines.append("Every bump the title claims is present in the merged lockfile. ✅")
         return "\n".join(lines) + "\n"
 
-    lines.append(f"{len(drift)} dependency edge(s) move backwards: ❌")
+    lines.append(f"{len(missed)} claimed bump(s) were not delivered: ⚠️")
     lines.append("")
-    for item in drift:
+    for item in missed:
         lines.append(f"  - {item.describe()}")
     lines.append("")
     lines.append(
-        "These are unrelated to the bumped crate: the resolver re-points free\n"
-        "edges onto another version of a crate that is already in the lockfile.\n"
-        "Regenerating the lockfile can land on a resolution without them; see\n"
-        "scripts/check_lockfile_drift.py."
+        "The title advertises a bump the merge result does not contain, usually\n"
+        "because a later commit on the branch re-resolved the lockfile and undid\n"
+        "it. Check the branch commits before trusting the title."
     )
     return "\n".join(lines) + "\n"
 
@@ -321,6 +464,16 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
         help="Report format.",
     )
     parser.add_argument(
+        "--title",
+        default="",
+        help="Pull request title to check claimed bumps against.",
+    )
+    parser.add_argument(
+        "--strict",
+        action="store_true",
+        help="Fail on a claimed bump that was not delivered, not just warn.",
+    )
+    parser.add_argument(
         "--output",
         default="",
         help="Write the report to this path in addition to stdout.",
@@ -329,7 +482,7 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
 
 
 def main(argv: Sequence[str] | None = None) -> int:
-    """Compare the merged lockfile against the base and report downgrades."""
+    """Compare the merged lockfile against the base and report on it."""
 
     args = parse_args(argv)
 
@@ -341,7 +494,12 @@ def main(argv: Sequence[str] | None = None) -> int:
         return 2
 
     try:
-        drift = find_drift(parse_lockfile(base_text), parse_lockfile(head_text))
+        base_parsed = parse_lockfile(base_text)
+        head_parsed = parse_lockfile(head_text)
+        drift = find_drift(base_parsed, head_parsed)
+        missed = find_unfulfilled_bumps(
+            parse_bump_claims(args.title), lockfile_packages(head_parsed)
+        )
     except LockfileError as error:
         print(f"::error::{error}")
         return 2
@@ -353,24 +511,32 @@ def main(argv: Sequence[str] | None = None) -> int:
                 "head": args.head,
                 "merged_from": source,
                 "drift": [item.as_dict() for item in drift],
-                "clean": not drift,
+                "unfulfilled_bumps": [item.as_dict() for item in missed],
+                "clean": not drift and not missed,
             },
             indent=2,
         )
     else:
-        report = render_text(drift, source, args.base, args.head)
+        report = render_text(drift, missed, source, args.base, args.head)
 
     print(report)
 
     if args.output:
         Path(args.output).write_text(report, encoding="utf-8")
 
+    # A missed bump warns by default. Failing on it would block a merge over a
+    # title that this parser misread, which is a worse outcome than a pull
+    # request that simply did nothing; `--strict` opts into the failure.
+    for item in missed:
+        level = "error" if args.strict else "warning"
+        print(f"::{level}::claimed bump not delivered: {item.describe()}")
+
     if drift:
         for item in drift:
             print(f"::error::dependency moved backwards: {item.describe()}")
         return 1
 
-    return 0
+    return 1 if (missed and args.strict) else 0
 
 
 if __name__ == "__main__":
