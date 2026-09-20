@@ -20,12 +20,16 @@
 # Install: git config core.hooksPath .githooks
 #       or: just setup-hooks
 
-set -uo pipefail
+set -euo pipefail
 
 restore() {
     # Safety net: a check must not leave the working tree different from what
     # was committed. If one wrote to these files, put them back and fail
     # loudly rather than pushing something else than what was reviewed.
+    #
+    # Both the baseline and the restore read the index (`:file`, matching
+    # `git checkout --`), so the two agree even when a change has been staged
+    # but not committed.
     local dirty=0
     if [ -n "${lock_before:-}" ] \
        && [ "$(git hash-object Cargo.lock 2>/dev/null || echo x)" != "$lock_before" ]; then
@@ -55,12 +59,17 @@ if ! git diff --quiet -- Cargo.lock crates/workspace-hack/Cargo.toml; then
     exit 1
 fi
 
-lock_before="$(git rev-parse HEAD:Cargo.lock 2>/dev/null || true)"
-hack_before="$(git rev-parse HEAD:crates/workspace-hack/Cargo.toml 2>/dev/null || true)"
+lock_before="$(git rev-parse :Cargo.lock 2>/dev/null || true)"
+hack_before="$(git rev-parse :crates/workspace-hack/Cargo.toml 2>/dev/null || true)"
 
+# Fail closed. Skipping the checks when cargo is missing means the whole
+# guard quietly stops existing on exactly the machine that never had it,
+# and the only signal is a line of output on a push that then succeeds.
 if ! command -v cargo &>/dev/null; then
-    echo "[pre-push] cargo not found; skipping lockfile checks."
-    exit 0
+    echo "[pre-push] ✗ cargo not found, so the lockfile cannot be verified."
+    echo "[pre-push]   Install a Rust toolchain, or push with --no-verify if you"
+    echo "[pre-push]   intend this lockfile and accept that it was not checked."
+    exit 1
 fi
 
 # 1. Does the lockfile satisfy the manifests as it stands?

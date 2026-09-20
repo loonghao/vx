@@ -270,7 +270,9 @@ pre-merge: format-check lint check-architecture test-fast
 # Configure git to use project-managed hooks (run once after cloning)
 setup-hooks:
     git config core.hooksPath .githooks
-    @echo "✓ Git hooks configured (.githooks/pre-push will auto-regenerate workspace-hack)"
+    chmod +x .githooks/pre-push
+    @echo "✓ Git hooks configured (.githooks/pre-push will verify workspace-hack and Cargo.lock)"
+    @echo "  It checks and fails on a mismatch; it does not regenerate anything."
     @echo "  Install cargo-hakari if not present: cargo install cargo-hakari --locked"
 
 # Quick development cycle: format, lint, test, build
