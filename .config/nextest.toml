@@ -38,6 +38,15 @@ path = "junit.xml"
 #     passes on a later attempt is reported as FLAKY with exit 0, so it needs
 #     the JUnit report above to stay visible on an otherwise green run.
 #
+# Overrides are evaluated top-down and the *first* one whose filter matches
+# wins - verified against cargo-nextest: of two conflicting `retries`
+# overrides, `0;2` behaves like `0` and `2;0` like `2`, and reordering two
+# conflicting `test-group` overrides moves the test in `show-config
+# test-groups`. So position in this file is load-bearing: put a new group next
+# to whatever it must take precedence over rather than at the bottom, or the
+# tests an earlier override already claimed will silently keep the old
+# settings.
+#
 # ── Benchmark tests ──────────────────────────────────────────────────────────
 [[profile.default.overrides]]
 filter = 'package(vx) & test(bench_)'
@@ -89,10 +98,13 @@ retries = 2
 # groups above, which clears the 231s worst case measured on a loaded runner
 # (no test in that run exceeded 360s).
 #
-# `!test(bench_)` keeps `e2e_benchmark_tests` on the single-threaded benchmark
-# group. This block comes last and overrides are applied in order, so without it
-# `test-group` would move those tests from `vx-benchmarks` (max-threads = 1) to
-# `vx-slow-e2e` (max-threads = 4) and let them run concurrently with each other.
+# `!test(bench_)` is a guard against reordering, not a load-bearing filter:
+# the benchmark override above sits earlier in the file, so `test(bench_)`
+# tests are claimed by it and never reach this block. Keep the clause anyway -
+# if this block is ever moved above that override, dropping it would let
+# `test-group` pull `e2e_benchmark_tests` out of `vx-benchmarks`
+# (max-threads = 1) into `vx-slow-e2e` (max-threads = 4) and run the
+# benchmarks concurrently with each other.
 [[profile.default.overrides]]
 filter = 'package(vx) & binary(/e2e|integration/) & !test(bench_)'
 test-group = 'vx-slow-e2e'

@@ -31,6 +31,7 @@ from __future__ import annotations
 
 import argparse
 import os
+import re
 import sys
 import xml.etree.ElementTree as ET
 from dataclasses import dataclass
@@ -41,8 +42,31 @@ from pathlib import Path
 # that never passed. Only the former is absorbed by the retry policy.
 FLAKY_TAG = "flakyFailure"
 
+# nextest splits a failed attempt across two places: the panic *location* goes
+# into the `message` attribute (`thread 'main' (102064) panicked at
+# tests/foo.rs:24:9`) and the panic *reason* into the element body, whose first
+# line repeats that location header with the reason on the lines below it:
+#
+#     thread 'main' (102064) panicked at tests/foo.rs:24:9:
+#     assertion `left == right` failed
+#       left: 1
+#      right: 2
+#
+# Reading the attribute alone reduces the table below to a `file:line`, which
+# is the half of the record that says least about why the test failed, so the
+# body is the source of the reason and the attribute only supplies the
+# location - when it is one. `MAX_REASON_LINES` keeps a long failure body from
+# flooding a table cell; the rest of the body stays one click away in the job
+# log.
+PANIC_LOCATION = re.compile(
+    # Unanchored at the end: the location token ends the part we care about,
+    # and anything a tool appends after it is not a location.
+    r"^thread '.*?'(?: \(\d+\))? panicked at (?P<location>\S+)"
+)
+MAX_REASON_LINES = 3
+
 NO_REPORT = "No nextest JUnit report was found at `{path}`."
-UNREADABLE = "The nextest JUnit report at `{path}` could not be parsed: {error}"
+UNREADABLE = "The nextest JUnit report at `{path}` could not be read: {error}"
 
 EXPLANATION = """\
 `retries` in `.config/nextest.toml` re-runs a failed test, and nextest reports
@@ -71,6 +95,54 @@ class FlakyTest:
         return f"{self.binary_id} {self.name}"
 
 
+def _first_line(text: str | None) -> str:
+    """The first line of a JUnit element body, stripped."""
+
+    lines = (text or "").strip().splitlines()
+    return lines[0].strip() if lines else ""
+
+
+def _reason_lines(text: str | None) -> list[str]:
+    """The panic reason from an element body, minus its location header."""
+
+    lines = [line.strip() for line in (text or "").strip().splitlines()]
+    if lines and PANIC_LOCATION.match(lines[0]):
+        # The body opens with the same location header the attribute carries.
+        lines.pop(0)
+    reason: list[str] = []
+    for line in lines:
+        # A blank line or the backtrace hint ends the reason; everything after
+        # it is context, not cause.
+        if not line or line.startswith("note:"):
+            break
+        reason.append(line)
+        if len(reason) == MAX_REASON_LINES:
+            break
+    return reason
+
+
+def _failure_detail(failure: ET.Element) -> str:
+    """Collapse one failed attempt into the reason it failed.
+
+    Prefers the element body, which carries the panic reason, and keeps the
+    `message` attribute as secondary detail: as a location when it is one, and
+    otherwise verbatim when it adds information the body does not (a
+    subprocess timeout reports `timed out`). An attribute that only repeats
+    the body - a prefix of it, or a longer form of it - is dropped.
+    """
+
+    reason = " ".join(_reason_lines(failure.text))
+    message = _first_line(failure.get("message", ""))
+    if not reason:
+        return message
+    location = PANIC_LOCATION.match(message)
+    if location:
+        return f"{reason} (at {location['location'].rstrip(':')})"
+    if message and reason not in message and not message.startswith(reason):
+        return f"{reason} ({message})"
+    return reason
+
+
 def _one_line(text: str) -> str:
     """Collapse a JUnit message to something that fits in a table cell."""
 
@@ -94,7 +166,7 @@ def collect_flaky(path: Path) -> list[FlakyTest]:
                 name=testcase.get("name", ""),
                 # One <flakyFailure> per failed attempt, plus the final pass.
                 attempts=len(failures) + 1,
-                first_failure=failures[0].get("message", ""),
+                first_failure=_failure_detail(failures[0]),
             )
         )
     return sorted(flaky, key=lambda test: (test.binary_id, test.name))
@@ -127,13 +199,20 @@ def render(flaky: list[FlakyTest], warning: str | None = None) -> str:
 
 
 def summarize(path: Path) -> str:
-    """Render the summary for `path`, degrading to a warning if unreadable."""
+    """Render the summary for `path`, degrading to a warning if unreadable.
 
-    if not path.is_file():
-        return render([], NO_REPORT.format(path=path))
+    Every way the report can be unreadable has to land here, not only a parse
+    error: `stat` and `open` also raise `OSError` (permission denied, I/O
+    failure, a path that is really a directory), and letting one of those
+    escape would turn a green job red - the opposite of what this helper is
+    for.
+    """
+
     try:
+        if not path.is_file():
+            return render([], NO_REPORT.format(path=path))
         flaky = collect_flaky(path)
-    except ET.ParseError as error:
+    except (ET.ParseError, OSError) as error:
         return render([], UNREADABLE.format(path=path, error=error))
     return render(flaky)
 
