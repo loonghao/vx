@@ -5,6 +5,19 @@ vx-benchmarks = { max-threads = 1 }
 # Isolate these with generous timeouts to avoid blocking fast unit tests.
 vx-slow-e2e = { max-threads = 4 }
 
+# ── JUnit report ────────────────────────────────────────────────────────────
+#
+# The only output that records *why* a test passed. A test that failed once and
+# then passed carries a `<flakyFailure>` child per failed attempt; a test that
+# failed every attempt carries `<failure>` instead. That difference is what
+# `scripts/summarize_nextest_flaky.py` reads back into the job summary, because
+# nextest itself reports a flaky test as a pass with exit 0 - without this file
+# an intermittent regression absorbed by `retries` below is invisible on a green
+# run. `path` is relative to the profile store directory, so the default profile
+# writes to `target/nextest/default/junit.xml`.
+[profile.default.junit]
+path = "junit.xml"
+
 # ── Environment-dependent test policy ───────────────────────────────────────
 #
 # Every group below shells out to the real `vx` binary against real toolchains,
@@ -21,7 +34,9 @@ vx-slow-e2e = { max-threads = 4 }
 #     `120s x 3` gives a 360s ceiling while still logging SLOW from 120s.
 #   * `retries` re-runs a test that fails. A transient runner stall recovers on
 #     a later attempt, while a genuine regression fails every attempt - retries
-#     absorb infrastructure flake without hiding product bugs.
+#     absorb infrastructure flake without hiding product bugs. A test that only
+#     passes on a later attempt is reported as FLAKY with exit 0, so it needs
+#     the JUnit report above to stay visible on an otherwise green run.
 #
 # ── Benchmark tests ──────────────────────────────────────────────────────────
 [[profile.default.overrides]]
@@ -57,4 +72,29 @@ retries = 2
 filter = 'package(vx-cli) & binary(tool_e2e_tests)'
 test-group = 'vx-slow-e2e'
 slow-timeout = { period = "120s", terminate-after = 3 }
+retries = 2
+
+# ── Root-package E2E / integration binaries ─────────────────────────────────
+#
+# `tests/e2e_*.rs`, `tests/integration_tests.rs`, `tests/cli_integration_tests.rs`
+# and `tests/structured_output_e2e_tests.rs` belong to the root `vx` package,
+# not to `vx-cli`, so every group above misses them and they ran on the bare
+# default profile: SLOW at 60s and no `terminate-after` at all. That is the
+# wrong half of the suite to leave uncovered - measured on the Windows full job,
+# `vx::e2e_package_syntax_tests` is the slowest binary in the workspace at 231s,
+# ahead of every `vx-cli` group this file already protects.
+#
+# `period` stays at the 60s default so the SLOW signal is unchanged and only the
+# kill ceiling moves; `terminate-after = 6` reaches the same 360s ceiling as the
+# groups above, which clears the 231s worst case measured on a loaded runner
+# (no test in that run exceeded 360s).
+#
+# `!test(bench_)` keeps `e2e_benchmark_tests` on the single-threaded benchmark
+# group. This block comes last and overrides are applied in order, so without it
+# `test-group` would move those tests from `vx-benchmarks` (max-threads = 1) to
+# `vx-slow-e2e` (max-threads = 4) and let them run concurrently with each other.
+[[profile.default.overrides]]
+filter = 'package(vx) & binary(/e2e|integration/) & !test(bench_)'
+test-group = 'vx-slow-e2e'
+slow-timeout = { period = "60s", terminate-after = 6 }
 retries = 2

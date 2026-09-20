@@ -757,6 +757,16 @@ jobs:
           CARGO_TARGET_DIR: target
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Report flaky tests
+        if: always()
+        shell: bash
+        # `retries = 2` in .config/nextest.toml makes nextest report a test that
+        # only passed on a later attempt as FLAKY with exit 0, so an intermittent
+        # regression would otherwise land as a silent green check.
+        run: |
+          if command -v python3 >/dev/null 2>&1; then PY=python3; else PY=python; fi
+          "$PY" scripts/summarize_nextest_flaky.py --junit target/nextest/default/junit.xml
+
   # ============================================================================
   # Stage 3a.5: Provider static checks (lint + provider unit tests)
   # ============================================================================
@@ -819,8 +829,9 @@ jobs:
         platform:
           # Retries on the network-dependent E2E groups spend wall-clock on a
           # later attempt, so keep headroom over the observed runtime. Measured
-          # on Windows: nextest 3891s (64.9m) / whole job 77.5m, against a 120m
-          # budget - ~35% headroom, since a flaking test adds up to 2 x 360s.
+          # on Windows: nextest 3974.7s (66.2m) / whole job 83.9m, against a
+          # 120m budget - ~30% headroom, since a flaking test adds up to
+          # 2 x 360s (12m). Roughly three flaking tests would exhaust it.
           - name: Linux-x86_64
             os: ubuntu-latest
             artifact: vx-linux-x64
@@ -883,6 +894,16 @@ jobs:
         env:
           CARGO_TARGET_DIR: target
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Report flaky tests
+        if: always()
+        shell: bash
+        # `retries = 2` in .config/nextest.toml makes nextest report a test that
+        # only passed on a later attempt as FLAKY with exit 0, so an intermittent
+        # regression would otherwise land as a silent green check.
+        run: |
+          if command -v python3 >/dev/null 2>&1; then PY=python3; else PY=python; fi
+          "$PY" scripts/summarize_nextest_flaky.py --junit target/nextest/default/junit.xml
 
   # ============================================================================
   # Stage 5: Cross-compilation (PR only, skip on main since release builds cover it)
