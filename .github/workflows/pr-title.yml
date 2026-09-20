@@ -88,10 +88,15 @@ jobs:
         id: policy-code
         env:
           BASE_REF: ${{ github.event.pull_request.base.sha || github.event.repository.default_branch }}
-          FALLBACK_REF: ${{ github.event.repository.default_branch }}
+          # Qualified with `origin/`. A `fetch-depth: 0` checkout fetches
+          # `refs/heads/*` into `refs/remotes/origin/*` and then checks out the
+          # commit detached, so no local branch is created: the bare name
+          # `main` does not resolve, and `git show main:...` exits 128 with an
+          # empty file rather than an error this step would notice.
+          FALLBACK_REF: origin/${{ github.event.repository.default_branch }}
         shell: bash
         run: |
-          set -uo pipefail
+          set -euo pipefail
 
           target="${RUNNER_TEMP:-/tmp}/pr-title-policy"
           rm -rf "${target}"
@@ -105,6 +110,18 @@ jobs:
 
           git show "${source_ref}:scripts/pr_title_status.py" > "${target}/pr_title_status.py"
           git show "${source_ref}:scripts/validate_pr_title.py" > "${target}/validate_pr_title.py"
+
+          # A failed `git show` leaves a zero-byte file behind rather than a
+          # non-zero status this step would stop on, and `compileall` accepts
+          # an empty file. Check the size so a miss is a loud failure instead
+          # of a green run that published nothing.
+          for name in pr_title_status.py validate_pr_title.py; do
+            if [ ! -s "${target}/${name}" ]; then
+              echo "::error::Extracted an empty ${name} from ${source_ref}; the policy code was not retrieved."
+              exit 1
+            fi
+          done
+
           python3 -m compileall -q "${target}"
 
           echo "source_ref=${source_ref}" >> "${GITHUB_OUTPUT:-/dev/null}"

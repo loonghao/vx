@@ -20,6 +20,10 @@ WORKFLOW = REPOSITORY_ROOT / ".github" / "workflows" / "pr-title.yml"
 PUBLISHER = REPOSITORY_ROOT / "scripts" / "pr_title_status.py"
 VALIDATOR = REPOSITORY_ROOT / "scripts" / "validate_pr_title.py"
 
+# The default branch name, standing in for
+# `${{ github.event.repository.default_branch }}`.
+DEFAULT_BRANCH = "main"
+
 
 def posix(path: Path) -> str:
     """Return `path` in a form bash accepts.
@@ -153,10 +157,25 @@ class PullRequestTitleWorkflowTests(unittest.TestCase):
     def test_the_pull_request_head_is_never_a_source_of_the_policy_code(self) -> None:
         extraction = self.workflow.split("Extract the title policy code")[1]
         self.assertNotIn("github.event.pull_request.head.sha", extraction)
-        self.assertIn(
-            "FALLBACK_REF: ${{ github.event.repository.default_branch }}", self.workflow
-        )
         self.assertIn("git cat-file -e", extraction)
+
+    # `origin/`-qualified. A `fetch-depth: 0` checkout writes only
+    # `refs/remotes/origin/*` and then checks out detached, so the bare default
+    # branch name does not resolve and `git show <name>:...` exits 128 having
+    # written an empty file rather than failing the step.
+    def test_the_fallback_ref_is_qualified_with_the_remote(self) -> None:
+        self.assertIn(
+            "FALLBACK_REF: origin/${{ github.event.repository.default_branch }}",
+            self.workflow,
+        )
+
+    # An empty extracted file compiles cleanly, so without an explicit size
+    # check a retrieval failure would present as a green run that published
+    # nothing.
+    def test_an_empty_extraction_is_a_failure_not_a_silent_success(self) -> None:
+        extraction = self.workflow.split("Extract the title policy code")[1]
+        self.assertIn("set -euo pipefail", extraction)
+        self.assertIn('[ ! -s "${target}/${name}" ]', extraction)
 
 
 class StaleBaseRepoMixin:
@@ -194,6 +213,16 @@ class StaleBaseRepoMixin:
         self._git(root, "add", "scripts/pr_title_status.py", "README.md")
         self._git(root, "commit", "-q", "-m", "head")
         head = self._git(root, "rev-parse", "HEAD")
+
+        # Ensure the tip is reachable by the branch NAME. The workflow's
+        # fallback is the default branch name, and a name is not a sha: on a
+        # runner the checkout is detached with only `refs/remotes/origin/*`
+        # present, so a bare name that was never created locally does not
+        # resolve at all. `git init` already put us on some branch, so move it
+        # to the expected name rather than creating one.
+        current = self._git(root, "branch", "--show-current")
+        if current != DEFAULT_BRANCH:
+            self._git(root, "branch", "-m", DEFAULT_BRANCH)
         return base, head
 
     def _git(self, root: Path, *args: str) -> str:
@@ -335,13 +364,16 @@ class StaleBaseStepTests(StaleBaseRepoMixin, unittest.TestCase):
         self.root = Path(self.tmp.name)
 
     def test_the_workflow_step_falls_back_for_a_stale_base(self) -> None:
-        base, head = self.make_repo(self.root, base_has_publisher=False)
+        base, _head = self.make_repo(self.root, base_has_publisher=False)
         step = workflow_steps("Extract the title policy code")
 
+        # The fallback is the branch NAME, exactly as the workflow computes it:
+        # passing a sha here would hide a ref that fails to resolve on a runner,
+        # which is the failure this test exists to catch.
         script = "\n".join(
             [
                 f"export BASE_REF={base}",
-                f"export FALLBACK_REF={head}",
+                f"export FALLBACK_REF={DEFAULT_BRANCH}",
                 f"export RUNNER_TEMP={posix(self.root / 'policy-dir')}",
                 f"export GITHUB_OUTPUT={posix(self.root / 'output.txt')}",
                 step["run"],
@@ -357,6 +389,9 @@ class StaleBaseStepTests(StaleBaseRepoMixin, unittest.TestCase):
 
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn("base ref predates the title policy publisher", result.stdout)
+        self.assertTrue(
+            (self.root / "policy-dir" / "pr-title-policy" / "pr_title_status.py").stat().st_size > 0
+        )
         self.assertEqual(
             self.run_publisher(self.root, self.root / "policy-dir" / "pr-title-policy"),
             0,
