@@ -119,17 +119,59 @@ if [ "${metadata_failed}" -ne 0 ]; then
 fi
 
 # 2. Is workspace-hack what hakari would generate?
+#
+#    This deliberately does NOT use `cargo hakari generate --diff`, even
+#    though that looks like the read-only fit. `--diff` compares only the
+#    workspace-hack contents, while CI runs `generate` and `manage-deps` and
+#    then looks at the whole tree. The two disagree in both directions:
+#
+#      * a branch needing a Cargo.lock rewrite is reported in sync by `--diff`
+#        (exit 0) while CI would regenerate it -- measured on a release branch,
+#        where generate changed Cargo.lock by 30 lines and `--diff` said fine;
+#
+#      * a branch where hakari cannot resolve at all is reported out of date by
+#        `--diff` while `generate` crashes, writes nothing, and so looks clean.
+#
+#    Either way the hook would disagree with the job that actually decides.
+#    So: run what CI runs, look at what CI looks at, and put the files back.
+#
+#    `generate` and `manage-deps` write, which is why the two files are
+#    restored afterwards: the check must leave nothing behind. The dirty-tree
+#    guard above means the working tree matches the index, so restoring from
+#    the index is exact.
 if command -v cargo-hakari &>/dev/null || cargo hakari --version &>/dev/null 2>&1; then
     echo "[pre-push] Checking workspace-hack (cargo-hakari)..."
-    if ! cargo hakari generate --diff >/dev/null 2>&1; then
-        echo "[pre-push] ✗ workspace-hack is out of date."
+
+    hakari_failed=0
+    if ! cargo hakari generate 2>&1 | sed 's/^/[pre-push]     /'; then
+        hakari_failed=1
+    fi
+    if ! cargo hakari manage-deps 2>&1 | sed 's/^/[pre-push]     /'; then
+        hakari_failed=1
+    fi
+
+    if [ "${hakari_failed}" -ne 0 ]; then
+        restore
+        echo "[pre-push] ✗ cargo hakari failed, so workspace-hack could not be checked."
+        exit 1
+    fi
+
+    # What CI looks at: the whole tree, not just the two files it commits.
+    if ! hakari_diff="$(git diff)" || [ -n "${hakari_diff}" ]; then
+        changed_files="$(git diff --name-only)"
+        restore
+
+        echo "[pre-push] ✗ workspace-hack is out of date: regenerating changes the tree."
+        echo "[pre-push]"
+        echo "[pre-push]   Changed by regenerating: ${changed_files}"
         echo "[pre-push]"
         echo "[pre-push]   Regenerate deliberately, review, and commit:"
         echo "[pre-push]     cargo hakari generate && cargo hakari manage-deps"
         echo "[pre-push]   These re-resolve the graph; check the Cargo.lock diff too."
-        restore
         exit 1
     fi
+
+    echo "[pre-push] workspace-hack is up to date ✓"
 else
     echo "[pre-push] cargo-hakari not installed; skipping the workspace-hack check."
     echo "[pre-push] Install it with: cargo install cargo-hakari --locked"
