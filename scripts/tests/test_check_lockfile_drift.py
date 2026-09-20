@@ -162,6 +162,96 @@ class FindDriftTests(unittest.TestCase):
         self.assertEqual([item.package for item in found], ["a", "b"])
 
 
+class BumpClaimTests(unittest.TestCase):
+    def test_reads_a_plain_crate_bump(self) -> None:
+        claims = drift.parse_bump_claims("fix(deps): update rust crate tower-http to 0.7")
+
+        self.assertEqual([(c.crate, c.version) for c in claims], [("tower-http", "0.7")])
+
+    def test_reads_a_version_prefixed_with_v(self) -> None:
+        claims = drift.parse_bump_claims("chore(deps): update rust crate uuid to v1.26.1")
+
+        self.assertEqual([(c.crate, c.version) for c in claims], [("uuid", "1.26.1")])
+
+    def test_reads_a_monorepo_bump(self) -> None:
+        claims = drift.parse_bump_claims("chore(deps): update serde monorepo to v1.0.229")
+
+        self.assertEqual([(c.crate, c.version) for c in claims], [("serde", "1.0.229")])
+
+    # A pull request that claims no bump must not be held to one, so that a
+    # change touching no dependencies stays out of the report.
+    def test_a_title_without_a_bump_claim_produces_nothing(self) -> None:
+        for title in (
+            "fix(windows): preserve nested PATH resolution",
+            "chore(deps): update actions/setup-node action to v7",
+            "",
+        ):
+            with self.subTest(title=title):
+                self.assertEqual(drift.parse_bump_claims(title), [])
+
+    def test_a_claim_is_satisfied_by_a_longer_resolved_version(self) -> None:
+        self.assertTrue(drift.version_matches("0.7.1", "0.7"))
+        self.assertTrue(drift.version_matches("1.0.229", "1.0.229"))
+        self.assertFalse(drift.version_matches("0.6.11", "0.7"))
+
+    def test_a_monorepo_claim_covers_the_crates_it_publishes(self) -> None:
+        self.assertTrue(drift.crate_matches("serde_derive", "serde"))
+        self.assertTrue(drift.crate_matches("zstd-sys", "zstd"))
+        self.assertFalse(drift.crate_matches("tower", "tower-http"))
+
+
+class MissedBumpTests(unittest.TestCase):
+    def lock(self, *packages: tuple[str, str]) -> list[tuple[str, str]]:
+        return list(packages)
+
+    def test_a_delivered_bump_is_not_reported(self) -> None:
+        claims = drift.parse_bump_claims("fix(deps): update rust crate tower-http to 0.7")
+
+        found = drift.find_unfulfilled_bumps(
+            claims, self.lock(("tower-http", "0.7.1"), ("tokio", "1.53.1"))
+        )
+
+        self.assertEqual(found, [])
+
+    # The failure mode: a later commit re-resolved the lockfile and dropped the
+    # package the branch was opened to bump.
+    def test_a_bump_the_lockfile_does_not_contain_is_reported(self) -> None:
+        claims = drift.parse_bump_claims("fix(deps): update rust crate tower-http to 0.7")
+
+        found = drift.find_unfulfilled_bumps(
+            claims, self.lock(("tower-http", "0.6.11"))
+        )
+
+        self.assertEqual(len(found), 1)
+        self.assertEqual(found[0].crate, "tower-http")
+        self.assertEqual(found[0].claimed_version, "0.7")
+        self.assertEqual(found[0].found_versions, ["0.6.11"])
+        self.assertIn("not delivered", found[0].describe())
+
+    def test_a_crate_missing_from_the_lockfile_is_reported(self) -> None:
+        claims = drift.parse_bump_claims("fix(deps): update rust crate tower-http to 0.7")
+
+        found = drift.find_unfulfilled_bumps(claims, self.lock(("tokio", "1.53.1")))
+
+        self.assertEqual(len(found), 1)
+        self.assertEqual(found[0].found_versions, [])
+        self.assertIn("not in the lockfile", found[0].describe())
+
+    def test_a_monorepo_bump_is_satisfied_by_any_published_crate(self) -> None:
+        claims = drift.parse_bump_claims("chore(deps): update serde monorepo to v1.0.229")
+
+        found = drift.find_unfulfilled_bumps(
+            claims, self.lock(("serde", "1.0.228"), ("serde_derive", "1.0.229"))
+        )
+
+        self.assertEqual(found, [])
+
+    def test_no_claims_means_no_findings(self) -> None:
+        found = drift.find_unfulfilled_bumps([], self.lock(("tower-http", "0.6.11")))
+
+        self.assertEqual(found, [])
+
+
 class MainTests(unittest.TestCase):
     def test_a_drifted_head_exits_with_the_policy_code(self) -> None:
         base = lockfile(
@@ -181,6 +271,53 @@ class MainTests(unittest.TestCase):
 
     def test_an_unreadable_ref_exits_with_the_infrastructure_code(self) -> None:
         self.assertEqual(drift.main(["--base", "main", "--head", "definitely-not-a-ref"]), 2)
+
+    # A missed bump warns by default: failing a merge over a title this parser
+    # misread is worse than merging a pull request that did nothing.
+    def test_a_missed_bump_warns_without_failing_by_default(self) -> None:
+        base = lockfile(
+            ("tower-http", "0.6.11", ()),
+            ("tokio", "1.52.3", ("tower-http",)),
+        )
+        head = base
+
+        with unittest.mock.patch.object(drift, "read_lockfile", side_effect=[base, head]):
+            with unittest.mock.patch.object(drift, "merge_tree", return_value=None):
+                code = drift.main(
+                    [
+                        "--base",
+                        "main",
+                        "--head",
+                        "pr",
+                        "--title",
+                        "fix(deps): update rust crate tower-http to 0.7",
+                    ]
+                )
+
+        self.assertEqual(code, 0)
+
+    def test_strict_turns_a_missed_bump_into_a_failure(self) -> None:
+        base = lockfile(
+            ("tower-http", "0.6.11", ()),
+            ("tokio", "1.52.3", ("tower-http",)),
+        )
+        head = base
+
+        with unittest.mock.patch.object(drift, "read_lockfile", side_effect=[base, head]):
+            with unittest.mock.patch.object(drift, "merge_tree", return_value=None):
+                code = drift.main(
+                    [
+                        "--base",
+                        "main",
+                        "--head",
+                        "pr",
+                        "--title",
+                        "fix(deps): update rust crate tower-http to 0.7",
+                        "--strict",
+                    ]
+                )
+
+        self.assertEqual(code, 1)
 
     def test_json_output_reports_the_drift(self) -> None:
         base = lockfile(

@@ -16,9 +16,18 @@ name: Lockfile Drift
 # onto the current `main`. So no lockfile state prevents it, and what is left
 # to do is check the outcome.
 #
-# The check compares the `Cargo.lock` of `git merge-tree --write-tree` output
-# against the base branch, so a branch lagging behind the base does not get
-# blamed for the base's own progress.
+# Two things are checked against the `Cargo.lock` of the
+# `git merge-tree --write-tree` result, so a branch lagging behind the base
+# does not get blamed for the base's own progress:
+#
+#   * any dependency edge that the merge result would move backwards;
+#   * any bump the title claims that the merged lockfile does not contain,
+#     which is what a self-cancelling branch looks like. A pull request that
+#     claims no bump is not held to one, so a change with no dependency
+#     impact stays out of the report.
+#
+# A missed bump warns rather than fails, so it cannot block a merge over a
+# title the parser misread.
 #
 # The script reads lockfile text only. Nothing is built and no pull request
 # code is executed.
@@ -98,11 +107,13 @@ jobs:
         env:
           BASE_REF: ${{ github.event.pull_request.base.sha || github.event.repository.default_branch }}
           HEAD_REF: ${{ github.event.pull_request.head.sha || github.sha }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
         run: |
           set -uo pipefail
           python3 "${RUNNER_TEMP}/check_lockfile_drift.py" \
             --base "${BASE_REF}" \
             --head "${HEAD_REF}" \
+            --title "${PR_TITLE}" \
             --format json \
             --output lockfile-drift.json
 
