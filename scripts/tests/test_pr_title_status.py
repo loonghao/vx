@@ -128,6 +128,46 @@ class GhRunnerTests(unittest.TestCase):
         for argv in calls:
             self.assertEqual(argv[:2], ["gh", "api"])
 
+    # Without pagination a repository with more open pull requests than one
+    # page would lose the tail of the list silently.
+    def test_open_pulls_follows_every_page(self) -> None:
+        calls: list[list[str]] = []
+
+        def fake_run(argv: list[str], **_kwargs: object) -> object:
+            calls.append(argv)
+
+            class Result:
+                returncode = 0
+                stdout = "[]"
+                stderr = ""
+
+            return Result()
+
+        with unittest.mock.patch.object(pub.subprocess, "run", fake_run):
+            pub.GitHub("loonghao/vx").open_pulls()
+
+        self.assertIn("--paginate", calls[0])
+
+    def test_open_pulls_keeps_the_head_filter(self) -> None:
+        calls: list[list[str]] = []
+
+        def fake_run(argv: list[str], **_kwargs: object) -> object:
+            calls.append(argv)
+
+            class Result:
+                returncode = 0
+                stdout = "[]"
+                stderr = ""
+
+            return Result()
+
+        with unittest.mock.patch.object(pub.subprocess, "run", fake_run):
+            pub.GitHub("loonghao/vx").open_pulls("loonghao:renovate/example")
+
+        endpoint = calls[0][-1]
+        self.assertIn("head=loonghao:renovate/example", endpoint)
+        self.assertIn("state=open", endpoint)
+
     def test_a_failing_call_is_reported_as_an_error(self) -> None:
         def fake_run(argv: list[str], **_kwargs: object) -> object:
             class Result:
@@ -367,6 +407,21 @@ class MainTests(unittest.TestCase):
     def test_load_event_tolerates_a_missing_payload(self) -> None:
         self.assertEqual(pub.load_event(""), {})
         self.assertEqual(pub.load_event("/nonexistent/event.json"), {})
+
+    # The dispatch input is an arbitrary string. Anything that is not a bare
+    # number must be refused here as well, so the script is safe to call from
+    # anywhere and not only from the guarded workflow step.
+    def test_a_pull_request_number_must_be_digits(self) -> None:
+        for value in ("12$(date)", "1;rm -rf", "-1", "12 34", "abc", "1.5", "+5"):
+            with self.subTest(value=value):
+                self.assertEqual(
+                    pub.main(["--event-name", "workflow_dispatch", "--repository", "loonghao/vx", "--pr", value]),
+                    pub.EXIT_UNAVAILABLE,
+                )
+
+    def test_a_numeric_pull_request_number_is_accepted(self) -> None:
+        self.assertTrue(pub.PULL_NUMBER.match("1124"))
+        self.assertTrue(pub.PULL_NUMBER.match("1"))
 
 
 if __name__ == "__main__":
