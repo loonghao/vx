@@ -3055,7 +3055,7 @@ dependencies = [
  "tokio-rustls",
  "tokio-util",
  "tower",
- "tower-http 0.6.11",
+ "tower-http",
  "tower-service",
  "url",
  "wasm-bindgen",
@@ -4273,30 +4273,6 @@ dependencies = [
  "http",
  "http-body",
  "http-body-util",
- "pin-project-lite",
- "tokio",
- "tokio-util",
- "tower",
- "tower-layer",
- "tower-service",
- "url",
-]
-
-[[package]]
-name = "tower-http"
-version = "0.7.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "08a05a66a4fdd61cbbe0a1d755ffe0ca6aba159dd4820936a0ff8a8278245b9c"
-dependencies = [
- "async-compression",
- "bitflags 2.11.1",
- "bytes",
- "futures-core",
- "futures-util",
- "http",
- "http-body",
- "http-body-util",
- "percent-encoding",
  "pin-project-lite",
  "tokio",
  "tokio-util",
@@ -5743,7 +5719,7 @@ dependencies = [
  "toml_edit",
  "toml_parser",
  "toml_writer",
- "tower-http 0.7.1",
+ "tower-http",
  "tracing",
  "tracing-core",
  "tracing-log",
