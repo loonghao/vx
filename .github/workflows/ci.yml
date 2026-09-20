@@ -803,7 +803,9 @@ jobs:
       matrix:
         platform:
           # Retries on the network-dependent E2E groups spend wall-clock on a
-          # later attempt, so keep headroom over the observed ~35-40m runtime.
+          # later attempt, so keep headroom over the observed runtime. Measured
+          # on Windows: nextest 3891s (64.9m) / whole job 77.5m, against a 120m
+          # budget - ~35% headroom, since a flaking test adds up to 2 x 360s.
           - name: Linux-x86_64
             os: ubuntu-latest
             artifact: vx-linux-x64
