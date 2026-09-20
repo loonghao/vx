@@ -1,0 +1,59 @@
+name: Git Hook Tests
+
+# Exercises the pre-push hook in throwaway repositories.
+#
+# The hook is the only lockfile guard on the push path: on a pull request CI
+# regenerates workspace-hack and commits the result rather than failing, so
+# nothing else refuses a bad lockfile. It also changed twice with no automated
+# coverage, and is now fail-closed, meaning a machine without cargo cannot
+# push anything at all. That deserves a test.
+#
+# The scenarios build their own repositories with a bare remote, so the
+# workflow's own checkout is never touched.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".githooks/**"
+      - "scripts/test_pre_push_hook.py"
+      - ".github/workflows/hook-tests.yml"
+  pull_request:
+    paths:
+      - ".githooks/**"
+      - "scripts/test_pre_push_hook.py"
+      - ".github/workflows/hook-tests.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: hook-tests-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  hooks:
+    name: Pre-push Hook
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      # The hook shells out to git and cargo, and one scenario models a
+      # machine without cargo, so both have to be present and identifiable.
+      - name: Show the tools
+        run: |
+          git --version
+          cargo --version
+
+      - name: Run the hook scenarios
+        run: |
+          set -uo pipefail
+
+          if ! python3 scripts/test_pre_push_hook.py; then
+            echo "::error::The pre-push hook did not behave as expected."
+            exit 1
+          fi

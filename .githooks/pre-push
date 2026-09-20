@@ -74,15 +74,47 @@ fi
 
 # 1. Does the lockfile satisfy the manifests as it stands?
 #    `--locked` is the read-only form: it fails instead of re-resolving.
+#
+#    Not every failure here is a lockfile problem. An unreachable registry,
+#    a broken toolchain, or a crash also make `cargo metadata` exit non-zero,
+#    and reporting those as "your lockfile is wrong" sends the next person to
+#    look in the wrong place. The two are told apart below, and the original
+#    error is shown either way, so the distinction is visible rather than
+#    asserted.
 echo "[pre-push] Checking Cargo.lock against the manifests..."
-if ! cargo metadata --locked --format-version 1 >/dev/null 2>&1; then
-    echo "[pre-push] ✗ Cargo.lock does not match the manifests."
-    echo "[pre-push]"
-    echo "[pre-push]   Fix it deliberately, then review the diff and commit:"
-    echo "[pre-push]     cargo update -p <crate> --precise <version>   # targeted change"
-    echo "[pre-push]     cargo update                                  # full re-resolution"
-    echo "[pre-push]   Both re-resolve the graph, so check what else moved."
+# `set -e` would abort on the failed substitution before the message below
+# could be written, so the failure is captured deliberately.
+metadata_error=""
+if ! metadata_error="$(cargo metadata --locked --format-version 1 2>&1 >/dev/null)"; then
+    metadata_failed=1
+else
+    metadata_failed=0
+fi
+if [ "${metadata_failed}" -ne 0 ]; then
     restore
+
+    if printf '%s' "${metadata_error}" | grep -qi \
+         -e 'because --locked was passed' \
+         -e 'the lock file .* needs to be updated'; then
+        echo "[pre-push] ✗ Cargo.lock does not satisfy the manifests."
+        echo "[pre-push]"
+        echo "[pre-push]   Fix it deliberately, then review the diff and commit:"
+        echo "[pre-push]     cargo update -p <crate> --precise <version>   # targeted change"
+        echo "[pre-push]     cargo update                                  # full re-resolution"
+        echo "[pre-push]   Both re-resolve the graph, so check what else moved."
+    else
+        # Anything else is the environment, not the lockfile. Say so plainly:
+        # this is the message that decides whether someone spends the next
+        # hour editing Cargo.lock for a problem that is not in it.
+        echo "[pre-push] ✗ Cargo.lock could not be verified: cargo itself failed."
+        echo "[pre-push]   This does not look like a lockfile problem. Check the"
+        echo "[pre-push]   toolchain and network access, then re-run the push."
+        echo "[pre-push]   Only use --no-verify if you intend the lockfile as committed."
+    fi
+
+    echo "[pre-push]"
+    echo "[pre-push]   cargo said:"
+    printf '%s\n' "${metadata_error}" | head -5 | sed 's/^/[pre-push]     /'
     exit 1
 fi
 
