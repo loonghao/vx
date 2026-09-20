@@ -255,7 +255,7 @@ rustls-webpki = { version = "0.103", default-features = false, features = [
 serde_json = "1.0.148"
 anyhow = "1.0"
 thiserror = "2.0"
-dirs = "6.0"
+dirs = "7.0"
 # Optimize figment - only include needed features
 figment = { version = "0.10", features = ["toml", "env"] }
 which = "8.0"
