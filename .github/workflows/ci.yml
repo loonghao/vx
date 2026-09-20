@@ -817,21 +817,25 @@ jobs:
       fail-fast: false
       matrix:
         platform:
+          # Retries on the network-dependent E2E groups spend wall-clock on a
+          # later attempt, so keep headroom over the observed runtime. Measured
+          # on Windows: nextest 3891s (64.9m) / whole job 77.5m, against a 120m
+          # budget - ~35% headroom, since a flaking test adds up to 2 x 360s.
           - name: Linux-x86_64
             os: ubuntu-latest
             artifact: vx-linux-x64
             binary: vx
-            timeout_minutes: 45
+            timeout_minutes: 60
           - name: Windows-x86_64
             os: windows-latest
             artifact: vx-windows-x64
             binary: vx.exe
-            timeout_minutes: 90
+            timeout_minutes: 120
           - name: macOS-x86_64
             os: macos-latest
             artifact: vx-macos-x64
             binary: vx
-            timeout_minutes: 45
+            timeout_minutes: 60
 
     steps:
       - uses: actions/checkout@v7
