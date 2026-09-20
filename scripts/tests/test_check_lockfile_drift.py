@@ -86,6 +86,42 @@ class ParseLockfileTests(unittest.TestCase):
     def test_a_package_without_dependencies_has_no_edges(self) -> None:
         self.assertEqual(drift.parse_lockfile(lockfile(("adler2", "2.0.1", ()))), {"adler2 2.0.1": {}})
 
+    # A checker that silently fails to parse dependency edges reports "no
+    # findings" rather than an error, which is worse than not running. CRLF
+    # line endings have caused exactly that, so both endings are pinned.
+    def test_crlf_line_endings_parse_identically(self) -> None:
+        text = lockfile(
+            ("colored", "3.1.1", ("windows-sys 0.61.2",)),
+            ("rustyline", "14.0.0", ("windows-sys 0.52.0",)),
+            ("windows-sys", "0.52.0", ()),
+            ("windows-sys", "0.61.2", ()),
+        )
+
+        expected = drift.parse_lockfile(text)
+
+        self.assertEqual(expected["colored 3.1.1"], {"windows-sys": "0.61.2"})
+        self.assertEqual(drift.parse_lockfile(text.replace("\n", "\r\n")), expected)
+        self.assertEqual(drift.parse_lockfile(text.replace("\n", "\r")), expected)
+
+    def test_drift_is_detected_whatever_the_line_endings(self) -> None:
+        base = lockfile(
+            ("colored", "3.1.1", ("windows-sys 0.61.2",)),
+            ("windows-sys", "0.52.0", ()),
+            ("windows-sys", "0.61.2", ()),
+        )
+        head = base.replace(' "windows-sys 0.61.2",', ' "windows-sys 0.52.0",')
+
+        for ending in ("\n", "\r\n"):
+            with self.subTest(ending=repr(ending)):
+                found = drift.find_drift(
+                    drift.parse_lockfile(base.replace("\n", ending)),
+                    drift.parse_lockfile(head.replace("\n", ending)),
+                )
+                self.assertEqual(
+                    [item.describe() for item in found],
+                    ["colored 3.1.1: windows-sys 0.61.2 -> 0.52.0"],
+                )
+
 
 class FindDriftTests(unittest.TestCase):
     def base_and_head(self, head_windows: str) -> tuple[dict, dict]:
