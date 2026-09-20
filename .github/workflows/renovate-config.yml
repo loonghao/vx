@@ -1,0 +1,90 @@
+name: Renovate Config
+
+# Validates the Renovate configuration with Renovate's own validator.
+#
+# Nothing else in this repository checks it, so a broken `renovate.json` was
+# only ever caught by a human reading it: a typo can disable the whole
+# dependency pipeline without any job going red. This lane runs only when a
+# Renovate configuration file changes.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "renovate.json"
+      - "renovate.json5"
+      - ".renovaterc"
+      - ".renovaterc.json"
+      - ".renovaterc.json5"
+      - ".github/renovate.json"
+      - ".github/renovate.json5"
+      - ".github/workflows/renovate-config.yml"
+  pull_request:
+    paths:
+      - "renovate.json"
+      - "renovate.json5"
+      - ".renovaterc"
+      - ".renovaterc.json"
+      - ".renovaterc.json5"
+      - ".github/renovate.json"
+      - ".github/renovate.json5"
+      - ".github/workflows/renovate-config.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: renovate-config-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    name: Validate Renovate Config
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+
+      # A bare `npx --package renovate` resolves a version on every run and
+      # was seen failing with ETARGET for a version the registry did not
+      # have, which would read as a config error when it is not one. Pin the
+      # major and keep it in one place. Renovate itself keeps this current.
+      - name: Run renovate-config-validator
+        env:
+          RENOVATE_VERSION: "44.103.1"
+        run: |
+          set -uo pipefail
+
+          echo "Using renovate@${RENOVATE_VERSION}."
+
+          # `--strict` also fails on warnings and pending migrations, which
+          # are the things that silently change behaviour later.
+          if ! npx --yes --package "renovate@${RENOVATE_VERSION}" \
+               renovate-config-validator --strict; then
+            echo "::error::renovate configuration is invalid. Fix the errors above." >&2
+            exit 1
+          fi
+
+          echo "Renovate configuration is valid."
+
+      # The validator parses and type-checks, but it does not compare a
+      # string against the values the option accepts: `recreateWhen:
+      # "whenever"` validates cleanly and exits 0, which was confirmed
+      # against the current release. Names and values are the easiest thing to
+      # typo, and an unrecognised value is ignored rather than reported, so
+      # they are checked against the published schema as well.
+      - name: Check option names and values against the schema
+        run: |
+          set -uo pipefail
+
+          if ! python3 scripts/check_renovate_config.py; then
+            echo "::error::renovate configuration has an unknown option or an unaccepted value." >&2
+            exit 1
+          fi
