@@ -288,7 +288,11 @@ jobs:
               release_description="Release PR metadata or files are invalid"
               validation_failed=1
             fi
-            post_status "$head_sha" "$release_state" "CI / CI Success" "$release_description"
+            # The context is the required check name the branch ruleset asks
+            # for, spelled exactly like the `ci-success` job in `ci.yml`. A
+            # release pull request never runs `ci.yml`, so this status is the
+            # only thing that can satisfy "CI Success" for it.
+            post_status "$head_sha" "$release_state" "CI Success" "$release_description"
           done
 
           exit "$validation_failed"
