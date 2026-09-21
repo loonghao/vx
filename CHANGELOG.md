@@ -6,6 +6,39 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [0.9.33](https://github.com/loonghao/vx/compare/v0.9.32...v0.9.33) (2026-09-21)
+
+
+### Features
+
+* **dev:** warn when nesting a dev shell and track its depth ([890b576](https://github.com/loonghao/vx/commit/890b5760d3b60d2feca37328f6420dde4d3d2e10))
+
+
+### Bug Fixes
+
+* **ci:** absorb network-dependent E2E flake instead of failing required checks ([4af0f3b](https://github.com/loonghao/vx/commit/4af0f3b2e707ac8143bad37bf3b75fba00437b2c))
+* **ci:** cross-check empty changesets off-payload in the three sibling workflows ([#1116](https://github.com/loonghao/vx/issues/1116)) ([38e2046](https://github.com/loonghao/vx/commit/38e2046a3f6e7419ed483db0d2ef1e6341a0f6eb))
+* **ci:** detect dependency versions a pull request moves backwards ([aa48bd9](https://github.com/loonghao/vx/commit/aa48bd911ba58a7a41608b8963246783fa7cebe9))
+* **ci:** fall back to the default branch when the base predates the title publisher ([#1134](https://github.com/loonghao/vx/issues/1134)) ([250ab42](https://github.com/loonghao/vx/commit/250ab42b62f618079ab7f1363c66f434e720004d))
+* **ci:** publish the PR Title status on heads no pull_request_target event reports ([#1124](https://github.com/loonghao/vx/issues/1124)) ([c0cc072](https://github.com/loonghao/vx/commit/c0cc0726ea944478ce65ad4120901f6065e09efe))
+* **ci:** publish the release PR gate as the required CI Success check ([79438a1](https://github.com/loonghao/vx/commit/79438a1649e9589850a0e1cc1e700ea7c6564436))
+* **ci:** report a dependency bump the merge result does not deliver ([8823889](https://github.com/loonghao/vx/commit/8823889951c2e97fac3b31c7f6a1c3b69e3b88e9))
+* **ci:** run the lockfile drift checker from the base ref when it has one ([bcee837](https://github.com/loonghao/vx/commit/bcee83773448883facc47b4bf72f6e40419de60e))
+* **ci:** stop skipping every test job in change detection ([4562a26](https://github.com/loonghao/vx/commit/4562a26afd426aa56f7775a7454d27bc9612de0c))
+* **ci:** stop skipping sibling workflow jobs and fix yazi version detection ([a3c6648](https://github.com/loonghao/vx/commit/a3c66487cf0e440d77469b17ab99f511fcfe37ff))
+* **ci:** tighten the PR Title backfill after review feedback ([#1131](https://github.com/loonghao/vx/issues/1131)) ([2452395](https://github.com/loonghao/vx/commit/24523957130e963d08786b6c36ee5d2778b5ab1e))
+* **ci:** treat cancelled jobs as failures and cross-check empty changesets off-payload ([#1103](https://github.com/loonghao/vx/issues/1103)) ([d82a78a](https://github.com/loonghao/vx/commit/d82a78a037228f60c30fc836ca2305797585297e))
+* **deps:** update rust crate starlark to 0.14 ([#1150](https://github.com/loonghao/vx/issues/1150)) ([800680a](https://github.com/loonghao/vx/commit/800680aaddcc5a0f10dd759371de851005f56303))
+* **rust:** dispatch to cargo/bin/rustup after post_extract ([7d5b065](https://github.com/loonghao/vx/commit/7d5b06597341dbaa8f1fb36cd52a1fa975a3ce2a))
+
+
+### Documentation
+
+* **ci:** make the lockfile drift checker callable and fail loudly when it is not ([6a8b80e](https://github.com/loonghao/vx/commit/6a8b80e52195a653d1dee64382983213647a176d))
+* **vcpkg:** correct ports tree and VCPKG_ROOT claims ([#1096](https://github.com/loonghao/vx/issues/1096)) ([a89ac5d](https://github.com/loonghao/vx/commit/a89ac5d395a3d211d6a9a3d12f1db35d8525f034))
+* **vcpkg:** qualify VCPKG_ROOT wording and fix stale git dep reason ([6e18fd1](https://github.com/loonghao/vx/commit/6e18fd158cb73df79a2c899530d9b10e2fa786c2))
+* **vcpkg:** remove stale registry-clone and cache-path claims ([#1098](https://github.com/loonghao/vx/issues/1098)) ([7e50089](https://github.com/loonghao/vx/commit/7e50089f3182f6c50513e0ab44970ea84cf970cc))
+
 ## [0.9.32](https://github.com/loonghao/vx/compare/v0.9.31...v0.9.32) (2026-09-18)
 
 
