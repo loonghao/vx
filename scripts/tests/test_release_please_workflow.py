@@ -23,9 +23,24 @@ class ReleasePleaseWorkflowTests(unittest.TestCase):
             'post_status "$head_sha" "$title_state" "PR Title"', workflow
         )
         self.assertIn(
-            'post_status "$head_sha" "$release_state" "CI / CI Success"', workflow
+            'post_status "$head_sha" "$release_state" "CI Success"', workflow
         )
         self.assertIn(".head.sha", workflow)
+
+    def test_release_statuses_use_the_required_check_names(self) -> None:
+        """Both publishers must post the exact contexts the ruleset requires.
+
+        A release pull request never runs `ci.yml`, so the status posted here is
+        the only thing that can satisfy "CI Success". Spelling it any other way
+        (for example the `CI / CI Success` form `gh pr checks` displays) leaves
+        the release pull request blocked forever.
+        """
+
+        for workflow_path in (RELEASE_WORKFLOW, RELEASE_PR_WORKFLOW):
+            with self.subTest(workflow=workflow_path.name):
+                workflow = workflow_path.read_text(encoding="utf-8")
+                self.assertIn('"CI Success"', workflow)
+                self.assertNotIn("CI / CI Success", workflow)
 
     def test_event_driven_fallback_uses_the_same_release_pr_validator(self) -> None:
         workflow = RELEASE_PR_WORKFLOW.read_text(encoding="utf-8")
