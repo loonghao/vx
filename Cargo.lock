@@ -2645,13 +2645,26 @@ dependencies = [
 ]
 
 [[package]]
+name = "opentelemetry"
+version = "0.33.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6cdb0b1b267eb9db3331b434ed9ddab10d50e280a9adf9d13e5233e2002b61b5"
+dependencies = [
+ "futures-core",
+ "futures-sink",
+ "js-sys",
+ "pin-project-lite",
+ "thiserror",
+]
+
+[[package]]
 name = "opentelemetry-stdout"
 version = "0.32.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a1b1c6a247d79091f0062a5f4bd058589525cf987a8d4c169440d9c1be72f0ad"
 dependencies = [
  "chrono",
- "opentelemetry",
+ "opentelemetry 0.32.0",
  "opentelemetry_sdk",
 ]
 
@@ -2664,7 +2677,7 @@ dependencies = [
  "futures-channel",
  "futures-executor",
  "futures-util",
- "opentelemetry",
+ "opentelemetry 0.32.0",
  "percent-encoding",
  "portable-atomic",
  "rand 0.9.4",
@@ -4083,7 +4096,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "32497e9a4c7b38532efcdebeef879707aa9f794296a4f0244f6f69e9bc8574bd"
 dependencies = [
  "fastrand",
- "getrandom 0.3.4",
+ "getrandom 0.4.3",
  "once_cell",
  "rustix",
  "windows-sys 0.61.2",
@@ -4488,12 +4501,12 @@ dependencies = [
 
 [[package]]
 name = "tracing-opentelemetry"
-version = "0.33.0"
+version = "0.34.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "adbc64cba7137545b8044cb1fe9814f7aacf3c6b5f9b45be8bb5db538befdb26"
+checksum = "0a904802a1b902f43638b677ff2a650847e3b4404101b6c586d648e8c1e3e8fe"
 dependencies = [
  "js-sys",
- "opentelemetry",
+ "opentelemetry 0.33.0",
  "smallvec",
  "tracing",
  "tracing-core",
@@ -4723,7 +4736,7 @@ checksum = "051eb1abcf10076295e815102942cc58f9d5e3b4560e46e53c21e8ff6f3af7b1"
 
 [[package]]
 name = "vx"
-version = "0.9.32"
+version = "0.9.33"
 dependencies = [
  "anyhow",
  "assert_cmd",
@@ -4740,7 +4753,7 @@ dependencies = [
 
 [[package]]
 name = "vx-args"
-version = "0.9.32"
+version = "0.9.33"
 dependencies = [
  "indexmap",
  "regex",
@@ -4753,7 +4766,7 @@ dependencies = [
 
 [[package]]
 name = "vx-bridge"
-version = "0.9.32"
+version = "0.9.33"
 dependencies = [
  "tempfile",
  "tracing",
@@ -4763,7 +4776,7 @@ dependencies = [
 
 [[package]]
 name = "vx-cache"
-version = "0.9.32"
+version = "0.9.33"
 dependencies = [
  "anyhow",
  "bincode",
@@ -4778,7 +4791,7 @@ dependencies = [
 
 [[package]]
 name = "vx-cli"
-version = "0.9.32"
+version = "0.9.33"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4843,7 +4856,7 @@ dependencies = [
 
 [[package]]
 name = "vx-config"
-version = "0.9.32"
+version = "0.9.33"
 dependencies = [
  "anyhow",
  "chrono",
@@ -4865,7 +4878,7 @@ dependencies = [
 
 [[package]]
 name = "vx-console"
-version = "0.9.32"
+version = "0.9.33"
 dependencies = [
  "anstream",
  "anstyle",
@@ -4886,7 +4899,7 @@ dependencies = [
 
 [[package]]
 name = "vx-ecosystem-pm"
-version = "0.9.32"
+version = "0.9.33"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4904,7 +4917,7 @@ dependencies = [
 
 [[package]]
 name = "vx-env"
-version = "0.9.32"
+version = "0.9.33"
 dependencies = [
  "anyhow",
  "colored",
@@ -4926,7 +4939,7 @@ dependencies = [
 
 [[package]]
 name = "vx-extension"
-version = "0.9.32"
+version = "0.9.33"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4948,7 +4961,7 @@ dependencies = [
 
 [[package]]
 name = "vx-installer"
-version = "0.9.32"
+version = "0.9.33"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4982,7 +4995,7 @@ dependencies = [
 
 [[package]]
 name = "vx-manifest"
-version = "0.9.32"
+version = "0.9.33"
 dependencies = [
  "pretty_assertions",
  "rstest",
@@ -5000,12 +5013,12 @@ dependencies = [
 
 [[package]]
 name = "vx-metrics"
-version = "0.9.32"
+version = "0.9.33"
 dependencies = [
  "anyhow",
  "chrono",
  "dirs 7.0.0",
- "opentelemetry",
+ "opentelemetry 0.32.0",
  "opentelemetry-stdout",
  "opentelemetry_sdk",
  "rstest",
@@ -5023,7 +5036,7 @@ dependencies = [
 
 [[package]]
 name = "vx-migration"
-version = "0.9.32"
+version = "0.9.33"
 dependencies = [
  "async-trait",
  "chrono",
@@ -5045,14 +5058,14 @@ dependencies = [
 
 [[package]]
 name = "vx-msbuild-bridge"
-version = "0.9.32"
+version = "0.9.33"
 dependencies = [
  "workspace-hack",
 ]
 
 [[package]]
 name = "vx-output-filter"
-version = "0.9.32"
+version = "0.9.33"
 dependencies = [
  "anyhow",
  "regex",
@@ -5066,7 +5079,7 @@ dependencies = [
 
 [[package]]
 name = "vx-paths"
-version = "0.9.32"
+version = "0.9.33"
 dependencies = [
  "anyhow",
  "chrono",
@@ -5085,7 +5098,7 @@ dependencies = [
 
 [[package]]
 name = "vx-project-analyzer"
-version = "0.9.32"
+version = "0.9.33"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -5110,7 +5123,7 @@ dependencies = [
 
 [[package]]
 name = "vx-resolver"
-version = "0.9.32"
+version = "0.9.33"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -5144,7 +5157,7 @@ dependencies = [
 
 [[package]]
 name = "vx-runtime"
-version = "0.9.32"
+version = "0.9.33"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -5174,7 +5187,7 @@ dependencies = [
 
 [[package]]
 name = "vx-runtime-archive"
-version = "0.9.32"
+version = "0.9.33"
 dependencies = [
  "anyhow",
  "flate2",
@@ -5193,7 +5206,7 @@ dependencies = [
 
 [[package]]
 name = "vx-runtime-core"
-version = "0.9.32"
+version = "0.9.33"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -5210,7 +5223,7 @@ dependencies = [
 
 [[package]]
 name = "vx-runtime-http"
-version = "0.9.32"
+version = "0.9.33"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -5243,7 +5256,7 @@ dependencies = [
 
 [[package]]
 name = "vx-setup"
-version = "0.9.32"
+version = "0.9.33"
 dependencies = [
  "anyhow",
  "chrono",
@@ -5260,7 +5273,7 @@ dependencies = [
 
 [[package]]
 name = "vx-shim"
-version = "0.9.32"
+version = "0.9.33"
 dependencies = [
  "anyhow",
  "serde",
@@ -5278,11 +5291,11 @@ dependencies = [
 
 [[package]]
 name = "vx-star-metadata"
-version = "0.9.32"
+version = "0.9.33"
 
 [[package]]
 name = "vx-starlark"
-version = "0.9.32"
+version = "0.9.33"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -5313,7 +5326,7 @@ dependencies = [
 
 [[package]]
 name = "vx-system-pm"
-version = "0.9.32"
+version = "0.9.33"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -5336,7 +5349,7 @@ dependencies = [
 
 [[package]]
 name = "vx-version-fetcher"
-version = "0.9.32"
+version = "0.9.33"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -5354,7 +5367,7 @@ dependencies = [
 
 [[package]]
 name = "vx-versions"
-version = "0.9.32"
+version = "0.9.33"
 dependencies = [
  "anyhow",
  "async-trait",
