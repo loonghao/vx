@@ -52,7 +52,7 @@ on:
 jobs:
   # Run 'dist plan' (or host) to determine what tasks we need to do
   plan:
-    runs-on: "ubuntu-24.04"
+    runs-on: "ubuntu-26.04"
     outputs:
       val: ${{ steps.plan.outputs.manifest }}
       tag: ${{ steps.tag.outputs.tag }}
@@ -270,7 +270,7 @@ jobs:
     needs:
       - plan
       - build-local-artifacts
-    runs-on: "ubuntu-24.04"
+    runs-on: "ubuntu-26.04"
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       BUILD_MANIFEST_NAME: target/distrib/global-dist-manifest.json
@@ -324,7 +324,7 @@ jobs:
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       RUSTC_WRAPPER: ""
-    runs-on: "ubuntu-24.04"
+    runs-on: "ubuntu-26.04"
     permissions:
       # `contents` mirrors the workflow-level grant; `actions` is needed to
       # dispatch package-managers.yml once the release is public.
@@ -465,7 +465,7 @@ jobs:
     needs:
       - plan
       - host
-    runs-on: "ubuntu-24.04"
+    runs-on: "ubuntu-26.04"
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       PLAN: ${{ needs.plan.outputs.val }}
@@ -583,7 +583,7 @@ jobs:
     # still allowing individual publish jobs to skip themselves (for prereleases).
     # "host" however must run to completion, no skipping allowed!
     if: ${{ always() && needs.host.result == 'success' && (needs.publish-homebrew-formula.result == 'skipped' || needs.publish-homebrew-formula.result == 'success') && (needs.publish-winget.result == 'skipped' || needs.publish-winget.result == 'success') }}
-    runs-on: "ubuntu-24.04"
+    runs-on: "ubuntu-26.04"
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
