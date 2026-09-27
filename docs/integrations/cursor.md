@@ -1,7 +1,7 @@
 # Cursor notes
 
 > Content preserved from the deleted root `.cursorrules` and harvested from
-> `.cursor/rules/*.mdc`. Project-wide rules live in [`AGENTS.md`](../../AGENTS.md)
+> `.cursor/rules/*.mdc`. Project-wide rules live in [`AGENTS.md`](https://github.com/loonghao/vx/blob/main/AGENTS.md)
 > and [`docs/CONVENTIONS.md`](../CONVENTIONS.md).
 >
 > The `.cursor/rules/*.mdc` files themselves are left in place — they live inside
@@ -9,7 +9,7 @@
 
 ## From `.cursorrules`
 
-- Follow [`AGENTS.md`](../../AGENTS.md) exactly — it is the single source of truth.
+- Follow [`AGENTS.md`](https://github.com/loonghao/vx/blob/main/AGENTS.md) exactly — it is the single source of truth.
 - Conventional Commits: `feat:`, `fix:`, `docs:`, `chore:`, `refactor:`, `test:`.
 - Run `vx just quick` before submitting a PR.
 - PRs target the `main` branch.
