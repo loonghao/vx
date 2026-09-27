@@ -570,3 +570,20 @@ vx maintains a comprehensive set of AI agent configuration files for 15+ agents:
 | `skills/` | Distributable skill files for 15+ AI agents | ClawHub, vx ai setup |
 
 **Best practice**: When making changes that affect AI agent behavior (terminology, architecture, commands), update `AGENTS.md` first — it is the single source of truth. Other files derive from it.
+
+
+## Delivery surface — external systems are evidence, not the answer
+
+Pull requests, CI runs, and dashboards are **supporting evidence**. The
+conclusion has to land where the work is tracked.
+
+- Record status, branch/commit/PR, validation run, blocker, and next owner in one
+  issue or task comment before ending a turn.
+- Never treat a green CI run as proof the work shipped — verify the terminal
+  state (merged / released / deployed) and record *that*.
+- Keep internal routing, issue IDs, and local absolute paths off public GitHub
+  surfaces; PR text stays technical and public-safe.
+
+**Mechanical check** — a turn that touched code ends with exactly one task-system
+comment carrying status + commit/PR + validation + next owner. A PR comment alone
+fails the check.

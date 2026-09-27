@@ -16,6 +16,13 @@ os = ["windows"]
 auto_install = true
 cache_duration = "7d"
 
+# This repository owns the built-in vx skills in skills/; without this flag
+# `vx ai check` would report them as local copies of the global install.
+[ai]
+skills_source = true
+skills_hash = "b559cce28ac24864df7b37a387e3c1003bb8e4261f6c203acc1417459aee10fc"
+skills_updated_at = "2026-09-27T19:13:04.336217700+00:00"
+
 [scripts]
 benchmark-run = "just benchmark-run"
 benchmark-run-ci = "just benchmark-run-ci"

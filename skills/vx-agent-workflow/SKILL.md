@@ -705,3 +705,20 @@ vx <cmd> 2>&1 | vx rg "pattern"
 | CI errors | `vx gh run view N --log-failed 2>&1 \| vx rg -m 30 "error"` | 100-500 |
 | Search code | `vx rg -n -m 20 "pattern" src/` | 50-200 |
 | Find files | `vx fd "pattern" --type f` | 10-50 |
+
+
+## Delivery surface — external systems are evidence, not the answer
+
+Pull requests, CI runs, and dashboards are **supporting evidence**. The
+conclusion has to land where the work is tracked.
+
+- Record status, branch/commit/PR, validation run, blocker, and next owner in one
+  issue or task comment before ending a turn.
+- Never treat a green CI run as proof the work shipped — verify the terminal
+  state (merged / released / deployed) and record *that*.
+- Keep internal routing, issue IDs, and local absolute paths off public GitHub
+  surfaces; PR text stays technical and public-safe.
+
+**Mechanical check** — a turn that touched code ends with exactly one task-system
+comment carrying status + commit/PR + validation + next owner. A PR comment alone
+fails the check.

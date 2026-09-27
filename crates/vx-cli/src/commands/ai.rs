@@ -22,7 +22,7 @@ use sha2::{Digest, Sha256};
 use std::collections::HashMap;
 use std::io::Write;
 use std::net::TcpStream;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::time::Duration;
 use toml_edit::{DocumentMut, Item, Table, value};
 
@@ -132,12 +132,167 @@ const VX_SKILLS: &[(&str, &str)] = &[
         "vx-best-practices",
         include_str!("../../../../skills/vx-best-practices/SKILL.md"),
     ),
+    (
+        "vx-agent-workflow",
+        include_str!("../../../../skills/vx-agent-workflow/SKILL.md"),
+    ),
+    (
+        "vx-repo-contract",
+        include_str!("../../../../skills/vx-repo-contract/SKILL.md"),
+    ),
+    (
+        "worktrunk",
+        include_str!("../../../../skills/worktrunk/SKILL.md"),
+    ),
 ];
+
+/// Result of syncing one skills directory with the embedded vx skills.
+#[derive(Debug, Default)]
+struct SyncOutcome {
+    /// Skills written to disk during this sync
+    installed: usize,
+    /// Skills already present and byte-identical to the embedded copy
+    up_to_date: usize,
+    /// Skills present but differing from the embedded copy (only reported when
+    /// the sync runs without `force`)
+    outdated: usize,
+}
+
+impl SyncOutcome {
+    /// True when every embedded skill is present and up to date.
+    fn is_clean(&self) -> bool {
+        self.outdated == 0 && self.installed == 0
+    }
+}
+
+/// Write every embedded vx skill into `target_dir`, creating it if needed.
+///
+/// Without `force`, an existing `SKILL.md` that differs from the embedded copy is
+/// left untouched and counted as `outdated` — overwriting a file the user may have
+/// edited is never done implicitly.
+fn sync_skills_dir(target_dir: &Path, force: bool) -> Result<SyncOutcome> {
+    let mut outcome = SyncOutcome::default();
+
+    for (skill_name, skill_content) in VX_SKILLS {
+        let skill_dir = target_dir.join(skill_name);
+        let skill_file = skill_dir.join("SKILL.md");
+
+        if skill_file.exists() && !force {
+            let existing = std::fs::read_to_string(&skill_file).unwrap_or_default();
+            if existing != *skill_content {
+                outcome.outdated += 1;
+            } else {
+                outcome.up_to_date += 1;
+            }
+            continue;
+        }
+
+        std::fs::create_dir_all(&skill_dir)
+            .with_context(|| format!("Failed to create directory: {}", skill_dir.display()))?;
+        std::fs::write(&skill_file, skill_content)
+            .with_context(|| format!("Failed to write SKILL.md to {}", skill_file.display()))?;
+        outcome.installed += 1;
+    }
+
+    Ok(outcome)
+}
+
+/// Status of the globally installed skills for one agent.
+struct GlobalStatus<'a> {
+    agent: &'a AgentConfig,
+    /// Skills with no file at all in the global directory
+    missing: usize,
+    /// Skills whose global file differs from the embedded copy
+    outdated: usize,
+}
+
+/// Count missing and outdated skills in `dir` without writing anything.
+fn inspect_skills_dir(dir: &Path) -> (usize, usize) {
+    let mut missing = 0;
+    let mut outdated = 0;
+
+    for (skill_name, skill_content) in VX_SKILLS {
+        let skill_file = dir.join(skill_name).join("SKILL.md");
+        if !skill_file.is_file() {
+            missing += 1;
+            continue;
+        }
+        if std::fs::read_to_string(&skill_file).unwrap_or_default() != *skill_content {
+            outdated += 1;
+        }
+    }
+
+    (missing, outdated)
+}
+
+/// A repository-local copy of a built-in vx skill.
+struct LocalSkillCopy {
+    /// Path of the copied `SKILL.md`
+    path: PathBuf,
+    /// True when the copy is byte-identical to the embedded skill
+    identical: bool,
+}
+
+/// Repository-local directories that may carry a copy of a built-in vx skill.
+///
+/// Skills are installed **globally** by `vx ai setup`. A repository that still
+/// carries a copy under one of these directories has drifted from the global
+/// install: the copy is either byte-identical (pure duplication) or forked
+/// (worse — two divergent rulebooks). Both are reported by `vx ai check`.
+///
+/// Every agent's project skills directory is included (deduplicated, because
+/// several agents share `.agents/skills`), plus the top-level `skills/` directory.
+fn local_skill_dirs(project_root: &Path) -> Vec<PathBuf> {
+    let mut dirs: Vec<PathBuf> = Vec::new();
+
+    for agent in SUPPORTED_AGENTS {
+        let dir = project_root.join(agent.project_skills_dir);
+        if !dirs.contains(&dir) {
+            dirs.push(dir);
+        }
+    }
+
+    dirs.push(project_root.join("skills"));
+    dirs
+}
+
+/// Find repository-local copies of the built-in vx skills.
+fn find_local_skill_copies(project_root: &Path) -> Vec<LocalSkillCopy> {
+    let mut copies = Vec::new();
+
+    for dir in local_skill_dirs(project_root) {
+        for (skill_name, skill_content) in VX_SKILLS {
+            let path = dir.join(skill_name).join("SKILL.md");
+            if !path.is_file() {
+                continue;
+            }
+            let existing = std::fs::read_to_string(&path).unwrap_or_default();
+            copies.push(LocalSkillCopy {
+                path,
+                identical: existing == *skill_content,
+            });
+        }
+    }
+
+    copies
+}
+
+/// Shorten a path for display, preferring a path relative to `base`.
+fn display_path(path: &Path, base: &Path) -> String {
+    path.strip_prefix(base)
+        .unwrap_or(path)
+        .display()
+        .to_string()
+}
 
 /// Handle `vx ai setup` command
 ///
 /// Installs vx's built-in skills to the target AI agent configuration directories,
 /// so that AI coding agents can better understand and use vx.
+///
+/// Installs globally by default. The skills hash is recorded in the project's
+/// `vx.toml` (when one exists) in *both* scopes, so `vx ai check` can detect drift
+/// even for repositories that never run `vx ai setup --project`.
 pub async fn handle_setup(
     agents: &[String],
     global: bool,
@@ -158,65 +313,40 @@ pub async fn handle_setup(
     let mut skipped_outdated_count = 0;
 
     for agent in &target_agents {
-        let dirs_to_install: Vec<PathBuf> = if install_global {
-            vec![home_dir.join(agent.global_skills_dir)]
+        let target_dir = if install_global {
+            home_dir.join(agent.global_skills_dir)
         } else {
-            vec![cwd.join(agent.project_skills_dir)]
+            cwd.join(agent.project_skills_dir)
         };
 
-        for target_dir in dirs_to_install {
-            let mut all_up_to_date = true;
+        let outcome = sync_skills_dir(&target_dir, force)?;
+        installed_count += outcome.installed;
+        skipped_outdated_count += outcome.outdated;
 
-            for (skill_name, skill_content) in VX_SKILLS {
-                let skill_dir = target_dir.join(skill_name);
-                let skill_file = skill_dir.join("SKILL.md");
+        if outcome.is_clean() {
+            UI::info(&format!(
+                "  {} - all skills up to date at {}",
+                agent.name,
+                target_dir.display()
+            ));
+            continue;
+        }
 
-                if skill_file.exists() && !force {
-                    let existing = std::fs::read_to_string(&skill_file).unwrap_or_default();
-                    if existing != *skill_content {
-                        UI::warn(&format!(
-                            "  {} - {} is outdated at {} (use --force to update)",
-                            agent.name,
-                            skill_name,
-                            skill_file.display()
-                        ));
-                        skipped_outdated_count += 1;
-                        continue;
-                    }
-
-                    UI::info(&format!(
-                        "  {} - {} already up to date",
-                        agent.name, skill_name
-                    ));
-                    continue;
-                }
-
-                // Create directory and write SKILL.md
-                std::fs::create_dir_all(&skill_dir).with_context(|| {
-                    format!("Failed to create directory: {}", skill_dir.display())
-                })?;
-
-                std::fs::write(&skill_file, skill_content).with_context(|| {
-                    format!("Failed to write SKILL.md to {}", skill_file.display())
-                })?;
-
-                UI::success(&format!(
-                    "  {} - installed {} to {}",
-                    agent.name,
-                    skill_name,
-                    skill_dir.display()
-                ));
-                all_up_to_date = false;
-                installed_count += 1;
-            }
-
-            if all_up_to_date {
-                UI::info(&format!(
-                    "  {} - all skills up to date at {}",
-                    agent.name,
-                    target_dir.display()
-                ));
-            }
+        if outcome.installed > 0 {
+            UI::success(&format!(
+                "  {} - installed {} skill(s) to {}",
+                agent.name,
+                outcome.installed,
+                target_dir.display()
+            ));
+        }
+        if outcome.outdated > 0 {
+            UI::warn(&format!(
+                "  {} - {} skill(s) outdated at {} (use --force to update)",
+                agent.name,
+                outcome.outdated,
+                target_dir.display()
+            ));
         }
     }
 
@@ -232,6 +362,14 @@ pub async fn handle_setup(
     }
 
     if project {
+        UI::hint(
+            "Skills are installed globally by default; a project-local copy duplicates the global one.",
+        );
+    }
+
+    // Record the hash whenever a project manifest exists — not only for
+    // `--project` — so `vx ai check` can detect drift in global mode too.
+    if cwd.join("vx.toml").exists() {
         if skipped_outdated_count == 0 {
             record_project_skills_hash(&cwd, &skills_hash)?;
             UI::success(&format!(
@@ -239,8 +377,8 @@ pub async fn handle_setup(
                 short_hash(&skills_hash)
             ));
         } else {
-            UI::warn("Skipped recording skills hash because some project skills are outdated.");
-            UI::hint("Run `vx ai setup --project --force` to refresh skills and update vx.toml.");
+            UI::warn("Skipped recording skills hash because some skills are outdated.");
+            UI::hint("Run `vx ai setup --force` to refresh skills and update vx.toml.");
         }
     }
 
@@ -251,46 +389,167 @@ pub async fn handle_setup(
 
 /// Handle `vx ai check` command.
 ///
-/// Compares the built-in vx skills hash with the hash recorded in the current
-/// project's `vx.toml` under `[ai].skills_hash`.
-pub async fn handle_check() -> Result<()> {
+/// Reports three kinds of drift, and repairs all of them with `--fix`:
+///
+/// 1. **Global install** — skills missing from, or outdated in, each agent's
+///    global skills directory (`vx ai setup` installs there by default).
+/// 2. **Recorded hash** — the `[ai].skills_hash` recorded in the project's
+///    `vx.toml` versus the currently embedded skills.
+/// 3. **Repository-local copies** — built-in vx skills committed inside the
+///    repository (agent directories such as `.claude/skills/`, or a top-level
+///    `skills/`). These duplicate the global install and are never authoritative
+///    unless `[ai].skills_source = true` marks the repo as the upstream source.
+pub async fn handle_check(fix: bool) -> Result<()> {
     let cwd = std::env::current_dir().context("Could not determine current directory")?;
+    let home_dir = ai_home_dir()?;
     let vx_toml = cwd.join("vx.toml");
     let current_hash = compute_skills_hash();
 
-    UI::header("Checking vx skills");
+    UI::header(if fix {
+        "Fixing vx skills"
+    } else {
+        "Checking vx skills"
+    });
     println!();
 
-    if !vx_toml.exists() {
-        UI::warn("No vx.toml found in the current directory.");
-        UI::hint("Run `vx ai setup --project` to install project skills and record their hash.");
-        return Ok(());
+    let config = if vx_toml.exists() {
+        Some(vx_config::parse_config(&vx_toml).context("Failed to parse vx.toml")?)
+    } else {
+        None
+    };
+    let ai_config = config.as_ref().and_then(|c| c.ai.clone());
+    let skills_source = ai_config
+        .as_ref()
+        .and_then(|ai| ai.skills_source)
+        .unwrap_or(false);
+
+    // Tracks whether anything needs `vx ai check --fix`, so a clean repository
+    // stays quiet.
+    let mut drift_found = false;
+
+    // ---------------------------------------------------------------- 1. global
+    let mut dirty_agents: Vec<GlobalStatus> = Vec::new();
+    for agent in SUPPORTED_AGENTS {
+        let dir = home_dir.join(agent.global_skills_dir);
+        let (missing, outdated) = inspect_skills_dir(&dir);
+        if missing == 0 && outdated == 0 {
+            continue;
+        }
+        dirty_agents.push(GlobalStatus {
+            agent,
+            missing,
+            outdated,
+        });
     }
 
-    let config = vx_config::parse_config(&vx_toml).context("Failed to parse vx.toml")?;
-    let recorded_hash = config.ai.and_then(|ai| ai.skills_hash);
+    if dirty_agents.is_empty() {
+        UI::success(&format!(
+            "Global skills up to date for all {} agent(s) ({} skill(s) each)",
+            SUPPORTED_AGENTS.len(),
+            VX_SKILLS.len()
+        ));
+    } else {
+        drift_found = true;
+        for status in &dirty_agents {
+            UI::warn(&format!(
+                "  {} - {} missing, {} outdated in ~/{}",
+                status.agent.name, status.missing, status.outdated, status.agent.global_skills_dir
+            ));
+        }
+    }
 
-    match recorded_hash {
+    if fix {
+        let mut refreshed = 0;
+        for status in &dirty_agents {
+            let dir = home_dir.join(status.agent.global_skills_dir);
+            // The directory is known to be incomplete or stale, so overwriting is
+            // the point of `--fix`.
+            let outcome = sync_skills_dir(&dir, true)?;
+            refreshed += outcome.installed;
+        }
+        if refreshed > 0 {
+            UI::success(&format!("Refreshed {} global skill file(s)", refreshed));
+        }
+    }
+
+    // ------------------------------------------------------- 2. recorded hash
+    match ai_config.as_ref().and_then(|ai| ai.skills_hash.clone()) {
         Some(hash) if hash == current_hash => {
             UI::success(&format!(
-                "Project vx skills are up to date ({})",
+                "Recorded skills hash matches embedded skills ({})",
                 short_hash(&current_hash)
             ));
         }
         Some(hash) => {
+            drift_found = true;
             UI::warn(&format!(
-                "Project vx skills are outdated (recorded {}, current {})",
+                "Recorded skills hash is outdated (recorded {}, current {})",
                 short_hash(&hash),
                 short_hash(&current_hash)
             ));
-            UI::hint("Run `vx ai setup --project --force` to refresh project skills.");
+        }
+        None if vx_toml.exists() => {
+            drift_found = true;
+            UI::warn("No [ai].skills_hash recorded in vx.toml.");
         }
         None => {
-            UI::warn("No [ai].skills_hash recorded in vx.toml.");
-            UI::hint(
-                "Run `vx ai setup --project` to install project skills and record their hash.",
-            );
+            UI::info("No vx.toml in this directory; skipping the recorded hash check.");
         }
+    }
+
+    // --------------------------------------------------- 3. local skill copies
+    if skills_source {
+        UI::info("[ai].skills_source is set — local skills/ is the upstream source, not drift.");
+    } else {
+        let copies = find_local_skill_copies(&cwd);
+        if copies.is_empty() {
+            UI::success("No repository-local copies of built-in vx skills");
+        } else {
+            drift_found = true;
+            for copy in &copies {
+                let location = display_path(&copy.path, &cwd);
+                if copy.identical {
+                    UI::warn(&format!(
+                        "  {} duplicates the global skill — remove it",
+                        location
+                    ));
+                } else {
+                    UI::warn(&format!(
+                        "  {} diverges from the global skill — remove it",
+                        location
+                    ));
+                }
+            }
+
+            if fix {
+                for copy in &copies {
+                    if let Some(skill_dir) = copy.path.parent() {
+                        std::fs::remove_dir_all(skill_dir)
+                            .with_context(|| format!("Failed to remove {}", skill_dir.display()))?;
+                        UI::success(&format!("Removed {}", display_path(skill_dir, &cwd)));
+                    }
+                }
+            }
+        }
+    }
+
+    // ------------------------------------------------------------------ record
+    if fix && vx_toml.exists() {
+        record_project_skills_hash(&cwd, &current_hash)?;
+        UI::success(&format!(
+            "Recorded vx skills hash in vx.toml: {}",
+            short_hash(&current_hash)
+        ));
+    }
+
+    if !fix && drift_found {
+        println!();
+        UI::hint(
+            "Run `vx ai check --fix` to refresh global skills and drop repository-local copies.",
+        );
+        UI::hint(
+            "Project-specific skills are fine — just never name them like a built-in vx skill.",
+        );
     }
 
     Ok(())

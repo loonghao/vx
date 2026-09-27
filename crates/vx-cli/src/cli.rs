@@ -1505,8 +1505,17 @@ pub enum AiCommand {
         force: bool,
     },
 
-    /// Check whether project-recorded vx skills are up to date
-    Check,
+    /// Check vx skills for drift, and repair it with --fix
+    ///
+    /// Reports three kinds of drift: a stale global install, a stale
+    /// `[ai].skills_hash` in vx.toml, and repository-local copies of the
+    /// built-in vx skills. `--fix` refreshes the global install, removes the
+    /// local copies, and re-records the hash.
+    Check {
+        /// Refresh global skills, remove repository-local copies, and re-record the hash
+        #[arg(long)]
+        fix: bool,
+    },
 
     /// List supported AI agents and their config paths
     Agents,
@@ -2400,7 +2409,7 @@ impl CommandHandler for Commands {
                     project,
                     force,
                 } => commands::ai::handle_setup(agent, *global, *project, *force).await,
-                AiCommand::Check => commands::ai::handle_check().await,
+                AiCommand::Check { fix } => commands::ai::handle_check(*fix).await,
                 AiCommand::Agents => commands::ai::handle_agents().await,
                 AiCommand::Skills { args } => commands::ai::handle_skills(ctx, args).await,
                 AiCommand::Context { minimal } => {

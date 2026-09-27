@@ -44,8 +44,8 @@ The project analyzer reads indicator files like `package.json`, `pyproject.toml`
 node = "22"                 # Major version (any 22.x.x)
 go = "1.22"                 # Minor version (any 1.22.x)
 uv = "latest"               # Always use latest
-rust = "1.80"               # Specific version
 just = "*"                  # Any version
+# NOTE: no `rust` entry — Rust is pinned by rust-toolchain.toml, see below
 
 # Platform-specific tools
 [tools.msvc]
@@ -56,21 +56,63 @@ os = ["windows"]            # Only install on Windows
 version = "latest"
 os = ["macos", "linux"]
 
-[scripts]
-# Development scripts
-dev = "npm run dev"
-test = "cargo test"
-lint = "npm run lint && cargo clippy"
-build = "just build"
-
-# CI/CD scripts
-ci = "just ci"
-release = "just release"
-
 [hooks]
 # Lifecycle hooks
 pre_commit = ["vx run lint"]
 post_setup = ["npm install", "cargo fetch"]
+```
+
+> **No `[scripts]` above on purpose.** When the repository has a `justfile`,
+> tasks belong there, not in `vx.toml`. See
+> [Scripts vs justfile](#scripts-vs-justfile-pick-one).
+
+### Rust: pin with `rust-toolchain.toml`, not `[tools] rust`
+
+`vx` resolves the `rust` provider through **rustup** — the installed runtime is
+`rustup`, and `vx install rust@<version>` selects a *rustup release*, not a
+`rustc` toolchain. `rustup` itself reads `rust-toolchain.toml`, which wins for
+everything that runs through `cargo`/`rustc`.
+
+Practical consequences:
+
+| Intent | Do this | Not this |
+|--------|---------|----------|
+| Pin the Rust toolchain | `rust-toolchain.toml` with `channel = "1.98.1"` | `[tools] rust = "1.98.1"` |
+| Install Rust at all | `vx rustup --version` (auto-installs) | `[tools] rust = "stable"` |
+| Per-project override | `rust-toolchain.toml` in the repo root | editing global config |
+
+```toml
+# rust-toolchain.toml — authoritative for cargo/rustc/rustfmt/clippy
+[toolchain]
+channel = "1.98.1"
+```
+
+If you must list `rust` under `[tools]`, treat the pin as **advisory only** and
+say so in a comment — the two version namespaces are not interchangeable.
+
+**Mechanical check** — fail when a bare `rust` pin sits next to a toolchain file:
+
+```bash
+test -f rust-toolchain.toml && vx rg -q '^rust\s*=' vx.toml && echo "FAIL: [tools] rust conflicts with rust-toolchain.toml"
+```
+
+### Scripts vs justfile: pick one
+
+`vx.toml` answers **which version of a tool**. A task runner answers **how work
+gets run**. A `[scripts]` entry that forwards to `just <recipe>` is a second
+source of truth for the same task: change the recipe and the script silently
+keeps the old behaviour.
+
+| Situation | Use |
+|-----------|-----|
+| `justfile` present | Add recipes there. No `[scripts]` in `vx.toml`. |
+| No `justfile`, a handful of tasks | `[scripts]` in `vx.toml` is fine. |
+| No `justfile`, many tasks | Create a `justfile`, keep `vx.toml` version-only. |
+
+**Mechanical check** — fail when both exist:
+
+```bash
+test -f justfile && vx rg -q '^\[scripts\]' vx.toml && echo "FAIL: [scripts] duplicates justfile"
 ```
 
 ### Multi-Python Legacy Projects
@@ -176,18 +218,30 @@ version.
 
 ### Project AI Skills Hash
 
-`vx ai setup` installs built-in vx skills globally by default. Use project scope
-only when the repository wants local skill copies:
+`vx ai setup` installs built-in vx skills **globally** (one copy in the user's
+agent directories), and records `[ai].skills_hash` in the project's `vx.toml`
+whenever one exists — in global mode too, so drift is detectable without a
+project-local install. Repositories should not carry their own copy of a
+built-in vx skill.
 
 ```bash
-vx ai setup --project
-vx ai check
-vx ai setup --project --force
+vx ai setup            # install globally (default) + record the hash in vx.toml
+vx ai check            # report drift: stale global install, stale hash, local copies
+vx ai check --fix      # refresh global skills, drop local copies, re-record the hash
 ```
 
-Project setup records `[ai].skills_hash` in `vx.toml`. `vx ai check` compares
-that hash with the embedded skills hash and reminds developers to refresh stale
-project skills.
+A repository that owns project-specific skills keeps them under `skills/` with
+its own namespace (`acme-domain-skill`, `dcc-mcp-maya-setup`, …) and never
+reuses a built-in name (`vx-usage`, `vx-project`, …). `vx ai check --fix` removes
+copies of built-in skills and leaves everything else alone.
+
+The vx repository itself sets `skills_source = true` so its own `skills/`
+directory is treated as the upstream source instead of drift:
+
+```toml
+[ai]
+skills_source = true
+```
 
 ### Version Constraints
 
@@ -348,7 +402,8 @@ git add vx.lock
 
 ### 3. Scripts Organization
 
-Group related scripts:
+Only when there is no `justfile`. Group related scripts and keep them
+self-contained — never mirror a `just` recipe:
 
 ```toml
 [scripts]
@@ -363,6 +418,14 @@ test:watch = "..."
 # Build
 build = "..."
 build:prod = "..."
+```
+
+With a `justfile`, the same grouping lives in recipes and `vx.toml` stays
+version-only:
+
+```bash
+vx just --list     # discover tasks
+vx just test       # run the task
 ```
 
 ### 4. Hooks for Quality
@@ -397,3 +460,20 @@ vx init --template my-template
 └── hooks/
     └── post_setup.sh
 ```
+
+
+## Delivery surface — external systems are evidence, not the answer
+
+Pull requests, CI runs, and dashboards are **supporting evidence**. The
+conclusion has to land where the work is tracked.
+
+- Record status, branch/commit/PR, validation run, blocker, and next owner in one
+  issue or task comment before ending a turn.
+- Never treat a green CI run as proof the work shipped — verify the terminal
+  state (merged / released / deployed) and record *that*.
+- Keep internal routing, issue IDs, and local absolute paths off public GitHub
+  surfaces; PR text stays technical and public-safe.
+
+**Mechanical check** — a turn that touched code ends with exactly one task-system
+comment carrying status + commit/PR + validation + next owner. A PR comment alone
+fails the check.

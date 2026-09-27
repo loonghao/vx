@@ -24,4 +24,12 @@ pub struct AiConfig {
     /// Timestamp when built-in vx skills were last installed for this project
     #[serde(skip_serializing_if = "Option::is_none")]
     pub skills_updated_at: Option<String>,
+
+    /// Marks this repository as the upstream source of the built-in vx skills.
+    ///
+    /// When set, `vx ai check` treats local `skills/<name>/SKILL.md` files as the
+    /// authoritative source instead of reporting them as drift against the
+    /// globally installed copy. Only the vx repository itself should set this.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub skills_source: Option<bool>,
 }

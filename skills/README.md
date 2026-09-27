@@ -51,6 +51,8 @@ vx skills should teach agents to be precise, scoped, and token-aware:
 | **vx-best-practices** | Best practices — version strategy, cross-platform, security, provider development | ~10 KB | Team workflows, provider creation |
 | **vx-troubleshooting** | Troubleshooting — installation failures, PATH issues, diagnostics, recovery | ~8 KB | Fixing errors, diagnosing issues |
 | **vx-agent-workflow** | Token-efficient command execution — cross-platform filtering with `vx rg`, output reduction patterns | ~8 KB | Agents running builds/tests/lints |
+| **vx-repo-contract** | Repository layout contract — root file allowlist, lowercase `justfile`, `vx.toml` keeps `[tools]`, `AGENTS.md` as single source, no build artifacts, project skills stay incremental | ~9 KB | Entering a new repo, cleaning up the root |
+| **worktrunk** | Git worktree manager for parallel agent workflows (`vx wt`) | ~5 KB | Running several agents in parallel |
 
 ## Structure
 
@@ -63,20 +65,32 @@ skills/
 ├── vx-best-practices/SKILL.md        # Best practices (~10 KB)
 ├── vx-troubleshooting/SKILL.md       # Troubleshooting (~8 KB)
 ├── vx-agent-workflow/SKILL.md        # Token-efficient execution (~8 KB)
+├── vx-repo-contract/SKILL.md         # Repository layout contract (~9 KB)
 └── worktrunk/SKILL.md                # Git worktree manager
 ```
+
+Every skill in this directory is embedded into the vx binary and shipped by
+`vx ai setup` — the binary never distributes a subset.
 
 ## Install
 
 ```bash
-# Via vx (distributes to all AI agents)
+# Via vx — installs globally, one copy shared by every repository
 vx ai setup
+
+# Check for drift and converge a repository on the global install
+vx ai check
+vx ai check --fix
 
 # Via ClawHub CLI
 clawhub install loonghao/vx
-
-# Or copy skills/ directory to your AI agent's skills directory
 ```
+
+`vx ai setup` records the embedded skills hash under `[ai].skills_hash` in
+`vx.toml` whenever the project has one — global mode included — so `vx ai check`
+detects drift without a project-local install. A repository keeps only its own
+project-specific skills under `skills/`, namespaced so they never shadow a
+built-in `vx-*` name.
 
 ## CI Publishing to ClawHub
 
@@ -113,6 +127,8 @@ User's question:
 │  → vx-troubleshooting
 ├─ "How to filter build/test output?" / "save tokens" / "cross-platform command"
 │  → vx-agent-workflow
+├─ "Where does this file belong?" / "what should the repo root contain?"
+│  → vx-repo-contract
 ├─ "MCP integration" / "GitHub Actions"
 │  → vx-usage (has dedicated sections)
 └─ "Add a new tool to vx"
@@ -127,6 +143,7 @@ User's question:
 | "What's the best way to...?" | vx-best-practices |
 | "vx install failed" / "command not found" | vx-troubleshooting |
 | "How do I filter test output?" / "save tokens" | vx-agent-workflow |
+| "Clean up the repo root" / "what belongs at the root?" | vx-repo-contract |
 | "Cross-platform command syntax" | vx-agent-workflow |
 | "How do I add a new tool to vx?" | vx-best-practices (provider dev section) |
 | "Set up MCP with vx" | vx-usage (MCP integration section) |

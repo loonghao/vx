@@ -341,12 +341,23 @@ Manage AI-agent skills and project context.
 
 ```bash
 vx ai setup                # Install/update vx skills globally (default)
-vx ai setup --project      # Install project-local skills and record hash in vx.toml
-vx ai setup --project --force  # Refresh project-local skills
-vx ai check                # Check project skills hash against embedded skills
+vx ai setup --force        # Refresh the global install
+vx ai setup --project      # Install project-local skills instead
+vx ai check                # Report drift: stale global install, stale hash, local copies
+vx ai check --fix          # Refresh global skills, drop local copies, re-record the hash
 vx ai agents               # List supported AI agents
 vx ai context              # Generate AI-friendly project context
 ```
+
+Skills install **globally** by default — one copy in the user's agent
+directories, shared by every repository. `vx ai setup` records the embedded
+skills hash under `[ai].skills_hash` in `vx.toml` whenever the project has one,
+in global mode too, so `vx ai check` reports drift even for repositories that
+never run `vx ai setup --project`.
+
+A repository keeps only its own project-specific skills under `skills/`, and
+never reuses a built-in `vx-*` name — that prefix is how `vx ai check --fix`
+tells a project skill from a copy of a built-in one.
 
 ### cache
 
