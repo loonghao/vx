@@ -33,8 +33,8 @@ See [Version Management](./version-management.md) for the full syntax.
 | **artifact**   | its version changes a published artifact       | exact, or `major.minor` with a reason comment                 | `maturin = "1.9.6"`     |
 
 Typical members: **runtime** — `python`, `node`, `rust`. **build tool** — `uv`, `just`,
-`cmake`, `prek`, `actionlint`, `sccache`. **artifact** — `maturin`, `cargo-llvm-cov`,
-`cargo-nextest`, `msvc`.
+`cmake`, `prek`, `actionlint`, `cargo-nextest`, `cargo-llvm-cov`, `sccache`.
+**artifact** — `maturin`, `msvc`, `rcedit`.
 
 ## Rules
 
@@ -170,6 +170,8 @@ What the baseline changes in that snapshot:
 - **node** — `vx` moves from `latest` to `22`, matching every other repository.
 - **uv** — `0.7.12` in `shotgrid-mcp-server` becomes `latest` unless a recorded regression
   says otherwise.
+- **artifact tools** — `maturin` in `dcc-mcp-core` and `rez-next` moves off `latest` onto a
+  pinned minor, because its version ends up inside the built wheel.
 - **`[settings]`** — removed from the eight repositories that only restate defaults.
 - **`vx.lock`** — generated and committed in the six repositories that lack one.
 
