@@ -31,8 +31,8 @@
 | **产物工具** | 其版本会影响发布的产物     | 精确版本，或 `major.minor` + 原因注释 | `maturin = "1.9.6"`     |
 
 常见归属：**运行时** —— `python` / `node` / `rust`；**构建工具** —— `uv` / `just` / `cmake` /
-`prek` / `actionlint` / `sccache`；**产物工具** —— `maturin` / `cargo-llvm-cov` /
-`cargo-nextest` / `msvc`。
+`prek` / `actionlint` / `cargo-nextest` / `cargo-llvm-cov` / `sccache`；
+**产物工具** —— `maturin` / `msvc` / `rcedit`。
 
 ## 规则
 
@@ -125,6 +125,40 @@ vx lock --check
 ```
 
 R3 与 R5 是评审期规则：`major.minor.patch` 或产物工具的 pin 若没有行尾注释，评审不予通过。
+
+## 落地示例 —— 在 12 个仓库中采用本基线
+
+下表是 2026-09-28 从 `dcc-mcp` 组织与 `loonghao` 个人仓库采集的快照。它只是快照，不是契约
+的一部分 —— 上面的规则才是契约。
+
+| 仓库                        | rust                    | python   | node     | uv        | `[settings]` | `vx.lock` |
+| --------------------------- | ----------------------- | -------- | -------- | --------- | ------------ | --------- |
+| `dcc-mcp/dcc-mcp-core`      | `1.95` + toolchain 文件 | `3.12`   | `22`     | `latest`  | 有           | 有        |
+| `dcc-mcp/dcc-mcp-photoshop` | —                       | `3.12`   | —        | `latest`  | 有           | 无        |
+| `dcc-mcp/dcc-mcp-unreal`    | —                       | `3.12`   | —        | —         | 无           | 无        |
+| `dcc-mcp/dcc-cua`           | —                       | —        | `22`     | —         | 无           | 无        |
+| `loonghao/fpt-cli`          | `stable`                | `3.12`   | `22`     | `latest`  | 有           | 有        |
+| `loonghao/shotgrid-mcp-*`   | —                       | `latest` | —        | `0.7.12`  | 无           | 无        |
+| `loonghao/auroraview`       | `1.90.0`                | `3.11`   | —        | `latest`  | 有           | 有        |
+| `loonghao/vx`               | 已省略                  | `3.11`   | `latest` | `latest`  | 有           | 有        |
+| `loonghao/msvc-kit`         | `1.93.1`                | —        | `22`     | —         | 有           | 有        |
+| `loonghao/rez-next`         | 已省略                  | `3.14.4` | —        | `latest`  | 有           | 无        |
+| `loonghao/transx`           | —                       | `3.12`   | —        | `latest`  | 有           | 有        |
+| `loonghao/rez-lsp-server`   | —                       | —        | `22`     | —         | 无           | 无        |
+
+基线在这份快照上要求的变化：
+
+- **rust** —— `dcc-mcp-core` 删掉 `rust = "1.95"`（toolchain 文件已经 pin 了）；
+  `fpt-cli` 换掉 `stable`；`auroraview` 与 `msvc-kit` 把 pin 挪进 `rust-toolchain.toml`，
+  并删除 `vx.toml` 里的那一行。
+- **python** —— `shotgrid-mcp-server` 不再用 `latest`；`rez-next` 的 `3.14.4` 保留，
+  但补上 R3 要求的原因注释；`auroraview` 与 `vx` 的 `3.11` 要么升到 `3.12`，要么补注释。
+- **node** —— `vx` 从 `latest` 改为 `22`，与其他仓库一致。
+- **uv** —— `shotgrid-mcp-server` 的 `0.7.12` 改为 `latest`，除非有在案的回归记录。
+- **产物工具** —— `dcc-mcp-core` 与 `rez-next` 的 `maturin` 从 `latest` 改为钉住的 minor，
+  因为它的版本会进入构建出的 wheel。
+- **`[settings]`** —— 从 8 个只重复默认值的仓库里删除。
+- **`vx.lock`** —— 在缺失的 6 个仓库里生成并提交。
 
 ## 相关文档
 
