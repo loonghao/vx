@@ -116,12 +116,6 @@ source = "vx install"
 resolved_from = "3.12"
 ecosystem = "python"
 
-[tools.rust]
-version = "1.29.0"
-source = "vx install"
-resolved_from = "latest"
-ecosystem = "rust"
-
 [tools.uv]
 version = "0.10.2"
 source = "python"

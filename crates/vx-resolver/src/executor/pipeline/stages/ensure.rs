@@ -76,6 +76,21 @@ impl<'a> EnsureStage<'a> {
         if plan.primary.status != InstallStatus::Installed {
             return false;
         }
+        // A `SystemAvailable` primary is owned by something other than vx — currently
+        // rustup, via `rust-toolchain.toml` / `RUSTUP_TOOLCHAIN`. Being absent from the
+        // vx store is the expected state, not a damaged installation to repair. Flagging
+        // it for install is exactly the bug this guards: it made vx install its own
+        // toolchain and repoint rustup over the channel the project pinned.
+        if matches!(
+            plan.primary.version,
+            VersionResolution::SystemAvailable { .. }
+        ) {
+            debug!(
+                "[EnsureStage] {} is externally managed; skipping repair install",
+                plan.primary.name
+            );
+            return false;
+        }
         let (Some(registry), Some(context)) = (self.registry, self.context) else {
             return false;
         };

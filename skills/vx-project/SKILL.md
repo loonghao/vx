@@ -45,6 +45,7 @@ node = "22"                 # Major version (any 22.x.x)
 go = "1.22"                 # Minor version (any 1.22.x)
 uv = "latest"               # Always use latest
 rust = "1.80"               # Specific version
+                            # rust = "rustup-managed" defers to rustup instead
 just = "*"                  # Any version
 
 # Platform-specific tools
@@ -218,6 +219,28 @@ os = ["windows"]
 version = "latest"
 os = ["macos", "linux"]
 ```
+
+### Rust Version Resolution
+
+Rust is the one ecosystem where vx is **not** the authority. If the repository already
+names a toolchain, vx delegates to rustup: it installs nothing, keeps its store off
+`PATH`, and never runs `rustup default` (which would change the default for every other
+project on the machine).
+
+| Priority | Signal | Behaviour |
+|---|---|---|
+| 1 | `rust-toolchain.toml` / `rust-toolchain` | Delegate to rustup (searched upward from the working directory) |
+| 2 | `RUSTUP_TOOLCHAIN` set | Delegate to rustup |
+| 3 | `rust = "rustup-managed"` in `vx.toml` | Delegate to rustup, explicitly |
+| 4 | `rust = "<version>"` in `vx.toml` | vx installs that toolchain into its store |
+
+- Both (1) and (2) present → (2) wins, matching rustup's own precedence.
+- A numeric `vx.toml` pin that disagrees with the effective toolchain is warned about
+  on stderr and makes `vx check` exit non-zero. The toolchain file still wins; the
+  warning exists so a dead pin cannot go unnoticed.
+- For a repository that already pins with rustup, write `rust = "rustup-managed"`
+  instead of omitting `rust` with an explanatory comment.
+- An explicit `vx cargo@1.90.0` always goes through vx.
 
 ## Project Commands
 

@@ -91,6 +91,28 @@ def _rustup_triple(ctx):
 # for the passthrough/store-scan workaround in check.rs and lock.rs.
 # ---------------------------------------------------------------------------
 
+# ---------------------------------------------------------------------------
+# Toolchain selection
+#
+# vx pins the toolchain through RUSTUP_TOOLCHAIN in the child environment rather
+# than through `rustup default`. `rustup default` rewrites the *global* default
+# for every project on the machine; RUSTUP_TOOLCHAIN only scopes the child, so a
+# repository that pins its own toolchain (rust-toolchain.toml / RUSTUP_TOOLCHAIN)
+# is never silently redirected. See PIP-3732.
+# ---------------------------------------------------------------------------
+
+def _toolchain_for(user_version):
+    if user_version in ("stable", "beta", "nightly"):
+        return user_version
+    parts = user_version.split(".")
+    minor = 0
+    if len(parts) >= 2 and parts[1].isdigit():
+        minor = int(parts[1])
+    if minor < 30:
+        # rustup installer version (e.g. "1.29.0"), not a Rust release.
+        return "stable"
+    return user_version
+
 def version_info(_ctx, user_version):
     """Map user-facing version to store layout and Rust toolchain install parameters.
 
@@ -128,23 +150,7 @@ def version_info(_ctx, user_version):
     Returns:
         dict with store_as, download_version, install_params
     """
-    # Determine the actual Rust toolchain to install.
-    if user_version in ("stable", "beta", "nightly"):
-        toolchain = user_version
-    else:
-        parts = user_version.split(".")
-        minor = 0
-        if len(parts) >= 2 and parts[1].isdigit():
-            minor = int(parts[1])
-
-        if minor < 30:
-            # Version minor < 30 looks like a rustup installer version (e.g. 1.29.0).
-            # Install the "stable" Rust toolchain — the user almost certainly
-            # did not intend to pin an ancient Rust release from 2018.
-            toolchain = "stable"
-        else:
-            # Version minor ≥ 30 is an explicit Rust toolchain version (1.50+).
-            toolchain = user_version
+    toolchain = _toolchain_for(user_version)
 
     return {
         "store_as": user_version,   # ~/.vx/store/rust/{user_version}/
@@ -252,13 +258,18 @@ def get_execute_path(ctx, _version):
 def post_install(_ctx, _version):
     return None
 
-def environment(ctx, _version):
+def environment(ctx, version):
     # ctx.install_dir already includes the <platform> sub-directory
     # where rustup-init placed the cargo/rustup directories.
     base = ctx.install_dir
     return [
         env_set("RUSTUP_HOME", base + "/rustup"),
         env_set("CARGO_HOME",  base + "/cargo"),
+        # Scope the requested toolchain to the child process. This is deliberately
+        # NOT `rustup default`: that would rewrite the user's global default and
+        # silently change which toolchain every *other* project on the machine
+        # builds with. See PIP-3732.
+        env_set("RUSTUP_TOOLCHAIN", _toolchain_for(version)),
         env_prepend("PATH",    base + "/cargo/bin"),
     ]
 

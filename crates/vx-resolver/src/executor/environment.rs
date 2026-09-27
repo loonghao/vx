@@ -821,13 +821,19 @@ impl<'a> EnvironmentManager<'a> {
         }
     }
 
-    /// Build PATH string containing all vx-managed tool bin directories
+    /// Build PATH string containing all vx-managed tool bin directories, skipping
+    /// runtimes owned by an external toolchain manager.
+    ///
+    /// When a repository delegates Rust to rustup (`rust-toolchain.toml`,
+    /// `RUSTUP_TOOLCHAIN`, or `rust = "rustup-managed"`), a previously installed
+    /// `~/.vx/store/rust/*/cargo/bin` must stay off `PATH` — otherwise the store copy
+    /// of `cargo`/`rustc` shadows the toolchain the repository pinned.
     ///
     /// **Performance optimization**: Instead of calling `registry.supported_runtimes()`
-    /// (which triggers `materialize_all()` and instantiates all ~45 providers), we
-    /// directly scan `~/.vx/store/` to discover installed runtimes. This avoids
+    /// (which triggers `materialize_all()` and instantiates all ~45 providers), this
+    /// directly scans `~/.vx/store/` to discover installed runtimes. This avoids
     /// provider materialization entirely, reducing prepare stage from ~400ms to <50ms.
-    pub fn build_vx_tools_path(&self) -> Option<String> {
+    pub fn build_vx_tools_path_excluding(&self, excluded: &[String]) -> Option<String> {
         let context = self.context?;
 
         let mut paths: Vec<String> = Vec::new();
@@ -856,6 +862,7 @@ impl<'a> EnvironmentManager<'a> {
                 .filter_map(|e| e.ok())
                 .filter(|e| e.path().is_dir())
                 .filter_map(|e| e.file_name().into_string().ok())
+                .filter(|name| !excluded.iter().any(|skip| skip == name))
                 .collect(),
             Err(_) => Vec::new(),
         };

@@ -334,6 +334,14 @@ pub struct ExecutionConfig {
     /// Whether to inherit full parent environment
     pub inherit_parent_env: bool,
 
+    /// Runtimes owned by an external toolchain manager rather than the vx store.
+    ///
+    /// When vx delegates a runtime (e.g. Rust to rustup because the repository has a
+    /// `rust-toolchain.toml`), those runtimes must not have their vx store `bin`
+    /// directories injected into `PATH` — otherwise the store copy shadows the
+    /// toolchain the repository asked for. See `vx_resolver::rust_toolchain`.
+    pub delegated_to_system: Vec<String>,
+
     /// Whether auto-install is enabled
     pub auto_install: bool,
 
@@ -354,6 +362,7 @@ impl Default for ExecutionConfig {
             extra_env: HashMap::new(),
             inherit_vx_path: true,
             inherit_parent_env: false,
+            delegated_to_system: Vec::new(),
             auto_install: true,
             show_progress: true,
             output_filter: None,

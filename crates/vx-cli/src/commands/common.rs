@@ -16,6 +16,9 @@ use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use vx_config::{VxConfig, parse_config};
 use vx_paths::{PathManager, find_vx_config as find_vx_config_path};
+use vx_resolver::{
+    RUSTUP_MANAGED, RustToolchainOwner, detect_toolchain_owner, is_rust_toolchain_runtime,
+};
 
 // =============================================================================
 // Configuration Loading
@@ -485,6 +488,26 @@ fn get_tool_store_bin_subdirs(tool: &str) -> Vec<&'static str> {
     }
 }
 
+/// Decide whether rustup — not vx — owns the Rust toolchain for a tool.
+///
+/// Rust is the one ecosystem where the repository, not `vx.toml`, is the authority.
+/// A committed `rust-toolchain.toml`, an exported `RUSTUP_TOOLCHAIN`, or
+/// `rust = "rustup-managed"` all mean vx must keep its hands off.
+pub fn rust_toolchain_owner(
+    name: &str,
+    version: &str,
+    project_root: &Path,
+) -> Option<RustToolchainOwner> {
+    if !is_rust_toolchain_runtime(name) {
+        return None;
+    }
+    if version.trim().eq_ignore_ascii_case(RUSTUP_MANAGED) {
+        return Some(RustToolchainOwner::rustup_opt_out());
+    }
+    let owner = detect_toolchain_owner(project_root);
+    owner.is_rustup_managed().then_some(owner)
+}
+
 /// Internal implementation: check status for any iterable of (name, version) pairs.
 fn check_tools_status_impl<'a, I>(
     path_manager: &PathManager,
@@ -495,8 +518,20 @@ where
 {
     let mut statuses = Vec::new();
 
+    let working_dir = env::current_dir().unwrap_or_default();
+
     for (name, version) in tools {
-        let (status, path, detected_version) = check_tool_status(path_manager, name, version)?;
+        let (mut status, path, detected_version) = check_tool_status(path_manager, name, version)?;
+
+        // Rust is not always vx's to manage. When rustup owns the toolchain, absence
+        // from the vx store is the expected state, not a missing tool — otherwise
+        // `vx setup` / `vx sync` would try to install "rustup-managed" as a version.
+        if matches!(status, ToolStatus::NotInstalled)
+            && rust_toolchain_owner(name, version, &working_dir).is_some()
+        {
+            status = ToolStatus::SystemFallback;
+        }
+
         statuses.push((
             name.clone(),
             version.clone(),

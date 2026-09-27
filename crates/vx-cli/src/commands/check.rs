@@ -31,7 +31,7 @@
 //! ```
 
 use crate::cli::OutputFormat;
-use crate::commands::common::{ToolStatus, check_tools_status};
+use crate::commands::common::{ToolStatus, check_tools_status, rust_toolchain_owner};
 use crate::commands::setup::{find_vx_config, parse_vx_config};
 use crate::output::{CheckOutput, OutputRenderer, RequirementStatus, RequirementStatusType};
 use crate::ui::UI;
@@ -40,7 +40,8 @@ use std::collections::HashMap;
 use std::env;
 use vx_paths::project::LOCK_FILE_NAME;
 use vx_resolver::{
-    ConflictDetector, LockFile, Version, VersionRangeConfig, VersionRangeResolver, VersionRequest,
+    ConflictDetector, LockFile, RUSTUP_MANAGED, Version, VersionRangeConfig, VersionRangeResolver,
+    VersionRequest, executable_for, find_rustup_executable, versions_conflict,
 };
 use vx_runtime::ProviderRegistry;
 
@@ -138,10 +139,19 @@ pub async fn handle(
     // Check tool status (installed/missing)
     let statuses = check_tools_status(&tools_to_check)?;
 
+    // Rust is the one tool vx does not get to own: a `rust-toolchain.toml`, an
+    // exported `RUSTUP_TOOLCHAIN`, or `rust = "rustup-managed"` mean rustup decides.
+    // `vx check` has to agree with the executor, or it reports a tool as missing that
+    // will actually run fine — and, worse, stays silent about a pin nobody honours.
+    let rust_owner =
+        |name: &str, config_version: &str| rust_toolchain_owner(name, config_version, project_root);
+
     for (name, config_version, status, path, detected_version) in &statuses {
         let mut tool_ok = true;
         let mut tool_warnings = Vec::new();
         let mut tool_errors = Vec::new();
+
+        let rust_owner = rust_owner(name, config_version);
 
         // Determine status type
         let (status_type, installed_version) = match status {
@@ -154,12 +164,38 @@ pub async fn handle(
                 (RequirementStatusType::Installed, Some(ver))
             }
             ToolStatus::SystemFallback => {
-                tool_warnings.push("Using system fallback version".to_string());
-                // Still report the detected version if available
-                (
-                    RequirementStatusType::SystemFallback,
-                    detected_version.clone(),
-                )
+                if let Some(owner) = &rust_owner {
+                    // rustup owns this toolchain, so "absent from the vx store" is the
+                    // expected state — but rustup itself still has to be reachable, or
+                    // the tool resolves to nothing at run time.
+                    if find_rustup_executable(name).is_none() {
+                        tool_errors.push(format!(
+                            "{} is owned by rustup ({}) but no '{}' was found on PATH. \
+                             Install rustup from https://rustup.rs/.",
+                            name,
+                            owner.reason(),
+                            executable_for(name)
+                        ));
+                        tool_ok = false;
+                    } else {
+                        tool_warnings.push(format!(
+                            "{} is owned by rustup ({}), not vx",
+                            name,
+                            owner.reason()
+                        ));
+                    }
+                    (
+                        RequirementStatusType::SystemFallback,
+                        owner.channel().map(str::to_string),
+                    )
+                } else {
+                    tool_warnings.push("Using system fallback version".to_string());
+                    // Still report the detected version if available
+                    (
+                        RequirementStatusType::SystemFallback,
+                        detected_version.clone(),
+                    )
+                }
             }
             ToolStatus::NotInstalled => {
                 tool_errors.push(format!("{} is not installed", name));
@@ -168,6 +204,25 @@ pub async fn handle(
                 (RequirementStatusType::NotInstalled, None)
             }
         };
+
+        // A numeric pin that disagrees with the toolchain that will actually run is an
+        // error, not a warning: silently ignoring such a pin is exactly what let the
+        // original bug ship unnoticed.
+        if let Some(owner) = &rust_owner
+            && let Some(channel) = owner.channel()
+            && versions_conflict(config_version, channel)
+        {
+            tool_errors.push(format!(
+                "{} is pinned to {} in vx.toml but {} selects {} — the vx.toml pin is ignored. \
+                 Remove it, or set rust = \"{}\" to record that rustup owns the toolchain.",
+                name,
+                config_version,
+                owner.reason(),
+                channel,
+                RUSTUP_MANAGED,
+            ));
+            tool_ok = false;
+        }
 
         // Check lock file consistency
         if let Some(ref lock) = lockfile {
