@@ -26,6 +26,7 @@ const enSidebar = {
         { text: 'Direct Execution', link: '/guide/direct-execution' },
         { text: 'Version Management', link: '/guide/version-management' },
         { text: 'Configuration', link: '/guide/configuration' },
+        { text: 'Tool Pin Baseline', link: '/guide/tool-pin-baseline' },
         { text: 'Enhanced Scripts', link: '/guide/enhanced-scripts' },
         { text: 'Shell Integration', link: '/guide/shell-integration' }
       ]
@@ -201,6 +202,7 @@ const zhSidebar = {
         { text: '直接执行', link: '/zh/guide/direct-execution' },
         { text: '版本管理', link: '/zh/guide/version-management' },
         { text: '配置', link: '/zh/guide/configuration' },
+        { text: '工具版本 Pin 基线', link: '/zh/guide/tool-pin-baseline' },
         { text: '增强脚本系统', link: '/zh/guide/enhanced-scripts' },
         { text: 'Shell 集成', link: '/zh/guide/shell-integration' }
       ]
