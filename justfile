@@ -347,3 +347,27 @@ video-help:
     @echo "Available scenes: vx-intro, vx-problem, vx-solution, vx-features, vx-cta"
     @echo "Available platforms: 1080x1080 (Instagram), 1080x1920 (TikTok)"
     @echo ""
+
+# Verify the repository layout contract (see skills/vx-repo-contract/SKILL.md)
+# Every rule is mechanically checkable; any output means the contract is broken.
+contract-check:
+    #!/usr/bin/env bash
+    set -uo pipefail
+    fail=0
+    # 1. Root file allowlist
+    out=$(git ls-files | rg -v '[/]' | rg -vix '(AGENTS|CLAUDE|GEMINI)\.md|\.cursorrules|\.windsurfrules|\.clinerules|vx\.(toml|lock)|justfile|rust-toolchain\.toml|Cargo\.(toml|lock)|package(-lock)?\.json|pyproject\.toml|\.pre-commit-config\.yaml|\.typos\.toml|clippy\.toml|\.editorconfig|renovate\.json|codecov\.yml|release-please-config\.json|\.release-please-manifest\.json|CHANGELOG\.md|README.*\.md|CONTRIBUTING\.md|SECURITY\.md|CODE_OF_CONDUCT\.md|LICENSE|llms(-full)?\.txt|install.*\.(sh|ps1)|Dockerfile|action\.yml|distribution\.toml|Cross\.toml|\.gitattributes|\.gitignore|\.gitmessage|\.gitmodules')
+    if [ -n "$out" ]; then echo "root allowlist violations:"; echo "$out"; fail=1; fi
+    # 2. justfile must be lowercase
+    if [ "$(git ls-files | rg -i '^\.?justfile$')" != "justfile" ]; then echo "justfile must be lowercase"; fail=1; fi
+    # 3. vx.toml must not duplicate the justfile as [scripts]
+    if [ -f justfile ] && rg -q '^\[scripts\]' vx.toml; then echo "[scripts] in vx.toml duplicates justfile"; fail=1; fi
+    # 4. Per-agent instruction files must point at AGENTS.md
+    for f in CLAUDE.md GEMINI.md .cursorrules .windsurfrules .clinerules; do
+      [ -f "$f" ] || continue
+      rg -q 'AGENTS\.md' "$f" || { echo "$f does not point at AGENTS.md"; fail=1; }
+    done
+    # 5. No build/run artifacts at the root
+    out=$(git ls-files | rg -i '(^|[/])([^/]*\.(log|tmp|out|o|pyc)|coverage\.json|audit-result\.json)$|^(target|dist|build)[/]')
+    if [ -n "$out" ]; then echo "artifacts committed at root:"; echo "$out"; fail=1; fi
+    if [ "$fail" -eq 0 ]; then echo "contract-check: OK"; else echo "contract-check: FAILED"; fi
+    exit $fail

@@ -190,6 +190,41 @@ Project setup records `[ai].skills_hash` in `vx.toml`. `vx ai check` compares
 that hash with the embedded skills hash and reminds developers to refresh stale
 project skills.
 
+Global scope is verified too: `vx ai setup` records the hash under
+`~/.vx/ai-skills.toml`, and `vx ai check` reports drift for both scopes.
+
+```bash
+vx ai check          # report global + project drift
+vx ai check --fix    # refresh stale vx-builtin copies, drop project duplicates
+```
+
+A repository that ships no skills of its own needs neither scope pinned — prefer
+the global install and keep the repo free of skill copies. See the
+**vx-repo-contract** skill for the repository layout rules.
+
+### `[scripts]` vs `justfile`: pick one task surface
+
+`vx.toml` declares *tool versions*. A task runner declares *how work runs*.
+Keeping both means every task has two definitions, and the stale one wins
+silently.
+
+- If the repo has a `justfile`, put tasks there and keep `[scripts]` out of
+  `vx.toml`. A `[scripts]` entry that forwards to `just <recipe>` is a duplicate
+  source of truth: rename the recipe and the script keeps invoking the old
+  behaviour.
+- Only use `[scripts]` when there is no `justfile`.
+
+```bash
+vx run test    # only meaningful when [scripts] exists
+vx just test   # preferred when a justfile exists
+```
+
+**Check** — this must print nothing:
+
+```bash
+test -f justfile && vx rg -q '^\[scripts\]' vx.toml && echo "FAIL: [scripts] duplicates justfile"
+```
+
 ### Version Constraints
 
 | Constraint | Example | Meaning |
@@ -420,3 +455,24 @@ vx init --template my-template
 └── hooks/
     └── post_setup.sh
 ```
+
+---
+
+## Delivery Surface — External Systems Are Evidence
+
+GitHub PRs, CI runs, and dashboards are **supporting evidence**, not the delivery
+surface. The conclusion has to land where the work is tracked.
+
+- **Record the outcome once, completely** — one issue comment carrying status,
+  branch/commit/PR, what you validated, the blocker, and the next owner.
+- **Verify terminal state, not intermediate state.** A green CI run or an open,
+  review-ready PR is not "shipped". Confirm merged / released / deployed, then
+  record *that*.
+- **Keep public surfaces public-safe.** PR titles, bodies, and commit messages
+  carry technical content only — no internal issue IDs, routing history,
+  reviewer handoffs, local absolute paths, or internal hostnames.
+- **Collect results in the foreground.** A queued or pending state is a handoff,
+  not a completion; never end a turn "standing by" for background work.
+
+For agents running in the Monica platform the delivery surface is Monica — the
+issue comment plus issue metadata. A PR comment alone delivers nothing.

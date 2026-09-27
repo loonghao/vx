@@ -343,10 +343,15 @@ Manage AI-agent skills and project context.
 vx ai setup                # Install/update vx skills globally (default)
 vx ai setup --project      # Install project-local skills and record hash in vx.toml
 vx ai setup --project --force  # Refresh project-local skills
-vx ai check                # Check project skills hash against embedded skills
+vx ai check                # Check skills in both scopes (global + project)
+vx ai check --fix          # Refresh stale copies, drop redundant project copies
 vx ai agents               # List supported AI agents
 vx ai context              # Generate AI-friendly project context
 ```
+
+Skills are global by default: `vx ai setup` installs them once per machine and
+records the hash in `~/.vx/ai-skills.toml`. Prefer that over project-local
+copies — see the `vx-repo-contract` skill.
 
 ### cache
 
