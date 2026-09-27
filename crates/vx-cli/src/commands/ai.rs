@@ -479,6 +479,14 @@ pub async fn handle_check(fix: bool) -> Result<()> {
                     for path in &divergent {
                         UI::info(&format!("    divergent: {}", path.display()));
                     }
+                    // Deliberate: deleting these could destroy local edits, so
+                    // say how to finish the job instead of leaving the user
+                    // staring at a warning with no next step.
+                    UI::hint(
+                        "  To resolve: diff each copy against the installed skill \
+                         (`vx ai setup --force`, then diff), move any local edits into a \
+                         project-owned skill with its own name, and delete the copy.",
+                    );
                 }
 
                 problems += divergent.len();
@@ -525,7 +533,11 @@ fn report_authored_skills_dir(cwd: &std::path::Path) {
         found.len(),
         found.join(", ")
     ));
-    UI::hint("  skills/ is the authoring location — `vx ai check --fix` never deletes it.");
+    UI::hint(
+        "  Intentionally left alone: skills/ is the authoring location, and in the vx \
+         repository it is the source compiled into the binary — --fix deleting it would \
+         destroy the upstream copy. Remove it by hand if it is a stale install instead.",
+    );
 }
 
 fn print_check_summary(problems: usize, fix: bool) -> Result<()> {

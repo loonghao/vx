@@ -738,5 +738,5 @@ surface. The conclusion has to land where the work is tracked.
 - **Collect results in the foreground.** A queued or pending state is a handoff,
   not a completion; never end a turn "standing by" for background work.
 
-For agents running in the Monica platform the delivery surface is Monica — the
-issue comment plus issue metadata. A PR comment alone delivers nothing.
+Concretely: the delivery surface is the team's issue or task tracker — the
+issue comment plus its metadata. A PR comment alone delivers nothing.
