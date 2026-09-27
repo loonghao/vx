@@ -12,6 +12,55 @@ use tracing::info;
 use super::installation::InstallationManager;
 use super::pipeline::error::EnsureError;
 
+/// A step vx may take to make Rust available when the provider install failed.
+///
+/// Kept as data rather than inline shell so the behaviour is unit-testable without
+/// rustup, network access, or a mutable global toolchain.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum RustFallbackStep {
+    /// Bootstrap rustup itself. This is the only step that sets a global default,
+    /// because a fresh rustup install has no default at all — and it only happens
+    /// when the user asked for Rust on a machine that has none.
+    InstallRustup { toolchain: Option<String> },
+    /// Install a toolchain without making it the default.
+    InstallToolchain { toolchain: String },
+}
+
+impl RustFallbackStep {
+    /// Whether this step rewrites the user's global rustup default.
+    ///
+    /// Everything except a from-scratch rustup bootstrap must return `false`:
+    /// silently repointing the default is what made pinned toolchains get ignored.
+    pub fn changes_rustup_default(&self) -> bool {
+        matches!(self, Self::InstallRustup { .. })
+    }
+}
+
+/// Decide how to make Rust available, given whether rustup is already installed.
+///
+/// With rustup present, vx installs the requested toolchain **without** touching the
+/// default — the previous `rustup default stable` made every project in the image run
+/// on `stable` regardless of what it pinned.
+pub fn rust_fallback_steps(
+    rustup_available: bool,
+    toolchain: Option<&str>,
+) -> Vec<RustFallbackStep> {
+    if !rustup_available {
+        return vec![RustFallbackStep::InstallRustup {
+            toolchain: toolchain.map(str::to_string),
+        }];
+    }
+
+    let toolchain = toolchain
+        .map(str::trim)
+        .filter(|t| !t.is_empty())
+        .unwrap_or("stable");
+
+    vec![RustFallbackStep::InstallToolchain {
+        toolchain: toolchain.to_string(),
+    }]
+}
+
 impl<'a> InstallationManager<'a> {
     /// Fallback installation using known methods (scripts, package managers)
     pub async fn install_runtime_fallback(&self, runtime_name: &str) -> Result<()> {
@@ -87,26 +136,57 @@ impl<'a> InstallationManager<'a> {
 
             // Rust/Cargo (via rustup)
             "rust" | "cargo" | "rustc" => {
-                if !self.check_command_exists("rustup").await {
-                    #[cfg(windows)]
-                    {
-                        return Err(EnsureError::NotInstalled {
-                            runtime: "Rust".to_string(),
-                            hint: "Please install rustup from https://rustup.rs/".to_string(),
-                        }
-                        .into());
+                let toolchain = crate::rust_toolchain::detect_toolchain_owner(
+                    &std::env::current_dir().unwrap_or_default(),
+                )
+                .channel()
+                .map(str::to_string);
+
+                for step in rust_fallback_steps(
+                    self.check_command_exists("rustup").await,
+                    toolchain.as_deref(),
+                ) {
+                    if step.changes_rustup_default() {
+                        info!("Bootstrapping rustup — this sets the global default toolchain");
                     }
-                    #[cfg(not(windows))]
-                    {
-                        self.run_install_command(
-                            "sh",
-                            &["-c", "curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y"],
-                        )
-                        .await?;
+                    match step {
+                        RustFallbackStep::InstallRustup { toolchain } => {
+                            #[cfg(windows)]
+                            {
+                                let next = toolchain
+                                    .as_deref()
+                                    .map(|t| format!(", then run 'rustup toolchain install {t}'"))
+                                    .unwrap_or_default();
+                                return Err(EnsureError::NotInstalled {
+                                    runtime: "Rust".to_string(),
+                                    hint: format!(
+                                        "Please install rustup from https://rustup.rs/{next}"
+                                    ),
+                                }
+                                .into());
+                            }
+                            #[cfg(not(windows))]
+                            {
+                                let script = match &toolchain {
+                                    Some(toolchain) => format!(
+                                        "curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain {toolchain}"
+                                    ),
+                                    None => String::from(
+                                        "curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y",
+                                    ),
+                                };
+                                self.run_install_command("sh", &["-c", &script]).await?;
+                            }
+                        }
+                        RustFallbackStep::InstallToolchain { toolchain } => {
+                            self.run_install_command(
+                                "rustup",
+                                &["toolchain", "install", &toolchain],
+                            )
+                            .await?;
+                        }
                     }
                 }
-                self.run_install_command("rustup", &["default", "stable"])
-                    .await?;
             }
 
             // Go
@@ -269,5 +349,74 @@ impl<'a> InstallationManager<'a> {
             }
             .into())
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{RustFallbackStep, rust_fallback_steps};
+
+    /// Regression guard for PIP-3732: with rustup already installed, vx must never
+    /// run `rustup default <toolchain>`. Doing so rewrote the *global* rustup default,
+    /// so every project on the machine — including ones that pinned a different
+    /// toolchain — silently ran on whatever vx installed.
+    #[test]
+    fn test_rustup_present_installs_toolchain_without_touching_default() {
+        let steps = rust_fallback_steps(true, None);
+        assert_eq!(
+            steps,
+            vec![RustFallbackStep::InstallToolchain {
+                toolchain: "stable".to_string()
+            }]
+        );
+        assert!(
+            steps.iter().all(|s| !s.changes_rustup_default()),
+            "no step may rewrite the global rustup default: {steps:?}"
+        );
+    }
+
+    #[test]
+    fn test_rustup_present_honours_requested_toolchain() {
+        let steps = rust_fallback_steps(true, Some("1.83.0"));
+        assert_eq!(
+            steps,
+            vec![RustFallbackStep::InstallToolchain {
+                toolchain: "1.83.0".to_string()
+            }]
+        );
+    }
+
+    #[test]
+    fn test_rustup_present_ignores_blank_toolchain() {
+        let steps = rust_fallback_steps(true, Some("   "));
+        assert_eq!(
+            steps,
+            vec![RustFallbackStep::InstallToolchain {
+                toolchain: "stable".to_string()
+            }]
+        );
+    }
+
+    /// Without rustup the only option is to bootstrap it, which necessarily sets a
+    /// default. That is an explicit "install Rust" action, not a silent override of an
+    /// existing setup, and it is the single step allowed to change the default.
+    #[test]
+    fn test_rustup_absent_bootstraps_and_that_is_the_only_default_change() {
+        let steps = rust_fallback_steps(false, Some("1.83.0"));
+        assert_eq!(
+            steps,
+            vec![RustFallbackStep::InstallRustup {
+                toolchain: Some("1.83.0".to_string())
+            }]
+        );
+        assert!(steps[0].changes_rustup_default());
+    }
+
+    #[test]
+    fn test_rustup_absent_without_toolchain() {
+        assert_eq!(
+            rust_fallback_steps(false, None),
+            vec![RustFallbackStep::InstallRustup { toolchain: None }]
+        );
     }
 }

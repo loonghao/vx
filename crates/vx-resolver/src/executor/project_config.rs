@@ -159,6 +159,15 @@ impl ProjectToolsConfig {
         self.tools.get(tool).map(|s| s.as_str())
     }
 
+    /// Get the version declared in `vx.toml`, ignoring `vx.lock`.
+    ///
+    /// Used for pins that are not really versions. `rust = "rustup-managed"` declares
+    /// *who owns* the toolchain, and a stale numeric entry in `vx.lock` — recorded
+    /// before the repository opted out — must not outrank that declaration.
+    pub fn declared_version(&self, tool: &str) -> Option<&str> {
+        self.tools.get(tool).map(String::as_str)
+    }
+
     /// Check if a tool has a locked version in vx.lock
     pub fn is_locked(&self, tool: &str) -> bool {
         self.locked_tools.contains_key(tool)

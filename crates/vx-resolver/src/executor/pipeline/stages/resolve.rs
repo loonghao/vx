@@ -19,6 +19,10 @@ use tracing::{debug, trace};
 use vx_runtime::{ProviderRegistry, RuntimeContext, get_default_constraints};
 
 use crate::executor::project_config::ProjectToolsConfig;
+use crate::rust_toolchain::{
+    RUSTUP_MANAGED, RustToolchainOwner, detect_toolchain_owner, find_rustup_executable,
+    is_rust_toolchain_runtime, versions_conflict,
+};
 use crate::{ResolutionCache, ResolutionCacheKey, ResolutionResult, Resolver, ResolverConfig};
 
 use crate::executor::pipeline::error::ResolveError;
@@ -181,6 +185,153 @@ impl<'a> ResolveStage<'a> {
     pub fn with_store_base(mut self, path: PathBuf) -> Self {
         self.store_base = Some(path);
         self
+    }
+
+    /// Detect whether rustup owns the Rust toolchain, and if so build a plan that
+    /// hands the command straight to rustup's binary.
+    ///
+    /// Rust is the one ecosystem where vx is not the source of truth: a committed
+    /// `rust-toolchain.toml` (or an exported `RUSTUP_TOOLCHAIN`) is an explicit,
+    /// repository-wide pin that outranks anything in `vx.toml`. Honouring it means vx
+    /// must not install, must not prepend its own store to PATH, and must not touch
+    /// the rustup default.
+    ///
+    /// Previously vx resolved `cargo`/`rustc` from its own store regardless, so on a
+    /// clean runner it installed `stable`, pointed rustup at it, and every job silently
+    /// ran on a different toolchain than the one the repo pinned.
+    fn rustup_managed_plan(&self, request: &ResolveRequest) -> Option<ExecutionPlan> {
+        // An explicit `vx cargo@1.90.0` is the user naming the toolchain; honour it
+        // through the normal vx path rather than silently ignoring it.
+        if request.version.is_some() {
+            return None;
+        }
+        // `runtime::executable` overrides (e.g. `vx rust::rustdoc`) target the vx store.
+        if request.executable_override.is_some() {
+            return None;
+        }
+        if !is_rust_toolchain_runtime(&request.runtime_name) {
+            return None;
+        }
+
+        let working_dir = request
+            .working_dir
+            .clone()
+            .or_else(|| std::env::current_dir().ok())?;
+
+        // `vx.toml` can opt out of Rust management entirely, independently of whether
+        // a toolchain file happens to exist.
+        let pinned = self.rust_pinned_version(&request.runtime_name);
+        let owner = match &pinned {
+            Some(pin) if pin.trim().eq_ignore_ascii_case(RUSTUP_MANAGED) => {
+                RustToolchainOwner::rustup_opt_out()
+            }
+            _ => detect_toolchain_owner(&working_dir),
+        };
+
+        if !owner.is_rustup_managed() {
+            return None;
+        }
+
+        let executable = find_rustup_executable(&request.runtime_name)?;
+
+        self.warn_on_rust_pin_mismatch(&request.runtime_name, pinned.as_deref(), &owner);
+
+        debug!(
+            "[ResolveStage] {} is rustup-managed ({}); delegating to {}",
+            request.runtime_name,
+            owner.reason(),
+            executable.display()
+        );
+
+        // `SystemAvailable` is the signal downstream stages use to mean "vx does not
+        // own this binary": EnsureStage must not repair-install it, and PrepareStage
+        // must not inject vx store paths into its environment.
+        let primary = PlannedRuntime {
+            name: request.runtime_name.clone(),
+            version: VersionResolution::SystemAvailable {
+                path: executable.clone(),
+                version: owner.channel().map(|c| c.to_string()),
+            },
+            status: InstallStatus::Installed,
+            executable: Some(executable),
+            install_dir: None,
+            command_prefix: Vec::new(),
+        };
+
+        // A rustup-owned toolchain has no vx dependencies, and `inherit_vx_path` is
+        // left on so sibling tools (node, uv, ...) stay reachable. `build_vx_tools_path`
+        // excludes the rust store while rustup owns the toolchain.
+        let config = ExecutionConfig {
+            args: request.args.clone(),
+            working_dir: request.working_dir.clone(),
+            extra_env: std::collections::HashMap::new(),
+            inherit_vx_path: request.inherit_vx_path,
+            inherit_parent_env: request.inherit_env,
+            delegated_to_system: vec!["rust".to_string(), request.runtime_name.clone()],
+            auto_install: request.auto_install,
+            show_progress: true,
+            output_filter: None,
+        };
+
+        Some(ExecutionPlan::new(primary, config))
+    }
+
+    /// The `vx.toml` pin that governs a Rust runtime, if any.
+    ///
+    /// `vx.toml` normally pins `rust` even when the command being run is `cargo` or
+    /// `rustc`, so fall back to the parent pins before giving up.
+    fn rust_pinned_version(&self, runtime: &str) -> Option<String> {
+        let project_config = self.project_config?;
+        let candidates = [runtime, "rust", "rustup"];
+
+        // `rustup-managed` is an ownership declaration, not a version, so it is read
+        // straight from vx.toml: a stale numeric entry in vx.lock (recorded before the
+        // repository opted out) must not mask it — that would put vx back in charge of
+        // a toolchain it was told to keep its hands off.
+        for name in candidates {
+            if let Some(version) = project_config.declared_version(name)
+                && version.trim().eq_ignore_ascii_case(RUSTUP_MANAGED)
+            {
+                return Some(RUSTUP_MANAGED.to_string());
+            }
+        }
+
+        candidates.iter().find_map(|name| {
+            project_config
+                .get_version_with_fallback(name)
+                .map(|v| v.to_string())
+        })
+    }
+
+    /// Warn when `vx.toml` and the effective toolchain disagree on a concrete version.
+    ///
+    /// The pin is *not* enforced here — the repository's toolchain declaration wins —
+    /// but silently ignoring a numeric pin is what let the original bug go unnoticed,
+    /// so the disagreement has to be visible on stderr.
+    ///
+    /// Written with `eprintln!` rather than `tracing::warn!` on purpose: the default
+    /// CLI filter (`"warn,error"`) resolves to error-only, so a `tracing::warn!` here
+    /// would be invisible in exactly the situation it exists to flag.
+    fn warn_on_rust_pin_mismatch(
+        &self,
+        runtime: &str,
+        pinned: Option<&str>,
+        owner: &RustToolchainOwner,
+    ) {
+        let (Some(pinned), Some(channel)) = (pinned, owner.channel()) else {
+            return;
+        };
+
+        if !versions_conflict(pinned, channel) {
+            return;
+        }
+
+        eprintln!(
+            "warning: {runtime} is pinned to {pinned} in vx.toml, but {} selects {channel} — \
+             running the rustup toolchain. Remove the vx.toml pin or set \
+             rust = \"{RUSTUP_MANAGED}\" to silence this warning.",
+            owner.reason(),
+        );
     }
 
     /// Resolve version from explicit argument or project config.
@@ -434,6 +585,7 @@ impl<'a> ResolveStage<'a> {
             extra_env: std::collections::HashMap::new(),
             inherit_vx_path: request.inherit_vx_path,
             inherit_parent_env: request.inherit_env,
+            delegated_to_system: Vec::new(),
             auto_install: request.auto_install,
             show_progress: true,
             output_filter: None,
@@ -591,6 +743,11 @@ impl<'a> Stage<ResolveRequest, ExecutionPlan> for ResolveStage<'a> {
             "[ResolveStage] runtime={}, version={:?}, executable_override={:?}",
             input.runtime_name, input.version, input.executable_override
         );
+
+        // Step 0: rustup owns the toolchain → delegate, never install, never override.
+        if let Some(plan) = self.rustup_managed_plan(&input) {
+            return Ok(plan);
+        }
 
         // Step 1: Resolve version (explicit → project config → latest installed)
         let resolved_version = self.resolve_version(&input.runtime_name, input.version.as_deref());

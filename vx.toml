@@ -4,8 +4,9 @@ just = "latest"
 node = "latest"
 prek = "latest"
 python = "3.11"
-# rust version is managed by system rustup, not vx
-# (vx fetch_versions queries rustup releases 1.16~1.29, not rustc versions)
+# rustup owns the toolchain: the repository pins it in rust-toolchain.toml.
+# vx must not install its own Rust or touch the rustup default.
+rust = "rustup-managed"
 uv = "latest"
 
 [tools.pwsh]

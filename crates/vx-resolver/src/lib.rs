@@ -40,6 +40,7 @@ mod runtime_index;
 mod runtime_map;
 mod runtime_request;
 mod runtime_spec;
+pub mod rust_toolchain;
 pub mod version;
 
 pub use config::{DEFAULT_RESOLUTION_CACHE_TTL, ResolverConfig};
@@ -60,6 +61,7 @@ pub use executor::pipeline::{
 pub use resolution_cache::{
     RESOLUTION_CACHE_DIR_NAME, RESOLUTION_CACHE_SCHEMA_VERSION, ResolutionCache, ResolutionCacheKey,
 };
+
 pub use resolver::{
     IncompatibleDependency, ResolutionResult, Resolver, RuntimeStatus, UnsupportedPlatformRuntime,
 };
@@ -70,6 +72,18 @@ pub use runtime_index::{
 pub use runtime_map::RuntimeMap;
 pub use runtime_request::RuntimeRequest;
 pub use runtime_spec::{Ecosystem, RuntimeDependency, RuntimeSpec};
+
+// Rust toolchain ownership (rustup interop).
+//
+// Public so `vx check` and CLI status rendering ask the same question the
+// executor asks: there must be exactly one answer to "who owns the Rust
+// toolchain here?".
+pub use rust_toolchain::{
+    RUST_TOOLCHAIN_LEGACY, RUST_TOOLCHAIN_TOML, RUSTUP_MANAGED, RUSTUP_TOOLCHAIN_ENV,
+    RustToolchainOwner, RustToolchainSource, detect_toolchain_file_in_dir,
+    detect_toolchain_override, detect_toolchain_owner, executable_for, find_rustup_executable,
+    find_toolchain_file, is_rust_toolchain_runtime, versions_conflict,
+};
 
 // Re-export version types for convenience
 pub use version::{

@@ -18,7 +18,7 @@ use tracing::{debug, info};
 
 use crate::executor::environment::EnvironmentManager;
 use crate::executor::pipeline::error::PrepareError;
-use crate::executor::pipeline::plan::ExecutionPlan;
+use crate::executor::pipeline::plan::{ExecutionPlan, VersionResolution};
 use crate::executor::pipeline::stage::Stage;
 use crate::executor::project_config::ProjectToolsConfig;
 use crate::{Resolver, ResolverConfig};
@@ -229,17 +229,37 @@ impl<'a> Stage<ExecutionPlan, PreparedExecution> for PrepareStage<'a> {
         // Step 1: Prepare environment variables (needed before proxy execution)
         let version = plan.primary.version_string().map(|s| s.to_string());
         let env_mgr = self.environment_manager();
-        let runtime_env = env_mgr
-            .prepare_runtime_environment(
-                &plan.primary.name,
-                version.as_deref(),
-                plan.config.inherit_parent_env,
-            )
-            .await
-            .map_err(|e| PrepareError::EnvironmentFailed {
-                runtime: plan.primary.name.clone(),
-                reason: e.to_string(),
-            })?;
+
+        // A `SystemAvailable` primary is owned by an external toolchain manager
+        // (rustup, via `rust-toolchain.toml` / `RUSTUP_TOOLCHAIN`). Injecting the
+        // provider environment here would overwrite `RUSTUP_HOME` / `CARGO_HOME`
+        // with vx's store paths and silently redirect the command to vx's toolchain
+        // — the exact override the pin exists to prevent.
+        //
+        // Passing an empty map is safe: the child inherits the parent environment
+        // and only the entries we set explicitly are overridden.
+        let runtime_env = if matches!(
+            plan.primary.version,
+            VersionResolution::SystemAvailable { .. }
+        ) {
+            debug!(
+                "[PrepareStage] {} is externally managed; not injecting vx environment",
+                plan.primary.name
+            );
+            HashMap::new()
+        } else {
+            env_mgr
+                .prepare_runtime_environment(
+                    &plan.primary.name,
+                    version.as_deref(),
+                    plan.config.inherit_parent_env,
+                )
+                .await
+                .map_err(|e| PrepareError::EnvironmentFailed {
+                    runtime: plan.primary.name.clone(),
+                    reason: e.to_string(),
+                })?
+        };
 
         debug!(
             "[PrepareStage] Environment prepared: {} variables",
@@ -327,9 +347,13 @@ impl<'a> Stage<ExecutionPlan, PreparedExecution> for PrepareStage<'a> {
         };
 
         // Step 3: Build vx tools PATH
+        //
+        // Runtimes delegated to an external toolchain manager are excluded: a
+        // `~/.vx/store/rust/*/cargo/bin` left over from an earlier vx-managed install
+        // would otherwise shadow the rustup toolchain for every child process.
         let vx_tools_path = if plan.config.inherit_vx_path {
             let env_mgr = self.environment_manager();
-            env_mgr.build_vx_tools_path()
+            env_mgr.build_vx_tools_path_excluding(&plan.config.delegated_to_system)
         } else {
             None
         };

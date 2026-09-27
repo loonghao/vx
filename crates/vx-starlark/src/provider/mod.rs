@@ -863,3 +863,75 @@ fn extract_minor_prefix(version: &str) -> Option<String> {
     let minor = parts.next()?;
     Some(format!("{}.{}.", major, minor))
 }
+
+#[cfg(test)]
+mod rust_toolchain_env_tests {
+    //! Rust toolchain selection in the rust `provider.star` (PIP-3732).
+    //!
+    //! These live here rather than in `tests/` because they need `crate::test_mocks`,
+    //! which is gated behind the `test-mocks` feature.
+
+    use super::super::test_mocks::{prepare_provider_source, setup_provider_test_mocks};
+    use starlark::assert::Assert;
+    use starlark::syntax::Dialect;
+
+    fn rust_provider_star() -> String {
+        let path = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .parent()
+            .expect("crates/ parent")
+            .join("vx-providers/rust/provider.star");
+        std::fs::read_to_string(&path).unwrap_or_else(|e| panic!("failed to read {path:?}: {e}"))
+    }
+
+    /// Evaluate `expr` with `environment_result` bound to the ops `environment()`
+    /// produces for `version`.
+    fn assert_environment_holds(version: &str, expr: &str) {
+        let mut a = Assert::new();
+        a.dialect(&Dialect::Standard);
+        setup_provider_test_mocks(&mut a);
+
+        let source = format!(
+            "{}\nctx = struct(install_dir = \"/opt/rust/linux-x64\", platform = struct(os = \"linux\", arch = \"x64\"))\nenvironment_result = environment(ctx, \"{version}\")\n{expr}\n",
+            prepare_provider_source(&rust_provider_star())
+        );
+
+        a.is_true(&source);
+    }
+
+    /// vx pins the toolchain through `RUSTUP_TOOLCHAIN` in the child environment
+    /// rather than through `rustup default`, which would rewrite the *global* default
+    /// and silently change which toolchain every other project builds with.
+    #[test]
+    fn environment_pins_toolchain_via_rustup_toolchain() {
+        assert_environment_holds(
+            "1.93.1",
+            r#"ops = [op for op in environment_result if op.get("key") == "RUSTUP_TOOLCHAIN"]
+len(ops) == 1 and ops[0].get("value", "") == "1.93.1""#,
+        );
+    }
+
+    /// A rustup *installer* version (1.29.x) is not a Rust release, so the selected
+    /// toolchain falls back to `stable` — the same rule `version_info()` uses.
+    #[test]
+    fn environment_maps_rustup_installer_version_to_stable() {
+        assert_environment_holds(
+            "1.29.0",
+            r#"ops = [op for op in environment_result if op.get("key") == "RUSTUP_TOOLCHAIN"]
+len(ops) == 1 and ops[0].get("value", "") == "stable""#,
+        );
+    }
+
+    /// The install stays self-contained: RUSTUP_HOME / CARGO_HOME point into the vx
+    /// store, which is what keeps a vx-managed install from mutating the user's real
+    /// rustup home.
+    #[test]
+    fn environment_isolates_rustup_home_in_the_store() {
+        assert_environment_holds(
+            "1.93.1",
+            r#"install = "/opt/rust/linux-x64"
+rustup_ops = [op for op in environment_result if op.get("key") == "RUSTUP_HOME"]
+cargo_ops = [op for op in environment_result if op.get("key") == "CARGO_HOME"]
+len(rustup_ops) == 1 and len(cargo_ops) == 1 and rustup_ops[0].get("value", "") == install + "/rustup" and cargo_ops[0].get("value", "") == install + "/cargo""#,
+        );
+    }
+}
