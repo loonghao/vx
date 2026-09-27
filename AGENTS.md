@@ -2,7 +2,7 @@
 
 > **For AI agents**: This file is an **orientation map and quick reference** — start here, then follow the links into dedicated docs as needed.
 > If you are working on a project that uses vx, **always prefix commands with `vx`** (e.g., `vx npm install`, `vx cargo build`).
-> Also see: [`CLAUDE.md`](CLAUDE.md) for Claude Code, [`GEMINI.md`](GEMINI.md) for Google Gemini, [`llms.txt`](llms.txt) for a concise LLM-friendly project index, [`llms-full.txt`](llms-full.txt) for detailed LLM documentation.
+> Also see: [`llms.txt`](llms.txt) for a concise LLM-friendly project index, [`llms-full.txt`](llms-full.txt) for detailed LLM documentation, and [Per-Runtime Notes](#per-runtime-notes) for Claude Code and Gemini specifics. This file is the **only** agent contract file at the repository root — see [Agent Contract Files](#agent-contract-files).
 >
 > **Compatibility**: This file follows the [AGENTS.md](https://agents.md/) open standard (managed by Agentic AI Foundation / Linux Foundation). It is recognized by OpenAI Codex, Google Jules, GitHub Copilot, Cursor, Amp, Factory, Aider, Zed, Warp, JetBrains Junie, Devin, and other AI coding agents.
 
@@ -514,6 +514,48 @@ Use `@main` for latest, or pin to a release tag. Full guide: [`docs/guides/githu
 3. **Use token-efficient output**: prefer `--json` with selected fields, `--jq`, `--toon`, and explicit `--compact` for broad logs
 4. **For MCP servers**, replace `npx`/`uvx` with `vx` in config
 5. **For CI/CD**, use `loonghao/vx@main` GitHub Action
+
+### Per-Runtime Notes
+
+Every mainstream agent runtime reads this `AGENTS.md` directly — see
+[Agent Contract Files](#agent-contract-files). The notes below are the only
+per-runtime divergences; they were folded in from `CLAUDE.md` and `GEMINI.md`.
+
+**Claude Code**
+
+- MCP servers: `"command": "vx", "args": ["npx", ...]` in `~/.vscode/mcp.json` or `.vscode/mcp.json`.
+- Token budget: `vx list --format toon` (also `--output-format toon`) cuts structured output size by a rough 40–60%.
+- Parallel work: use the `vx wt` worktree commands so several agents can work at once.
+- Diagnostics: run `vx doctor` first when something fails.
+- Keep the context small — pipe broad output through `Select-Object -Last N` (PowerShell) or `tail -N` (Unix).
+
+**Gemini**
+
+- The 1M+ token context makes whole-project analysis practical; still prefer targeted reads.
+- Structured reasoning: `vx list --json`, or `vx list --output-format toon` for a token-oriented form.
+- MCP servers: replace `npx`/`uvx` with `vx`.
+- Parallel work: `vx wt switch <branch>`.
+- When uncertain: read this file first, then `docs/` for detail.
+
+### Agent Contract Files
+
+`AGENTS.md` is the **only** agent contract file at the repository root. It is the
+native instruction file for Codex, OpenCode, Cursor, GitHub Copilot, Windsurf,
+Cline, Roo Code, Kiro, Trae, and Augment, and Claude Code falls back to it when
+no `CLAUDE.md` exists. `CLAUDE.md` and `GEMINI.md` have been removed — every
+statement in them was either already here or folded into
+[Per-Runtime Notes](#per-runtime-notes).
+
+**Gemini CLI exception:** Gemini CLI defaults its context file to `GEMINI.md`. To
+make it read `AGENTS.md`, set `context.fileName` once in `~/.gemini/settings.json`:
+
+```json
+{
+  "context": {
+    "fileName": ["AGENTS.md", "GEMINI.md"]
+  }
+}
+```
 
 ## Multi-Agent Development (vx wt)
 

@@ -11,7 +11,7 @@ vx eliminates the complexity of managing multiple language runtimes (Node.js, Py
 - **Repository**: https://github.com/loonghao/vx
 - **GitHub Action**: `loonghao/vx@main`
 - **AI Agent Entry Point**: [AGENTS.md](https://github.com/loonghao/vx/blob/main/AGENTS.md)
-- **Claude Code Instructions**: [CLAUDE.md](https://github.com/loonghao/vx/blob/main/CLAUDE.md)
+- **Claude Code**: reads [`AGENTS.md`](https://github.com/loonghao/vx/blob/main/AGENTS.md) natively; Claude Code-specific notes live in the "Per-Runtime Notes" section
 - **Full doc index**: [llms.txt](https://github.com/loonghao/vx/blob/main/llms.txt)
 
 **vx = prefix any dev tool command with `vx` → it auto-installs the tool and runs it.**
