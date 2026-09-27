@@ -1,7 +1,7 @@
 # AI Agent Guide (vx)
 
 > Detailed reference for AI agents working **on vx** or **with vx**.
-> The short navigation map lives in [`AGENTS.md`](../../AGENTS.md) — start there.
+> The short navigation map lives in [`AGENTS.md`](https://github.com/loonghao/vx/blob/main/AGENTS.md) — start there.
 > Coding standards live in [`docs/CONVENTIONS.md`](../CONVENTIONS.md).
 
 ## Mental model

@@ -1,13 +1,13 @@
 # Google Gemini notes
 
 > Content preserved from the deleted root `GEMINI.md`.
-> Project-wide rules live in [`AGENTS.md`](../../AGENTS.md) and
+> Project-wide rules live in [`AGENTS.md`](https://github.com/loonghao/vx/blob/main/AGENTS.md) and
 > [`docs/CONVENTIONS.md`](../CONVENTIONS.md). Only Gemini-specific notes belong
 > here.
 
 ## Setup
 
-- Follow [`AGENTS.md`](../../AGENTS.md) exactly — it is the single source of truth.
+- Follow [`AGENTS.md`](https://github.com/loonghao/vx/blob/main/AGENTS.md) exactly — it is the single source of truth.
 - [`llms.txt`](../../llms.txt) — concise LLM-friendly project index.
 - [`llms-full.txt`](../../llms-full.txt) — full LLM documentation.
 

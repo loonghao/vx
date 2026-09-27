@@ -1,7 +1,7 @@
 # Claude Code notes
 
 > Content preserved from the deleted root `CLAUDE.md`.
-> Project-wide rules live in [`AGENTS.md`](../../AGENTS.md) and
+> Project-wide rules live in [`AGENTS.md`](https://github.com/loonghao/vx/blob/main/AGENTS.md) and
 > [`docs/CONVENTIONS.md`](../CONVENTIONS.md). Only Claude Code-specific notes
 > belong here.
 
@@ -35,7 +35,7 @@ deeper context:
 
 ## Pre-PR checklist
 
-- Follow [`AGENTS.md`](../../AGENTS.md) exactly — it is the single source of truth.
+- Follow [`AGENTS.md`](https://github.com/loonghao/vx/blob/main/AGENTS.md) exactly — it is the single source of truth.
 - Conventional Commits: `feat:`, `fix:`, `docs:`, `chore:`, `refactor:`, `test:`.
 - Run `vx just quick` (format → lint → test → build).
 - PRs target the `main` branch.
