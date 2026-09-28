@@ -586,8 +586,17 @@ fn authored_skills_dir(cwd: &std::path::Path) -> PathBuf {
 
 /// Compare a skills directory against the embedded vx skills.
 ///
-/// Returns `None` when the directory does not exist, so callers can skip agents
-/// that were never set up instead of reporting them as broken.
+/// Returns `None` when the directory is not a vx install target, so callers can
+/// skip it instead of reporting it as broken. That covers two cases: the
+/// directory does not exist, and it exists but holds none of the vx skills.
+///
+/// The second case matters. Agent skills directories are shared — a Claude Code
+/// user may keep their own skills in `~/.claude/skills` while only ever running
+/// `vx ai setup -a codex`. Treating "the directory exists" as "vx skills are
+/// installed here" reports every vx skill as missing, makes `--fix` write vx
+/// skills into a directory the user never opted into, and then records a global
+/// hash that makes later runs report "in sync" for an install that never
+/// happened. Presence of a directory is not consent.
 fn scan_skills_dir(dir: &std::path::Path) -> Option<SkillScan> {
     if !dir.is_dir() {
         return None;
@@ -606,6 +615,11 @@ fn scan_skills_dir(dir: &std::path::Path) -> Option<SkillScan> {
         } else {
             scan.outdated.push(skill_name);
         }
+    }
+
+    // Holds none of the vx skills: not an install target, skip it entirely.
+    if scan.up_to_date == 0 && scan.outdated.is_empty() {
+        return None;
     }
 
     Some(scan)
@@ -2273,5 +2287,63 @@ async fn handle_headroom_mcp(_ctx: &CommandContext, command: &HeadroomMcpCommand
 
             Ok(())
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn write_skill(dir: &std::path::Path, name: &str, content: &str) {
+        let path = dir.join(name).join("SKILL.md");
+        std::fs::create_dir_all(path.parent().unwrap()).expect("create skill dir");
+        std::fs::write(path, content).expect("write skill");
+    }
+
+    #[test]
+    fn scan_skips_a_directory_that_does_not_exist() {
+        let temp = tempfile::tempdir().expect("temp dir");
+        assert!(scan_skills_dir(&temp.path().join("nope")).is_none());
+    }
+
+    /// An agent skills directory that exists but holds none of the vx skills is
+    /// not a vx install target. Without this, `vx ai check` reports every vx
+    /// skill as missing for agents the user never installed, and `--fix` writes
+    /// vx skills into directories the user never opted into.
+    #[test]
+    fn scan_skips_a_directory_holding_no_vx_skills() {
+        let temp = tempfile::tempdir().expect("temp dir");
+        let dir = temp.path().join(".claude/skills");
+        std::fs::create_dir_all(&dir).expect("create skills dir");
+
+        assert!(
+            scan_skills_dir(&dir).is_none(),
+            "a pre-existing agent skills directory with no vx skills must not be \
+             treated as a vx install target"
+        );
+    }
+
+    #[test]
+    fn scan_reports_a_directory_holding_at_least_one_vx_skill() {
+        let temp = tempfile::tempdir().expect("temp dir");
+        let dir = temp.path().join(".codex/skills");
+        let (name, content) = VX_SKILLS[0];
+        write_skill(&dir, name, content);
+
+        let scan = scan_skills_dir(&dir).expect("partial install should be scanned");
+        assert_eq!(scan.up_to_date, 1);
+        assert_eq!(scan.missing.len(), VX_SKILLS.len() - 1);
+    }
+
+    #[test]
+    fn scan_marks_a_locally_modified_vx_skill_as_outdated() {
+        let temp = tempfile::tempdir().expect("temp dir");
+        let dir = temp.path().join(".codex/skills");
+        let (name, content) = VX_SKILLS[0];
+        write_skill(&dir, name, &format!("{content}\n<!-- local edit -->\n"));
+
+        let scan = scan_skills_dir(&dir).expect("modified skill should be scanned");
+        assert_eq!(scan.outdated, vec![name]);
+        assert_eq!(scan.up_to_date, 0);
     }
 }
