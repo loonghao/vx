@@ -1,21 +1,20 @@
 [tools]
 cmake = "latest"
 just = "latest"
-node = "latest"
+node = "22"
 prek = "latest"
-python = "3.11"
-# rustup owns the toolchain: the repository pins it in rust-toolchain.toml.
-# vx must not install its own Rust or touch the rustup default.
-rust = "rustup-managed"
+python = "3.12"
+# `rust` is intentionally absent. rustup owns the toolchain: the channel is
+# pinned in rust-toolchain.toml, so vx must not install its own Rust or move
+# the rustup default. (vx fetch_versions queries rustup releases 1.16~1.29,
+# not rustc versions, so a vx-side pin cannot express the real toolchain.)
 uv = "latest"
 
+# Windows CI jobs use pwsh as their shell; pinned to one patch release so the
+# shell behaviour does not move under those jobs.
 [tools.pwsh]
 version = "7.4.13"
 os = ["windows"]
-
-[settings]
-auto_install = true
-cache_duration = "7d"
 
 [scripts]
 benchmark-run = "just benchmark-run"
