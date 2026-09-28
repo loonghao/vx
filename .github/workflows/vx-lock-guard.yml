@@ -20,13 +20,11 @@ on:
       - "vx.toml"
       - "vx.lock"
       - ".github/workflows/vx-lock-guard.yml"
-  # This repo drives its CI from pull_request_target, so the guard needs that
-  # trigger too or it never runs on a pull request here.
-  pull_request_target:
-    paths:
-      - "vx.toml"
-      - "vx.lock"
-      - ".github/workflows/vx-lock-guard.yml"
+  # No pull_request_target here on purpose. It is a privileged trigger that
+  # checks out the base ref by default, so this job would validate main instead
+  # of the pull request, while reporting under the same check name. Do not add
+  # `ref: ${{ github.event.pull_request.head.sha }}` to "fix" that: it would
+  # check out untrusted code with a privileged trigger.
   workflow_dispatch:
 
 permissions:
