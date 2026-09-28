@@ -4,10 +4,9 @@ just = "latest"
 node = "22"
 prek = "latest"
 python = "3.12"
-# `rust` is intentionally absent. rustup owns the toolchain: the channel is
-# pinned in rust-toolchain.toml, so vx must not install its own Rust or move
-# the rustup default. (vx fetch_versions queries rustup releases 1.16~1.29,
-# not rustc versions, so a vx-side pin cannot express the real toolchain.)
+# rustup owns the toolchain: the repository pins it in rust-toolchain.toml.
+# vx must not install its own Rust or touch the rustup default.
+rust = "rustup-managed"
 uv = "latest"
 
 # Windows CI jobs use pwsh as their shell; pinned to one patch release so the

@@ -4,7 +4,7 @@
 version = 2
 
 [metadata]
-generated_at = "2026-09-27T19:07:18Z"
+generated_at = "2026-09-28T05:20:49Z"
 vx_version = "0.9.33"
 platform = "x86_64-pc-windows-msvc"
 
@@ -96,6 +96,20 @@ windows-x64 = "https://github.com/astral-sh/python-build-standalone/releases/dow
 
 [tools.python.metadata]
 lts = "true"
+
+[tools.rust]
+version = "rustup-managed"
+source = "provider"
+resolved_from = "rustup-managed"
+ecosystem = "generic"
+download_url = "https://static.rust-lang.org/rustup/dist/x86_64-pc-windows-msvc/rustup-init.exe"
+
+[tools.rust.platform_urls]
+darwin-arm64 = "https://static.rust-lang.org/rustup/dist/aarch64-apple-darwin/rustup-init"
+darwin-x64 = "https://static.rust-lang.org/rustup/dist/x86_64-apple-darwin/rustup-init"
+linux-arm64 = "https://static.rust-lang.org/rustup/dist/aarch64-unknown-linux-gnu/rustup-init"
+linux-x64 = "https://static.rust-lang.org/rustup/dist/x86_64-unknown-linux-gnu/rustup-init"
+windows-x64 = "https://static.rust-lang.org/rustup/dist/x86_64-pc-windows-msvc/rustup-init.exe"
 
 [tools.uv]
 version = "0.12.19"
