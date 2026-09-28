@@ -155,12 +155,12 @@ pre-commit hook 会在你忘记时自动捕获这个问题。
 ```
 vx/
 ├── crates/
-│   ├── vx-cli/         # CLI 应用
-│   ├── vx-core/        # 核心类型和 traits
-│   ├── vx-paths/       # 路径管理
-│   ├── vx-resolver/    # 版本解析
-│   ├── vx-runtime/     # 运行时管理
-│   └── vx-providers/   # 工具提供者
+│   ├── vx-cli/          # CLI 应用
+│   ├── vx-runtime-core/ # 核心类型和 traits
+│   ├── vx-paths/        # 路径管理
+│   ├── vx-resolver/     # 版本解析
+│   ├── vx-runtime/      # 运行时管理
+│   └── vx-providers/    # 工具提供者
 ├── book/               # 文档 (mdBook)
 ├── tests/              # 集成测试
 └── examples/           # 示例配置
@@ -216,7 +216,7 @@ CI 流水线采用 **crate 级别的变更检测** 优化，以最小化构建�
 ├─────────────────────────────────────────────────────────────┤
 │                    vx-runtime (基础设施层)                    │
 ├─────────────────────────────────────────────────────────────┤
-│              vx-core │ vx-paths (基础层)                      │
+│              vx-runtime-core │ vx-paths (基础层)              │
 └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -224,7 +224,7 @@ CI 流水线采用 **crate 级别的变更检测** 优化，以最小化构建�
 
 | 变更的 Crate | 受影响的 Crate |
 |-------------|---------------|
-| `vx-core` | 所有依赖它的 crate（runtime、resolver、extension 等） |
+| `vx-runtime-core` | 所有依赖它的 crate（runtime、resolver、extension 等） |
 | `vx-paths` | runtime、resolver、env、setup、migration、args、extension、cli |
 | `vx-runtime` | resolver、extension、cli、所有 providers |
 | `vx-config` | project-analyzer、cli |

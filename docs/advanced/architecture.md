@@ -19,7 +19,7 @@ Overview of vx's internal architecture.
 │                     vx-providers                            │
 │ Node │ Go │ Rust │ UV │ Deno │ ... (pluggable)              │
 ├─────────────────────────────────────────────────────────────┤
-│                      vx-core                                │
+│                      vx-runtime-core                        │
 │ Types │ Traits │ Utilities │ Platform Abstraction           │
 ├─────────────────────────────────────────────────────────────┤
 │                      vx-paths                               │
@@ -29,12 +29,12 @@ Overview of vx's internal architecture.
 
 ## Crate Structure
 
-### vx-core
+### vx-runtime-core
 
 Core types and traits shared across all crates.
 
 ```
-vx-core/
+vx-runtime-core/
 ├── src/
 │   ├── lib.rs
 │   ├── types.rs      # Common types
