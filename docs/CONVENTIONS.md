@@ -16,7 +16,7 @@
 ## Naming Conventions
 
 ### Crate Names
-- Prefix: `vx-` (e.g., `vx-core`, `vx-resolver`)
+- Prefix: `vx-` (e.g., `vx-runtime-core`, `vx-resolver`)
 - Case: kebab-case
 - Providers: `vx-providers/<name>/` directory with `vx-provider-<name>` package
 
@@ -78,7 +78,7 @@ Layer 4: vx-cli                    (Application)
 Layer 3: vx-resolver, vx-setup     (Orchestration)
 Layer 2: vx-runtime, vx-starlark   (Services)
 Layer 1: vx-config, vx-env         (Infrastructure)
-Layer 0: vx-core, vx-paths         (Foundation)
+Layer 0: vx-runtime-core, vx-paths (Foundation)
 ```
 
 ### File Size Limits

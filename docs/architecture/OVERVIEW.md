@@ -38,7 +38,7 @@
 
 | Crate | Purpose |
 |-------|---------|
-| `vx-core` | Core traits: `Runtime`, `Provider`, `PackageManager` |
+| `vx-runtime-core` | Core traits: `Runtime`, `Provider`, `PackageManager` |
 | `vx-paths` | Cross-platform path management (`~/.vx/` structure) |
 | `vx-cache` | Caching layer (HTTP responses, version lists) |
 | `vx-versions` | Semver parsing and comparison |
@@ -49,9 +49,9 @@
 
 | Crate | Purpose | Key Dependencies |
 |-------|---------|-----------------|
-| `vx-runtime-core` | Runtime trait extensions | vx-core |
-| `vx-runtime-archive` | Archive extraction (tar, zip, xz) | vx-core |
-| `vx-runtime-http` | HTTP client wrapper | vx-core, vx-cache |
+| `vx-runtime-core` | Runtime trait extensions | vx-versions |
+| `vx-runtime-archive` | Archive extraction (tar, zip, xz) | — |
+| `vx-runtime-http` | HTTP client wrapper | vx-runtime, vx-cache, vx-paths, vx-console |
 | `vx-config` | Layered config (built-in → user → project → env) | vx-paths |
 | `vx-env` | Environment variable management | vx-paths |
 | `vx-console` | Unified output, progress bars, structured logging | — |
@@ -61,12 +61,12 @@
 
 | Crate | Purpose | Key Dependencies |
 |-------|---------|-----------------|
-| `vx-runtime` | Runtime management, `ManifestDrivenRuntime`, `ProviderRegistry` | vx-core, vx-runtime-*, vx-paths |
+| `vx-runtime` | Runtime management, `ManifestDrivenRuntime`, `ProviderRegistry` | vx-runtime-core, vx-cache, vx-versions, vx-paths, vx-manifest, vx-system-pm |
 | `vx-starlark` | Starlark DSL engine, loads `provider.star` | vx-runtime, vx-paths |
 | `vx-installer` | Download, verify checksum, extract | vx-runtime-archive, vx-runtime-http |
 | `vx-version-fetcher` | Fetch available versions from GitHub/npm/PyPI | vx-cache, vx-runtime-http |
-| `vx-system-pm` | System package manager integration (apt, brew, winget) | vx-core |
-| `vx-ecosystem-pm` | Ecosystem package managers (npm, pip, cargo) | vx-core |
+| `vx-system-pm` | System package manager integration (apt, brew, winget) | vx-ecosystem-pm |
+| `vx-ecosystem-pm` | Ecosystem package managers (npm, pip, cargo) | — |
 | `vx-shim` | Shim binary generation | vx-paths |
 
 ### Layer 3: Orchestration (depends on Layer 0-2)
