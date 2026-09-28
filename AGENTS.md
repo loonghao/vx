@@ -33,7 +33,7 @@ Single crate: `vx cargo test -p <crate-name>`.
 | `crates/vx-cli/` | Application layer — CLI entry point |
 | `crates/vx-resolver/`, `vx-setup/`, `vx-project-analyzer/` | Orchestration — resolve, execute, env setup, project detection |
 | `crates/vx-runtime/`, `vx-starlark/`, `vx-installer/`, `vx-config/`, `vx-console/` | Services — runtime registry, DSL engine, install, config, output |
-| `crates/vx-core/`, `vx-paths/`, `vx-cache/`, `vx-versions/`, `vx-manifest/` | Foundation — traits, paths, cache, semver, provider manifests |
+| `crates/vx-runtime-core/`, `vx-paths/`, `vx-cache/`, `vx-versions/`, `vx-manifest/` | Foundation — traits, paths, cache, semver, provider manifests |
 | `crates/vx-providers/` | Provider definitions, one `provider.star` per runtime |
 | `crates/vx-starlark/stdlib/` | Starlark standard library (facade, 5 templates, 14 modules) |
 | `tests/` | Workspace-level integration tests |
