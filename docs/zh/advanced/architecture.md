@@ -19,7 +19,7 @@ vx 的内部架构概述。
 │                     vx-providers                            │
 │ Node │ Go │ Rust │ UV │ Deno │ ... (可插拔)                 │
 ├─────────────────────────────────────────────────────────────┤
-│                      vx-core                                │
+│                      vx-runtime-core                        │
 │ 类型 │ Traits │ 工具 │ 平台抽象                             │
 ├─────────────────────────────────────────────────────────────┤
 │                      vx-paths                               │
@@ -29,12 +29,12 @@ vx 的内部架构概述。
 
 ## Crate 结构
 
-### vx-core
+### vx-runtime-core
 
 所有 crate 共享的核心类型和 traits。
 
 ```
-vx-core/
+vx-runtime-core/
 ├── src/
 │   ├── lib.rs
 │   ├── types.rs      # 通用类型

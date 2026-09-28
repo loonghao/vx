@@ -38,7 +38,6 @@
 
 | Crate | Purpose |
 |-------|---------|
-| `vx-runtime-core` | Core traits: `Runtime`, `Provider`, `PackageManager` |
 | `vx-paths` | Cross-platform path management (`~/.vx/` structure) |
 | `vx-cache` | Caching layer (HTTP responses, version lists) |
 | `vx-versions` | Semver parsing and comparison |

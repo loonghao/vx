@@ -191,12 +191,12 @@ license.workspace   = true
 description = "vx provider for MyTool"
 
 [dependencies]
-vx-core    = { workspace = true }
-vx-runtime = { workspace = true }
-async-trait = { workspace = true }
-anyhow      = { workspace = true }
-serde_json  = { workspace = true }
-tracing     = { workspace = true }
+vx-runtime-core = { workspace = true }
+vx-runtime      = { workspace = true }
+async-trait     = { workspace = true }
+anyhow          = { workspace = true }
+serde_json      = { workspace = true }
+tracing         = { workspace = true }
 ```
 
 ### 实现 Runtime Trait

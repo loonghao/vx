@@ -6,7 +6,7 @@
 #   Layer 3: vx-resolver, vx-setup, vx-migration, vx-extension, vx-project-analyzer (Orchestration)
 #   Layer 2: vx-runtime, vx-starlark, vx-installer, vx-version-fetcher, vx-system-pm, vx-ecosystem-pm, vx-shim (Services)
 #   Layer 1: vx-config, vx-env, vx-console, vx-metrics, vx-runtime-core, vx-runtime-archive, vx-runtime-http (Infrastructure)
-#   Layer 0: vx-core, vx-paths, vx-cache, vx-versions, vx-manifest, vx-args (Foundation)
+#   Layer 0: vx-paths, vx-cache, vx-versions, vx-manifest, vx-args (Foundation)
 #
 # Rule: Dependencies flow DOWNWARD only (Layer N can depend on Layer 0..N-1, never on Layer N+1..4)
 
@@ -28,7 +28,7 @@ echo ""
 declare -A CRATE_LAYER
 
 # Layer 0: Foundation
-for crate in vx-core vx-paths vx-cache vx-versions vx-manifest vx-args; do
+for crate in vx-paths vx-cache vx-versions vx-manifest vx-args; do
     CRATE_LAYER[$crate]=0
 done
 
