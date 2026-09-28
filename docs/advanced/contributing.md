@@ -157,7 +157,7 @@ The pre-commit hook will catch this automatically if you forget.
 vx/
 ├── crates/
 │   ├── vx-cli/              # CLI application (entry point)
-│   ├── vx-core/             # Core types and traits
+│   ├── vx-runtime-core/     # Core types and traits
 │   ├── vx-paths/            # Path management
 │   ├── vx-resolver/         # Version resolution and execution
 │   ├── vx-runtime/          # Runtime management and registry
@@ -244,7 +244,7 @@ The CI pipeline is optimized with **crate-level change detection** to minimize b
 ├─────────────────────────────────────────────────────┤
 │                    vx-runtime (Infrastructure)               │
 ├─────────────────────────────────────────────────────┤
-│              vx-core │ vx-paths (Foundation)                 │
+│              vx-runtime-core │ vx-paths (Foundation)         │
 └─────────────────────────────────────────────────────┘
 ```
 
@@ -252,7 +252,7 @@ The CI pipeline is optimized with **crate-level change detection** to minimize b
 
 | Changed Crate | Affected Crates |
 |--------------|-----------------|
-| `vx-core` | All crates that depend on it (runtime, resolver, extension, etc.) |
+| `vx-runtime-core` | All crates that depend on it (runtime, resolver, extension, etc.) |
 | `vx-paths` | runtime, resolver, env, setup, migration, args, extension, cli |
 | `vx-runtime` | resolver, extension, cli, all providers |
 | `vx-config` | project-analyzer, cli |
