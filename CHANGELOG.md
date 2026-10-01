@@ -6,6 +6,32 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [0.9.34](https://github.com/loonghao/vx/compare/v0.9.33...v0.9.34) (2026-10-01)
+
+
+### Features
+
+* **ai:** verify skills in global scope and converge repos onto the global install ([20b095b](https://github.com/loonghao/vx/commit/20b095b7281da45ebcb18f55ecddb4434aff23eb))
+
+
+### Bug Fixes
+
+* **rust:** let rustup own the toolchain when the repo pins one ([0ee8499](https://github.com/loonghao/vx/commit/0ee84993e239f4c9838bd573419c7c79c3141e5d))
+
+
+### Documentation
+
+* add Chinese tool pin baseline ([a2ee4ec](https://github.com/loonghao/vx/commit/a2ee4ec2518248e0e9457e256ec0be10fa8cefd9))
+* add the adoption snapshot to the Chinese baseline ([24efd86](https://github.com/loonghao/vx/commit/24efd8626f594085366feb8f5ae58b1c5cab07a7))
+* add tool pin baseline for vx.toml [tools] ([f397541](https://github.com/loonghao/vx/commit/f397541223426906cf1a61214eebfa462d05a93a))
+* add tool pin baseline to the guide sidebar ([bf81ec1](https://github.com/loonghao/vx/commit/bf81ec1b49ce9dd86d6bbbe79f30eecaebd9353a))
+* consolidate agent instructions into a single AGENTS.md ([8902fab](https://github.com/loonghao/vx/commit/8902fab60775f4e66c33775eff657fecc19fbf3a))
+* fix Repo layout path to crates/vx-runtime-core ([2c46efc](https://github.com/loonghao/vx/commit/2c46efcdfb21d1081e509266a734dde2cf881b5d))
+* link to AGENTS.md on GitHub instead of a path outside the VitePress srcDir ([bdc2656](https://github.com/loonghao/vx/commit/bdc26566e9b9f508b5adb37db797a8458bd5a42f))
+* refine tool pin baseline (artifact class, maturin) ([77e2748](https://github.com/loonghao/vx/commit/77e27488aad22144cd49e8ad44a5972a71f7725a))
+* remove remaining stale vx-core crate references ([#1175](https://github.com/loonghao/vx/issues/1175)) ([882ad44](https://github.com/loonghao/vx/commit/882ad4479d263c2fa66ad54781e7b5e117f46017))
+* rename stale vx-core crate references to vx-runtime-core ([e9e934b](https://github.com/loonghao/vx/commit/e9e934b48b6b95a224e354c451b6f4c29eff0414))
+
 ## [0.9.33](https://github.com/loonghao/vx/compare/v0.9.32...v0.9.33) (2026-09-21)
 
 
