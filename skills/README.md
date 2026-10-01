@@ -48,23 +48,52 @@ vx skills should teach agents to be precise, scoped, and token-aware:
 | **vx-usage** | Core usage guide — commands, vx.toml, providers, GitHub Actions, MCP integration | ~15 KB | First-time users, general questions |
 | **vx-commands** | CLI command reference — flags, forwarding, and output formats (`--json`, `--toon`, `--compact`) | ~6 KB | Looking up specific command syntax |
 | **vx-project** | Project management — init, sync, setup, vx.toml configuration, monorepo | ~6 KB | Setting up or configuring projects |
+| **vx-repo-contract** | Repository layout contract — root allowlist, lowercase `justfile`, `vx.toml` keeps `[tools]`, `AGENTS.md` as single source of truth, no artifacts at the root | ~7 KB | Entering a new repo, cleaning up repo structure |
 | **vx-best-practices** | Best practices — version strategy, cross-platform, security, provider development | ~10 KB | Team workflows, provider creation |
 | **vx-troubleshooting** | Troubleshooting — installation failures, PATH issues, diagnostics, recovery | ~8 KB | Fixing errors, diagnosing issues |
 | **vx-agent-workflow** | Token-efficient command execution — cross-platform filtering with `vx rg`, output reduction patterns | ~8 KB | Agents running builds/tests/lints |
+| **worktrunk** | Git worktree manager for parallel agent workflows (`vx wt`) | ~8 KB | Running several agents on one repo |
 
 ## Structure
 
 ```
 skills/
-├── README.md                         # This file
-├── vx-usage/SKILL.md                 # Core usage guide (~15 KB)
-├── vx-commands/SKILL.md              # CLI command reference (~6 KB)
-├── vx-project/SKILL.md               # Project management (~6 KB)
-├── vx-best-practices/SKILL.md        # Best practices (~10 KB)
-├── vx-troubleshooting/SKILL.md       # Troubleshooting (~8 KB)
-├── vx-agent-workflow/SKILL.md        # Token-efficient execution (~8 KB)
-└── worktrunk/SKILL.md                # Git worktree manager
+├── README.md                          # This file
+├── vx-usage/SKILL.md                  # Core usage guide (~15 KB)
+├── vx-commands/SKILL.md               # CLI command reference (~6 KB)
+├── vx-project/SKILL.md                # Project management (~6 KB)
+├── vx-repo-contract/SKILL.md          # Repository layout contract (~7 KB)
+├── vx-best-practices/SKILL.md         # Best practices (~10 KB)
+├── vx-troubleshooting/SKILL.md        # Troubleshooting (~8 KB)
+├── vx-agent-workflow/SKILL.md         # Token-efficient execution (~8 KB)
+└── worktrunk/SKILL.md                 # Git worktree manager (~8 KB)
 ```
+
+## Global vs Project Scope
+
+Skills are **global by default**. `vx ai setup` installs them once per machine
+into each agent's home-directory skills folder and records the hash in
+`~/.vx/ai-skills.toml`. A repository should not carry copies of them.
+
+| Scope | Command | Skills land in | Hash recorded in |
+|-------|---------|----------------|------------------|
+| Global (default) | `vx ai setup` | `~/.<agent>/skills/` | `~/.vx/ai-skills.toml` |
+| Project (opt-in) | `vx ai setup --project` | `./.<agent>/skills/` | `vx.toml` → `[ai].skills_hash` |
+
+Verify both scopes and converge a repository onto the global install:
+
+```bash
+vx ai check          # report drift in both scopes
+vx ai check --fix    # refresh stale copies, drop redundant project copies
+```
+
+`--fix` only removes project-local copies that are **byte-identical** to the
+embedded skill, so no unique content can be lost. Copies that were modified
+locally are reported as `divergent` and left alone for manual review.
+
+Repositories that need their own skills should ship **incremental** skills under
+a namespace that does not collide with the global `vx-*` set — domain knowledge
+belongs in the repo, shared tooling conventions do not.
 
 ## Install
 
@@ -107,6 +136,8 @@ User's question:
 │  → vx-commands
 ├─ "Set up my project" / vx.toml / monorepo
 │  → vx-project
+├─ "Where does this file belong?" / repo layout / vx.toml vs justfile
+│  → vx-repo-contract
 ├─ "Best way to..." / team workflow / provider development
 │  → vx-best-practices
 ├─ "Error: ..." / "not working" / "failed"
@@ -124,6 +155,9 @@ User's question:
 | "How do I use vx?" | vx-usage |
 | "What's the command for...?" | vx-commands |
 | "Set up my project with vx" | vx-project |
+| "Where should this file go?" / repo cleanup | vx-repo-contract |
+| "Should I add [scripts] or a just recipe?" | vx-repo-contract |
+| "How do I pin the Rust version?" | vx-project (rust-toolchain section) |
 | "What's the best way to...?" | vx-best-practices |
 | "vx install failed" / "command not found" | vx-troubleshooting |
 | "How do I filter test output?" / "save tokens" | vx-agent-workflow |

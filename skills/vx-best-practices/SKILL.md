@@ -570,3 +570,25 @@ vx maintains a comprehensive set of AI agent configuration files for 15+ agents:
 | `skills/` | Distributable skill files for 15+ AI agents | ClawHub, vx ai setup |
 
 **Best practice**: When making changes that affect AI agent behavior (terminology, architecture, commands), update `AGENTS.md` first — it is the single source of truth. Other files derive from it.
+
+
+---
+
+## Delivery Surface — External Systems Are Evidence
+
+GitHub PRs, CI runs, and dashboards are **supporting evidence**, not the delivery
+surface. The conclusion has to land where the work is tracked.
+
+- **Record the outcome once, completely** — one issue comment carrying status,
+  branch/commit/PR, what you validated, the blocker, and the next owner.
+- **Verify terminal state, not intermediate state.** A green CI run or an open,
+  review-ready PR is not "shipped". Confirm merged / released / deployed, then
+  record *that*.
+- **Keep public surfaces public-safe.** PR titles, bodies, and commit messages
+  carry technical content only — no internal issue IDs, routing history,
+  reviewer handoffs, local absolute paths, or internal hostnames.
+- **Collect results in the foreground.** A queued or pending state is a handoff,
+  not a completion; never end a turn "standing by" for background work.
+
+Concretely: the delivery surface is the team's issue or task tracker — the
+issue comment plus its metadata. A PR comment alone delivers nothing.

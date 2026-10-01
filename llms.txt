@@ -157,3 +157,4 @@ This eliminates the need for users to pre-install Node.js, Python, or any runtim
 - [vx-project Skill](https://github.com/loonghao/vx/blob/main/skills/vx-project/SKILL.md): Project management — init, sync, setup, monorepo
 - [vx-best-practices Skill](https://github.com/loonghao/vx/blob/main/skills/vx-best-practices/SKILL.md): Best practices and provider development
 - [vx-troubleshooting Skill](https://github.com/loonghao/vx/blob/main/skills/vx-troubleshooting/SKILL.md): Troubleshooting and recovery procedures
+- [vx-repo-contract Skill](https://github.com/loonghao/vx/blob/main/skills/vx-repo-contract/SKILL.md): Repository layout contract — root allowlist, justfile naming, vx.toml scope, AGENTS.md single source of truth

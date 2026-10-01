@@ -739,6 +739,21 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-vx-tools-test-
 
+      # The Go E2E group resolves Go through `go=@system`, i.e. whatever Go the
+      # runner image happens to leave on PATH. Those images are not guaranteed to
+      # ship a complete toolchain: two lanes (`go::test_go_vet`,
+      # `go::test_go_run_syntax_error`) failed with `go: no such tool "vet" /
+      # "compile"`, meaning `$GOROOT/pkg/tool/$GOOS_$GOARCH/` was missing files on
+      # that host while the same tests passed on earlier runs of the same image.
+      # Installing a pinned Go makes the toolchain a declared input instead of an
+      # incidental one, so the suite keeps its only hard Go assertions.
+      - name: Setup Go
+        if: runner.os == 'Linux'
+        uses: actions/setup-go@v6
+        with:
+          go-version: '1.27.1'
+          cache: false
+
       - name: Setup Rust + sccache
         uses: ./.github/actions/setup-rust-sccache
         with:
@@ -887,6 +902,15 @@ jobs:
         with:
           shared-key: test
           install-nextest: "true"
+
+      # Same reason as in `test-targeted`: pin a complete Go toolchain instead of
+      # relying on the runner image's incidental install.
+      - name: Setup Go
+        if: runner.os == 'Linux'
+        uses: actions/setup-go@v6
+        with:
+          go-version: '1.27.1'
+          cache: false
 
       - name: Preinstall Node.js on Windows
         if: runner.os == 'Windows'

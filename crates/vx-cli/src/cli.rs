@@ -1505,8 +1505,16 @@ pub enum AiCommand {
         force: bool,
     },
 
-    /// Check whether project-recorded vx skills are up to date
-    Check,
+    /// Check whether vx skills are up to date in both scopes
+    ///
+    /// Verifies the global install (and its recorded hash) plus the current
+    /// project. Use --fix to refresh stale copies, remove project-local
+    /// duplicates of the global skills, and re-record hashes.
+    Check {
+        /// Refresh stale skills and drop byte-identical project-local copies
+        #[arg(long)]
+        fix: bool,
+    },
 
     /// List supported AI agents and their config paths
     Agents,
@@ -2400,7 +2408,7 @@ impl CommandHandler for Commands {
                     project,
                     force,
                 } => commands::ai::handle_setup(agent, *global, *project, *force).await,
-                AiCommand::Check => commands::ai::handle_check().await,
+                AiCommand::Check { fix } => commands::ai::handle_check(*fix).await,
                 AiCommand::Agents => commands::ai::handle_agents().await,
                 AiCommand::Skills { args } => commands::ai::handle_skills(ctx, args).await,
                 AiCommand::Context { minimal } => {

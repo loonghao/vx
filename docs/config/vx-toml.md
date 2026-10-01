@@ -628,9 +628,14 @@ compiler = "msvc"                   # gcc | clang | msvc
 
 ### AI Skills
 
-Project-local AI skills can record the embedded vx skills hash in `vx.toml`.
-`vx ai check` compares this value with the currently embedded skills and reminds
-developers when project skills are stale.
+Skills are **global by default**. `vx ai setup` installs them once per machine
+into each agent's home-directory skills folder and records the hash in
+`~/.vx/ai-skills.toml`, so `vx ai check` can detect drift even when a repository
+holds no skill files.
+
+Project-local skills are opt-in. `vx ai setup --project` installs them next to
+the project and records `[ai].skills_hash` in `vx.toml`; `vx ai check` then
+compares that value with the currently embedded skills.
 
 ```toml
 [ai]
@@ -641,8 +646,14 @@ skills_updated_at = "2026-06-02T00:00:00Z"
 ```bash
 vx ai setup              # Install global skills by default
 vx ai setup --project    # Install project skills and write [ai].skills_hash
-vx ai check              # Check whether project skills are stale
+vx ai check              # Check global + project skills
+vx ai check --fix        # Refresh stale copies, drop redundant project copies
 ```
+
+A repository that has not opted into project scope should carry no vx skill
+copies. `vx ai check --fix` removes project-local copies that are byte-identical
+to the embedded skills and reports — but never deletes — copies that were
+modified locally.
 
 ---
 
