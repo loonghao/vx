@@ -749,7 +749,7 @@ jobs:
       # incidental one, so the suite keeps its only hard Go assertions.
       - name: Setup Go
         if: runner.os == 'Linux'
-        uses: actions/setup-go@v6
+        uses: actions/setup-go@v7
         with:
           go-version: '1.27.1'
           cache: false
@@ -907,7 +907,7 @@ jobs:
       # relying on the runner image's incidental install.
       - name: Setup Go
         if: runner.os == 'Linux'
-        uses: actions/setup-go@v6
+        uses: actions/setup-go@v7
         with:
           go-version: '1.27.1'
           cache: false
