@@ -684,11 +684,11 @@ impl StarlarkProvider {
                 map.insert("os".to_string(), os_list);
                 map
             }),
-            package_alias: star_meta.package_alias.map(|(ecosystem, package)| {
+            package_alias: star_meta.package_alias.map(|alias| {
                 crate::provider::types::PackageAlias {
-                    ecosystem,
-                    package,
-                    executable: None,
+                    ecosystem: alias.ecosystem,
+                    package: alias.package,
+                    executable: alias.executable,
                 }
             }),
             package_prefixes: star_meta.package_prefixes,

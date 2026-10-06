@@ -34,6 +34,12 @@ struct AgentConfig {
     project_skills_dir: &'static str,
     /// Skills directory relative to the home directory
     global_skills_dir: &'static str,
+    /// vx runtime that can install and run this agent's CLI, when vx ships one.
+    ///
+    /// `None` means vx knows where the agent keeps its skills but cannot install
+    /// the agent itself (several agents are editor-only or install outside any
+    /// package ecosystem vx can reach).
+    provider: Option<&'static str>,
 }
 
 /// All supported AI agent targets
@@ -42,66 +48,87 @@ const SUPPORTED_AGENTS: &[AgentConfig] = &[
         name: "codebuddy",
         project_skills_dir: ".codebuddy/skills",
         global_skills_dir: ".codebuddy/skills",
+        provider: None,
     },
     AgentConfig {
         name: "claude-code",
         project_skills_dir: ".claude/skills",
         global_skills_dir: ".claude/skills",
+        provider: Some("claude"),
     },
     AgentConfig {
         name: "cursor",
         project_skills_dir: ".cursor/skills",
         global_skills_dir: ".cursor/skills",
+        provider: None,
     },
     AgentConfig {
         name: "codex",
         project_skills_dir: ".agents/skills",
         global_skills_dir: ".codex/skills",
+        provider: Some("codex"),
     },
     AgentConfig {
         name: "windsurf",
         project_skills_dir: ".windsurf/skills",
         global_skills_dir: ".codeium/windsurf/skills",
+        provider: None,
     },
     AgentConfig {
         name: "copilot",
         project_skills_dir: ".agents/skills",
         global_skills_dir: ".copilot/skills",
+        provider: Some("copilot"),
     },
     AgentConfig {
         name: "opencode",
         project_skills_dir: ".opencode/skills",
         global_skills_dir: ".config/opencode/skills",
+        provider: Some("opencode"),
     },
     AgentConfig {
         name: "trae",
         project_skills_dir: ".trae/skills",
         global_skills_dir: ".trae/skills",
+        provider: None,
     },
     AgentConfig {
         name: "gemini-cli",
         project_skills_dir: ".agents/skills",
         global_skills_dir: ".gemini/skills",
+        provider: Some("gemini"),
     },
     AgentConfig {
         name: "amp",
         project_skills_dir: ".agents/skills",
         global_skills_dir: ".config/agents/skills",
+        provider: Some("amp"),
     },
     AgentConfig {
         name: "roo",
         project_skills_dir: ".roo/skills",
         global_skills_dir: ".roo/skills",
+        provider: None,
     },
     AgentConfig {
         name: "cline",
         project_skills_dir: ".cline/skills",
         global_skills_dir: ".cline/skills",
+        provider: Some("cline"),
     },
     AgentConfig {
         name: "kiro-cli",
         project_skills_dir: ".kiro/skills",
         global_skills_dir: ".kiro/skills",
+        provider: None,
+    },
+    AgentConfig {
+        // Kimi Code scans `.kimi-code/skills/` and `~/.kimi-code/skills/`
+        // (alongside the generic `.agents/skills/` tiers).
+        name: "kimi",
+        project_skills_dir: ".kimi-code/skills",
+        global_skills_dir: ".kimi-code/skills",
+        provider: Some("kimi"),
     },
 ];
 
@@ -706,14 +733,20 @@ fn remove_duplicate_skill_copies(paths: &[PathBuf]) -> Result<usize> {
 pub async fn handle_agents() -> Result<()> {
     UI::header("Supported AI Agents");
     println!();
-    let header = format!("  {:<16} {:<24} GLOBAL DIR", "AGENT", "PROJECT DIR");
+    let header = format!(
+        "  {:<16} {:<24} {:<16} GLOBAL DIR",
+        "AGENT", "PROJECT DIR", "VX RUNTIME"
+    );
     println!("{header}");
-    println!("  {}", "-".repeat(68));
+    println!("  {}", "-".repeat(85));
 
     for agent in SUPPORTED_AGENTS {
         println!(
-            "  {:<16} {:<24} ~/{}",
-            agent.name, agent.project_skills_dir, agent.global_skills_dir
+            "  {:<16} {:<24} {:<16} ~/{}",
+            agent.name,
+            agent.project_skills_dir,
+            agent.provider.unwrap_or("-"),
+            agent.global_skills_dir
         );
     }
 
@@ -723,6 +756,7 @@ pub async fn handle_agents() -> Result<()> {
         SUPPORTED_AGENTS.len()
     ));
     UI::hint("Use `vx ai setup -a <agent>` to install vx skills for a specific agent");
+    UI::hint("VX RUNTIME lists the `vx <agent>` command that installs and runs the agent");
 
     Ok(())
 }

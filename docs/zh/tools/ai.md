@@ -2,6 +2,49 @@
 
 vx 支持 AI 和机器学习开发工具，让你轻松搭建本地 AI 环境并将 AI 工作流集成到项目中。
 
+## AI 编码 Agent
+
+vx 可以直接安装并运行主流 AI 编码 agent，无需手动安装即可使用 `vx claude`、`vx codex`、`vx kimi`。
+
+```bash
+vx codex --version          # 首次使用时安装 @openai/codex，然后运行
+vx claude "fix the failing test"
+vx kimi
+```
+
+每个 agent 都是[包别名](/guide/provider-star-reference) provider：你输入的名称是 vx runtime，vx 将其路由到提供它的包。
+
+| 命令 | 包 | 生态系统 |
+|---------|---------|-----------|
+| `vx claude`（`vx claude-code`） | `@anthropic-ai/claude-code` | npm |
+| `vx codex` | `@openai/codex` | npm |
+| `vx kimi` | `@moonshot-ai/kimi-code` | npm |
+| `vx gemini`（`vx gemini-cli`） | `@google/gemini-cli` | npm |
+| `vx opencode` | `opencode-ai` | npm |
+| `vx amp` | `@ampcode/cli` | npm |
+| `vx copilot` | `@github/copilot` | npm |
+| `vx cline` | `cline` | npm |
+| `vx qwen`（`vx qwen-code`） | `@qwen-code/qwen-code` | npm |
+| `vx aider` | `aider-chat` | uvx（PyPI） |
+
+### 让 agent 可被发现
+
+通过 `vx` 运行 agent 已足以满足交互式使用，但编辑器和 agent 平台会在 `PATH` 上查找普通命令。全局安装会在 vx shims 目录中写入 shim，这正是让 agent 以自身名称被发现的关键：
+
+```bash
+vx install codex             # 全局安装 + 在 ~/.vx/shims 中写入 shim
+codex --version              # 无需 vx 前缀即可解析
+```
+
+将 vx shims 目录加入 `PATH`（安装程序会自动完成），以这种方式安装的每个 agent 都会对扫描 `PATH` 的工具可见——包括那些检测机器上安装有哪些 agent 的平台。
+
+查看 vx 在 skills 之外还能安装哪些 agent：
+
+```bash
+vx ai agents                 # VX RUNTIME 列列出了对应的 `vx <agent>` 命令
+vx ai setup                  # 为所有受支持的 agent 安装 vx skills
+```
+
 ## Ollama
 
 在本地运行大型语言模型。

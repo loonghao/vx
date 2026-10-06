@@ -55,7 +55,7 @@ Each provider handles:
 
 ### Built-in Providers
 
-vx ships with **142 built-in providers** covering major ecosystems:
+vx ships with **154 built-in providers** covering major ecosystems:
 
 | Ecosystem | Providers |
 |-----------|-----------|

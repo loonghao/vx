@@ -15,7 +15,7 @@ use vx_runtime::{
 };
 use vx_runtime_http::create_runtime_context;
 use vx_starlark::provider::types::PackageAlias;
-use vx_starlark::{StarMetadata, StarlarkEngine};
+use vx_starlark::{StarMetadata, StarPackageAlias, StarlarkEngine};
 use vx_versions::{RangeOp, VersionConstraint, VersionRequest};
 
 // ---------------------------------------------------------------------------
@@ -300,13 +300,7 @@ fn build_package_alias_cache() -> HashMap<String, PackageAlias> {
 
     for (name, star_content) in ALL_PROVIDER_STARS {
         let meta = StarMetadata::parse(star_content);
-        if let Some((ecosystem, package)) = &meta.package_alias {
-            let alias = PackageAlias {
-                ecosystem: ecosystem.clone(),
-                package: package.clone(),
-                executable: None,
-            };
-
+        if let Some(alias) = to_package_alias(&meta.package_alias) {
             // Map provider name
             if let Some(ref provider_name) = meta.name {
                 cache.insert(provider_name.clone(), alias.clone());
@@ -329,12 +323,7 @@ fn build_package_alias_cache() -> HashMap<String, PackageAlias> {
     // Also include user overrides
     for (name, star_content) in load_star_overrides() {
         let meta = StarMetadata::parse(&star_content);
-        if let Some((ecosystem, package)) = &meta.package_alias {
-            let alias = PackageAlias {
-                ecosystem: ecosystem.clone(),
-                package: package.clone(),
-                executable: None,
-            };
+        if let Some(alias) = to_package_alias(&meta.package_alias) {
             cache.insert(name, alias.clone());
             for runtime in &meta.runtimes {
                 if let Some(ref runtime_name) = runtime.name {
@@ -348,6 +337,18 @@ fn build_package_alias_cache() -> HashMap<String, PackageAlias> {
     }
 
     cache
+}
+
+/// Convert the statically parsed alias into the form the executor resolves.
+///
+/// `executable` stays `None` when the provider omits it, which preserves the
+/// historical behaviour of defaulting the binary to the package name.
+fn to_package_alias(alias: &Option<StarPackageAlias>) -> Option<PackageAlias> {
+    alias.as_ref().map(|a| PackageAlias {
+        ecosystem: a.ecosystem.clone(),
+        package: a.package.clone(),
+        executable: a.executable.clone(),
+    })
 }
 
 pub fn find_package_alias(runtime_name: &str) -> Option<PackageAlias> {
