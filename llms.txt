@@ -82,6 +82,7 @@ vx analyze --json          # Project analysis as JSON
 
 - [CLI Overview](https://github.com/loonghao/vx/blob/main/docs/cli/overview.md): All commands at a glance
 - [Global Commands](https://github.com/loonghao/vx/blob/main/docs/cli/global.md): install, uninstall, list, versions, which, search
+- [Command Shims](https://github.com/loonghao/vx/blob/main/docs/cli/shim.md): `vx shim` — expose runtimes as plain commands, generated per platform
 - [Dev Environment](https://github.com/loonghao/vx/blob/main/docs/cli/dev.md): `vx dev` — enter project shell
 - [Setup Command](https://github.com/loonghao/vx/blob/main/docs/cli/setup.md): `vx setup` — install all project tools
 - [Run Command](https://github.com/loonghao/vx/blob/main/docs/cli/run.md): `vx run <script>` — run project scripts

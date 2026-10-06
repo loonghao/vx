@@ -9,6 +9,7 @@
 
 use crate::commands::{
     CommandContext, CommandHandler, GlobalOptions, env::EnvCommand, global::GlobalCommand,
+    shim::ShimCommand,
 };
 
 use anyhow::Result;
@@ -974,6 +975,28 @@ pub enum Commands {
         #[arg(long, short = 'c', conflicts_with_all = &["all"])]
         commands: bool,
     },
+
+    // =========================================================================
+    // Direct command access (RFC 0042)
+    // =========================================================================
+    /// Manage command shims that expose runtimes as plain commands
+    ///
+    /// A shim is a small platform-specific wrapper that forwards to
+    /// `vx <runtime>`, so `jq --version` runs instead of `vx jq --version`.
+    /// Shims are generated per platform: Windows gets a `.cmd` batch file for
+    /// cmd.exe/PowerShell plus a shell script for Git Bash, Unix gets a single
+    /// shell script.
+    ///
+    /// Examples:
+    ///   vx shim add jq                  # create `jq`
+    ///   vx shim add git@2.53.0 --as git # pin a version behind an existing name
+    ///   vx shim add jq --dir ~/.local/bin
+    ///   vx shim list
+    ///   vx shim remove jq
+    Shim {
+        #[command(subcommand)]
+        command: ShimCommand,
+    },
 }
 
 // =============================================================================
@@ -1759,6 +1782,7 @@ impl CommandHandler for Commands {
             Commands::Ai { .. } => "ai",
             Commands::Provider { .. } => "provider",
             Commands::Schema { .. } => "schema",
+            Commands::Shim { .. } => "shim",
         }
     }
 
@@ -1966,6 +1990,7 @@ impl CommandHandler for Commands {
             }
 
             Commands::Global { command } => commands::global::handle(ctx, command).await,
+            Commands::Shim { command } => commands::shim::handle(ctx, command).await,
 
             Commands::Test {
                 runtime,
