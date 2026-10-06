@@ -20,12 +20,39 @@
 //! // Create the shim file
 //! shim.create("/path/to/shim/dir", &Platform::current())?;
 //! ```
+//!
+//! ## Command shims (RFC 0042)
+//!
+//! A shim does not have to point at a real binary. Pointing it at the `vx`
+//! executable and prepending a runtime name turns it into a **command shim**:
+//! a first-class `jq` / `git` entry point that works without typing `vx`.
+//!
+//! ```rust,ignore
+//! use vx_runtime::{Platform, Shim};
+//!
+//! // `jq --version` -> `vx jq --version`
+//! let shim = Shim::new("jq", vx_exe_path).with_args(&["jq"]);
+//! let written = shim.create_all(shim_dir, &Platform::current())?;
+//! ```
+//!
+//! [`create_all`](Shim::create_all) writes every variant the platform needs —
+//! see [`ShimType::platform_variants`]. Every generated file carries
+//! [`VX_SHIM_MARKER`] so vx can tell its own shims from user files and never
+//! delete something it did not create.
 
 use anyhow::{Context, Result};
 use std::path::{Path, PathBuf};
 use tracing::debug;
 
 use crate::Platform;
+
+mod generate;
+
+/// Marker written into every vx-generated shim.
+///
+/// Used to identify files vx owns before overwriting or deleting them, so a
+/// hand-written wrapper (for example `~/.local/bin/jq`) is never clobbered.
+pub const VX_SHIM_MARKER: &str = "vx-shim";
 
 /// Shim type determines the script format
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -54,6 +81,26 @@ impl ShimType {
             ShimType::Batch
         } else {
             ShimType::Shell
+        }
+    }
+
+    /// Every shim variant worth generating for a platform.
+    ///
+    /// Windows is not one shell but three depending on where the user types the
+    /// command, so a complete alias needs more than one file:
+    ///
+    /// | Variant | Invoked from | File |
+    /// |---|---|---|
+    /// | [`Batch`](ShimType::Batch) | cmd.exe, PowerShell (via `PATHEXT`) | `<name>.cmd` |
+    /// | [`Shell`](ShimType::Shell) | Git Bash, MSYS2, Cygwin | `<name>` |
+    ///
+    /// Unix terminals all speak `/bin/sh`, so [`Shell`](ShimType::Shell) alone
+    /// is enough there.
+    pub fn platform_variants(platform: &Platform) -> Vec<ShimType> {
+        if platform.is_windows() {
+            vec![ShimType::Batch, ShimType::Shell]
+        } else {
+            vec![ShimType::Shell]
         }
     }
 }
@@ -160,87 +207,29 @@ impl Shim {
             }
         });
 
+        self.content_for(shim_type)
+    }
+
+    /// Generate the shim script content for one specific shim type
+    pub fn content_for(&self, shim_type: ShimType) -> String {
         match shim_type {
-            ShimType::Batch => self.generate_batch(),
-            ShimType::PowerShell => self.generate_powershell(),
-            ShimType::Shell => self.generate_shell(),
+            ShimType::Batch => generate::batch(self),
+            ShimType::PowerShell => generate::powershell(self),
+            ShimType::Shell => generate::shell(self),
         }
     }
 
-    /// Generate Windows batch script content
-    fn generate_batch(&self) -> String {
-        let mut lines = vec!["@echo off".to_string(), "setlocal".to_string()];
-
-        // Add environment variables
-        for (key, value) in &self.env {
-            lines.push(format!("set {}={}", key, value));
-        }
-
-        // Add working directory change if specified
-        if let Some(ref dir) = self.working_dir {
-            lines.push(format!("cd /d \"{}\"", dir.display()));
-        }
-
-        // Build the command
-        let target_str = self.target.display().to_string();
-        let args_str = if self.args.is_empty() {
-            String::new()
-        } else {
-            format!(" {} ", self.args.join(" "))
-        };
-
-        lines.push(format!("\"{}\"{}%*", target_str, args_str));
-
-        lines.join("\r\n")
+    /// Path this shim would occupy in `dir` for one specific shim type
+    pub fn path_in(&self, dir: &Path, shim_type: ShimType) -> PathBuf {
+        dir.join(format!("{}{}", self.name, shim_type.extension()))
     }
 
-    /// Generate PowerShell script content
-    fn generate_powershell(&self) -> String {
-        let mut lines = vec!["#!/usr/bin/env pwsh".to_string()];
-
-        // Add environment variables
-        for (key, value) in &self.env {
-            lines.push(format!("$env:{} = '{}'", key, value));
-        }
-
-        // Add working directory change if specified
-        if let Some(ref dir) = self.working_dir {
-            lines.push(format!("Set-Location -Path \"{}\"", dir.display()));
-        }
-
-        // Build the command
-        let mut cmd_parts = vec![format!("\"{}\"", self.target.display())];
-        cmd_parts.extend(self.args.iter().cloned());
-        cmd_parts.push("$args".to_string());
-
-        lines.push(format!("& {}", cmd_parts.join(" ")));
-
-        lines.join("\n")
-    }
-
-    /// Generate Unix shell script content
-    fn generate_shell(&self) -> String {
-        let mut lines = vec!["#!/bin/sh".to_string()];
-
-        // Add environment variables
-        for (key, value) in &self.env {
-            lines.push(format!("{}='{}'", key, value));
-            lines.push(format!("export {}", key));
-        }
-
-        // Add working directory change if specified
-        if let Some(ref dir) = self.working_dir {
-            lines.push(format!("cd \"{}\"", dir.display()));
-        }
-
-        // Build the command
-        let mut cmd_parts = vec![format!("\"{}\"", self.target.display())];
-        cmd_parts.extend(self.args.iter().cloned());
-        cmd_parts.push("\"$@\"".to_string());
-
-        lines.push(format!("exec {}", cmd_parts.join(" ")));
-
-        lines.join("\n")
+    /// Every path this shim occupies in `dir` on the given platform
+    pub fn paths_in(&self, dir: &Path, platform: &Platform) -> Vec<PathBuf> {
+        ShimType::platform_variants(platform)
+            .into_iter()
+            .map(|variant| self.path_in(dir, variant))
+            .collect()
     }
 
     /// Create the shim file in the specified directory
@@ -256,20 +245,86 @@ impl Shim {
         let content = self.content(platform);
 
         // Write the file
-        std::fs::write(&shim_file, &content)
-            .with_context(|| format!("Failed to write shim to {}", shim_file.display()))?;
+        self.write(&shim_file, &content)?;
+
+        debug!("Created shim at {}", shim_file.display());
+        Ok(shim_file)
+    }
+
+    /// Create every platform variant of this shim in `dir`.
+    ///
+    /// On Windows this writes both `<name>.cmd` (cmd.exe / PowerShell) and an
+    /// extension-less `<name>` (Git Bash / MSYS2); on Unix just `<name>`.
+    ///
+    /// # Returns
+    /// The paths of every file written, in [`ShimType::platform_variants`] order.
+    pub fn create_all(&self, dir: &Path, platform: &Platform) -> Result<Vec<PathBuf>> {
+        std::fs::create_dir_all(dir)
+            .with_context(|| format!("Failed to create shim directory: {}", dir.display()))?;
+
+        let mut written = Vec::new();
+        for variant in ShimType::platform_variants(platform) {
+            let path = self.path_in(dir, variant);
+            self.write(&path, &self.content_for(variant))?;
+            debug!("Created {} shim at {}", variant.extension(), path.display());
+            written.push(path);
+        }
+
+        Ok(written)
+    }
+
+    /// Remove every platform variant of this shim from `dir`.
+    ///
+    /// Only files carrying [`VX_SHIM_MARKER`] are deleted, so a user-written
+    /// wrapper that happens to share the name is left untouched.
+    ///
+    /// # Returns
+    /// The paths that were removed.
+    pub fn remove_all(&self, dir: &Path, platform: &Platform) -> Result<Vec<PathBuf>> {
+        let mut removed = Vec::new();
+
+        for path in self.paths_in(dir, platform) {
+            if !Self::is_managed(&path) {
+                debug!(
+                    "Skipping {} — not created by vx",
+                    path.file_name().unwrap_or_default().to_string_lossy()
+                );
+                continue;
+            }
+
+            std::fs::remove_file(&path)
+                .with_context(|| format!("Failed to remove shim: {}", path.display()))?;
+            removed.push(path);
+        }
+
+        Ok(removed)
+    }
+
+    /// Whether `path` was generated by vx.
+    ///
+    /// Reads the file and looks for [`VX_SHIM_MARKER`]. Unreadable or missing
+    /// files are reported as unmanaged rather than treated as an error.
+    pub fn is_managed(path: &Path) -> bool {
+        std::fs::read_to_string(path)
+            .map(|content| content.contains(VX_SHIM_MARKER))
+            .unwrap_or(false)
+    }
+
+    /// Write shim content and apply platform permissions
+    fn write(&self, path: &Path, content: &str) -> Result<()> {
+        std::fs::write(path, content)
+            .with_context(|| format!("Failed to write shim to {}", path.display()))?;
 
         // Set executable permissions on Unix
         #[cfg(unix)]
         {
             use std::os::unix::fs::PermissionsExt;
-            let mut perms = std::fs::metadata(&shim_file)?.permissions();
+            let mut perms = std::fs::metadata(path)?.permissions();
             perms.set_mode(0o755);
-            std::fs::set_permissions(&shim_file, perms)?;
+            std::fs::set_permissions(path, perms)?;
         }
 
-        debug!("Created shim at {}", shim_file.display());
-        Ok(shim_file)
+        Ok(())
     }
 
     /// Create shim in the same directory as the target executable
@@ -372,132 +427,4 @@ pub fn create_shim(name: &str, target: &Path, args: &[&str], output_dir: &Path) 
     Shim::new(name, target)
         .with_args(args)
         .create(output_dir, &platform)
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use tempfile::TempDir;
-
-    #[test]
-    fn test_shim_file_name_windows() {
-        let platform = Platform::new(crate::Os::Windows, crate::Arch::X86_64);
-        let shim = Shim::new("bunx", "/path/to/bun");
-
-        assert_eq!(shim.file_name(&platform), "bunx.cmd");
-    }
-
-    #[test]
-    fn test_shim_file_name_unix() {
-        let platform = Platform::new(crate::Os::Linux, crate::Arch::X86_64);
-        let shim = Shim::new("bunx", "/path/to/bun");
-
-        assert_eq!(shim.file_name(&platform), "bunx");
-    }
-
-    #[test]
-    fn test_batch_content() {
-        let shim = Shim::new("bunx", "/path/to/bun.exe").with_args(&["x"]);
-
-        let content = shim.generate_batch();
-
-        assert!(content.contains("@echo off"));
-        assert!(content.contains("/path/to/bun.exe"));
-        assert!(content.contains(" x %*"));
-    }
-
-    #[test]
-    fn test_shell_content() {
-        let shim = Shim::new("bunx", "/path/to/bun").with_args(&["x"]);
-
-        let content = shim.generate_shell();
-
-        assert!(content.contains("#!/bin/sh"));
-        assert!(content.contains("exec"));
-        assert!(content.contains("/path/to/bun"));
-        assert!(content.contains("\" x \"$@\""));
-    }
-
-    #[test]
-    fn test_shim_with_env() {
-        let shim = Shim::new("test", "/path/to/exe")
-            .with_env("FOO", "bar")
-            .with_env("BAZ", "qux");
-
-        let shell_content = shim.generate_shell();
-
-        assert!(shell_content.contains("FOO='bar'"));
-        assert!(shell_content.contains("export FOO"));
-        assert!(shell_content.contains("BAZ='qux'"));
-        assert!(shell_content.contains("export BAZ"));
-
-        let batch_content = shim.generate_batch();
-
-        assert!(batch_content.contains("set FOO=bar"));
-        assert!(batch_content.contains("set BAZ=qux"));
-    }
-
-    #[test]
-    fn test_shim_with_working_dir() {
-        let shim = Shim::new("test", "/path/to/exe").with_working_dir("/working/dir");
-
-        let shell_content = shim.generate_shell();
-        assert!(shell_content.contains("cd \"/working/dir\""));
-
-        let batch_content = shim.generate_batch();
-        assert!(batch_content.contains("cd /d \"/working/dir\""));
-    }
-
-    #[test]
-    fn test_create_shim_file() {
-        let temp = TempDir::new().unwrap();
-        let platform = Platform::current();
-
-        let shim = Shim::new("test-shim", temp.path().join("target")).with_args(&["arg1"]);
-
-        let path = shim.create(temp.path(), &platform).unwrap();
-
-        assert!(path.exists());
-
-        let content = std::fs::read_to_string(&path).unwrap();
-
-        #[cfg(windows)]
-        assert!(content.contains("@echo off"));
-
-        #[cfg(not(windows))]
-        {
-            assert!(content.contains("#!/bin/sh"));
-
-            // Check executable permission
-            use std::os::unix::fs::PermissionsExt;
-            let perms = std::fs::metadata(&path).unwrap().permissions();
-            assert!(perms.mode() & 0o111 != 0);
-        }
-    }
-
-    #[test]
-    fn test_shim_builder() {
-        let temp = TempDir::new().unwrap();
-
-        let paths = ShimBuilder::new()
-            .dir(temp.path())
-            .forward("shim1", temp.path().join("exe1"), &["arg1"])
-            .forward("shim2", temp.path().join("exe2"), &["arg2", "arg3"])
-            .build()
-            .unwrap();
-
-        assert_eq!(paths.len(), 2);
-
-        #[cfg(windows)]
-        {
-            assert!(paths[0].ends_with("shim1.cmd"));
-            assert!(paths[1].ends_with("shim2.cmd"));
-        }
-
-        #[cfg(not(windows))]
-        {
-            assert!(paths[0].ends_with("shim1"));
-            assert!(paths[1].ends_with("shim2"));
-        }
-    }
 }

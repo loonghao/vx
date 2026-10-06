@@ -102,6 +102,22 @@ vx global uninstall typescript     # Uninstall
 
 [Full documentation →](./global)
 
+### shim
+
+Expose a runtime as a plain command, so `jq --version` works instead of
+`vx jq --version`. Shims are generated per platform.
+
+```bash
+vx shim add jq                    # create a `jq` command
+vx shim add git@2.53.0            # pin a version behind the runtime name
+vx shim add jq --dir ~/.local/bin # choose the directory
+vx shim list                      # show shims created by vx
+vx shim sync                      # rewrite shims after upgrading vx
+vx shim remove jq                 # delete a shim
+```
+
+[Full documentation →](./shim)
+
 ---
 
 ## Project Management

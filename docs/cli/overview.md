@@ -38,6 +38,7 @@ vx [OPTIONS] <TOOL> [TOOL_ARGS]
 | `search` | — | Search for available tools |
 | [`test`](./test) | — | Test runtime availability and provider functionality |
 | [`global`](./global) | `g` | Manage globally installed packages (isolated) |
+| [`shim`](./shim) | — | Expose runtimes as plain commands (`jq` instead of `vx jq`) |
 
 ### Project Management
 

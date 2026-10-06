@@ -102,6 +102,22 @@ vx global uninstall typescript     # 卸载
 
 [完整文档 →](./global)
 
+### shim
+
+把 runtime 暴露成可以直接输入的命令，之后 `jq --version` 等价于
+`vx jq --version`。shim 按平台生成。
+
+```bash
+vx shim add jq                    # 创建 `jq` 命令
+vx shim add git@2.53.0            # 用 runtime 名承载固定版本
+vx shim add jq --dir ~/.local/bin # 指定目录
+vx shim list                      # 列出 vx 创建的 shim
+vx shim sync                      # 升级 vx 后重写 shim
+vx shim remove jq                 # 删除 shim
+```
+
+[完整文档 →](./shim)
+
 ---
 
 ## 项目管理

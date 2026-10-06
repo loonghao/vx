@@ -38,6 +38,7 @@ vx [选项] <工具> [工具参数]
 | `search` | — | 搜索可用工具 |
 | [`test`](./test) | — | 测试运行时可用性和 Provider 功能 |
 | [`global`](./global) | `g` | 管理全局安装的包（隔离） |
+| [`shim`](./shim) | — | 把 runtime 暴露成直接可用的命令（`jq` 代替 `vx jq`） |
 
 ### 项目管理
 

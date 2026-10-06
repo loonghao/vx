@@ -45,6 +45,9 @@ pub mod list;
 /// Test command - modular structure (RFC 0020)
 pub mod test;
 
+/// Command shims - RFC 0042
+pub mod shim;
+
 // =============================================================================
 // Core Commands
 // =============================================================================
