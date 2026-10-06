@@ -260,12 +260,16 @@ fn target_dirs(bin_dir: &Path, explicit: &[PathBuf]) -> Vec<PathBuf> {
 }
 
 /// Drop duplicates and non-absolute entries while keeping order
+///
+/// Comparison uses [`normalize`] so `C:\Bin` and `C:\bin\` collapse together on
+/// Windows, but the original path is preserved — returning the normalized form
+/// would break case-sensitive filesystems.
 fn dedup(dirs: Vec<PathBuf>) -> Vec<PathBuf> {
-    let mut seen = Vec::new();
+    let mut seen: Vec<PathBuf> = Vec::new();
     for dir in dirs {
         let key = normalize(&dir);
-        if !seen.iter().any(|existing| existing == &key) {
-            seen.push(key);
+        if !seen.iter().any(|existing| normalize(existing) == key) {
+            seen.push(dir);
         }
     }
     seen
