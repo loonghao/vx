@@ -3,6 +3,12 @@
 //! These tests drive the real `vx` binary against a temporary `VX_HOME` and
 //! write shims into a temporary directory, so they never touch the developer's
 //! PATH or the `~/.local/bin` wrapper a user may already have.
+//!
+//! Shim names are randomized per test. `vx shim add` refuses to shadow a
+//! command it did not create, and CI runners ship common runtimes (`jq`,
+//! `git`, `node`) on PATH, so a fixed name would fail wherever the runner
+//! happens to provide it. See [`test_shim_add_rejects_shadowing_without_force`]
+//! for the deliberate coverage of that guard.
 
 mod common;
 
@@ -13,11 +19,26 @@ use common::{assert_success, init_test_env, vx_available, vx_binary};
 use tempfile::TempDir;
 use vx_runtime::{ShimRegistry, VX_SHIM_MARKER};
 
+/// The runtime every shim in this file forwards to.
+///
+/// Only the *shim name* must be collision-free; the runtime is what the shim
+/// invokes, so a runtime that is already on PATH is fine.
+const RUNTIME: &str = "jq";
+
 fn run_vx(vx_home: &Path, args: &[&str]) -> std::io::Result<Output> {
     Command::new(vx_binary())
         .args(args)
         .env("VX_HOME", vx_home)
         .output()
+}
+
+/// A shim name no runner or developer machine is expected to provide.
+///
+/// Prefixed and suffixed with a UUID so it cannot collide with a real command,
+/// which keeps `vx shim add` away from the shadow guard in tests that are not
+/// testing the guard itself.
+fn unique_name() -> String {
+    format!("vx-shim-test-{}", uuid::Uuid::new_v4().simple())
 }
 
 /// Every file a shim produces in `dir` for the current platform
@@ -39,21 +60,24 @@ fn test_shim_add_creates_a_platform_shim() {
     let temp = TempDir::new().expect("failed to create temp dir");
     let vx_home = temp.path().join("vx-home");
     let shim_dir = temp.path().join("shims");
+    let name = unique_name();
 
     let output = run_vx(
         &vx_home,
         &[
             "shim",
             "add",
-            "jq",
+            RUNTIME,
+            "--as",
+            &name,
             "--dir",
             &shim_dir.display().to_string(),
         ],
     )
     .expect("failed to run vx shim add");
-    assert_success(&output, "vx shim add jq");
+    assert_success(&output, &format!("vx shim add {RUNTIME} --as {name}"));
 
-    for file in expected_files(&shim_dir, "jq") {
+    for file in expected_files(&shim_dir, &name) {
         assert!(file.exists(), "expected {} to exist", file.display());
         let content = std::fs::read_to_string(&file).expect("failed to read shim");
         assert!(
@@ -62,7 +86,10 @@ fn test_shim_add_creates_a_platform_shim() {
             file.display(),
             content
         );
-        assert!(content.contains("jq"), "shim must forward to vx jq");
+        assert!(
+            content.contains(RUNTIME),
+            "shim must forward to vx {RUNTIME}"
+        );
     }
 }
 
@@ -76,24 +103,29 @@ fn test_shim_add_registers_the_shim() {
     let temp = TempDir::new().expect("failed to create temp dir");
     let vx_home = temp.path().join("vx-home");
     let shim_dir = temp.path().join("shims");
+    let name = unique_name();
 
     let output = run_vx(
         &vx_home,
         &[
             "shim",
             "add",
-            "jq",
+            RUNTIME,
+            "--as",
+            &name,
             "--dir",
             &shim_dir.display().to_string(),
         ],
     )
     .expect("failed to run vx shim add");
-    assert_success(&output, "vx shim add jq");
+    assert_success(&output, &format!("vx shim add {RUNTIME} --as {name}"));
 
     let registry = ShimRegistry::load(&vx_home.join("config").join("command-shims.json"))
         .expect("failed to load registry");
-    let entry = registry.get("jq").expect("jq should be registered");
-    assert_eq!(entry.runtime, "jq");
+    let entry = registry
+        .get(&name)
+        .unwrap_or_else(|| panic!("{name} should be registered"));
+    assert_eq!(entry.runtime, RUNTIME);
     assert!(entry.launcher.exists(), "launcher must be the vx binary");
 }
 
@@ -107,13 +139,16 @@ fn test_shim_list_reports_the_shim() {
     let temp = TempDir::new().expect("failed to create temp dir");
     let vx_home = temp.path().join("vx-home");
     let shim_dir = temp.path().join("shims");
+    let name = unique_name();
 
     run_vx(
         &vx_home,
         &[
             "shim",
             "add",
-            "jq",
+            RUNTIME,
+            "--as",
+            &name,
             "--dir",
             &shim_dir.display().to_string(),
         ],
@@ -124,7 +159,7 @@ fn test_shim_list_reports_the_shim() {
     assert_success(&output, "vx shim list");
 
     let stdout = String::from_utf8_lossy(&output.stdout);
-    assert!(stdout.contains("jq"), "list output was:\n{}", stdout);
+    assert!(stdout.contains(&name), "list output was:\n{}", stdout);
 }
 
 #[test]
@@ -137,13 +172,16 @@ fn test_shim_remove_deletes_only_the_vx_shim() {
     let temp = TempDir::new().expect("failed to create temp dir");
     let vx_home = temp.path().join("vx-home");
     let shim_dir = temp.path().join("shims");
+    let name = unique_name();
 
     run_vx(
         &vx_home,
         &[
             "shim",
             "add",
-            "jq",
+            RUNTIME,
+            "--as",
+            &name,
             "--dir",
             &shim_dir.display().to_string(),
         ],
@@ -154,10 +192,11 @@ fn test_shim_remove_deletes_only_the_vx_shim() {
     let user_wrapper = shim_dir.join("user-tool");
     std::fs::write(&user_wrapper, "#!/bin/sh\necho mine\n").expect("failed to write wrapper");
 
-    let output = run_vx(&vx_home, &["shim", "remove", "jq"]).expect("failed to run vx shim remove");
-    assert_success(&output, "vx shim remove jq");
+    let output =
+        run_vx(&vx_home, &["shim", "remove", &name]).expect("failed to run vx shim remove");
+    assert_success(&output, &format!("vx shim remove {name}"));
 
-    for file in expected_files(&shim_dir, "jq") {
+    for file in expected_files(&shim_dir, &name) {
         assert!(
             !file.exists(),
             "{} should have been removed",
@@ -168,7 +207,7 @@ fn test_shim_remove_deletes_only_the_vx_shim() {
 
     let registry = ShimRegistry::load(&vx_home.join("config").join("command-shims.json"))
         .expect("failed to load registry");
-    assert!(!registry.contains("jq"), "registry should be empty");
+    assert!(!registry.contains(&name), "registry should be empty");
 }
 
 #[test]
@@ -209,6 +248,8 @@ fn test_shim_add_rejects_shadowing_without_force() {
         .args([
             "shim",
             "add",
+            RUNTIME,
+            "--as",
             "decoy-tool",
             "--dir",
             &shim_dir.display().to_string(),
@@ -234,6 +275,72 @@ fn test_shim_add_rejects_shadowing_without_force() {
 }
 
 #[test]
+fn test_shim_add_force_shadows_an_existing_command() {
+    init_test_env();
+    if !vx_available() {
+        return;
+    }
+
+    let temp = TempDir::new().expect("failed to create temp dir");
+    let vx_home = temp.path().join("vx-home");
+    let shim_dir = temp.path().join("shims");
+    std::fs::create_dir_all(&shim_dir).expect("failed to create shim dir");
+
+    let name = unique_name();
+    let decoy = shim_dir.join(if cfg!(windows) {
+        format!("{name}.cmd")
+    } else {
+        name.clone()
+    });
+    std::fs::write(&decoy, "not a vx shim").expect("failed to write decoy");
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        std::fs::set_permissions(&decoy, std::fs::Permissions::from_mode(0o755))
+            .expect("failed to make decoy executable");
+    }
+
+    let path = std::env::var("PATH").unwrap_or_default();
+    let path = format!(
+        "{}{}{}",
+        shim_dir.display(),
+        if cfg!(windows) { ";" } else { ":" },
+        path
+    );
+
+    let output = Command::new(vx_binary())
+        .args([
+            "shim",
+            "add",
+            RUNTIME,
+            "--as",
+            &name,
+            "--force",
+            "--dir",
+            &shim_dir.display().to_string(),
+        ])
+        .env("VX_HOME", &vx_home)
+        .env("PATH", &path)
+        .output()
+        .expect("failed to run vx shim add");
+
+    assert_success(
+        &output,
+        &format!("vx shim add {RUNTIME} --as {name} --force"),
+    );
+
+    for file in expected_files(&shim_dir, &name) {
+        let content = std::fs::read_to_string(&file).expect("failed to read shim");
+        assert!(
+            content.contains(VX_SHIM_MARKER),
+            "--force did not replace {}:\n{}",
+            file.display(),
+            content
+        );
+    }
+}
+
+#[test]
 fn test_shim_sync_rewrites_existing_shims() {
     init_test_env();
     if !vx_available() {
@@ -243,13 +350,16 @@ fn test_shim_sync_rewrites_existing_shims() {
     let temp = TempDir::new().expect("failed to create temp dir");
     let vx_home = temp.path().join("vx-home");
     let shim_dir = temp.path().join("shims");
+    let name = unique_name();
 
     run_vx(
         &vx_home,
         &[
             "shim",
             "add",
-            "jq",
+            RUNTIME,
+            "--as",
+            &name,
             "--dir",
             &shim_dir.display().to_string(),
         ],
@@ -257,14 +367,14 @@ fn test_shim_sync_rewrites_existing_shims() {
     .expect("failed to run vx shim add");
 
     // Simulate a shim broken by hand or by a vx upgrade
-    for file in expected_files(&shim_dir, "jq") {
+    for file in expected_files(&shim_dir, &name) {
         std::fs::write(&file, "stale").expect("failed to overwrite shim");
     }
 
     let output = run_vx(&vx_home, &["shim", "sync"]).expect("failed to run vx shim sync");
     assert_success(&output, "vx shim sync");
 
-    for file in expected_files(&shim_dir, "jq") {
+    for file in expected_files(&shim_dir, &name) {
         let content = std::fs::read_to_string(&file).expect("failed to read shim");
         assert!(
             content.contains(VX_SHIM_MARKER),
