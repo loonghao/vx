@@ -3,6 +3,24 @@
 //! This module provides a lightweight parser that extracts metadata from
 //! `provider.star` files **without executing the Starlark engine**.
 
+/// RFC 0033 package alias, parsed from
+/// `package_alias = {"ecosystem": "npm", "package": "@openai/codex", "executable": "codex"}`.
+///
+/// `executable` is optional: when absent the runtime falls back to the package
+/// name, which is correct whenever the package's binary shares the package's
+/// name (`vite` → `vite`). Scoped npm packages almost never do
+/// (`@anthropic-ai/claude-code` ships the `claude` binary), so `executable`
+/// overrides the binary that `vx <runtime>` resolves to.
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub struct StarPackageAlias {
+    /// Target ecosystem (e.g., "npm", "uvx")
+    pub ecosystem: String,
+    /// Package name inside that ecosystem
+    pub package: String,
+    /// Binary name override (defaults to the package name)
+    pub executable: Option<String>,
+}
+
 /// Metadata extracted from a `provider.star` file.
 #[derive(Debug, Clone, Default)]
 pub struct StarMetadata {
@@ -25,7 +43,7 @@ pub struct StarMetadata {
     /// pip package name (from `pip_package = "..."`)
     pub pip_package: Option<String>,
     /// Package alias (from `package_alias = {"ecosystem": "uvx", "package": "meson"}`)
-    pub package_alias: Option<(String, String)>,
+    pub package_alias: Option<StarPackageAlias>,
     /// Supported package prefixes for ecosystem:package syntax (RFC 0027)
     pub package_prefixes: Vec<String>,
     /// Ecosystem aliases declaring that this provider handles specific `ecosystem:package` calls.
@@ -935,22 +953,38 @@ fn extract_dict_platform_os(body: &str) -> Vec<String> {
 }
 
 /// Extract `package_alias = {"ecosystem": "...", "package": "..."}` from provider.star.
-fn extract_package_alias(source: &str) -> Option<(String, String)> {
-    for line in source.lines() {
+fn extract_package_alias(source: &str) -> Option<StarPackageAlias> {
+    // Byte offset of every line start, so a dict that wraps onto following
+    // lines can be matched against the remainder of the file. Deriving offsets
+    // from `line.len()` would drift on CRLF files, which silently turned a
+    // wrapped `package_alias` into `None`.
+    let line_starts: Vec<usize> = std::iter::once(0)
+        .chain(source.match_indices('\n').map(|(i, _)| i + 1))
+        .collect();
+
+    for (line, line_start) in source.lines().zip(line_starts) {
         let trimmed = line.trim();
-        if let Some(rest) = trimmed.strip_prefix("package_alias") {
-            let rest = rest.trim_start();
-            if let Some(after_eq_raw) = rest.strip_prefix('=') {
-                let after_eq = after_eq_raw.trim_start();
-                if after_eq.starts_with('{')
-                    && let Some(dict_body) = find_matching_bracket(after_eq, 0, '{', '}')
-                {
-                    let ecosystem = extract_dict_string_value(dict_body, "ecosystem")?;
-                    let package = extract_dict_string_value(dict_body, "package")?;
-                    return Some((ecosystem, package));
-                }
-            }
+        let Some(rest) = trimmed.strip_prefix("package_alias") else {
+            continue;
+        };
+        let Some(after_eq) = rest.trim_start().strip_prefix('=') else {
+            continue;
+        };
+        if !after_eq.trim_start().starts_with('{') {
+            continue;
         }
+
+        let brace = line_start + line.find('{')?;
+        let dict_body = find_matching_bracket(source, brace, '{', '}')?;
+
+        let ecosystem = extract_dict_string_value(dict_body, "ecosystem")?;
+        let package = extract_dict_string_value(dict_body, "package")?;
+        let executable = extract_dict_string_value(dict_body, "executable");
+        return Some(StarPackageAlias {
+            ecosystem,
+            package,
+            executable,
+        });
     }
     None
 }

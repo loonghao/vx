@@ -1,6 +1,6 @@
 # Supported Tools Overview
 
-vx supports **142 tools** out of the box, spanning language runtimes, package managers, DevOps tools, build systems, code quality tools, and more. All tools are managed through the same unified interface.
+vx supports **154 tools** out of the box, spanning language runtimes, package managers, DevOps tools, build systems, code quality tools, and more. All tools are managed through the same unified interface.
 
 ## At a Glance
 
@@ -16,7 +16,7 @@ vx supports **142 tools** out of the box, spanning language runtimes, package ma
 | [Cloud CLI](#cloud-cli) | AWS CLI, Azure CLI, Google Cloud CLI | 3 |
 | [Code Quality](#code-quality) | pre-commit, ruff, ripgrep, fd, bat, biome, golangci-lint | 7+ |
 | [Git Tools](#git-tools) | lazygit, jj, delta, gitleaks, lefthook, worktrunk | 8 |
-| [AI/ML](#aiml-tools) | Ollama, mcpcall, headroom, usql | 4 |
+| [AI/ML](#aiml-tools) | Ollama, mcpcall, headroom, usql, claude, codex, kimi, gemini, opencode, amp, copilot, cline, qwen, aider | 14 |
 | [Scientific & HPC](#scientific--hpc) | Spack, Rez | 2 |
 | [Media](#media) | FFmpeg, ImageMagick | 2 |
 | [CLI Enhancements](#cli--terminal-enhancements) | jq, fzf, eza, duf, dust, sd, zoxide, witr | 8+ |
@@ -164,6 +164,16 @@ See [Build Cache Guide](./build-cache) for detailed documentation.
 | **mcpcall** | Scriptable MCP client for smoke tests and CI | [Details →](./ai) |
 | **headroom** | AI context compression for LLM agents | [Details →](./ai) |
 | **usql** | Universal SQL CLI (AI-enhanced) | — |
+| **claude** | Claude Code — Anthropic's agentic coding CLI | [Details →](./ai#ai-coding-agents) |
+| **codex** | OpenAI Codex CLI — coding agent that runs on your machine | [Details →](./ai#ai-coding-agents) |
+| **kimi** | Kimi Code — Moonshot AI's agentic coding CLI | [Details →](./ai#ai-coding-agents) |
+| **gemini** | Gemini CLI — Google's AI agent for the terminal | [Details →](./ai#ai-coding-agents) |
+| **opencode** | OpenCode — open-source AI coding agent | [Details →](./ai#ai-coding-agents) |
+| **amp** | Amp — Sourcegraph's frontier coding agent | [Details →](./ai#ai-coding-agents) |
+| **copilot** | GitHub Copilot CLI | [Details →](./ai#ai-coding-agents) |
+| **cline** | Cline — autonomous coding agent CLI | [Details →](./ai#ai-coding-agents) |
+| **qwen** | Qwen Code — AI-powered coding assistant | [Details →](./ai#ai-coding-agents) |
+| **aider** | Aider — AI pair programming in your terminal | [Details →](./ai#ai-coding-agents) |
 
 ## Scientific & HPC
 
@@ -285,11 +295,11 @@ vx install <tool>@<version>
 <tool> = "<version>"
 ```
 
-## Complete Tool List (142 Total)
+## Complete Tool List (154 Total)
 
 > **Note**: For detailed documentation, click the links above. For undocumented tools, please refer to the tool's official documentation.
 
-All 142 tools are immediately available with `vx <tool>`. No manual installation required — vx handles everything automatically.
+All 154 tools are immediately available with `vx <tool>`. No manual installation required — vx handles everything automatically.
 
 ## Custom Tools
 

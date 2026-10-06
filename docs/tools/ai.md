@@ -2,6 +2,55 @@
 
 vx supports tools for AI and machine learning development, making it easy to set up local AI environments and integrate AI workflows into your projects.
 
+## AI Coding Agents
+
+vx can install and run the mainstream AI coding agents directly, so `vx claude`,
+`vx codex` and `vx kimi` work without installing anything by hand.
+
+```bash
+vx codex --version          # installs @openai/codex on first use, then runs it
+vx claude "fix the failing test"
+vx kimi
+```
+
+Each agent is a [package alias](/guide/provider-star-reference) provider: the name
+you type is a vx runtime, and vx routes it to the package that ships it.
+
+| Command | Package | Ecosystem |
+|---------|---------|-----------|
+| `vx claude` (`vx claude-code`) | `@anthropic-ai/claude-code` | npm |
+| `vx codex` | `@openai/codex` | npm |
+| `vx kimi` | `@moonshot-ai/kimi-code` | npm |
+| `vx gemini` (`vx gemini-cli`) | `@google/gemini-cli` | npm |
+| `vx opencode` | `opencode-ai` | npm |
+| `vx amp` | `@ampcode/cli` | npm |
+| `vx copilot` | `@github/copilot` | npm |
+| `vx cline` | `cline` | npm |
+| `vx qwen` (`vx qwen-code`) | `@qwen-code/qwen-code` | npm |
+| `vx aider` | `aider-chat` | uvx (PyPI) |
+
+### Making agents discoverable
+
+Running an agent through `vx` is enough for interactive use, but editors and agent
+platforms look for a plain command on `PATH`. Installing globally writes a shim
+into the vx shims directory, which is what makes the agent discoverable as itself:
+
+```bash
+vx install codex             # global install + shim in ~/.vx/shims
+codex --version              # now resolves without the vx prefix
+```
+
+Put the vx shims directory on `PATH` (the installer does this for you) and every
+agent installed this way becomes visible to tooling that probes `PATH` — including
+platforms that detect which agents a machine has available.
+
+To see which agents vx can also install alongside its skills setup:
+
+```bash
+vx ai agents                 # the VX RUNTIME column lists the `vx <agent>` command
+vx ai setup                  # install vx skills into every supported agent
+```
+
 ## Ollama
 
 Run large language models locally.

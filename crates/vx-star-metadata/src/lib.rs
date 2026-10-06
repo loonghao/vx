@@ -47,4 +47,4 @@ mod discovery;
 mod parser;
 
 pub use discovery::{DiscoveryConfig, DiscoveryPlatform, DiscoveryResult, discover_providers};
-pub use parser::{StarMetadata, StarRuntimeMeta};
+pub use parser::{StarMetadata, StarPackageAlias, StarRuntimeMeta};

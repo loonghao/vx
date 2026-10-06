@@ -55,7 +55,7 @@ pub use provider::{
     make_fetch_versions_fn, make_install_layout_fn,
 };
 pub use sandbox::SandboxConfig;
-pub use vx_star_metadata::{StarMetadata, StarRuntimeMeta};
+pub use vx_star_metadata::{StarMetadata, StarPackageAlias, StarRuntimeMeta};
 
 /// Starlark provider file extension
 pub const STARLARK_EXTENSION: &str = "star";

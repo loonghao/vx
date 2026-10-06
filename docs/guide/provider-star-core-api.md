@@ -70,7 +70,7 @@ These are declared as module-level assignments, **not** functions.
 | `repository` | `string` | No | Source repository URL |
 | `license` | `string` | No | SPDX license identifier (e.g. `"MIT"`, `"Apache-2.0"`) |
 | `ecosystem` | `string` | No | Category: `nodejs`, `python`, `rust`, `go`, `devtools`, `system`, `custom`, etc. |
-| `package_alias` | `dict` | No | Route to ecosystem package runner (e.g. `{"ecosystem": "uvx", "package": "ruff"}`) |
+| `package_alias` | `dict` | No | Route to ecosystem package runner (e.g. `{"ecosystem": "uvx", "package": "ruff"}`). Optional `executable` key overrides the binary name when it differs from the package name |
 | `package_prefixes` | `list[string]` | No | Prefixes for package execution (e.g. `["bun", "bunx"]`) |
 | `vx_version` | `string` | No | Minimum vx version requirement (e.g. `">=0.7.0"`) |
 
@@ -83,6 +83,18 @@ repository  = "https://github.com/BurntSushi/ripgrep"
 license     = "MIT OR Unlicense"
 ecosystem   = "devtools"
 ```
+
+The `executable` key of `package_alias` covers packages whose binary is not named
+after the package — most often scoped npm packages:
+
+```python
+# `vx claude` runs the `claude` binary from @anthropic-ai/claude-code.
+package_alias = {"ecosystem": "npm", "package": "@anthropic-ai/claude-code",
+                 "executable": "claude"}
+```
+
+Without it, vx looks for a binary literally named `@anthropic-ai/claude-code`, which
+does not exist. Omit the key when package and binary share a name (`cline`, `vite`).
 
 ---
 

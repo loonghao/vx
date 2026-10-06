@@ -552,3 +552,69 @@ runtimes = [
     assert_eq!(meta.runtimes[3].name, Some("rustfmt".to_string()));
     assert_eq!(meta.runtimes[3].bundled_with, Some("rust".to_string()));
 }
+
+// ============================================================================
+// RFC 0033 package_alias — optional `executable` key
+// ============================================================================
+
+#[test]
+fn package_alias_without_executable() {
+    let source = r#"
+package_alias = {"ecosystem": "npm", "package": "vite"}
+"#;
+    let alias = StarMetadata::parse(source)
+        .package_alias
+        .expect("package_alias should be parsed");
+    assert_eq!(alias.ecosystem, "npm");
+    assert_eq!(alias.package, "vite");
+    assert_eq!(alias.executable, None);
+}
+
+#[test]
+fn package_alias_with_executable() {
+    let source = r#"
+package_alias = {"ecosystem": "npm", "package": "@openai/codex", "executable": "codex"}
+"#;
+    let alias = StarMetadata::parse(source)
+        .package_alias
+        .expect("package_alias should be parsed");
+    assert_eq!(alias.ecosystem, "npm");
+    assert_eq!(alias.package, "@openai/codex");
+    assert_eq!(alias.executable, Some("codex".to_string()));
+}
+
+/// Providers spread `package_alias` across several lines; the value is only
+/// complete once the closing brace is found.
+#[test]
+fn package_alias_multi_line() {
+    let source = r#"
+package_alias = {"ecosystem": "npm", "package": "@anthropic-ai/claude-code",
+                 "executable": "claude"}
+"#;
+    let alias = StarMetadata::parse(source)
+        .package_alias
+        .expect("multi-line package_alias should be parsed");
+    assert_eq!(alias.package, "@anthropic-ai/claude-code");
+    assert_eq!(alias.executable, Some("claude".to_string()));
+}
+
+/// `uvx` aliases use the same syntax; the executable keeps working there.
+#[test]
+fn package_alias_uvx_with_executable() {
+    let source = r#"
+package_alias = {"ecosystem": "uvx", "package": "aider-chat", "executable": "aider"}
+"#;
+    let alias = StarMetadata::parse(source)
+        .package_alias
+        .expect("uvx package_alias should be parsed");
+    assert_eq!(alias.ecosystem, "uvx");
+    assert_eq!(alias.executable, Some("aider".to_string()));
+}
+
+#[test]
+fn package_alias_absent() {
+    let source = r#"
+name = "node"
+"#;
+    assert!(StarMetadata::parse(source).package_alias.is_none());
+}

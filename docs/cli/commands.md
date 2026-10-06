@@ -369,6 +369,11 @@ Skills are global by default: `vx ai setup` installs them once per machine and
 records the hash in `~/.vx/ai-skills.toml`. Prefer that over project-local
 copies — see the `vx-repo-contract` skill.
 
+`vx ai agents` also reports a `VX RUNTIME` column: agents that vx can install
+and run are listed with their `vx <agent>` command (e.g. `codex`, `claude`,
+`kimi`). Installing one globally puts a shim on `PATH`, so the agent is
+discoverable without the `vx` prefix — see [AI Coding Agents](/tools/ai#ai-coding-agents).
+
 ### cache
 
 Manage the download and version cache.
