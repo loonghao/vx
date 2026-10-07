@@ -110,23 +110,15 @@ async fn test_dcc_hook_warm_bootstrap_requires_final_executable(#[case] name: &s
         .into_iter()
         .find(|runtime| runtime.name() == name)
         .expect("declared runtime");
-    let install_dir = ctx.paths.version_store_dir(name, "1.0");
+    let install_dir = ctx.paths.version_store_dir(name, "2.0.0");
     let bootstrap = install_dir.join(bootstrap);
     std::fs::create_dir_all(bootstrap.parent().expect("bootstrap parent"))
         .expect("bootstrap directory");
     std::fs::write(&bootstrap, b"downloaded bootstrap executable").expect("bootstrap file");
-    if name != "openscreen" {
-        std::fs::create_dir_all(install_dir.join("ComfyUI")).expect("application directory");
-        std::fs::write(
-            install_dir.join("ComfyUI/main.py"),
-            b"application entrypoint",
-        )
-        .expect("application script");
-    }
 
     assert!(
         !runtime
-            .is_installed("1.0", &ctx)
+            .is_installed("2.0.0", &ctx)
             .await
             .expect("check incomplete store")
     );
@@ -138,7 +130,7 @@ async fn test_dcc_hook_warm_bootstrap_requires_final_executable(#[case] name: &s
     );
     assert!(
         runtime
-            .get_executable_path_for_version("1.0", &ctx)
+            .get_executable_path_for_version("2.0.0", &ctx)
             .await
             .expect("resolve incomplete store")
             .is_none()
@@ -148,13 +140,13 @@ async fn test_dcc_hook_warm_bootstrap_requires_final_executable(#[case] name: &s
     std::fs::write(&final_executable, b"final application executable").expect("final executable");
     assert!(
         runtime
-            .is_installed("1.0", &ctx)
+            .is_installed("2.0.0", &ctx)
             .await
             .expect("check completed store")
     );
     assert_eq!(
         runtime
-            .get_executable_path_for_version("1.0", &ctx)
+            .get_executable_path_for_version("2.0.0", &ctx)
             .await
             .expect("resolve completed store"),
         Some(final_executable)
