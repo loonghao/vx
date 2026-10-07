@@ -11,7 +11,7 @@ vx 为 [DCC-MCP 产品目录](https://github.com/dcc-mcp/dcc-mcp-core/blob/2d0c1
 | [`gimp`](../tools/gimp) | WinGet，GIMP 3 | APT / DNF / pacman | Homebrew cask / 已安装应用 |
 | [`godot`](../tools/godot) | ZIP | ZIP | 通用应用 ZIP |
 | [`krita`](../tools/krita) | ZIP，x64 | AppImage，x64 | Homebrew cask / 已安装应用 |
-| [`material-maker`](../tools/material-maker) | ZIP，x64 | tar.gz，x64 | 已安装应用发现 |
+| [`material-maker`](../tools/material-maker) | ZIP，x64 | tar.gz，x64 | Homebrew cask / 已安装应用 |
 | [`openscad`](../tools/openscad) | ZIP，x64 / x86 | AppImage，x64 | Homebrew cask / 已安装应用 |
 | [`openusd`](../tools/openusd) | `usd-core` Python 环境 | `usd-core` Python 环境 | `usd-core` Python 环境 |
 | [`renderdoc`](../tools/renderdoc) | 官方 ZIP，x64 / x86 | 官方 tar.gz，x64 | 上游无宿主发行包 |
@@ -38,7 +38,7 @@ vx where blender
 vx where freecadcmd
 ```
 
-FreeCAD 的 GUI 安装检查只验证可执行文件，避免在无显示环境中启动 Qt 窗口。`freecadcmd` 随 Windows FreeCAD 包提供；Linux AppImage 通过 FreeCAD 应用 Runtime 提供。Material Maker 的 `--headless --version` 返回内置 Godot 引擎版本，应用版本以发行标签为准。
+FreeCAD、Krita、Kdenlive、RenderDoc 和 Tiled 的 GUI 安装检查验证可执行文件；应用启动与适配器连接需要另行在图形会话中验收。`freecadcmd` 随 Windows FreeCAD 包提供；Linux AppImage 通过 FreeCAD 应用 Runtime 提供。Material Maker 的 `--headless --version` 返回内置 Godot 引擎版本，应用版本以发行标签为准。
 
 ```toml
 [tools]

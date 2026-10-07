@@ -13,7 +13,7 @@ The table describes upstream distribution formats supported by each Provider. An
 | [`gimp`](../tools/gimp) | WinGet, GIMP 3 | APT / DNF / pacman | Homebrew cask / installed app |
 | [`godot`](../tools/godot) | Portable ZIP | Portable ZIP | Universal app ZIP |
 | [`krita`](../tools/krita) | Portable ZIP, x64 | AppImage, x64 | Homebrew cask / installed app |
-| [`material-maker`](../tools/material-maker) | Portable ZIP, x64 | Portable tar.gz, x64 | Installed app discovery |
+| [`material-maker`](../tools/material-maker) | Portable ZIP, x64 | Portable tar.gz, x64 | Homebrew cask / installed app |
 | [`openscad`](../tools/openscad) | Portable ZIP, x64 / x86 | AppImage, x64 | Homebrew cask / installed app |
 | [`openusd`](../tools/openusd) | Native `usd-core` Python environment | Native `usd-core` Python environment | Native `usd-core` Python environment |
 | [`renderdoc`](../tools/renderdoc) | Official ZIP, x64 / x86 | Official tar.gz, x64 | No upstream host distribution |
@@ -41,7 +41,7 @@ vx where blender
 vx where freecadcmd
 ```
 
-FreeCAD GUI installation checks verify its executable without opening a Qt window. `freecadcmd` is bundled with the Windows FreeCAD distribution. The Linux AppImage is exposed as the FreeCAD application runtime. `material-maker --headless --version` reports its embedded Godot engine version; its application package version comes from the upstream release tag.
+Installation checks for the FreeCAD, Krita, Kdenlive, RenderDoc and Tiled GUI runtimes verify their executable files. A graphical session is required to validate application startup and adapter connectivity. `freecadcmd` is bundled with the Windows FreeCAD distribution. The Linux AppImage is exposed as the FreeCAD application runtime. `material-maker --headless --version` reports its embedded Godot engine version; its application package version comes from the upstream release tag.
 
 Project configuration can include hosts alongside ordinary development runtimes:
 
