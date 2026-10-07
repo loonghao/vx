@@ -64,7 +64,7 @@ fn test_openscreen_windows_install_is_silent_and_store_scoped() {
     );
     assert_eq!(
         actions[0]["executable"],
-        "C:/vx host/openscreen/openscreen-installer.exe"
+        "C:/vx host/openscreen/bin/openscreen-installer.exe"
     );
     assert_eq!(actions[0]["__type"], "run_nsis_installer");
     assert_eq!(actions[0]["install_dir"], "C:/vx host/openscreen");
@@ -97,7 +97,7 @@ async fn test_dcc_hook_warm_bootstrap_requires_final_executable(#[case] name: &s
     let (provider_name, source, bootstrap, final_name) = (
         "openscreen",
         include_str!("../../vx-providers/openscreen/provider.star"),
-        "openscreen-installer.exe",
+        "bin/openscreen-installer.exe",
         "Openscreen.exe",
     );
     // The fixture checks the isolated managed store. Keep a real application
@@ -174,5 +174,46 @@ fn test_openscreen_rejects_pre_cli_releases() {
             &[json!("1.0.0")]
         )
         .is_null()
+    );
+}
+
+#[test]
+fn test_openscreen_linux_extracts_appimage_before_exposing_the_application() {
+    let layout = call(
+        "openscreen",
+        "linux",
+        "x64",
+        "install_layout",
+        &[json!("2.0.0")],
+    );
+    assert_eq!(layout["target_dir"], "bin");
+    assert_eq!(layout["executable_paths"], json!(["bin/openscreen"]));
+    assert_eq!(layout["required_paths"], json!(["squashfs-root/AppRun"]));
+    let actions = call(
+        "openscreen",
+        "linux",
+        "x64",
+        "post_extract",
+        &[json!("2.0.0"), json!("/vx host/openscreen")],
+    );
+    assert_eq!(
+        actions[0]["executable"],
+        "/vx host/openscreen/bin/openscreen"
+    );
+    assert_eq!(actions[0]["args"], json!(["--appimage-extract"]));
+    assert_eq!(actions[0]["working_dir"], "/vx host/openscreen");
+    assert_eq!(actions[0]["on_failure"], "error");
+    let executable = call(
+        "openscreen",
+        "linux",
+        "x64",
+        "get_execute_path",
+        &[json!("2.0.0")],
+    );
+    assert!(
+        executable
+            .as_str()
+            .unwrap()
+            .ends_with("/squashfs-root/AppRun")
     );
 }
