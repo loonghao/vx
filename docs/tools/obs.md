@@ -1,0 +1,15 @@
+# OBS Studio
+
+[OBS Studio](https://obsproject.com) is available through the `obs` Provider.
+
+| Runtime | Windows | Linux | macOS |
+| --- | --- | --- | --- |
+| `obs` | Portable ZIP, x64 / ARM64 | APT package, x64 / ARM64 | Homebrew cask / installed app, x64 / ARM64 |
+
+```bash
+vx obs --version
+```
+
+Windows ARM64 packages require OBS 32 or newer. Linux installation uses the `obs-studio` APT package; macOS uses the `obs` Homebrew cask or an existing application. System package managers select their available release and do not guarantee the version requested in vx.
+
+The application remains subject to its upstream license. Installing it does not install or connect a DCC-MCP adapter. Resolve its executable with `vx where obs` and follow the [DCC-MCP integration guide](../guide/dcc-mcp.md).
