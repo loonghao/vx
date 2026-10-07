@@ -110,17 +110,54 @@ fn test_obs_verified_archive_layout_matches_execution(
 }
 
 #[rstest]
-#[case("32.2.2", "obs")]
-fn test_obs_macos_system_install_is_a_scoped_cask(#[case] version: &str, #[case] package: &str) {
-    let ctx = context("macos", "arm64", version);
-    let strategy = call("system_install", &ctx, &[]);
-    assert_eq!(strategy["strategies"][0]["manager"], "brew");
-    assert_eq!(strategy["strategies"][0]["package"], package);
-    assert_eq!(strategy["strategies"][0]["install_args"], "--cask");
-    assert_eq!(strategy["strategies"][0]["platforms"], json!(["macos"]));
-    let unsupported = context("freebsd", "x64", version);
+#[case("linux", "apt", "obs-studio", None)]
+#[case("macos", "brew", "obs", Some("--cask"))]
+fn test_obs_system_packages_reach_the_runtime_descriptor_bridge(
+    #[case] os: &str,
+    #[case] manager: &str,
+    #[case] package: &str,
+    #[case] install_args: Option<&str>,
+) {
+    let path = provider_path();
+    let content = std::fs::read_to_string(&path).unwrap();
+    // The runtime builder reads the variable before considering a callable.
+    // A static descriptor must reach that bridge without function-repr detection.
+    let descriptor = StarlarkEngine::new()
+        .get_variable(&path, &content, "system_install")
+        .unwrap()
+        .unwrap();
+    let strategies = descriptor["strategies"]
+        .as_array()
+        .expect("system_install must be a descriptor accepted by the runtime builder");
+    let strategy = strategies
+        .iter()
+        .find(|strategy| strategy["platforms"] == json!([os]))
+        .expect("the platform must have a real system package installation strategy");
+    assert_eq!(strategy["manager"], manager);
+    assert_eq!(strategy["package"], package);
     assert_eq!(
-        call("system_install", &unsupported, &[])["strategies"],
-        json!([])
+        strategy.get("install_args").and_then(Value::as_str),
+        install_args
+    );
+    assert!(strategies.iter().all(|strategy| {
+        matches!(strategy["platforms"].as_array(), Some(platforms) if platforms.len() == 1)
+    }));
+}
+
+#[rstest]
+#[case("x64")]
+#[case("arm64")]
+fn test_obs_linux_package_executable_is_discoverable(#[case] arch: &str) {
+    let ctx = context("linux", arch, "32.2.2");
+    assert_eq!(
+        call("get_execute_path", &ctx, &[json!("32.2.2")]),
+        "/usr/bin/obs"
+    );
+    let content = std::fs::read_to_string(provider_path()).unwrap();
+    let metadata = vx_starlark::StarMetadata::parse(&content);
+    assert!(
+        metadata.runtimes[0]
+            .system_paths
+            .contains(&"/usr/bin/obs".to_string())
     );
 }
