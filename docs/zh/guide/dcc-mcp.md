@@ -8,7 +8,7 @@ vx 为 [DCC-MCP 产品目录](https://github.com/dcc-mcp/dcc-mcp-core/blob/2d0c1
 | --- | --- | --- | --- |
 | [`blender`](../tools/blender) | ZIP，x64 / 新版 ARM64 | tar.xz，x64 | Homebrew cask / 已安装应用 |
 | [`freecad`](../tools/freecad) | 7z，x64，FreeCAD 1.x | AppImage，x64 / ARM64 | Homebrew cask / 已安装应用 |
-| [`gimp`](../tools/gimp) | WinGet，GIMP 3 | APT / DNF / pacman | Homebrew cask / 已安装应用 |
+| [`gimp`](../tools/gimp) | WinGet / Chocolatey（WinGet 选择 GIMP 3） | APT / DNF / pacman | Homebrew cask / 已安装应用 |
 | [`godot`](../tools/godot) | ZIP | ZIP | 通用应用 ZIP |
 | [`krita`](../tools/krita) | ZIP，x64 | AppImage，x64 | Homebrew cask / 已安装应用 |
 | [`material-maker`](../tools/material-maker) | ZIP，x64 | tar.gz，x64 | Homebrew cask / 已安装应用 |
@@ -28,7 +28,7 @@ vx 为 [DCC-MCP 产品目录](https://github.com/dcc-mcp/dcc-mcp-core/blob/2d0c1
 
 macOS 上，OpenSCAD 解析为 `system` 版本，使用 `openscad@snapshot` Homebrew cask。开发快照由 Homebrew 选择，vx 不会锁定到 2021.01 等稳定版本。
 
-DCC-MCP 的 GIMP 适配器要求 GIMP 3.x。安装适配器前需确认系统包管理器提供的应用版本。
+DCC-MCP 的 GIMP 适配器要求 GIMP 3.x。安装适配器前需确认系统包管理器提供的应用版本。Windows 可执行文件发现使用 `C:` 盘上的已知默认目录。
 
 ## 使用示例
 
