@@ -142,22 +142,20 @@ fn test_kdenlive_linux_appimage_is_a_binary_layout(#[case] version: &str) {
 }
 
 #[rstest]
-#[case("26.08.1", "kdenlive")]
-fn test_kdenlive_macos_system_install_is_a_scoped_cask(
-    #[case] version: &str,
-    #[case] package: &str,
-) {
-    let ctx = context("macos", "arm64", version);
-    let strategy = call("system_install", &ctx, &[]);
+#[case("kdenlive")]
+fn test_kdenlive_system_package_reaches_the_runtime_descriptor_bridge(#[case] package: &str) {
+    let path = provider_path();
+    let content = std::fs::read_to_string(&path).unwrap();
+    // The runtime builder reads a static variable before considering a callable.
+    let strategy = StarlarkEngine::new()
+        .get_variable(&path, &content, "system_install")
+        .unwrap()
+        .unwrap();
+    assert_eq!(strategy["strategies"].as_array().unwrap().len(), 1);
     assert_eq!(strategy["strategies"][0]["manager"], "brew");
     assert_eq!(strategy["strategies"][0]["package"], package);
     assert_eq!(strategy["strategies"][0]["install_args"], "--cask");
     assert_eq!(strategy["strategies"][0]["platforms"], json!(["macos"]));
-    let unsupported = context("freebsd", "x64", version);
-    assert_eq!(
-        call("system_install", &unsupported, &[])["strategies"],
-        json!([])
-    );
 }
 
 #[test]
