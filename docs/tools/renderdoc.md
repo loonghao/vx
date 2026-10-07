@@ -10,7 +10,7 @@
 vx renderdoccmd version
 ```
 
-Automated installation checks verify the GUI executable file without starting the application. Running the application and connecting its DCC-MCP adapter still require validation in a real application environment. The bundled command-line executable is additionally checked with `renderdoccmd version`.
+Automated installation checks verify the GUI executable file without starting the application. Running the application and connecting its DCC-MCP adapter still require validation in a real application environment. The bundled command-line Runtime has a separate check: `vx test renderdoccmd` runs `renderdoccmd version`.
 
 The `renderdoc` Runtime launches the qrenderdoc graphical application. The bundled `renderdoccmd` Runtime provides the command-line interface and shares the same installation. Its version command uses the `version` subcommand.
 

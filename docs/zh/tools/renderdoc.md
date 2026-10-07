@@ -10,7 +10,7 @@
 vx renderdoccmd version
 ```
 
-自动安装检查仅确认图形应用的可执行文件存在，不会启动应用。应用运行及 DCC-MCP 适配器连接仍需在真实应用环境中验证。随包提供的命令行程序还会通过 `renderdoccmd version` 检查。
+自动安装检查仅确认图形应用的可执行文件存在，不会启动应用。应用运行及 DCC-MCP 适配器连接仍需在真实应用环境中验证。随包提供的命令行 Runtime 单独验收：运行 `vx test renderdoccmd` 会执行 `renderdoccmd version`。
 
 `renderdoc` Runtime 启动 qrenderdoc 图形界面。随包提供的 `renderdoccmd` Runtime 使用同一安装目录，提供命令行功能；查询版本时使用 `version` 子命令。
 
