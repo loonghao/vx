@@ -423,9 +423,9 @@ vx cargo run
 
 ---
 
-## 支持的工具（167 个 provider）
+## 支持的工具（168 个 provider）
 
-vx 通过 Starlark DSL provider 管理 167 个工具。以下是部分亮点：
+vx 通过 Starlark DSL provider 管理 168 个工具。以下是部分亮点：
 
 ### 语言运行时
 
@@ -509,7 +509,7 @@ vx 通过 Starlark DSL provider 管理 167 个工具。以下是部分亮点：
 | **Ollama** | `ollama` | 本地运行 LLM |
 | **mcpcall** | `mcpcall` | CI/测试用 MCP 客户端 |
 
-> 运行 `vx list` 查看所有 167 个支持的工具，或使用 `vx search <query>` 搜索特定工具。
+> 运行 `vx list` 查看所有 168 个支持的工具，或使用 `vx search <query>` 搜索特定工具。
 
 ---
 
