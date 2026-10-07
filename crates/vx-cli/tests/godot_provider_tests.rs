@@ -42,6 +42,21 @@ async fn test_load_dcc_provider_with_system_discovery(#[case] name: &str) {
 }
 
 #[tokio::test]
+async fn test_godot_version_validation_is_explicitly_headless() {
+    let (path, _) = source("godot");
+    let provider = StarlarkProvider::load(path).await.unwrap();
+    let checks = &provider.runtimes()[0].test_commands;
+    assert_eq!(checks.len(), 1);
+    assert_eq!(checks[0].command, "{executable} --headless --version");
+    assert_eq!(
+        checks[0].check_type,
+        vx_starlark::provider::types::TestCheckType::Command
+    );
+    assert!(checks[0].expect_success);
+    assert_eq!(checks[0].expected_output.as_deref(), Some(r"\d+\.\d+"));
+}
+
+#[tokio::test]
 async fn test_godot_managed_cache_requires_console_wrapper_and_editor() {
     let (_directory, ctx) = managed_cache_context();
     let version = "4.7.2-stable";
