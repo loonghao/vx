@@ -9,7 +9,7 @@ homepage = "https://godotengine.org"
 repository = "https://github.com/godotengine/godot"
 license = "MIT"
 ecosystem = "system"
-runtimes = [runtime_def("godot", version_pattern = "\\d+\\.\\d+", system_paths = [
+runtimes = [runtime_def("godot", version_cmd = "{executable} --headless --version", version_pattern = "\\d+\\.\\d+", system_paths = [
     "/Applications/Godot.app/Contents/MacOS/Godot", "/usr/bin/godot", "/usr/local/bin/godot", "/opt/homebrew/bin/godot",
 ])]
 permissions = github_permissions()
@@ -46,6 +46,9 @@ def install_layout(ctx, version):
     if exe == None:
         return None
     layout = {"type": "archive", "strip_prefix": "", "executable_paths": [exe]}
+    if ctx.platform.os == "macos":
+        # An empty strip_prefix would flatten the sole Godot.app directory.
+        return {"type": "archive", "executable_paths": [exe], "required_paths": [exe]}
     if ctx.platform.os == "windows":
         main_exe = "Godot_v{}_{}".format(_tag(version), _PLATFORMS[ctx.platform.os + "/" + ctx.platform.arch])
         # The console executable delegates to the editor in the same directory.
