@@ -9,6 +9,19 @@ use vx_starlark::{ProviderContext, StarlarkEngine, StarlarkProvider};
 
 const PROVIDER: &str = "tiled";
 
+#[rstest]
+#[case("x64")]
+#[case("arm64")]
+fn test_tiled_macos_preserves_the_app_bundle_root(#[case] arch: &str) {
+    let ctx = context("macos", arch, "1.12.2");
+    let layout = call("install_layout", &ctx, &[json!("1.12.2")]);
+    assert!(layout.get("strip_prefix").is_none());
+    assert_eq!(
+        layout["required_paths"],
+        json!(["Tiled.app/Contents/MacOS/Tiled"])
+    );
+}
+
 fn provider_path() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .parent()
@@ -109,18 +122,18 @@ fn test_tiled_unsupported_download_has_no_layout(
 }
 
 #[rstest]
-#[case("macos", "arm64", "1.12.2", "", "Tiled.app/Contents/MacOS/Tiled")]
+#[case("macos", "arm64", "1.12.2", None, "Tiled.app/Contents/MacOS/Tiled")]
 fn test_tiled_verified_archive_layout_matches_execution(
     #[case] os: &str,
     #[case] arch: &str,
     #[case] version: &str,
-    #[case] prefix: &str,
+    #[case] prefix: Option<&str>,
     #[case] executable: &str,
 ) {
     let ctx = context(os, arch, version);
     let layout = call("install_layout", &ctx, &[json!(version)]);
     assert_eq!(layout["type"], "archive");
-    assert_eq!(layout["strip_prefix"], prefix);
+    assert_eq!(layout.get("strip_prefix").and_then(Value::as_str), prefix);
     assert!(
         layout["executable_paths"]
             .as_array()
