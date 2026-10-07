@@ -2,7 +2,7 @@
 # Delegate installation to the OS manager and discover its real executable.
 load("@vx//stdlib:provider.star", "runtime_def", "system_permissions")
 load("@vx//stdlib:provider_templates.star", "system_provider")
-load("@vx//stdlib:system_install.star", "system_install_strategies", "winget_install", "pkg_strategy", "apt_install", "dnf_install", "pacman_install")
+load("@vx//stdlib:system_install.star", "system_install_strategies", "winget_install", "choco_install", "pkg_strategy", "apt_install", "dnf_install", "pacman_install")
 
 name = "gimp"
 description = "GIMP - GNU Image Manipulation Program"
@@ -16,9 +16,12 @@ runtimes = [runtime_def("gimp", system_paths = [
     "/Applications/GIMP.app/Contents/MacOS/gimp",
     "/usr/bin/gimp", "/usr/local/bin/gimp", "/opt/homebrew/bin/gimp",
 ])]
-permissions = system_permissions(exec_cmds = ["winget", "brew", "apt", "dnf", "pacman"])
+permissions = system_permissions(exec_cmds = ["winget", "choco", "brew", "apt", "dnf", "pacman"])
 _p = system_provider("gimp")
-fetch_versions = _p["fetch_versions"]
+
+def fetch_versions(_ctx):
+    # OS managers choose the package version; do not invent an upstream pin.
+    return [{"version": "system", "lts": True, "prerelease": False}]
 download_url = _p["download_url"]
 install_layout = _p["install_layout"]
 store_root = _p["store_root"]
@@ -26,6 +29,7 @@ get_execute_path = _p["get_execute_path"]
 environment = _p["environment"]
 system_install = system_install_strategies([
     winget_install("GIMP.GIMP.3"),
+    choco_install("gimp"),
     pkg_strategy("brew", "gimp", install_args = "--cask", platforms = ["macos"]),
     apt_install("gimp"), dnf_install("gimp"), pacman_install("gimp"),
 ])
