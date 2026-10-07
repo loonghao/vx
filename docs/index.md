@@ -28,7 +28,7 @@ features:
   - title: Blazing Fast
     details: Written in Rust for maximum performance and minimal overhead.
   - title: Extensible
-    details: 154 tools via Starlark DSL providers. Add custom tools declaratively.
+    details: 155 Providers defined in Starlark DSL. Add custom runtimes declaratively.
 ---
 
 ## The Problem We Solve

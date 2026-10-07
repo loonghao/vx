@@ -55,7 +55,7 @@ Provider (例如 NodeProvider)
 
 ### 内置 Provider
 
-vx 内置了 **154 个 Provider**，覆盖主要生态系统：
+vx 内置了 **155 个 Provider**，覆盖主要生态系统：
 
 | 生态系统 | Provider |
 |----------|----------|
