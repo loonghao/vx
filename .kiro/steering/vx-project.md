@@ -8,7 +8,7 @@
 - Use Conventional Commits: `feat:`, `fix:`, `docs:`, `chore:`, `refactor:`, `test:`
 - Run `vx just quick` before submitting PR
 - PRs target `main` branch
-- Provider count is 162 (update docs when adding new providers)
+- Provider count is 163 (update docs when adding new providers)
 
 ## Quick Reference
 
