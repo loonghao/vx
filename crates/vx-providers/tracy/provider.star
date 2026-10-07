@@ -11,14 +11,14 @@ license = "BSD-3-Clause"
 ecosystem = "system"
 runtimes = [
     runtime_def("tracy", executable = "tracy-profiler", aliases = ["tracy-profiler"], test_commands = [
-        # Upstream exits successfully before GUI initialization for --help.
-        {"command": "{executable} --help", "name": "cli_usage_check", "expected_output": "Usage:"},
+        # The Linux profiler needs host EGL libraries even before parsing --help.
+        {"command": "{executable}", "check_type": "check_file", "name": "installed_profiler_executable"},
     ]),
     bundled_runtime_def("tracy-capture", "tracy", description = "Tracy command-line trace capture", test_commands = [
         {"command": "{executable}", "check_type": "check_file", "name": "installed_helper_executable"},
     ]),
     bundled_runtime_def("tracy-csvexport", "tracy", description = "Tracy CSV trace export", test_commands = [
-        {"command": "{executable}", "check_type": "check_file", "name": "installed_helper_executable"},
+        {"command": "{executable} --version", "name": "cli_version_check", "expected_output": "tracy-csvexport \\d+\\.\\d+\\.\\d+"},
     ]),
     bundled_runtime_def("tracy-update", "tracy", description = "Tracy trace format update", test_commands = [
         {"command": "{executable}", "check_type": "check_file", "name": "installed_helper_executable"},
