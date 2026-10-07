@@ -356,24 +356,7 @@ impl Installer for RealInstaller {
 
             // Check if it's a .exe file - might be a 7z SFX
             if archive_str.ends_with(".exe") {
-                // Scan up to 4MB for 7z signature (SFX stubs are typically a few hundred KB)
-                const MAX_SCAN: usize = 4 * 1024 * 1024;
-                let mut buf = vec![
-                    0u8;
-                    MAX_SCAN.min(
-                        archive
-                            .metadata()
-                            .map(|m| m.len() as usize)
-                            .unwrap_or(MAX_SCAN),
-                    )
-                ];
-                let mut file = std::fs::File::open(archive)?;
-                let n = file.read(&mut buf)?;
-                let buf = &buf[..n];
-
-                // 7z magic: 7z\xBC\xAF\x27\x1C
-                let sevenz_magic: &[u8] = &[0x37, 0x7A, 0xBC, 0xAF, 0x27, 0x1C];
-                if buf.windows(sevenz_magic.len()).any(|w| w == sevenz_magic) {
+                if sevenz_signature_offset(archive)?.is_some() {
                     Some("7z")
                 } else {
                     None
@@ -454,8 +437,14 @@ impl Installer for RealInstaller {
             Some("7z") => {
                 #[cfg(feature = "extended-formats")]
                 {
-                    sevenz_rust::decompress_file(archive, dest)
-                        .map_err(|e| anyhow::anyhow!("Failed to extract 7z archive: {}", e))?;
+                    let payload = open_sevenz_payload(archive)?;
+                    sevenz_rust::decompress_with_extract_fn(payload, dest, |entry, reader, _| {
+                        let path = safe_sevenz_entry_path(dest, entry.name())
+                            .map_err(sevenz_rust::Error::io)?;
+                        sevenz_rust::default_entry_extract_fn(entry, reader, &path)?;
+                        Ok(true)
+                    })
+                    .map_err(|e| anyhow::anyhow!("Failed to extract 7z archive: {}", e))?;
                 }
                 #[cfg(not(feature = "extended-formats"))]
                 {
@@ -537,124 +526,7 @@ impl Installer for RealInstaller {
     }
 
     async fn download_and_extract(&self, url: &str, dest: &Path) -> Result<()> {
-        // Create temp file for download
-        let temp_dir = tempfile::tempdir()?;
-
-        // Extract archive name from URL, handling URL fragments (e.g., #.zip hint)
-        let url_without_fragment = url.split('#').next().unwrap_or(url);
-
-        // Download and detect filename in a single GET request (no separate HEAD).
-        let temp_download_path = temp_dir.path().join("download_temp");
-        let detected_filename = self
-            .download_and_detect_filename(url_without_fragment, &temp_download_path)
-            .await?;
-
-        let archive_name = detected_filename.unwrap_or_else(|| {
-            url_without_fragment
-                .split('/')
-                .next_back()
-                .unwrap_or("archive")
-                .split('?')
-                .next()
-                .unwrap_or("archive")
-                .to_string()
-        });
-
-        // Rename temp file to actual filename so extraction can detect format
-        let temp_path = temp_dir.path().join(&archive_name);
-        if temp_download_path != temp_path {
-            std::fs::rename(&temp_download_path, &temp_path)?;
-        }
-
-        // Check for extension hint in URL fragment
-        let extension_hint = url.split('#').nth(1);
-
-        // Check if it's an archive or a single executable
-        let archive_str = archive_name.to_lowercase();
-        let mut is_archive = archive_str.ends_with(".tar.gz")
-            || archive_str.ends_with(".tgz")
-            || archive_str.ends_with(".tar.xz")
-            || archive_str.ends_with(".tar.bz2")
-            || archive_str.ends_with(".tbz2")
-            || archive_str.ends_with(".tar.zst")
-            || archive_str.ends_with(".tzst")
-            || archive_str.ends_with(".zip")
-            || archive_str.ends_with(".7z")
-            // 7z Self-Extracting Archives (.7z.exe, .7z.sfx) must be treated as
-            // archives, not as single executables. PortableGit for Windows
-            // distributes as PortableGit-*.7z.exe which contains cmd/git.exe etc.
-            || archive_str.ends_with(".7z.exe")
-            || archive_str.ends_with(".7z.sfx")
-            || archive_str.ends_with(".msi")
-            || archive_str.ends_with(".pkg");
-
-        // Check extension hint from URL fragment
-        if !is_archive && let Some(hint) = extension_hint {
-            is_archive = hint.ends_with(".tar.gz")
-                || hint.ends_with(".tgz")
-                || hint.ends_with(".tar.xz")
-                || hint.ends_with(".zip")
-                || hint.ends_with(".7z");
-        }
-
-        // Check file magic bytes if still uncertain
-        if !is_archive && let Ok(mut file) = std::fs::File::open(&temp_path) {
-            use std::io::Read;
-            let mut magic = [0u8; 6];
-            if file.read_exact(&mut magic).is_ok() {
-                is_archive = (magic[0] == 0x50 && magic[1] == 0x4B)  // ZIP
-                        || (magic[0] == 0x1f && magic[1] == 0x8b) // GZIP (tar.gz)
-                        || (magic[0] == 0x37 && magic[1] == 0x7A && magic[2] == 0xBC
-                            && magic[3] == 0xAF && magic[4] == 0x27 && magic[5] == 0x1C);
-                // 7z
-            }
-        }
-
-        if is_archive {
-            // Extract archive with retry for transient failures.
-            // Large zip archives (e.g. Go 1.26.2 with 15 009 entries) can
-            // experience truncated extraction on Windows due to filesystem
-            // pressure. Retry with exponential backoff to recover.
-            let temp_path_owned = temp_path.clone();
-            let dest_owned = dest.to_path_buf();
-            let extract_op = || async { self.extract(&temp_path_owned, &dest_owned).await };
-            extract_op
-                .retry(
-                    ExponentialBuilder::default()
-                        .with_min_delay(Duration::from_secs(1))
-                        .with_max_delay(Duration::from_secs(10))
-                        .with_max_times(3)
-                        .with_jitter(),
-                )
-                .notify(|err: &anyhow::Error, dur: Duration| {
-                    tracing::warn!(
-                        error = %err,
-                        retry_in = ?dur,
-                        "Retrying archive extraction after transient error"
-                    );
-                })
-                .await?;
-        } else {
-            // Single executable file - place under bin/
-            let bin_dir = dest.join("bin");
-            std::fs::create_dir_all(&bin_dir)?;
-
-            // Preserve original filename (e.g., kubectl.exe, bun)
-            let exe_name = archive_name.to_string();
-            let dest_path = bin_dir.join(&exe_name);
-            std::fs::copy(&temp_path, &dest_path)?;
-
-            // Make executable on Unix
-            #[cfg(unix)]
-            {
-                use std::os::unix::fs::PermissionsExt;
-                let mut perms = std::fs::metadata(&dest_path)?.permissions();
-                perms.set_mode(0o755);
-                std::fs::set_permissions(&dest_path, perms)?;
-            }
-        }
-
-        Ok(())
+        self.download_and_extract_impl(url, dest, false).await
     }
 
     async fn download_with_layout(
@@ -663,8 +535,12 @@ impl Installer for RealInstaller {
         dest: &Path,
         metadata: &std::collections::HashMap<String, String>,
     ) -> Result<()> {
-        // First download and extract
-        self.download_and_extract(url, dest).await?;
+        // Named binary layouts preserve embedded installer archives (for
+        // example, NSIS). Explicit archive extensions still take precedence.
+        let skip_embedded_archive_detection =
+            metadata.contains_key("target_name") && metadata.contains_key("target_dir");
+        self.download_and_extract_impl(url, dest, skip_embedded_archive_detection)
+            .await?;
 
         // Debug: log metadata and dest contents
         tracing::info!("download_with_layout: dest = {}", dest.display());
@@ -867,6 +743,223 @@ impl Installer for RealInstaller {
     }
 }
 
+impl RealInstaller {
+    async fn download_and_extract_impl(
+        &self,
+        url: &str,
+        dest: &Path,
+        skip_embedded_archive_detection: bool,
+    ) -> Result<()> {
+        // Create temp file for download
+        let temp_dir = tempfile::tempdir()?;
+
+        // Extract archive name from URL, handling URL fragments (e.g., #.zip hint)
+        let url_without_fragment = url.split('#').next().unwrap_or(url);
+
+        // Download and detect filename in a single GET request (no separate HEAD).
+        let temp_download_path = temp_dir.path().join("download_temp");
+        let detected_filename = self
+            .download_and_detect_filename(url_without_fragment, &temp_download_path)
+            .await?;
+
+        let archive_name = detected_filename.unwrap_or_else(|| {
+            url_without_fragment
+                .split('/')
+                .next_back()
+                .unwrap_or("archive")
+                .split('?')
+                .next()
+                .unwrap_or("archive")
+                .to_string()
+        });
+
+        // Rename temp file to actual filename so extraction can detect format
+        let temp_path = temp_dir.path().join(&archive_name);
+        if temp_download_path != temp_path {
+            std::fs::rename(&temp_download_path, &temp_path)?;
+        }
+
+        // Check for extension hint in URL fragment
+        let extension_hint = url.split('#').nth(1);
+
+        let archive_str = archive_name.to_lowercase();
+        // Check if it's an archive or a single executable.
+        let mut is_archive = archive_str.ends_with(".tar.gz")
+                || archive_str.ends_with(".tgz")
+                || archive_str.ends_with(".tar.xz")
+                || archive_str.ends_with(".tar.bz2")
+                || archive_str.ends_with(".tbz2")
+                || archive_str.ends_with(".tar.zst")
+                || archive_str.ends_with(".tzst")
+                || archive_str.ends_with(".zip")
+                || archive_str.ends_with(".7z")
+                // 7z Self-Extracting Archives (.7z.exe, .7z.sfx) must be treated as
+                // archives, not as single executables. PortableGit for Windows
+                // distributes as PortableGit-*.7z.exe which contains cmd/git.exe etc.
+                || archive_str.ends_with(".7z.exe")
+                || archive_str.ends_with(".7z.sfx")
+                || archive_str.ends_with(".msi")
+                || archive_str.ends_with(".pkg");
+
+        // Check extension hint from URL fragment
+        if !is_archive && let Some(hint) = extension_hint {
+            is_archive = hint.ends_with(".tar.gz")
+                || hint.ends_with(".tgz")
+                || hint.ends_with(".tar.xz")
+                || hint.ends_with(".zip")
+                || hint.ends_with(".7z");
+        }
+
+        // Check file magic bytes if still uncertain
+        if !is_archive && let Ok(mut file) = std::fs::File::open(&temp_path) {
+            use std::io::Read;
+            let mut magic = [0u8; 6];
+            if file.read_exact(&mut magic).is_ok() {
+                is_archive = (magic[0] == 0x50 && magic[1] == 0x4B)  // ZIP
+                            || (magic[0] == 0x1f && magic[1] == 0x8b) // GZIP (tar.gz)
+                            || (magic[0] == 0x37 && magic[1] == 0x7A && magic[2] == 0xBC
+                                && magic[3] == 0xAF && magic[4] == 0x27 && magic[5] == 0x1C);
+                // 7z
+            }
+        }
+
+        if !is_archive && !skip_embedded_archive_detection && archive_str.ends_with(".exe") {
+            is_archive = sevenz_signature_offset(&temp_path)?.is_some();
+        }
+
+        if is_archive {
+            // Extract archive with retry for transient failures.
+            // Large zip archives (e.g. Go 1.26.2 with 15 009 entries) can
+            // experience truncated extraction on Windows due to filesystem
+            // pressure. Retry with exponential backoff to recover.
+            let temp_path_owned = temp_path.clone();
+            let dest_owned = dest.to_path_buf();
+            let extract_op = || async { self.extract(&temp_path_owned, &dest_owned).await };
+            extract_op
+                .retry(
+                    ExponentialBuilder::default()
+                        .with_min_delay(Duration::from_secs(1))
+                        .with_max_delay(Duration::from_secs(10))
+                        .with_max_times(3)
+                        .with_jitter(),
+                )
+                .notify(|err: &anyhow::Error, dur: Duration| {
+                    tracing::warn!(
+                        error = %err,
+                        retry_in = ?dur,
+                        "Retrying archive extraction after transient error"
+                    );
+                })
+                .await?;
+        } else {
+            // Single executable file - place under bin/
+            let bin_dir = dest.join("bin");
+            std::fs::create_dir_all(&bin_dir)?;
+
+            // Preserve original filename (e.g., kubectl.exe, bun)
+            let exe_name = archive_name.to_string();
+            let dest_path = bin_dir.join(&exe_name);
+            std::fs::copy(&temp_path, &dest_path)?;
+
+            // Make executable on Unix
+            #[cfg(unix)]
+            {
+                use std::os::unix::fs::PermissionsExt;
+                let mut perms = std::fs::metadata(&dest_path)?.permissions();
+                perms.set_mode(0o755);
+                std::fs::set_permissions(&dest_path, perms)?;
+            }
+        }
+
+        Ok(())
+    }
+}
+
+/// Locate a complete 7z signature header within the bounded SFX prefix.
+fn sevenz_signature_offset(path: &Path) -> std::io::Result<Option<u64>> {
+    use std::io::Read;
+
+    const MAGIC: &[u8] = b"7z\xBC\xAF\x27\x1C";
+    const MAX_SCAN: u64 = 4 * 1024 * 1024;
+    let file = std::fs::File::open(path)?;
+    let mut prefix = Vec::new();
+    file.take(MAX_SCAN).read_to_end(&mut prefix)?;
+    for (offset, bytes) in prefix.windows(MAGIC.len()).enumerate() {
+        if bytes != MAGIC {
+            continue;
+        }
+        let Some(header) = prefix.get(offset..offset + 32) else {
+            continue;
+        };
+        if header[6] != 0 {
+            continue;
+        }
+        let expected_crc = u32::from_le_bytes(header[8..12].try_into().unwrap());
+        let mut crc = flate2::Crc::new();
+        crc.update(&header[12..32]);
+        if crc.sum() == expected_crc {
+            return Ok(Some(offset as u64));
+        }
+    }
+    Ok(None)
+}
+
+#[cfg(feature = "extended-formats")]
+fn open_sevenz_payload(path: &Path) -> std::io::Result<std::fs::File> {
+    use std::io::{Seek, SeekFrom};
+
+    let offset = sevenz_signature_offset(path)?.ok_or_else(|| {
+        std::io::Error::new(
+            std::io::ErrorKind::InvalidData,
+            "valid 7z signature header not found within the first 4 MiB",
+        )
+    })?;
+    let mut file = std::fs::File::open(path)?;
+    file.seek(SeekFrom::Start(offset))?;
+    if offset == 0 {
+        return Ok(file);
+    }
+    // Native 7z seeks from byte zero. Stream only the payload into an unnamed
+    // temporary file, which is automatically cleaned up on success or failure.
+    let mut payload = tempfile::tempfile()?;
+    std::io::copy(&mut file, &mut payload)?;
+    payload.rewind()?;
+    Ok(payload)
+}
+
+#[cfg(feature = "extended-formats")]
+fn safe_sevenz_entry_path(dest: &Path, name: &str) -> std::io::Result<std::path::PathBuf> {
+    use std::path::Component;
+
+    let normalized = name.replace('\\', "/");
+    let relative = Path::new(&normalized);
+    if normalized.contains(':')
+        || relative
+            .components()
+            .any(|part| !matches!(part, Component::Normal(_) | Component::CurDir))
+    {
+        return Err(std::io::Error::new(
+            std::io::ErrorKind::InvalidData,
+            "Unsafe path in 7z archive",
+        ));
+    }
+    let path = dest.join(relative);
+    for ancestor in path.ancestors().take_while(|path| path.starts_with(dest)) {
+        match ancestor.symlink_metadata() {
+            Ok(metadata) if metadata.file_type().is_symlink() => {
+                return Err(std::io::Error::new(
+                    std::io::ErrorKind::InvalidData,
+                    "Symlink in 7z extraction path",
+                ));
+            }
+            Ok(_) => {}
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+            Err(error) => return Err(error),
+        }
+    }
+    Ok(path)
+}
+
 /// Extract a zip archive entry-by-entry with Windows long-path support,
 /// error tracking, and completeness verification.
 ///
@@ -967,6 +1060,22 @@ fn extract_zip_robust(archive_path: &Path, dest: &Path) -> Result<()> {
             std::io::copy(&mut entry, &mut output).map_err(|e| {
                 anyhow::anyhow!("Failed to write file {}: {}", entry_path.display(), e)
             })?;
+            #[cfg(unix)]
+            if entry.is_file()
+                && let Some(mode) = entry.unix_mode()
+            {
+                use std::os::unix::fs::PermissionsExt;
+
+                output
+                    .set_permissions(std::fs::Permissions::from_mode(mode & 0o777))
+                    .map_err(|e| {
+                        anyhow::anyhow!(
+                            "Failed to preserve permissions for {}: {}",
+                            entry_path.display(),
+                            e
+                        )
+                    })?;
+            }
             extracted_files += 1;
         }
     }

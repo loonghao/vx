@@ -275,6 +275,22 @@ impl ArchiveExtractor {
                         e
                     )
                 })?;
+                #[cfg(unix)]
+                if entry.is_file()
+                    && let Some(mode) = entry.unix_mode()
+                {
+                    use std::os::unix::fs::PermissionsExt;
+
+                    output
+                        .set_permissions(std::fs::Permissions::from_mode(mode & 0o777))
+                        .map_err(|e| {
+                            anyhow!(
+                                "Failed to preserve permissions for {}: {}",
+                                entry_path.display(),
+                                e
+                            )
+                        })?;
+                }
                 extracted_files += 1;
             }
         }
