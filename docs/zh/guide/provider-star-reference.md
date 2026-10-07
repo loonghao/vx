@@ -508,6 +508,8 @@ url = github_asset_url("BurntSushi", "ripgrep", "14.1.1",
 | `run_nsis_installer(executable, install_dir)` | `→ descriptor` | 仅限 Windows：静默安装 NSIS 包到绝对路径，按要求保留含空格的未加引号 `/D=` 尾参数；安装失败会终止钩子 |
 | `flatten_dir(pattern, keep_subdirs)` | `→ descriptor` | 展平目录结构 |
 
+`post_extract` 中的 `run_command` 将输出流式写入 stderr，保持 CLI 的结构化 stdout 有效。安装依赖该命令成功时，应设置 `on_failure="error"`。钩子完成后，`get_execute_path` 指定安装检查使用的最终应用入口。
+
 ---
 
 ### 6.8 `layout.star` — 布局、钩子与路径工厂

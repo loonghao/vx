@@ -202,6 +202,8 @@ impl ArchiveExtractor {
         let mut extracted_files: usize = 0;
         let mut extracted_dirs: usize = 0;
         let mut skipped_entries: usize = 0;
+        #[cfg(unix)]
+        let mut extracted_symlinks = Vec::new();
 
         for i in 0..total_entries {
             let mut entry = match archive.by_index(i) {
@@ -234,6 +236,8 @@ impl ArchiveExtractor {
                 }
             };
 
+            ensure_zip_output_path(dest, &entry_path)?;
+
             // Create parent directories before writing the file.
             // This handles archives where directory entries are implicit
             // (not stored as explicit entries), like Go's Windows archives.
@@ -248,7 +252,22 @@ impl ArchiveExtractor {
                 })?;
             }
 
-            if entry.is_dir() {
+            if entry.is_symlink() {
+                #[cfg(unix)]
+                {
+                    anyhow::ensure!(entry.size() <= 4096, "ZIP symlink target is too long");
+                    let mut target = String::new();
+                    let mut limited = std::io::Read::take(&mut entry, 4097);
+                    std::io::Read::read_to_string(&mut limited, &mut target)?;
+                    anyhow::ensure!(target.len() <= 4096, "ZIP symlink target is too long");
+                    validate_zip_symlink_target(dest, &entry_path, Path::new(&target))?;
+                    std::os::unix::fs::symlink(&target, &entry_path)?;
+                    extracted_symlinks.push(entry_path);
+                    extracted_files += 1;
+                }
+                #[cfg(not(unix))]
+                anyhow::bail!("ZIP symlink extraction is unsupported on this platform");
+            } else if entry.is_dir() {
                 std::fs::create_dir_all(&entry_path).map_err(|e| {
                     anyhow!(
                         "Failed to create directory {} from zip entry {}: {}",
@@ -295,6 +314,9 @@ impl ArchiveExtractor {
             }
         }
 
+        #[cfg(unix)]
+        validate_created_zip_symlinks(dest, &extracted_symlinks)?;
+
         tracing::info!(
             archive = %archive_path.display(),
             total_entries,
@@ -305,8 +327,7 @@ impl ArchiveExtractor {
         );
 
         // Verify extraction was substantially complete.
-        // We allow a small number of skipped entries (e.g. symlinks on
-        // platforms that don't support them), but if a significant
+        // We allow a small number of invalid/skipped entries, but if a significant
         // fraction is missing the extraction was likely truncated.
         if total_entries > 0 {
             let extracted_total = extracted_files + extracted_dirs;
@@ -369,6 +390,123 @@ impl Default for ArchiveExtractor {
     fn default() -> Self {
         Self::new()
     }
+}
+
+/// Never follow an existing link while creating an archive entry.
+fn ensure_zip_output_path(root: &Path, path: &Path) -> std::io::Result<()> {
+    use std::path::Component;
+
+    let invalid = || std::io::Error::new(std::io::ErrorKind::InvalidData, "Unsafe ZIP output path");
+    let relative = path.strip_prefix(root).map_err(|_| invalid())?;
+    if relative
+        .components()
+        .any(|part| !matches!(part, Component::Normal(_) | Component::CurDir))
+    {
+        return Err(invalid());
+    }
+    let mut current = root.to_path_buf();
+    for component in std::iter::once(None).chain(relative.components().map(Some)) {
+        if let Some(component) = component {
+            current.push(component.as_os_str());
+        }
+        match current.symlink_metadata() {
+            Ok(metadata) if metadata.file_type().is_symlink() => {
+                return Err(std::io::Error::new(
+                    std::io::ErrorKind::InvalidData,
+                    "Symlink in ZIP output path",
+                ));
+            }
+            Ok(_) => {}
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+            Err(error) => return Err(error),
+        }
+    }
+    Ok(())
+}
+
+#[cfg(unix)]
+fn validate_zip_symlink_target(root: &Path, link: &Path, target: &Path) -> std::io::Result<()> {
+    use std::path::Component;
+
+    fn resolve(
+        root: &Path,
+        base: &Path,
+        target: &Path,
+        budget: &mut usize,
+    ) -> std::io::Result<std::path::PathBuf> {
+        let invalid = || {
+            std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                "Unsafe or noncanonical ZIP symlink target",
+            )
+        };
+        let text = target.to_str().ok_or_else(invalid)?;
+        if text.is_empty() || text.contains(['\\', ':', '\0']) {
+            return Err(invalid());
+        }
+        let mut normal_seen = false;
+        for component in target.components() {
+            match component {
+                Component::Normal(_) => normal_seen = true,
+                Component::CurDir => {}
+                Component::ParentDir if !normal_seen => {}
+                _ => return Err(invalid()),
+            }
+        }
+        let mut resolved = base.to_path_buf();
+        for component in target.components() {
+            match component {
+                Component::CurDir => {}
+                Component::ParentDir => {
+                    if !resolved.pop() {
+                        return Err(invalid());
+                    }
+                }
+                Component::Normal(name) => {
+                    resolved.push(name);
+                    match root.join(&resolved).symlink_metadata() {
+                        Ok(metadata) if metadata.file_type().is_symlink() => {
+                            if *budget == 0 {
+                                return Err(invalid());
+                            }
+                            *budget -= 1;
+                            let nested = std::fs::read_link(root.join(&resolved))?;
+                            let parent = resolved.parent().ok_or_else(invalid)?.to_path_buf();
+                            resolved = resolve(root, &parent, &nested, budget)?;
+                        }
+                        Ok(_) => {}
+                        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+                        Err(error) => return Err(error),
+                    }
+                }
+                _ => return Err(invalid()),
+            }
+        }
+        Ok(resolved)
+    }
+
+    let parent = link
+        .parent()
+        .and_then(|parent| parent.strip_prefix(root).ok())
+        .ok_or_else(|| {
+            std::io::Error::new(std::io::ErrorKind::InvalidData, "Unsafe ZIP symlink path")
+        })?;
+    resolve(root, parent, target, &mut 40).map(|_| ())
+}
+
+#[cfg(unix)]
+fn validate_created_zip_symlinks(root: &Path, links: &[std::path::PathBuf]) -> std::io::Result<()> {
+    for link in links {
+        let validation = std::fs::read_link(link)
+            .and_then(|target| validate_zip_symlink_target(root, link, &target));
+        if let Err(error) = validation {
+            for created in links.iter().rev() {
+                let _ = std::fs::remove_file(created);
+            }
+            return Err(error);
+        }
+    }
+    Ok(())
 }
 
 /// Extract archive to destination directory

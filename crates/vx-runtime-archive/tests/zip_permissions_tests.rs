@@ -92,6 +92,200 @@ fn test_zip_preserves_only_regular_rwx_permissions(
     );
 }
 
+// Symlink extraction must preserve framework layout without enabling writes
+// through archive-created or pre-existing links.
+#[cfg(unix)]
+#[test]
+fn test_zip_preserves_electron_framework_chain_and_internal_parent_link() {
+    let temp = tempdir().unwrap();
+    let archive = temp.path().join("framework.zip");
+    let dest = temp.path().join("output");
+    let framework = "Example.app/Contents/Frameworks/Electron Framework.framework";
+    let binary = format!("{framework}/Versions/A/Electron Framework");
+    let current = format!("{framework}/Versions/Current");
+    let library = format!("{framework}/Electron Framework");
+    let resource = format!("{framework}/Versions/A/Resources/config.json");
+    let resources = format!("{framework}/Resources");
+    let helper = "Example.app/Contents/Helpers/renderer";
+    write_zip(
+        &archive,
+        &[
+            (&library, 0o120777, b"Versions/Current/Electron Framework"),
+            (&current, 0o120777, b"A"),
+            (&resources, 0o120777, b"Versions/Current/Resources"),
+            (
+                helper,
+                0o120777,
+                b"../Frameworks/Electron Framework.framework/Electron Framework",
+            ),
+            (&binary, 0o100755, b"mach-o fixture"),
+            (&resource, 0o100644, b"resource"),
+        ],
+    );
+
+    ArchiveExtractor::new().extract(&archive, &dest).unwrap();
+
+    for name in [
+        library.as_str(),
+        current.as_str(),
+        resources.as_str(),
+        helper,
+    ] {
+        assert!(
+            std::fs::symlink_metadata(dest.join(name))
+                .unwrap()
+                .file_type()
+                .is_symlink()
+        );
+    }
+    assert_eq!(
+        std::fs::read(dest.join(&library)).unwrap(),
+        b"mach-o fixture"
+    );
+    assert_eq!(std::fs::read(dest.join(helper)).unwrap(), b"mach-o fixture");
+    assert_eq!(
+        std::fs::read(dest.join(&resources).join("config.json")).unwrap(),
+        b"resource"
+    );
+}
+
+#[cfg(unix)]
+#[rstest]
+#[case("../outside")]
+#[case("/outside")]
+#[case("C:/outside")]
+#[case("C:\\outside")]
+#[case("..\\outside")]
+#[case("alias/../outside")]
+#[case("alias/./../outside")]
+#[test]
+fn test_zip_rejects_escaping_or_noncanonical_symlink_target(#[case] target: &str) {
+    let temp = tempdir().unwrap();
+    let archive = temp.path().join("unsafe-link.zip");
+    let dest = temp.path().join("output");
+    write_zip(
+        &archive,
+        &[
+            ("escape", 0o120777, target.as_bytes()),
+            ("alias", 0o120777, b"."),
+        ],
+    );
+
+    assert!(ArchiveExtractor::new().extract(&archive, &dest).is_err());
+    assert!(std::fs::symlink_metadata(dest.join("escape")).is_err());
+}
+
+#[cfg(unix)]
+#[test]
+fn test_zip_rejects_forward_symlink_cycle() {
+    let temp = tempdir().unwrap();
+    let archive = temp.path().join("cycle.zip");
+    let dest = temp.path().join("output");
+    write_zip(
+        &archive,
+        &[
+            ("link-a", 0o120777, b"link-b"),
+            ("link-b", 0o120777, b"link-a"),
+        ],
+    );
+
+    assert!(ArchiveExtractor::new().extract(&archive, &dest).is_err());
+    assert!(std::fs::symlink_metadata(dest.join("link-a")).is_err());
+    assert!(std::fs::symlink_metadata(dest.join("link-b")).is_err());
+}
+
+#[cfg(unix)]
+#[test]
+fn test_zip_rejects_existing_target_chain_outside_root() {
+    let temp = tempdir().unwrap();
+    let archive = temp.path().join("target-chain.zip");
+    let dest = temp.path().join("output");
+    let outside = temp.path().join("outside");
+    std::fs::create_dir(&dest).unwrap();
+    std::fs::write(&outside, b"untouched").unwrap();
+    std::os::unix::fs::symlink(&outside, dest.join("existing")).unwrap();
+    write_zip(&archive, &[("new-link", 0o120777, b"existing")]);
+
+    assert!(ArchiveExtractor::new().extract(&archive, &dest).is_err());
+    assert!(std::fs::symlink_metadata(dest.join("new-link")).is_err());
+    assert_eq!(std::fs::read(outside).unwrap(), b"untouched");
+}
+
+#[cfg(unix)]
+#[rstest]
+#[case(false)]
+#[case(true)]
+#[test]
+fn test_zip_rejects_preexisting_symlink_output_paths(#[case] leaf: bool) {
+    let temp = tempdir().unwrap();
+    let archive = temp.path().join("output-link.zip");
+    let dest = temp.path().join("output");
+    let outside = temp.path().join("outside");
+    std::fs::create_dir(&dest).unwrap();
+    if leaf {
+        std::fs::write(&outside, b"untouched").unwrap();
+    } else {
+        std::fs::create_dir(&outside).unwrap();
+    }
+    std::os::unix::fs::symlink(&outside, dest.join("existing")).unwrap();
+    let name = if leaf { "existing" } else { "existing/escaped" };
+    write_zip(&archive, &[(name, 0o100644, b"must not write")]);
+
+    assert!(ArchiveExtractor::new().extract(&archive, &dest).is_err());
+    if leaf {
+        assert_eq!(std::fs::read(outside).unwrap(), b"untouched");
+    } else {
+        assert!(!outside.join("escaped").exists());
+    }
+}
+
+#[cfg(unix)]
+#[rstest]
+#[case("./link")]
+#[case("link/escaped")]
+#[test]
+fn test_zip_rejects_later_entry_through_archive_symlink(#[case] name: &str) {
+    let temp = tempdir().unwrap();
+    let archive = temp.path().join("duplicate-link.zip");
+    let dest = temp.path().join("output");
+    write_zip(
+        &archive,
+        &[
+            ("link", 0o120777, b"."),
+            (name, 0o100644, b"must not write"),
+        ],
+    );
+
+    assert!(ArchiveExtractor::new().extract(&archive, &dest).is_err());
+    assert!(
+        std::fs::symlink_metadata(dest.join("link"))
+            .unwrap()
+            .file_type()
+            .is_symlink()
+    );
+    assert!(!dest.join("escaped").exists());
+}
+
+#[cfg(not(unix))]
+#[test]
+fn test_zip_reports_unsupported_symlinks_without_materializing_target_text() {
+    let temp = tempdir().unwrap();
+    let archive = temp.path().join("symlink.zip");
+    let dest = temp.path().join("output");
+    write_zip(&archive, &[("link", 0o120777, b"resource")]);
+
+    let error = ArchiveExtractor::new()
+        .extract(&archive, &dest)
+        .unwrap_err();
+
+    assert!(
+        error
+            .to_string()
+            .contains("symlink extraction is unsupported")
+    );
+    assert!(!dest.join("link").exists());
+}
+
 #[test]
 fn test_zip_rejects_path_traversal() {
     let temp = tempdir().unwrap();
@@ -138,6 +332,12 @@ fn test_zip_symlink_metadata_does_not_grant_executable_permissions() {
 
     ArchiveExtractor::new().extract(&archive, &dest).unwrap();
 
+    assert!(
+        std::fs::symlink_metadata(dest.join("link"))
+            .unwrap()
+            .file_type()
+            .is_symlink()
+    );
     assert_eq!(
         std::fs::metadata(dest.join("link"))
             .unwrap()
