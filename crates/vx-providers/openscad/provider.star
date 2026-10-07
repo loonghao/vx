@@ -1,6 +1,7 @@
 load("@vx//stdlib:provider.star", "runtime_def", "github_permissions", "system_install_strategies", "winget_install", "pkg_strategy", "apt_install")
 load("@vx//stdlib:github.star", "make_fetch_versions", "github_asset_url")
 load("@vx//stdlib:env.star", "env_prepend")
+load("@vx//stdlib:install.star", "run_command", "set_permissions")
 
 name = "openscad"
 description = "OpenSCAD - Free and open-source programmable solid 3D CAD modeler"
@@ -29,8 +30,26 @@ def install_layout(ctx, version):
     if download_url(ctx, version) == None:
         return None
     if ctx.platform.os == "linux":
-        return {"type": "binary", "target_name": "openscad", "target_dir": "bin", "executable_paths": ["bin/openscad"]}
-    return {"type": "archive", "strip_prefix": "openscad-{}".format(version), "executable_paths": ["openscad.exe", "openscad.com"]}
+        return {
+            "type": "binary", "target_name": "openscad", "target_dir": "bin",
+            "executable_paths": ["bin/openscad"],
+            "required_paths": ["bin/openscad", "squashfs-root/AppRun"],
+        }
+    return {
+        "type": "archive", "strip_prefix": "openscad-{}".format(version),
+        "executable_paths": ["openscad.exe", "openscad.com"],
+        "required_paths": ["openscad.exe", "openscad.com"],
+    }
+
+def post_extract(ctx, _version, install_dir):
+    if ctx.platform.os != "linux":
+        return []
+    # Extract the AppImage without mounting it, so CLI use does not require FUSE.
+    return [
+        set_permissions("bin/openscad", "755"),
+        run_command(install_dir + "/bin/openscad", ["--appimage-extract"],
+                    working_dir = install_dir, on_failure = "error"),
+    ]
 
 system_install = system_install_strategies([
     winget_install("OpenSCAD.OpenSCAD"),
@@ -42,6 +61,8 @@ def store_root(ctx):
     return ctx.vx_home + "/store/openscad"
 
 def get_execute_path(ctx, _version):
+    if ctx.platform.os == "linux":
+        return ctx.install_dir + "/squashfs-root/AppRun"
     return ctx.install_dir + ("/openscad.com" if ctx.platform.os == "windows" else "/bin/openscad")
 
 def environment(ctx, _version):
