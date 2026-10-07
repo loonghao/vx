@@ -1,6 +1,6 @@
 # Supported Tools Overview
 
-vx supports **158 tools** out of the box, spanning language runtimes, package managers, DevOps tools, build systems, code quality tools, and more. All tools are managed through the same unified interface.
+vx supports **159 tools** out of the box, spanning language runtimes, package managers, DevOps tools, build systems, code quality tools, and more. All tools are managed through the same unified interface.
 
 ## At a Glance
 
@@ -295,11 +295,11 @@ vx install <tool>@<version>
 <tool> = "<version>"
 ```
 
-## Complete Tool List (158 Total)
+## Complete Tool List (159 Total)
 
 > **Note**: For detailed documentation, click the links above. For undocumented tools, please refer to the tool's official documentation.
 
-All 158 tools are immediately available with `vx <tool>`. No manual installation required — vx handles everything automatically.
+All 159 tools are immediately available with `vx <tool>`. No manual installation required — vx handles everything automatically.
 
 ## Custom Tools
 
