@@ -1,4 +1,4 @@
-load("@vx//stdlib:provider.star", "runtime_def", "github_permissions")
+load("@vx//stdlib:provider.star", "runtime_def", "github_permissions", "system_install_strategies", "pkg_strategy")
 load("@vx//stdlib:github.star", "make_fetch_versions", "github_asset_url")
 load("@vx//stdlib:env.star", "env_prepend")
 
@@ -13,8 +13,13 @@ runtimes = [runtime_def("material-maker", executable = "material_maker", aliases
     test_commands = [{"command": "{executable} --headless --version", "name": "engine_version_check", "expected_output": "\\d+\\.\\d+"}],
     system_paths = ["/Applications/Material Maker.app/Contents/MacOS/Material Maker", "/usr/bin/material_maker", "/usr/local/bin/material_maker"],
 )]
-permissions = github_permissions()
+permissions = github_permissions(exec_cmds = ["brew"])
 fetch_versions = make_fetch_versions("RodZill4", "material-maker")
+
+# Upstream distributes macOS as a DMG; Homebrew installs the app bundle.
+system_install = system_install_strategies([
+    pkg_strategy("brew", "material-maker", install_args = "--cask", platforms = ["macos"]),
+])
 
 def _archive_root(version, os):
     return "material_maker_{}_{}".format(version.replace(".", "_"), os)
