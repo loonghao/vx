@@ -1603,6 +1603,10 @@ impl Runtime for ManifestDrivenRuntime {
 
                         let mut cmd = std::process::Command::new(cmd_str);
                         cmd.args(&args);
+                        // Installation diagnostics must not corrupt structured
+                        // command output. Forward both streams without buffering.
+                        cmd.stdout(std::io::stderr());
+                        cmd.stderr(std::process::Stdio::inherit());
                         if let Some(dir) = action.get("working_dir").and_then(|v| v.as_str()) {
                             cmd.current_dir(install_dir.join(dir));
                         }
