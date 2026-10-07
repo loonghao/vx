@@ -10,9 +10,35 @@ homepage = "https://www.gimp.org"
 repository = "https://gitlab.gnome.org/GNOME/gimp"
 license = "GPL-3.0-or-later"
 ecosystem = "media"
+
+# Keep paths literal: the CLI's static metadata reader does not evaluate helpers.
+# Upstream installs major-version aliases plus the release-series binaries.
+# Inno's {autopf} supports both all-users and current-user installations.
 runtimes = [runtime_def("gimp", system_paths = [
+    "C:/Program Files/GIMP 3/bin/gimp-console-3.exe",
+    "C:/Program Files (x86)/GIMP 3/bin/gimp-console-3.exe",
+    "C:/Users/*/AppData/Local/Programs/GIMP 3/bin/gimp-console-3.exe",
+    "C:/Program Files/GIMP 3/bin/gimp-console-3.2.exe",
+    "C:/Program Files (x86)/GIMP 3/bin/gimp-console-3.2.exe",
+    "C:/Users/*/AppData/Local/Programs/GIMP 3/bin/gimp-console-3.2.exe",
     "C:/Program Files/GIMP 3/bin/gimp-console-3.0.exe",
+    "C:/Program Files (x86)/GIMP 3/bin/gimp-console-3.0.exe",
+    "C:/Users/*/AppData/Local/Programs/GIMP 3/bin/gimp-console-3.0.exe",
+    "C:/Program Files/GIMP 3/bin/gimp-3.exe",
+    "C:/Program Files (x86)/GIMP 3/bin/gimp-3.exe",
+    "C:/Users/*/AppData/Local/Programs/GIMP 3/bin/gimp-3.exe",
+    "C:/Program Files/GIMP 3/bin/gimp-3.2.exe",
+    "C:/Program Files (x86)/GIMP 3/bin/gimp-3.2.exe",
+    "C:/Users/*/AppData/Local/Programs/GIMP 3/bin/gimp-3.2.exe",
     "C:/Program Files/GIMP 3/bin/gimp-3.0.exe",
+    "C:/Program Files (x86)/GIMP 3/bin/gimp-3.0.exe",
+    "C:/Users/*/AppData/Local/Programs/GIMP 3/bin/gimp-3.0.exe",
+    "C:/Program Files/GIMP 2/bin/gimp-console-2.10.exe",
+    "C:/Program Files (x86)/GIMP 2/bin/gimp-console-2.10.exe",
+    "C:/Users/*/AppData/Local/Programs/GIMP 2/bin/gimp-console-2.10.exe",
+    "C:/Program Files/GIMP 2/bin/gimp-2.10.exe",
+    "C:/Program Files (x86)/GIMP 2/bin/gimp-2.10.exe",
+    "C:/Users/*/AppData/Local/Programs/GIMP 2/bin/gimp-2.10.exe",
     "/Applications/GIMP.app/Contents/MacOS/gimp",
     "/usr/bin/gimp", "/usr/local/bin/gimp", "/opt/homebrew/bin/gimp",
 ])]
