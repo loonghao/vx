@@ -107,43 +107,29 @@ vx uninstall node@18
 
 ### PATH Issues
 
-#### Command Not Found
+#### Plain Command Missing or Resolving to the Wrong Executable
 
-**Symptoms**: `command not found: node` after installation
+First distinguish `vx node --version` from plain `node --version`: installing
+a runtime does not by itself prove the shell can resolve a managed plain command.
+Check `vx --version` and `vx --help`. Only when `shim` is listed, inspect
+`vx shim --help` for `add/list/remove/sync/path`, then use `vx shim path` and
+`vx shim list --json`. Release v0.9.34 does not include this interface.
 
-**Solutions**:
+Check resolution in the failing shell: PowerShell `Get-Command node -All` and
+`where.exe node`; cmd.exe `where node`; Git Bash/POSIX `type -a node` and
+`command -v node`. Substitute the actual exposed name. PowerShell aliases and
+functions can precede PATH; Windows shims need both `.cmd` and extensionless
+variants. `vx shim path` reports default targets, so also inspect each entry's
+recorded directories when `--dir` was used.
 
-```bash
-# Verify vx shim directory is in PATH
-echo $PATH | grep -o ".vx/bin"
+Do not prepend global PATH or add `--force` as a generic repair. Prefer a unique
+`--as` name, or explicit `vx <target>` execution. Before `add` or upgrade `sync`,
+inspect every destination file and its ownership; an `ok`/`complete` listing
+only confirms files exist. Before `remove`, preserve any locally replaced files:
+unmarked replacements survive, but the registry entry is removed.
 
-# Add vx to PATH (add to shell config)
-export PATH="$HOME/.vx/bin:$PATH"
-
-# Or use vx directly
-vx node --version
-
-# Check shim exists
-ls ~/.vx/bin/node
-```
-
-#### Wrong Version in PATH
-
-**Symptoms**: System version takes precedence over vx version
-
-**Solutions**:
-
-```bash
-# Check which executable is being used
-which node
-vx which node
-
-# Reorder PATH (vx should come first)
-export PATH="$HOME/.vx/bin:$PATH"
-
-# Or use vx explicitly
-vx node --version
-```
+Follow the [managed command shim guide](https://github.com/loonghao/vx/blob/main/docs/guide/managed-command-shims.md)
+for Codex, PATH precedence, shell-specific commands, `sync`, and safe removal.
 
 ### Runtime Issues
 
@@ -346,10 +332,11 @@ vx doctor --fix
 
 # Reinstall all tools from vx.toml
 vx sync --force
-
-# Rebuild shims
-vx shim rebuild
 ```
+
+For managed command shims, use the capability and ownership checks in
+[PATH Issues](#path-issues) before `vx shim sync`. It rewrites every registered
+entry; `vx shim rebuild` is not a supported subcommand.
 
 ## Getting Help
 

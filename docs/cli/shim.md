@@ -3,7 +3,7 @@
 Expose any Runtime as a plain command, so you can type `jq --version` instead of
 `vx jq --version`.
 
-`vx shim` writes a small wrapper script into a directory on your `PATH`. The
+`vx shim` writes a small wrapper script into a chosen directory. The
 wrapper forwards every argument to `vx <runtime>`, which installs the runtime on
 first use. This is the same wrapper people write by hand into
 `~/.local/bin`, generated for you and per platform.
@@ -14,6 +14,10 @@ jq --version          # -> jq-1.8.1
 ```
 
 > **RFC**: [RFC 0042 — Platform Command Shims](../rfcs/0042-platform-command-shims.md)
+>
+> Check that your installed `vx --help` lists `shim` before using these commands.
+> See [Managed command shims](../guide/managed-command-shims.md) for release
+> availability, Codex examples, and checks before writing or refreshing files.
 
 ## Subcommands
 
@@ -31,15 +35,14 @@ jq --version          # -> jq-1.8.1
 vx shim add jq                       # create `jq`
 vx shim add git@2.53.0               # pin a version behind the runtime name
 vx shim add jq --as jqp              # different command name
-vx shim add jq --dir ~/.local/bin    # choose the directory (repeatable)
-vx shim add git --force              # allow shadowing the system git
+vx shim add jq --dir "/absolute/path/to/shim-bin" # repeatable; use an owned directory
 ```
 
 | Flag | Description |
 |---|---|
 | `--as <NAME>` | Command name to create. Defaults to the runtime name without its `@version`. |
 | `--dir <DIR>` | Directory to write into. Repeatable. Defaults to the vx bin directory and the directory holding the `vx` executable. |
-| `-f, --force` | Overwrite an existing command that vx did not create. |
+| `-f, --force` | Permit the detected same-name command collision on PATH. |
 
 ### Shadowing protection
 
@@ -52,8 +55,10 @@ $ vx shim add git
   Re-run with --force to shadow it, or pick another name with --as.
 ```
 
-Use `--as` to pick a different name, or `--force` if shadowing is what you want.
-Shims vx created itself are always safe to overwrite.
+Prefer `--as` to pick a different name. Use `--force` only after reviewing an
+intentional collision. The guard checks the command resolved on PATH, not every
+destination file or shell alias. Inspect all output paths before adding a shim,
+including both Windows variants; existing destination files can be replaced.
 
 ## list
 
@@ -70,7 +75,8 @@ Command shims (2)
     C:\Users\me\.vx\bin
 ```
 
-`incomplete` means one of the recorded files is missing — run `vx shim sync`.
+`incomplete` means one of the recorded files is missing. Inspect the recorded
+destinations before running `vx shim sync`. `ok` checks file existence only.
 
 ## remove
 
@@ -78,8 +84,9 @@ Command shims (2)
 vx shim remove jq
 ```
 
-Only files that vx created are deleted. A hand-written wrapper sharing the name
-is reported and left alone.
+Only recorded files carrying the `vx-shim` marker are deleted. Unmarked files
+are reported and left alone, but the registry entry is still removed. The
+`--force` flag does not bypass this ownership check.
 
 ## sync
 
@@ -89,7 +96,9 @@ vx shim sync
 
 Shims bake in the absolute path of the `vx` executable. After upgrading or
 moving vx, `sync` rewrites every registered shim against the new location and
-recreates any file that went missing.
+recreates any file that went missing. It rewrites all entries in their recorded
+directories without checking file ownership first. Review user edits or
+replacement files before syncing; it does not upgrade the target runtime.
 
 ## path
 
@@ -97,8 +106,8 @@ recreates any file that went missing.
 vx shim path
 ```
 
-Prints each target directory, whether it is on `PATH`, and the exact command to
-add it:
+Prints the default target directories, whether they are on `PATH`, and a shell
+hint to add missing directories. Custom `--dir` entries appear in `list --json`:
 
 ```text
 Command shim directories
@@ -120,17 +129,16 @@ One `add` produces every file the platform needs:
 | Windows | `jq` | Git Bash, MSYS2, Cygwin |
 | Linux / macOS | `jq` | every POSIX shell |
 
-Windows needs two files because a POSIX shell script is invisible to cmd.exe and
-PowerShell, while a batch file is unusable from Git Bash. Unix terminals all
-speak `/bin/sh`, so one script is enough.
+Windows generates separate batch and POSIX entry points for these callers.
+It does not generate a `.ps1` file. Unix uses the POSIX shell wrapper.
 
 Generated scripts carry a `vx-shim` marker line and propagate the exit code of
 the wrapped command.
 
 ## Safety
 
-- `add` never overwrites a file that is not marked as vx-generated unless you
-  pass `--force`.
+- Inspect each destination before `add` or `sync`; the PATH collision guard is
+  not a per-file ownership check.
 - `remove` only deletes files recorded in the registry **and** carrying the
   `vx-shim` marker.
 - The registry lives at `$VX_HOME/config/command-shims.json` and honours

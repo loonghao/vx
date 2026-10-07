@@ -181,6 +181,23 @@ vx search <query>             # Search available tools
 vx info                       # System info and capabilities
 ```
 
+## Managed Plain Commands
+
+Use `vx <runtime>` for ordinary execution. When a user needs a plain command
+outside `vx dev` (for example an editor invoking a CLI), use a managed command
+shim instead of maintaining a handwritten wrapper.
+
+First check `vx --version` and the command list in `vx --help`. Only if `shim`
+is listed, check `vx shim --help` and `vx shim add --help`: the required interface
+is `add/list/remove/sync/path`. Release v0.9.34 predates this interface; a merged
+PR alone does not mean the installed binary supports it.
+
+Read the [managed command shim guide](https://github.com/loonghao/vx/blob/main/docs/guide/managed-command-shims.md)
+before creating or repairing entries. It covers Codex package targets, safe
+`--as`/`--dir` selection, Windows shells, PATH precedence, upgrade `sync`, and
+ownership checks. Do not default to `--force` or change global PATH.
+`vx shim codex`, bare `vx shim`, and `vx shim rebuild` are not this interface.
+
 ## Project Configuration (vx.toml)
 
 Projects use `vx.toml` in the root directory:
