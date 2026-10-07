@@ -12,7 +12,7 @@ vx 为 [DCC-MCP 产品目录](https://github.com/dcc-mcp/dcc-mcp-core/blob/2d0c1
 | [`godot`](../tools/godot) | ZIP | ZIP | 通用应用 ZIP |
 | [`krita`](../tools/krita) | ZIP，x64 | AppImage，x64 | Homebrew cask / 已安装应用 |
 | [`material-maker`](../tools/material-maker) | ZIP，x64 | tar.gz，x64 | Homebrew cask / 已安装应用 |
-| [`openscad`](../tools/openscad) | ZIP，x64 / x86 | AppImage，x64 | Homebrew cask / 已安装应用 |
+| [`openscad`](../tools/openscad) | ZIP，x64 / x86 | AppImage，x64 | Homebrew 开发快照 / 已安装应用 |
 | [`openusd`](../tools/openusd) | `usd-core` Python 环境 | `usd-core` Python 环境 | `usd-core` Python 环境 |
 | [`renderdoc`](../tools/renderdoc) | 官方 ZIP，x64 / x86 | 官方 tar.gz，x64 | 上游无宿主发行包 |
 | [`tiled`](../tools/tiled) | MSI 提取到 vx store，x64 | AppImage，x64 | 通用应用 ZIP |
@@ -22,9 +22,11 @@ vx 为 [DCC-MCP 产品目录](https://github.com/dcc-mcp/dcc-mcp-core/blob/2d0c1
 | [`openscreen`](../tools/openscreen) | 静默用户安装到 vx store，x64 | AppImage，x64 | 应用 ZIP，x64 / ARM64 |
 | [`tracy`](../tools/tracy) | ZIP，x64 | ZIP，x64 | ZIP，ARM64 |
 
-需要精确版本时使用便携发行包。系统包管理器可能安装不同版本；AppImage 仍需要宿主图形库和兼容的 AppImage/FUSE 环境。软件保留各自的 GPL/LGPL、MIT、BSD 或 OpenUSD 专用许可证。
+需要精确版本时使用便携发行包。系统包管理器可能安装不同版本。AppImage 需要兼容的宿主系统库；直接运行 AppImage 还需要 AppImage/FUSE 支持。OpenSCAD 和 OpenScreen 会在安装时提取 AppImage，再通过 `AppRun` 启动，无需挂载 FUSE。软件保留各自的 GPL/LGPL、MIT、BSD 或 OpenUSD 专用许可证。
 
 便携包支持 OpenScreen 2.0、Tiled 1.12 及以上、Tracy 0.14.1 及以上；OBS Windows ARM64 包需要 OBS 32 及以上。新版 Tiled macOS 包需要 macOS 13 及以上，Tiled 1.12.0 支持 macOS 11。
+
+macOS 上，OpenSCAD 解析为 `system` 版本，使用 `openscad@snapshot` Homebrew cask。开发快照由 Homebrew 选择，vx 不会锁定到 2021.01 等稳定版本。
 
 DCC-MCP 的 GIMP 适配器要求 GIMP 3.x。安装适配器前需确认系统包管理器提供的应用版本。
 
@@ -40,7 +42,7 @@ vx where blender
 vx where freecadcmd
 ```
 
-FreeCAD、Krita、Kdenlive、RenderDoc 和 Tiled 的 GUI 安装检查验证可执行文件；GUI 启动需要在图形会话中验收，无界面桥接与类型化适配器工具按各自契约验收。`freecadcmd` 随 Windows FreeCAD 包提供；Linux AppImage 通过 FreeCAD 应用 Runtime 提供。Material Maker 的 `--headless --version` 返回内置 Godot 引擎版本，应用版本以发行标签为准。
+FreeCAD、Krita、Kdenlive、RenderDoc、Tiled 和 Tracy 的 GUI 安装检查验证可执行文件；GUI 启动需要在图形会话中验收，无界面桥接与类型化适配器工具按各自契约验收。`freecadcmd` 随 Windows FreeCAD 包提供；Linux AppImage 通过 FreeCAD 应用 Runtime 提供。Material Maker 的 `--headless --version` 返回内置 Godot 引擎版本，应用版本以发行标签为准。
 
 ```toml
 [tools]

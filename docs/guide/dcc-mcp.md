@@ -4,7 +4,7 @@ vx manages the free and open-source hosts in the [DCC-MCP product catalog](https
 
 ## Available runtimes
 
-The table describes upstream distribution formats supported by each Provider. An OS package manager may install a different release from a version pinned in vx; use portable distributions when an exact version is required. AppImages need the host's graphical libraries and compatible AppImage/FUSE support.
+The table describes upstream distribution formats supported by each Provider. An OS package manager may install a different release from a version pinned in vx; use portable distributions when an exact version is required. AppImages need compatible host libraries. Those launched directly also need AppImage/FUSE support; OpenSCAD and OpenScreen extract their AppImages during installation and run `AppRun` without a FUSE mount.
 
 | Runtime | Windows | Linux | macOS |
 | --- | --- | --- | --- |
@@ -14,7 +14,7 @@ The table describes upstream distribution formats supported by each Provider. An
 | [`godot`](../tools/godot) | Portable ZIP | Portable ZIP | Universal app ZIP |
 | [`krita`](../tools/krita) | Portable ZIP, x64 | AppImage, x64 | Homebrew cask / installed app |
 | [`material-maker`](../tools/material-maker) | Portable ZIP, x64 | Portable tar.gz, x64 | Homebrew cask / installed app |
-| [`openscad`](../tools/openscad) | Portable ZIP, x64 / x86 | AppImage, x64 | Homebrew cask / installed app |
+| [`openscad`](../tools/openscad) | Portable ZIP, x64 / x86 | AppImage, x64 | Homebrew development snapshot / installed app |
 | [`openusd`](../tools/openusd) | Native `usd-core` Python environment | Native `usd-core` Python environment | Native `usd-core` Python environment |
 | [`renderdoc`](../tools/renderdoc) | Official ZIP, x64 / x86 | Official tar.gz, x64 | No upstream host distribution |
 | [`tiled`](../tools/tiled) | MSI extraction into vx store, x64 | AppImage, x64 | Universal app ZIP |
@@ -27,6 +27,8 @@ The table describes upstream distribution formats supported by each Provider. An
 Upstream licensing varies: GNU GPL/LGPL, MIT, BSD and OpenUSD's Tomorrow Open Source Technology License. Provider metadata records the individual license; the original software retains its license.
 
 Portable version support starts at OpenScreen 2.0, Tiled 1.12 and Tracy 0.14.1; OBS Windows ARM64 packages require OBS 32 or newer. Recent Tiled macOS packages require macOS 13 or newer (Tiled 1.12.0 supports macOS 11).
+
+On macOS, OpenSCAD resolves the `system` version and uses the `openscad@snapshot` Homebrew cask. Homebrew selects a development snapshot; vx does not pin a stable release such as 2021.01.
 
 The DCC-MCP GIMP adapter requires GIMP 3.x. Verify the application version supplied by the OS package manager before installing the adapter.
 
@@ -43,7 +45,7 @@ vx where blender
 vx where freecadcmd
 ```
 
-Installation checks for the FreeCAD, Krita, Kdenlive, RenderDoc and Tiled GUI runtimes verify their executable files. A graphical session is required to validate GUI startup; headless bridges and typed adapter tools follow their own acceptance contracts. `freecadcmd` is bundled with the Windows FreeCAD distribution. The Linux AppImage is exposed as the FreeCAD application runtime. `material-maker --headless --version` reports its embedded Godot engine version; its application package version comes from the upstream release tag.
+Installation checks for the FreeCAD, Krita, Kdenlive, RenderDoc, Tiled and Tracy GUI runtimes verify their executable files. A graphical session is required to validate GUI startup; headless bridges and typed adapter tools follow their own acceptance contracts. `freecadcmd` is bundled with the Windows FreeCAD distribution. The Linux AppImage is exposed as the FreeCAD application runtime. `material-maker --headless --version` reports its embedded Godot engine version; its application package version comes from the upstream release tag.
 
 Project configuration can include hosts alongside ordinary development runtimes:
 
