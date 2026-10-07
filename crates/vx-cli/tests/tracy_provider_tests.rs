@@ -37,10 +37,10 @@ fn call(function: &str, ctx: &ProviderContext, args: &[Value]) -> Value {
 #[rstest]
 #[case(
     "tracy",
-    "command",
-    "{executable} --help",
-    "cli_usage_check",
-    Some("Usage:")
+    "check_file",
+    "{executable}",
+    "installed_profiler_executable",
+    None
 )]
 #[case(
     "tracy-capture",
@@ -51,10 +51,10 @@ fn call(function: &str, ctx: &ProviderContext, args: &[Value]) -> Value {
 )]
 #[case(
     "tracy-csvexport",
-    "check_file",
-    "{executable}",
-    "installed_helper_executable",
-    None
+    "command",
+    "{executable} --version",
+    "cli_version_check",
+    Some(r"tracy-csvexport \d+\.\d+\.\d+")
 )]
 #[case(
     "tracy-update",
