@@ -56,14 +56,26 @@ async fn test_godot_version_validation_is_explicitly_headless() {
     assert_eq!(checks[0].expected_output.as_deref(), Some(r"\d+\.\d+"));
 }
 
+#[rstest]
+#[case("x64", "win64.exe", true)]
+#[case("x64", "win64.exe", false)]
+#[case("x86", "win32.exe", true)]
+#[case("x86", "win32.exe", false)]
+#[case("arm64", "windows_arm64.exe", true)]
+#[case("arm64", "windows_arm64.exe", false)]
 #[tokio::test]
-async fn test_godot_managed_cache_requires_console_wrapper_and_editor() {
+async fn test_godot_managed_cache_requires_the_complete_pair_and_executes_the_editor(
+    #[case] arch: &str,
+    #[case] platform: &str,
+    #[case] editor_first: bool,
+) {
     let (_directory, ctx) = managed_cache_context();
     let version = "4.7.2-stable";
-    let layout = call("godot", "install_layout", "windows", "x64", version);
-    let console = "Godot_v4.7.2-stable_win64_console.exe";
-    let editor = "Godot_v4.7.2-stable_win64.exe";
-    assert_eq!(layout["required_paths"], json!([console, editor]));
+    let layout = call("godot", "install_layout", "windows", arch, version);
+    let editor = format!("Godot_v{version}_{platform}");
+    let console = format!("{}_console.exe", editor.strip_suffix(".exe").unwrap());
+    assert_eq!(layout["executable_paths"], json!([editor]));
+    assert_eq!(layout["required_paths"], json!([editor, console]));
     let runtime = ManifestDrivenRuntime::new("godot", "godot", ProviderSource::BuiltIn)
         .with_install_layout(move |_| {
             let layout = layout.clone();
@@ -71,13 +83,33 @@ async fn test_godot_managed_cache_requires_console_wrapper_and_editor() {
         });
     let install_dir = ctx.paths.version_store_dir("godot", version);
     std::fs::create_dir_all(&install_dir).unwrap();
-    std::fs::write(install_dir.join(console), b"").unwrap();
     assert!(!runtime.is_installed(version, &ctx).await.unwrap());
-    std::fs::write(install_dir.join(editor), b"").unwrap();
+    let (first, second) = if editor_first {
+        (&editor, &console)
+    } else {
+        (&console, &editor)
+    };
+    std::fs::write(install_dir.join(first), b"").unwrap();
+    assert!(!runtime.is_installed(version, &ctx).await.unwrap());
+    std::fs::write(install_dir.join(second), b"").unwrap();
     assert!(runtime.is_installed(version, &ctx).await.unwrap());
+    let warm_entry = runtime
+        .get_executable_path_for_version(version, &ctx)
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(warm_entry, install_dir.join(editor));
+    assert_ne!(warm_entry, install_dir.join(console));
 }
 
 #[rstest]
+#[case(
+    "godot",
+    "windows",
+    "x86",
+    "4.7.2",
+    "https://github.com/godotengine/godot-builds/releases/download/4.7.2-stable/Godot_v4.7.2-stable_win32.exe.zip"
+)]
 #[case(
     "godot",
     "windows",
@@ -123,7 +155,23 @@ fn test_dcc_download_url_matches_official_artifact(
     "x64",
     "4.7.2-stable",
     Some(""),
-    "Godot_v4.7.2-stable_win64_console.exe"
+    "Godot_v4.7.2-stable_win64.exe"
+)]
+#[case(
+    "godot",
+    "windows",
+    "x86",
+    "4.7.2",
+    Some(""),
+    "Godot_v4.7.2-stable_win32.exe"
+)]
+#[case(
+    "godot",
+    "windows",
+    "arm64",
+    "4.7.2-stable",
+    Some(""),
+    "Godot_v4.7.2-stable_windows_arm64.exe"
 )]
 #[case(
     "godot",
