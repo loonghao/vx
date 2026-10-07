@@ -206,7 +206,7 @@ fn test_dcc_unsupported_archives_do_not_fabricate_urls(
 }
 
 #[rstest]
-#[case("openscad", "openscad")]
+#[case("openscad", "openscad@snapshot")]
 fn test_dcc_dmg_platforms_use_macos_casks(#[case] provider: &str, #[case] package: &str) {
     let (path, content) = source(provider);
     let install = StarlarkEngine::new()
@@ -222,4 +222,20 @@ fn test_dcc_dmg_platforms_use_macos_casks(#[case] provider: &str, #[case] packag
     assert_eq!(cask["package"], package);
     assert_eq!(cask["install_args"], "--cask");
     assert_eq!(cask["platforms"], json!(["macos"]));
+}
+
+#[rstest]
+#[case("x64")]
+#[case("arm64")]
+fn test_openscad_macos_resolves_a_system_snapshot_and_real_app_path(#[case] arch: &str) {
+    assert_eq!(
+        call("openscad", "fetch_versions", "macos", arch, "latest"),
+        json!([{"version": "system", "lts": false, "prerelease": false}])
+    );
+    assert_eq!(
+        call("openscad", "get_execute_path", "macos", arch, "system"),
+        "/Applications/OpenSCAD.app/Contents/MacOS/OpenSCAD"
+    );
+    assert!(call("openscad", "download_url", "macos", arch, "system").is_null());
+    assert!(call("openscad", "install_layout", "macos", arch, "system").is_null());
 }
