@@ -12,4 +12,6 @@ vx gimp --version
 
 安装使用操作系统包管理器，其实际版本可能与 vx 指定的版本不同。
 
+[DCC-MCP 适配器要求 GIMP 3.x](https://github.com/dcc-mcp/dcc-mcp-gimp/blob/main/install.md#requirements)。安装适配器前需确认系统包管理器提供的应用版本，不支持 GIMP 2.x。
+
 应用保留其上游许可证。安装应用后，需要单独安装并连接 DCC-MCP 适配器。使用 `vx where gimp` 获取可执行文件路径，再遵循适配器的安装契约。
