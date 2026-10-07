@@ -102,6 +102,32 @@ vx env --json               # Show environment variables
 vx dev --export             # Export shell environment
 ```
 
+## Managed Command Shims
+
+Check `vx --version` and `vx --help` first. If `shim` is listed, inspect
+`vx shim --help` and `vx shim add --help` for this interface; v0.9.34 does not
+include it. Do not probe an unknown subcommand as a runtime on older builds.
+
+```bash
+vx shim path                         # Default targets and their PATH status
+vx shim list --json                   # Recorded names, targets, launcher, directories, files
+# After checking name conflicts and every destination file:
+vx shim add jq --as jq-vx --dir "/absolute/path/to/shim-bin"
+vx shim remove jq-vx                  # Remove by exposed name, not runtime spec
+```
+
+`--dir` is repeatable and replaces the defaults; use absolute paths so later
+`sync`/`remove` do not depend on the working directory. Without it, `add` writes to
+both the vx bin directory and the directory containing the current vx executable
+(deduplicated). Adding a shim does not install its target or edit PATH.
+
+After upgrading or moving vx, use `vx shim sync` only after checking ownership
+of every registered destination: it rewrites all entries, including existing
+files. `--force` is an explicit overwrite decision, never the default repair.
+For Codex targets, shell-specific resolution, conflicts, and safe removal, read
+the [managed command shim guide](https://github.com/loonghao/vx/blob/main/docs/guide/managed-command-shims.md).
+There is no `vx shim rebuild` or `vx shim codex` form in this interface.
+
 ## Output Formats
 
 ### JSON Format
