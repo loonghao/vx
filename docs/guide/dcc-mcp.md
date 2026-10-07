@@ -10,7 +10,7 @@ The table describes upstream distribution formats supported by each Provider. An
 | --- | --- | --- | --- |
 | [`blender`](../tools/blender) | Portable ZIP, x64 / recent ARM64 | Portable tar.xz, x64 | Homebrew cask / installed app |
 | [`freecad`](../tools/freecad) | Portable 7z, x64, FreeCAD 1.x | AppImage, x64 / ARM64 | Homebrew cask / installed app |
-| [`gimp`](../tools/gimp) | WinGet, GIMP 3 | APT / DNF / pacman | Homebrew cask / installed app |
+| [`gimp`](../tools/gimp) | WinGet / Chocolatey (WinGet selects GIMP 3) | APT / DNF / pacman | Homebrew cask / installed app |
 | [`godot`](../tools/godot) | Portable ZIP | Portable ZIP | Universal app ZIP |
 | [`krita`](../tools/krita) | Portable ZIP, x64 | AppImage, x64 | Homebrew cask / installed app |
 | [`material-maker`](../tools/material-maker) | Portable ZIP, x64 | Portable tar.gz, x64 | Homebrew cask / installed app |
@@ -30,7 +30,7 @@ Portable version support starts at OpenScreen 2.0, Tiled 1.12 and Tracy 0.14.1; 
 
 On macOS, OpenSCAD resolves the `system` version and uses the `openscad@snapshot` Homebrew cask. Homebrew selects a development snapshot; vx does not pin a stable release such as 2021.01.
 
-The DCC-MCP GIMP adapter requires GIMP 3.x. Verify the application version supplied by the OS package manager before installing the adapter.
+The DCC-MCP GIMP adapter requires GIMP 3.x. Verify the application version supplied by the OS package manager before installing the adapter. Windows executable discovery checks known default directories on `C:`.
 
 ## Run and pin hosts
 
