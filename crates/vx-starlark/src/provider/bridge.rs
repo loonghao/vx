@@ -413,7 +413,7 @@ pub fn make_version_info_fn_owned(
 /// The returned function calls `post_extract(ctx, version, install_dir)` in the
 /// Starlark script and returns the raw action descriptors as JSON values.
 /// `ManifestDrivenRuntime::post_install` iterates over those descriptors and
-/// executes each one (SetPermissions / RunCommand).
+/// executes each one (SetPermissions / RunCommand / CreateShim).
 ///
 /// This is the type alias used in `vx-runtime` for the post_extract function pointer.
 /// It must exactly match `vx_runtime::PostExtractFn`.
@@ -462,7 +462,7 @@ pub(super) fn make_post_extract_fn_owned(
                         args,
                         env,
                         on_failure,
-                        ..
+                        working_dir,
                     } => {
                         serde_json::json!({
                             "type": "run_command",
@@ -470,11 +470,31 @@ pub(super) fn make_post_extract_fn_owned(
                             "args": args,
                             "env": env,
                             "on_failure": on_failure,
+                            "working_dir": working_dir,
                         })
                     }
-                    crate::provider::types::PostExtractAction::CreateShim { .. }
-                    | crate::provider::types::PostExtractAction::FlattenDir { .. } => {
-                        // Shims and flatten-dir are not yet handled in the manifest-driven post_install path.
+                    crate::provider::types::PostExtractAction::CreateShim {
+                        name,
+                        target,
+                        args,
+                        shim_dir,
+                    } => serde_json::json!({
+                        "type": "create_shim",
+                        "name": name,
+                        "target": target,
+                        "args": args,
+                        "shim_dir": shim_dir,
+                    }),
+                    crate::provider::types::PostExtractAction::RunNsisInstaller {
+                        executable,
+                        install_dir,
+                    } => serde_json::json!({
+                        "type": "run_nsis_installer",
+                        "executable": executable,
+                        "install_dir": install_dir,
+                    }),
+                    crate::provider::types::PostExtractAction::FlattenDir { .. } => {
+                        // Flatten-dir is not yet handled in the manifest-driven post_install path.
                         serde_json::json!({"type": "skip"})
                     }
                 })

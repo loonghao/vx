@@ -505,6 +505,7 @@ url = github_asset_url("BurntSushi", "ripgrep", "14.1.1",
 | `set_permissions(path, mode="755")` | `→ descriptor` | 设置文件权限 |
 | `ensure_dependencies(package_manager, check_file, lock_file, install_dir)` | `→ descriptor` | 确保包依赖 |
 | `run_command(executable, args, working_dir, env, on_failure="warn")` | `→ descriptor` | 运行任意命令 |
+| `run_nsis_installer(executable, install_dir)` | `→ descriptor` | 仅限 Windows：静默安装 NSIS 包到绝对路径，按要求保留含空格的未加引号 `/D=` 尾参数；安装失败会终止钩子 |
 | `flatten_dir(pattern, keep_subdirs)` | `→ descriptor` | 展平目录结构 |
 
 ---

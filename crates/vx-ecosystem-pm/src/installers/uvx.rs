@@ -100,36 +100,32 @@ impl EcosystemInstaller for UvxInstaller {
         std::fs::create_dir_all(&bin_dir)
             .with_context(|| format!("Failed to create bin directory: {}", bin_dir.display()))?;
 
-        // Pre-warm the uvx cache for this package version so the first run is fast.
-        // `uvx --no-project <package>==<version> --version` is a lightweight way to
-        // trigger cache population without actually running the tool's main logic.
+        // Populate uv's isolated cache without invoking an application's entry
+        // point or installing global tools. Libraries need no console scripts.
         let package_spec = if version == "latest" {
             package.to_string()
         } else {
             format!("{}=={}", package, version)
         };
 
-        // Use `uv tool install` to pre-install into the tool cache
-        // This makes subsequent `uvx` calls instant (cache hit)
         let uv = self.get_uv()?;
-        let mut args = vec!["tool", "install"];
+        let mut args = vec!["tool", "run"];
 
         if options.force {
-            args.push("--force");
+            args.push("--refresh");
         }
 
         let extra_args: Vec<&str> = options.extra_args.iter().map(|s| s.as_str()).collect();
         args.extend(extra_args);
-        args.push(&package_spec);
+        args.extend(["--from", &package_spec, "python", "-c", "pass"]);
 
         let env = self.build_install_env(install_dir);
         let output = crate::utils::run_command(&uv, &args, &env, options.verbose)?;
 
         if !output.status.success() {
             let stderr = String::from_utf8_lossy(&output.stderr);
-            // Non-fatal: uvx can still run even if pre-install fails
-            tracing::warn!(
-                "uv tool install pre-warm failed for {}: {}",
+            bail!(
+                "Failed to prepare isolated uv environment for {}: {}",
                 package_spec,
                 stderr
             );

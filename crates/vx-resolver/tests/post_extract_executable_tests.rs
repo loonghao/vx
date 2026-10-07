@@ -12,8 +12,9 @@
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use anyhow::Result;
+use anyhow::{Result, bail};
 use async_trait::async_trait;
+use rstest::rstest;
 use vx_resolver::{
     EnsureStage, ExecutionConfig, ExecutionPlan, InstallStatus, PlannedRuntime, Resolver,
     ResolverConfig, RuntimeMap, Stage, VersionResolution,
@@ -151,7 +152,7 @@ impl Provider for RustProvider {
 }
 
 #[tokio::test]
-async fn cold_install_dispatches_to_post_extract_executable() {
+async fn test_cold_install_dispatches_to_post_extract_executable() {
     let root = tempfile::tempdir().expect("tempdir");
     let context = real_context(root.path());
 
@@ -190,5 +191,181 @@ async fn cold_install_dispatches_to_post_extract_executable() {
         plan.primary.executable.as_deref(),
         Some(bootstrapper.as_path()),
         "cold install must not dispatch to the bootstrapper"
+    );
+}
+
+#[derive(Clone, Copy)]
+enum ResolutionFailure {
+    Missing,
+    NonexistentPath,
+    Error,
+}
+
+/// A bootstrap command can exit successfully without creating the final app.
+/// Its resolver may report no path, a nonexistent path, or an evaluation error.
+struct IncompleteBootstrappingRuntime {
+    failure: ResolutionFailure,
+    system_install: bool,
+    has_hook: bool,
+}
+
+#[async_trait]
+impl Runtime for IncompleteBootstrappingRuntime {
+    fn name(&self) -> &str {
+        "rust"
+    }
+
+    fn description(&self) -> &str {
+        "Mock incomplete bootstrap"
+    }
+
+    fn ecosystem(&self) -> Ecosystem {
+        Ecosystem::Rust
+    }
+
+    async fn fetch_versions(&self, _ctx: &RuntimeContext) -> Result<Vec<VersionInfo>> {
+        Ok(vec![VersionInfo::new(VERSION)])
+    }
+
+    async fn is_installed(&self, version: &str, ctx: &RuntimeContext) -> Result<bool> {
+        BootstrappingRuntime.is_installed(version, ctx).await
+    }
+
+    fn has_post_extract_hook(&self) -> bool {
+        self.has_hook
+    }
+
+    async fn install(&self, version: &str, ctx: &RuntimeContext) -> Result<InstallResult> {
+        let mut result = BootstrappingRuntime.install(version, ctx).await?;
+        if self.system_install {
+            result.install_path = PathBuf::from("system");
+        }
+        Ok(result)
+    }
+
+    async fn post_install(&self, _version: &str, _ctx: &RuntimeContext) -> Result<()> {
+        // Simulate a command that exits zero but leaves only the bootstrapper.
+        Ok(())
+    }
+
+    async fn get_executable_path_for_version(
+        &self,
+        _version: &str,
+        ctx: &RuntimeContext,
+    ) -> Result<Option<PathBuf>> {
+        match self.failure {
+            ResolutionFailure::Missing => Ok(None),
+            ResolutionFailure::NonexistentPath => {
+                Ok(Some(BootstrappingRuntime::real_executable(ctx)))
+            }
+            ResolutionFailure::Error => bail!("declared executable resolution failed"),
+        }
+    }
+}
+
+struct IncompleteProvider {
+    failure: ResolutionFailure,
+    system_install: bool,
+    has_hook: bool,
+}
+
+impl Provider for IncompleteProvider {
+    fn name(&self) -> &str {
+        "rust"
+    }
+
+    fn description(&self) -> &str {
+        "Mock incomplete bootstrap provider"
+    }
+
+    fn runtimes(&self) -> Vec<Arc<dyn Runtime>> {
+        vec![Arc::new(IncompleteBootstrappingRuntime {
+            failure: self.failure,
+            system_install: self.system_install,
+            has_hook: self.has_hook,
+        })]
+    }
+}
+
+fn bootstrap_plan(context: &RuntimeContext, warm_cache: bool) -> ExecutionPlan {
+    let mut primary = PlannedRuntime::installed("rust", VERSION.to_string(), PathBuf::new());
+    primary.version = VersionResolution::Installed {
+        version: VERSION.to_string(),
+        source: vx_resolver::VersionSource::VxManaged,
+    };
+    if warm_cache {
+        let bootstrapper = BootstrappingRuntime::bootstrapper(context);
+        BootstrappingRuntime::write(&bootstrapper);
+        primary.executable = Some(bootstrapper);
+    } else {
+        primary.executable = None;
+    }
+    ExecutionPlan::new(primary, ExecutionConfig::default())
+}
+
+#[rstest]
+#[case(false, ResolutionFailure::Missing)]
+#[case(true, ResolutionFailure::Missing)]
+#[case(false, ResolutionFailure::NonexistentPath)]
+#[case(true, ResolutionFailure::NonexistentPath)]
+#[case(false, ResolutionFailure::Error)]
+#[case(true, ResolutionFailure::Error)]
+#[tokio::test]
+async fn test_successful_hook_without_final_executable_never_dispatches_bootstrapper(
+    #[case] warm_cache: bool,
+    #[case] failure: ResolutionFailure,
+) {
+    let root = tempfile::tempdir().expect("temporary store");
+    let context = real_context(root.path());
+    let registry = ProviderRegistry::new();
+    registry.register(Arc::new(IncompleteProvider {
+        failure,
+        system_install: false,
+        has_hook: true,
+    }));
+    let config = ResolverConfig::default();
+    let resolver = Resolver::new(config.clone(), RuntimeMap::empty()).expect("resolver");
+    let stage = EnsureStage::new(&resolver, &config, Some(&registry), Some(&context));
+
+    let result = stage.execute(bootstrap_plan(&context, warm_cache)).await;
+
+    let error = result.expect_err("incomplete bootstrap must not be executable");
+    assert!(
+        error.to_string().contains("Post-extract hook")
+            || error.to_string().contains("post-extract hook"),
+        "{error}"
+    );
+    assert!(BootstrappingRuntime::bootstrapper(&context).is_file());
+    assert!(!BootstrappingRuntime::real_executable(&context).exists());
+}
+
+#[rstest]
+#[case(true, true)]
+#[case(false, false)]
+#[tokio::test]
+async fn test_final_executable_gate_preserves_system_and_no_hook_installs(
+    #[case] system_install: bool,
+    #[case] has_hook: bool,
+) {
+    let root = tempfile::tempdir().expect("temporary store");
+    let context = real_context(root.path());
+    let registry = ProviderRegistry::new();
+    registry.register(Arc::new(IncompleteProvider {
+        failure: ResolutionFailure::Error,
+        system_install,
+        has_hook,
+    }));
+    let config = ResolverConfig::default();
+    let resolver = Resolver::new(config.clone(), RuntimeMap::empty()).expect("resolver");
+    let stage = EnsureStage::new(&resolver, &config, Some(&registry), Some(&context));
+
+    let result = stage
+        .execute(bootstrap_plan(&context, false))
+        .await
+        .expect("system and no-hook installs retain their existing contract");
+
+    assert_eq!(
+        result.primary.executable,
+        Some(BootstrappingRuntime::bootstrapper(&context))
     );
 }

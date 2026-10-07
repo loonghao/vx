@@ -188,6 +188,12 @@ pub enum PostExtractAction {
         /// How to handle command failure: "warn", "error", "ignore"
         on_failure: String,
     },
+    /// Run an NSIS installer with fixed silent/current-user options and an
+    /// unquoted final `/D=` destination, using the native Windows command line.
+    RunNsisInstaller {
+        executable: String,
+        install_dir: String,
+    },
     /// Flatten a nested subdirectory into the install root
     ///
     /// Starlark: `flatten_dir(pattern = "jdk-*")`
