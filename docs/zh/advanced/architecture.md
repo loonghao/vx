@@ -211,7 +211,7 @@ vx-providers/
 ├── rust/
 ├── uv/
 ├── deno/
-└── ... (159 Providers)
+└── ... (160 Providers)
 ```
 
 每个 provider 包含 `provider.toml` 清单：
