@@ -16,6 +16,18 @@ use managed_cache::managed_cache_context;
 use provider_contract::{call, source};
 
 #[rstest]
+#[case("x64")]
+#[case("arm64")]
+fn test_godot_macos_preserves_the_app_bundle_root(#[case] arch: &str) {
+    let layout = call("godot", "install_layout", "macos", arch, "4.7.2-stable");
+    assert!(layout.get("strip_prefix").is_none());
+    assert_eq!(
+        layout["required_paths"],
+        json!(["Godot.app/Contents/MacOS/Godot"])
+    );
+}
+
+#[rstest]
 #[case("godot")]
 #[tokio::test]
 async fn test_load_dcc_provider_with_system_discovery(#[case] name: &str) {
@@ -95,7 +107,7 @@ fn test_dcc_download_url_matches_official_artifact(
     "windows",
     "x64",
     "4.7.2-stable",
-    "",
+    Some(""),
     "Godot_v4.7.2-stable_win64_console.exe"
 )]
 #[case(
@@ -103,7 +115,7 @@ fn test_dcc_download_url_matches_official_artifact(
     "macos",
     "arm64",
     "4.7.2",
-    "",
+    None,
     "Godot.app/Contents/MacOS/Godot"
 )]
 #[case(
@@ -111,7 +123,7 @@ fn test_dcc_download_url_matches_official_artifact(
     "linux",
     "arm64",
     "4.7.2",
-    "",
+    Some(""),
     "Godot_v4.7.2-stable_linux.arm64"
 )]
 fn test_dcc_archive_layout_and_execution_path_agree(
@@ -119,12 +131,17 @@ fn test_dcc_archive_layout_and_execution_path_agree(
     #[case] os: &str,
     #[case] arch: &str,
     #[case] version: &str,
-    #[case] root: &str,
+    #[case] root: Option<&str>,
     #[case] executable: &str,
 ) {
     let layout = call(provider, "install_layout", os, arch, version);
     assert_eq!(layout["type"], "archive");
-    assert_eq!(layout["strip_prefix"], root);
+    assert_eq!(
+        layout
+            .get("strip_prefix")
+            .and_then(serde_json::Value::as_str),
+        root
+    );
     assert!(
         layout["executable_paths"]
             .as_array()
