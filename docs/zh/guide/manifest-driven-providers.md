@@ -22,7 +22,7 @@ vx 使用 **`provider.star`**（Starlark）作为所有 Provider 逻辑的唯一
 
 ### 使用内置 Provider
 
-vx 内置了 157 个 Provider：
+vx 内置了 158 个 Provider：
 
 ```bash
 vx node --version      # Node.js
