@@ -50,10 +50,10 @@ def install_layout(ctx, version):
         return {"type": "archive", "strip_prefix": "kdenlive-{}_standalone".format(version), "executable_paths": ["bin/kdenlive.exe"], "required_paths": ["bin/kdenlive.exe", "bin/melt.exe", "bin/ffprobe.exe", "bin/ffmpeg.exe"]}
     return {"type": "binary", "target_name": "kdenlive", "target_dir": "bin", "executable_paths": ["bin/kdenlive"]}
 
-def system_install(ctx):
-    if ctx.platform.os == "macos" and ctx.platform.arch in ["x64", "arm64"]:
-        return system_install_strategies([pkg_strategy("brew", "kdenlive", install_args = "--cask", platforms = ["macos"])])
-    return system_install_strategies([])
+# The runtime reads this descriptor directly and filters strategies by OS.
+system_install = system_install_strategies([
+    pkg_strategy("brew", "kdenlive", install_args = "--cask", platforms = ["macos"]),
+])
 
 def store_root(ctx):
     return ctx.vx_home + "/store/kdenlive"
