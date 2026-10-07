@@ -8,7 +8,7 @@ name = "openusd"
 description = "OpenUSD - Python environment with native Universal Scene Description bindings"
 homepage = "https://openusd.org"
 repository = "https://github.com/PixarAnimationStudios/OpenUSD"
-license = "LicenseRef-Tomorrow-Open-Source-Technology-1.0"
+license = "LicenseRef-TOST-1.0"
 ecosystem = "python"
 package_alias = {"ecosystem": "uvx", "package": "usd-core", "executable": "python"}
 
