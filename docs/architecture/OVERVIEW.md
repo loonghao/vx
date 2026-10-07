@@ -27,7 +27,7 @@
      └────────┬───────┘ └──────────┘ └──────────────┘
               │
      ┌────────▼───────┐
-     │ provider.star   │  155 Provider definitions
+     │ provider.star   │  156 Provider definitions
      │ files           │  (Starlark DSL)
      └────────────────┘
 ```
@@ -88,7 +88,7 @@
 
 | Directory | Purpose |
 |-----------|---------|
-| `crates/vx-providers/*` | 155 Provider definitions using `provider.star` Starlark DSL |
+| `crates/vx-providers/*` | 156 Provider definitions using `provider.star` Starlark DSL |
 | `vx-bridge` | Generic command bridge framework for providers |
 
 ## Data Flow: `vx node --version`
