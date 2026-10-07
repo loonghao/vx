@@ -28,6 +28,8 @@ Upstream licensing varies: GNU GPL/LGPL, MIT, BSD and OpenUSD's Tomorrow Open So
 
 Portable version support starts at OpenScreen 2.0, Tiled 1.12 and Tracy 0.14.1; OBS Windows ARM64 packages require OBS 32 or newer. Recent Tiled macOS packages require macOS 13 or newer (Tiled 1.12.0 supports macOS 11).
 
+The DCC-MCP GIMP adapter requires GIMP 3.x. Verify the application version supplied by the OS package manager before installing the adapter.
+
 ## Run and pin hosts
 
 ```bash
@@ -41,7 +43,7 @@ vx where blender
 vx where freecadcmd
 ```
 
-Installation checks for the FreeCAD, Krita, Kdenlive, RenderDoc and Tiled GUI runtimes verify their executable files. A graphical session is required to validate application startup and adapter connectivity. `freecadcmd` is bundled with the Windows FreeCAD distribution. The Linux AppImage is exposed as the FreeCAD application runtime. `material-maker --headless --version` reports its embedded Godot engine version; its application package version comes from the upstream release tag.
+Installation checks for the FreeCAD, Krita, Kdenlive, RenderDoc and Tiled GUI runtimes verify their executable files. A graphical session is required to validate GUI startup; headless bridges and typed adapter tools follow their own acceptance contracts. `freecadcmd` is bundled with the Windows FreeCAD distribution. The Linux AppImage is exposed as the FreeCAD application runtime. `material-maker --headless --version` reports its embedded Godot engine version; its application package version comes from the upstream release tag.
 
 Project configuration can include hosts alongside ordinary development runtimes:
 

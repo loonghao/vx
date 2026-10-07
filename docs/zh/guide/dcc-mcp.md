@@ -26,6 +26,8 @@ vx 为 [DCC-MCP 产品目录](https://github.com/dcc-mcp/dcc-mcp-core/blob/2d0c1
 
 便携包支持 OpenScreen 2.0、Tiled 1.12 及以上、Tracy 0.14.1 及以上；OBS Windows ARM64 包需要 OBS 32 及以上。新版 Tiled macOS 包需要 macOS 13 及以上，Tiled 1.12.0 支持 macOS 11。
 
+DCC-MCP 的 GIMP 适配器要求 GIMP 3.x。安装适配器前需确认系统包管理器提供的应用版本。
+
 ## 使用示例
 
 ```bash
@@ -38,7 +40,7 @@ vx where blender
 vx where freecadcmd
 ```
 
-FreeCAD、Krita、Kdenlive、RenderDoc 和 Tiled 的 GUI 安装检查验证可执行文件；应用启动与适配器连接需要另行在图形会话中验收。`freecadcmd` 随 Windows FreeCAD 包提供；Linux AppImage 通过 FreeCAD 应用 Runtime 提供。Material Maker 的 `--headless --version` 返回内置 Godot 引擎版本，应用版本以发行标签为准。
+FreeCAD、Krita、Kdenlive、RenderDoc 和 Tiled 的 GUI 安装检查验证可执行文件；GUI 启动需要在图形会话中验收，无界面桥接与类型化适配器工具按各自契约验收。`freecadcmd` 随 Windows FreeCAD 包提供；Linux AppImage 通过 FreeCAD 应用 Runtime 提供。Material Maker 的 `--headless --version` 返回内置 Godot 引擎版本，应用版本以发行标签为准。
 
 ```toml
 [tools]
