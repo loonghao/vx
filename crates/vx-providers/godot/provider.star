@@ -31,8 +31,7 @@ def _executable(ctx, version):
     if ctx.platform.os == "macos":
         return "Godot.app/Contents/MacOS/Godot"
     base = "Godot_v{}_{platform}".format(_tag(version), platform = platform)
-    # Upstream's console wrapper preserves CLI stdout on Windows.
-    return base[:-4] + "_console.exe" if ctx.platform.os == "windows" else base
+    return base
 
 def download_url(ctx, version):
     platform = _PLATFORMS.get(ctx.platform.os + "/" + ctx.platform.arch)
@@ -50,9 +49,9 @@ def install_layout(ctx, version):
         # An empty strip_prefix would flatten the sole Godot.app directory.
         return {"type": "archive", "executable_paths": [exe], "required_paths": [exe]}
     if ctx.platform.os == "windows":
-        main_exe = "Godot_v{}_{}".format(_tag(version), _PLATFORMS[ctx.platform.os + "/" + ctx.platform.arch])
-        # The console executable delegates to the editor in the same directory.
-        layout["required_paths"] = [exe, main_exe]
+        # Execute the editor directly while retaining the complete upstream pair.
+        console_exe = exe[:-4] + "_console.exe"
+        layout["required_paths"] = [exe, console_exe]
     return layout
 
 def store_root(ctx):
