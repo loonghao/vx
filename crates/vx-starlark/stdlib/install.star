@@ -413,6 +413,26 @@ def run_command(executable, args, working_dir = None, env = None,
         descriptor["env"] = env
     return descriptor
 
+def run_nsis_installer(executable, install_dir):
+    """Run a Windows NSIS installer silently for the current user.
+
+    NSIS requires the absolute /D= destination to be the final, unquoted
+    command-line tail, including when the directory contains spaces. The
+    runtime handles this native Windows convention without invoking a shell.
+
+    Args:
+        executable: Absolute path to the downloaded NSIS .exe installer.
+        install_dir: Absolute destination without double quotes, NUL, CR, or LF.
+
+    Installer failures stop the hook. Unsupported platforms fail explicitly.
+    """
+    return {
+        "__type": "run_nsis_installer",
+        "executable": executable,
+        "install_dir": install_dir,
+    }
+
+
 def flatten_dir(pattern = None, keep_subdirs = None):
     """Return a flatten-directory descriptor for the Rust runtime to apply after extraction.
 

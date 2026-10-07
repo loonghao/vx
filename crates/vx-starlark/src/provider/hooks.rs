@@ -119,6 +119,17 @@ impl StarlarkProvider {
                 })
             }
 
+            "run_nsis_installer" => Some(PostExtractAction::RunNsisInstaller {
+                executable: json
+                    .get("executable")
+                    .and_then(|value| value.as_str())?
+                    .to_string(),
+                install_dir: json
+                    .get("install_dir")
+                    .and_then(|value| value.as_str())?
+                    .to_string(),
+            }),
+
             "flatten_dir" => {
                 let pattern = json
                     .get("pattern")

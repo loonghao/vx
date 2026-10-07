@@ -1476,6 +1476,72 @@ impl Runtime for ManifestDrivenRuntime {
                 .unwrap_or("unknown");
 
             match action_type {
+                "run_nsis_installer" => {
+                    let executable = action
+                        .get("executable")
+                        .and_then(|value| value.as_str())
+                        .ok_or_else(|| {
+                            anyhow::anyhow!("post_install: NSIS action requires an executable")
+                        })?;
+                    let destination = action
+                        .get("install_dir")
+                        .and_then(|value| value.as_str())
+                        .ok_or_else(|| {
+                            anyhow::anyhow!("post_install: NSIS action requires an install_dir")
+                        })?;
+                    run_nsis_installer(executable, destination)?;
+                }
+                "create_shim" => {
+                    let name = action.get("name").and_then(|v| v.as_str()).ok_or_else(|| {
+                        anyhow::anyhow!("post_install: create_shim requires a name")
+                    })?;
+                    anyhow::ensure!(
+                        !name.is_empty()
+                            && name != "."
+                            && name != ".."
+                            && !name.contains(['/', '\\']),
+                        "post_install: invalid shim name '{name}'"
+                    );
+                    let target =
+                        action
+                            .get("target")
+                            .and_then(|v| v.as_str())
+                            .ok_or_else(|| {
+                                anyhow::anyhow!("post_install: create_shim requires a target")
+                            })?;
+                    anyhow::ensure!(!target.is_empty(), "post_install: shim target is empty");
+                    // Path::join keeps absolute descriptor paths intact. Relative
+                    // targets and output directories are rooted in this install.
+                    let target = install_dir.join(target);
+                    let shim_dir = action
+                        .get("shim_dir")
+                        .and_then(|v| v.as_str())
+                        .map(|dir| install_dir.join(dir))
+                        .or_else(|| target.parent().map(Path::to_path_buf))
+                        .ok_or_else(|| {
+                            anyhow::anyhow!("post_install: shim target has no parent")
+                        })?;
+                    let args: Vec<&str> = action
+                        .get("args")
+                        .and_then(|v| v.as_array())
+                        .map(|values| {
+                            values
+                                .iter()
+                                .map(|value| {
+                                    value.as_str().ok_or_else(|| {
+                                        anyhow::anyhow!(
+                                            "post_install: shim arguments must be strings"
+                                        )
+                                    })
+                                })
+                                .collect::<Result<Vec<_>>>()
+                        })
+                        .transpose()?
+                        .unwrap_or_default();
+                    crate::Shim::new(name, target)
+                        .with_args(&args)
+                        .create_all(&shim_dir, &platform)?;
+                }
                 "set_permissions" => {
                     // Only meaningful on Unix; skip on Windows.
                     #[cfg(unix)]
@@ -1537,6 +1603,9 @@ impl Runtime for ManifestDrivenRuntime {
 
                         let mut cmd = std::process::Command::new(cmd_str);
                         cmd.args(&args);
+                        if let Some(dir) = action.get("working_dir").and_then(|v| v.as_str()) {
+                            cmd.current_dir(install_dir.join(dir));
+                        }
                         for (k, v) in &env_map {
                             cmd.env(k, v);
                         }
@@ -1604,6 +1673,47 @@ impl Runtime for ManifestDrivenRuntime {
 // ============================================================================
 // Private helpers
 // ============================================================================
+
+/// NSIS parses `/D=` from the raw tail rather than the normal Windows argv.
+/// Keep that exception confined to this typed installer action.
+fn run_nsis_installer(executable: &str, install_dir: &str) -> Result<()> {
+    #[cfg(not(windows))]
+    {
+        let _ = (executable, install_dir);
+        anyhow::bail!("post_install: NSIS installers are supported only on Windows");
+    }
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+
+        anyhow::ensure!(
+            Path::new(install_dir).is_absolute() && !install_dir.contains(['"', '\0', '\r', '\n']),
+            "post_install: NSIS install_dir must be absolute and contain no double quotes, NUL, CR, or LF"
+        );
+        anyhow::ensure!(
+            Path::new(executable).is_absolute()
+                && Path::new(executable)
+                    .extension()
+                    .and_then(|extension| extension.to_str())
+                    .is_some_and(|extension| extension.eq_ignore_ascii_case("exe")),
+            "post_install: NSIS executable must be an absolute .exe path"
+        );
+        let status = std::process::Command::new(executable)
+            .args(["/S", "/currentuser"])
+            // This is native CreateProcess input, never shell source. NSIS
+            // requires /D= to be last and unquoted even for paths with spaces.
+            .raw_arg(format!("/D={install_dir}"))
+            .status()
+            .with_context(|| {
+                format!("post_install: failed to run NSIS installer '{executable}'")
+            })?;
+        anyhow::ensure!(
+            status.success(),
+            "post_install: NSIS installer exited with {status}"
+        );
+        Ok(())
+    }
+}
 
 /// Check if a package manager is available on the system.
 async fn is_package_manager_available(manager: &str) -> bool {

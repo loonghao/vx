@@ -6,6 +6,76 @@
 use super::{ShimType, VX_SHIM_MARKER};
 use crate::shim::Shim;
 
+/// Arguments with only these characters are literal in every supported shell.
+fn is_plain_argument(value: &str) -> bool {
+    !value.is_empty()
+        && value
+            .bytes()
+            .all(|byte| byte.is_ascii_alphanumeric() || b"-_.:/@=+".contains(&byte))
+}
+
+fn shell_literal(value: &str) -> String {
+    format!("'{}'", value.replace('\'', "'\\''"))
+}
+
+fn shell_argument(value: &str) -> String {
+    if is_plain_argument(value) {
+        value.to_string()
+    } else {
+        shell_literal(value)
+    }
+}
+
+fn shell_path(value: &str) -> String {
+    format!(
+        "\"{}\"",
+        value
+            .replace('\\', "\\\\")
+            .replace('"', "\\\"")
+            .replace('$', "\\$")
+            .replace('`', "\\`")
+    )
+}
+
+fn powershell_literal(value: &str) -> String {
+    format!("'{}'", value.replace('\'', "''"))
+}
+
+/// Quote one batch argument, including CRT backslash/quote rules and the
+/// percent expansion performed while cmd.exe reads a batch file.
+fn batch_literal(value: &str) -> String {
+    let mut quoted = String::from("\"");
+    let mut backslashes = 0;
+    for character in value.chars() {
+        if character == '\\' {
+            backslashes += 1;
+            continue;
+        }
+        quoted.push_str(&"\\".repeat(if character == '"' {
+            backslashes * 2
+        } else {
+            backslashes
+        }));
+        backslashes = 0;
+        match character {
+            '"' => quoted.push_str("\"\""),
+            '%' => quoted.push_str("%%"),
+            _ => quoted.push(character),
+        }
+    }
+    quoted.push_str(&"\\".repeat(backslashes * 2));
+    quoted.push('"');
+    quoted
+}
+
+fn batch_argument(value: &str) -> String {
+    if is_plain_argument(value) {
+        value.to_string()
+    } else {
+        batch_literal(value)
+    }
+}
+
 /// Comment token used by a shim type for its marker line
 fn comment_token(shim_type: ShimType) -> &'static str {
     match shim_type {
@@ -27,7 +97,7 @@ pub(crate) fn marker_line(shim_type: ShimType) -> String {
 pub(crate) fn batch(shim: &Shim) -> String {
     let mut lines = vec![
         "@echo off".to_string(),
-        "setlocal".to_string(),
+        "setlocal DisableDelayedExpansion".to_string(),
         marker_line(ShimType::Batch),
     ];
 
@@ -38,7 +108,10 @@ pub(crate) fn batch(shim: &Shim) -> String {
 
     // Add working directory change if specified
     if let Some(ref dir) = shim.working_dir {
-        lines.push(format!("cd /d \"{}\"", dir.display()));
+        lines.push(format!(
+            "cd /d {}",
+            batch_literal(&dir.display().to_string())
+        ));
     }
 
     // Build the command
@@ -46,10 +119,17 @@ pub(crate) fn batch(shim: &Shim) -> String {
     let args_str = if shim.args.is_empty() {
         " ".to_string()
     } else {
-        format!(" {} ", shim.args.join(" "))
+        format!(
+            " {} ",
+            shim.args
+                .iter()
+                .map(|arg| batch_argument(arg))
+                .collect::<Vec<_>>()
+                .join(" ")
+        )
     };
 
-    lines.push(format!("\"{}\"{}%*", target_str, args_str));
+    lines.push(format!("{}{}%*", batch_literal(&target_str), args_str));
 
     // Propagate the exit code of the wrapped command to our caller
     lines.push("exit /b %ERRORLEVEL%".to_string());
@@ -66,17 +146,20 @@ pub(crate) fn powershell(shim: &Shim) -> String {
 
     // Add environment variables
     for (key, value) in &shim.env {
-        lines.push(format!("$env:{} = '{}'", key, value));
+        lines.push(format!("$env:{} = {}", key, powershell_literal(value)));
     }
 
     // Add working directory change if specified
     if let Some(ref dir) = shim.working_dir {
-        lines.push(format!("Set-Location -Path \"{}\"", dir.display()));
+        lines.push(format!(
+            "Set-Location -LiteralPath {}",
+            powershell_literal(&dir.display().to_string())
+        ));
     }
 
     // Build the command
-    let mut cmd_parts = vec![format!("\"{}\"", shim.target.display())];
-    cmd_parts.extend(shim.args.iter().cloned());
+    let mut cmd_parts = vec![powershell_literal(&shim.target.display().to_string())];
+    cmd_parts.extend(shim.args.iter().map(|arg| powershell_literal(arg)));
     cmd_parts.push("$args".to_string());
 
     lines.push(format!("& {}", cmd_parts.join(" ")));
@@ -97,21 +180,20 @@ pub(crate) fn shell(shim: &Shim) -> String {
 
     // Add environment variables
     for (key, value) in &shim.env {
-        lines.push(format!("{}='{}'", key, value));
+        lines.push(format!("{}={}", key, shell_literal(value)));
         lines.push(format!("export {}", key));
     }
 
     // Add working directory change if specified
     if let Some(ref dir) = shim.working_dir {
-        lines.push(format!("cd \"{}\"", dir.display()));
+        lines.push(format!("cd {}", shell_path(&dir.display().to_string())));
     }
 
     // Build the command
-    let mut cmd_parts = vec![format!(
-        "\"{}\"",
-        shim.target.display().to_string().replace('\\', "/")
+    let mut cmd_parts = vec![shell_path(
+        &shim.target.display().to_string().replace('\\', "/"),
     )];
-    cmd_parts.extend(shim.args.iter().cloned());
+    cmd_parts.extend(shim.args.iter().map(|arg| shell_argument(arg)));
     cmd_parts.push("\"$@\"".to_string());
 
     // `exec` replaces this process, so the exit code needs no handling

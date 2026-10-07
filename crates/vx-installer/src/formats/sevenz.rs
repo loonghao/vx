@@ -6,17 +6,22 @@
 //!
 //! Many tools distribute as Self-Extracting Archives (SFX) with a `.exe` extension.
 //! For example, 7-Zip itself ships as `7z2500-x64.exe` which is a PE executable
-//! with an embedded 7z archive. `sevenz-rust` handles this transparently by scanning
-//! for the 7z signature (`37 7A BC AF 27 1C`) within the file.
+//! with an embedded 7z archive. The handler finds the 7z signature
+//! (`37 7A BC AF 27 1C`) and supplies an archive starting at that offset to
+//! `sevenz-rust`, whose seek offsets are relative to the archive header.
 //!
 //! This handler detects SFX files by reading the file magic bytes rather than
 //! relying solely on the file extension.
 
+use std::fs::File;
+use std::io::{self, Read, Seek, SeekFrom};
+use std::path::{Component, Path, PathBuf};
+
 use crate::{Error, Result, progress::ProgressContext};
-use std::path::{Path, PathBuf};
 
 /// 7z archive magic bytes: `7z\xBC\xAF\x27\x1C`
 const SEVENZ_MAGIC: &[u8] = &[0x37, 0x7A, 0xBC, 0xAF, 0x27, 0x1C];
+const MAX_SIGNATURE_SCAN: u64 = 4 * 1024 * 1024;
 
 /// Handler for 7z archive format and 7z SFX executables
 pub struct SevenZipHandler;
@@ -30,35 +35,12 @@ impl SevenZipHandler {
     /// Check if a file contains a 7z archive signature.
     ///
     /// For plain `.7z` files the signature is at offset 0.
-    /// For SFX `.exe` files the signature appears after the PE stub —
-    /// `sevenz-rust` scans for it automatically, so we just need to confirm
-    /// the signature exists somewhere in the first few MB of the file.
+    /// For SFX `.exe` files the signature appears after the PE stub.
     fn has_sevenz_signature(file_path: &Path) -> bool {
-        use std::io::Read;
-
-        let Ok(mut file) = std::fs::File::open(file_path) else {
+        let Ok(mut file) = File::open(file_path) else {
             return false;
         };
-
-        // Read up to 4 MB to find the embedded 7z signature in SFX files.
-        // Real 7z archives have the signature at byte 0; SFX stubs are typically
-        // a few hundred KB at most.
-        const MAX_SCAN: usize = 4 * 1024 * 1024;
-        let mut buf = vec![
-            0u8;
-            MAX_SCAN.min(
-                file_path
-                    .metadata()
-                    .map(|m| m.len() as usize)
-                    .unwrap_or(MAX_SCAN),
-            )
-        ];
-
-        let n = file.read(&mut buf).unwrap_or(0);
-        let buf = &buf[..n];
-
-        // Search for the 7z magic signature
-        buf.windows(SEVENZ_MAGIC.len()).any(|w| w == SEVENZ_MAGIC)
+        signature_offset(&mut file).ok().flatten().is_some()
     }
 }
 
@@ -108,13 +90,22 @@ impl super::FormatHandler for SevenZipHandler {
 
         // Run extraction in blocking task since sevenz-rust is sync
         let extracted_files = tokio::task::spawn_blocking(move || {
-            sevenz_rust::decompress_file(&source, &target).map_err(|e| {
-                Error::extraction_failed(&source, format!("7z extraction failed: {}", e))
+            let archive = open_archive(&source).map_err(|error| {
+                Error::extraction_failed(&source, format!("Failed to open 7z archive: {error}"))
             })?;
-
-            // Collect all extracted files
             let mut files = Vec::new();
-            collect_files(&target, &mut files)?;
+            sevenz_rust::decompress_with_extract_fn(archive, &target, |entry, reader, _| {
+                let path =
+                    safe_entry_path(&target, entry.name()).map_err(sevenz_rust::Error::io)?;
+                sevenz_rust::default_entry_extract_fn(entry, reader, &path)?;
+                if !entry.is_directory() {
+                    files.push(path);
+                }
+                Ok(true)
+            })
+            .map_err(|error| {
+                Error::extraction_failed(&source, format!("7z extraction failed: {error}"))
+            })?;
             Ok::<_, Error>(files)
         })
         .await
@@ -133,20 +124,68 @@ impl super::FormatHandler for SevenZipHandler {
     }
 }
 
-/// Recursively collect all files in a directory
-fn collect_files(dir: &Path, files: &mut Vec<PathBuf>) -> std::io::Result<()> {
-    if dir.is_dir() {
-        for entry in std::fs::read_dir(dir)? {
-            let entry = entry?;
-            let path = entry.path();
-            if path.is_dir() {
-                collect_files(&path, files)?;
-            } else {
-                files.push(path);
+/// Find a signature within the same bounded prefix used for SFX detection.
+fn signature_offset(file: &mut File) -> io::Result<Option<u64>> {
+    file.rewind()?;
+    let mut prefix = Vec::new();
+    file.take(MAX_SIGNATURE_SCAN).read_to_end(&mut prefix)?;
+    Ok(prefix
+        .windows(SEVENZ_MAGIC.len())
+        .position(|bytes| bytes == SEVENZ_MAGIC)
+        .map(|offset| offset as u64))
+}
+
+/// Remove the SFX stub without buffering the full download in memory.
+fn open_archive(source: &Path) -> io::Result<File> {
+    let mut file = File::open(source)?;
+    let offset = signature_offset(&mut file)?.ok_or_else(|| {
+        io::Error::new(
+            io::ErrorKind::InvalidData,
+            "7z signature not found within the first 4 MiB",
+        )
+    })?;
+    file.seek(SeekFrom::Start(offset))?;
+    if offset == 0 {
+        return Ok(file);
+    }
+
+    // sevenz-rust seeks from byte zero; an unnamed temporary file keeps those
+    // offsets correct and is removed automatically on success or failure.
+    let mut archive = tempfile::tempfile()?;
+    io::copy(&mut file, &mut archive)?;
+    archive.rewind()?;
+    Ok(archive)
+}
+
+/// Reject archive paths that could leave the extraction directory.
+fn safe_entry_path(target: &Path, name: &str) -> io::Result<PathBuf> {
+    let normalized = name.replace('\\', "/");
+    let relative = Path::new(&normalized);
+    if normalized.contains(':')
+        || relative
+            .components()
+            .any(|part| !matches!(part, Component::Normal(_) | Component::CurDir))
+    {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidData,
+            "Unsafe path in 7z archive",
+        ));
+    }
+    let path = target.join(relative);
+    for ancestor in path.ancestors().take_while(|path| path.starts_with(target)) {
+        match ancestor.symlink_metadata() {
+            Ok(metadata) if metadata.file_type().is_symlink() => {
+                return Err(io::Error::new(
+                    io::ErrorKind::InvalidData,
+                    "Symlink in 7z extraction path",
+                ));
             }
+            Ok(_) => {}
+            Err(error) if error.kind() == io::ErrorKind::NotFound => {}
+            Err(error) => return Err(error),
         }
     }
-    Ok(())
+    Ok(path)
 }
 
 #[cfg(test)]

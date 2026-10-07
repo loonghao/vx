@@ -294,22 +294,33 @@ impl<'a> InstallationManager<'a> {
                 .get_executable_path_for_version(version, effective_ctx)
                 .await
             {
-                Ok(Some(executable_path)) if executable_path != result.executable_path => {
-                    debug!(
-                        "Re-resolved executable after post_install for {} {}: {} -> {}",
-                        runtime_name,
-                        version,
-                        result.executable_path.display(),
-                        executable_path.display()
-                    );
+                Ok(Some(executable_path)) if effective_ctx.fs.is_file(&executable_path) => {
+                    if executable_path != result.executable_path {
+                        debug!(
+                            "Re-resolved executable after post_install for {} {}: {} -> {}",
+                            runtime_name,
+                            version,
+                            result.executable_path.display(),
+                            executable_path.display()
+                        );
+                    }
                     result.executable_path = executable_path;
                 }
-                Ok(_) => {}
+                Ok(missing_path) => {
+                    return Err(anyhow::Error::new(
+                        EnsureError::PostInstallVerificationFailed {
+                            runtime: runtime_name.to_string(),
+                            path: missing_path.unwrap_or_else(|| result.install_path.clone()),
+                        },
+                    )
+                    .context(format!(
+                        "Post-extract hook did not produce a runnable executable for {runtime_name}@{version}"
+                    )));
+                }
                 Err(error) => {
-                    debug!(
-                        "Failed to re-resolve executable after post_install for {} {}: {}",
-                        runtime_name, version, error
-                    );
+                    return Err(error.context(format!(
+                        "Failed to resolve executable after post-extract hook for {runtime_name}@{version}"
+                    )));
                 }
             }
         }

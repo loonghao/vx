@@ -314,6 +314,34 @@ impl StarlarkProvider {
             .and_then(|t| t.as_str())
             .unwrap_or("generic");
 
+        let version_filter = match descriptor.get("version_filter") {
+            None | Some(serde_json::Value::Null) => None,
+            Some(serde_json::Value::String(filter)) if filter == "numeric" => Some("numeric"),
+            Some(other) => {
+                return Err(Error::EvalError(format!(
+                    "Unsupported fetch_json_versions version_filter: {other}"
+                )));
+            }
+        };
+        let excluded_suffixes: Vec<&str> = match descriptor.get("exclude_version_suffixes") {
+            None => Vec::new(),
+            Some(serde_json::Value::Array(suffixes)) => suffixes
+                .iter()
+                .map(|suffix| {
+                    suffix.as_str().filter(|s| !s.is_empty()).ok_or_else(|| {
+                        Error::EvalError(
+                            "exclude_version_suffixes must contain nonempty strings".into(),
+                        )
+                    })
+                })
+                .collect::<Result<_>>()?,
+            Some(_) => {
+                return Err(Error::EvalError(
+                    "exclude_version_suffixes must be an array".into(),
+                ));
+            }
+        };
+
         debug!(
             provider = %self.meta.name,
             url = %url,
@@ -325,7 +353,15 @@ impl StarlarkProvider {
         // Use GitHubReleasesFetcher (with retry + jsDelivr fallback) to fetch
         // the raw releases JSON, then apply our custom transform.
         if transform == "python_build_standalone" {
-            return self.resolve_python_build_standalone_versions(url).await;
+            return self
+                .resolve_python_build_standalone_versions(url)
+                .await
+                .map(|versions| {
+                    filter_json_versions(versions, version_filter)
+                        .into_iter()
+                        .filter(|v| !excluded_suffixes.iter().any(|s| v.version.ends_with(s)))
+                        .collect()
+                });
         }
 
         // Build a custom API fetcher using vx-version-fetcher
@@ -404,7 +440,10 @@ impl StarlarkProvider {
             versions.len()
         );
 
-        Ok(versions)
+        Ok(filter_json_versions(versions, version_filter)
+            .into_iter()
+            .filter(|v| !excluded_suffixes.iter().any(|s| v.version.ends_with(s)))
+            .collect())
     }
 
     /// Resolve python-build-standalone versions by fetching GitHub releases with pagination.
@@ -1278,4 +1317,23 @@ fn is_retryable_version_status(status: reqwest::StatusCode) -> bool {
     status == reqwest::StatusCode::REQUEST_TIMEOUT
         || status == reqwest::StatusCode::TOO_MANY_REQUESTS
         || status.is_server_error()
+}
+
+/// Apply optional provider filtering after normalizing source-specific tags.
+fn filter_json_versions(
+    mut versions: Vec<VersionInfo>,
+    version_filter: Option<&str>,
+) -> Vec<VersionInfo> {
+    if version_filter == Some("numeric") {
+        versions.retain(|version| {
+            let mut components = version.version.split('.');
+            let numeric = |component: &str| {
+                !component.is_empty() && component.bytes().all(|byte| byte.is_ascii_digit())
+            };
+            let first = components.next().is_some_and(numeric);
+            let second = components.next().is_some_and(numeric);
+            first && second && components.all(numeric)
+        });
+    }
+    versions
 }

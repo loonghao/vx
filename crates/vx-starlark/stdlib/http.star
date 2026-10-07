@@ -122,6 +122,11 @@ def fetch_json_versions(ctx, url, transform, headers = {}):
     The Rust runtime fetches the URL and applies the named transform strategy
     to convert the raw JSON response into a list of VersionInfo objects.
 
+    Providers may add version_filter = "numeric" to the returned descriptor
+    to retain only dotted numeric releases after normalization. Optional
+    exclude_version_suffixes lists normalized suffixes to skip, such as KDE's
+    numeric beta/RC patch suffixes. Other providers retain existing behavior.
+
     This function does NOT make a real HTTP request. It returns a descriptor
     dict that the Rust runtime resolves.
 
