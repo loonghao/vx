@@ -1,6 +1,6 @@
 # Supported Tools Overview
 
-vx supports **169 tools** out of the box, spanning language runtimes, package managers, DevOps tools, build systems, code quality tools, and more. All tools are managed through the same unified interface.
+vx supports **169 Providers** out of the box, spanning language runtimes, package managers, DevOps tools, build systems, code quality tools, and more. All tools are managed through the same unified interface.
 
 ## At a Glance
 
@@ -19,6 +19,7 @@ vx supports **169 tools** out of the box, spanning language runtimes, package ma
 | [AI/ML](#aiml-tools) | Ollama, mcpcall, headroom, usql, claude, codex, kimi, gemini, opencode, amp, copilot, cline, qwen, aider | 14 |
 | [Scientific & HPC](#scientific--hpc) | Spack, Rez | 2 |
 | [Media](#media) | FFmpeg, ImageMagick | 2 |
+| [DCC & Creative Applications](#dcc--creative-applications) | Blender, FreeCAD, Godot, Krita, GIMP, ComfyUI, and more | 15 Providers |
 | [CLI Enhancements](#cli--terminal-enhancements) | jq, fzf, eza, duf, dust, sd, zoxide, witr | 8+ |
 | [System Tools](#system--terminal-tools) | curl, pwsh, NASM, x-cmd, 7zip, htop (bottom) | 6+ |
 | [Security](#security-tools) | cosign, grype, syft, trivy, git-leaks, age, sops | 7 |
@@ -295,11 +296,28 @@ vx install <tool>@<version>
 <tool> = "<version>"
 ```
 
-## Complete Tool List (169 Total)
+## DCC & Creative Applications
+
+| Category | Applications |
+|----------|--------------|
+| 3D, CAD & game development | Blender, FreeCAD, OpenSCAD, Godot |
+| Painting | GIMP, Krita |
+| Video & recording | OBS Studio, Kdenlive, OpenScreen |
+| Procedural materials & scene data | Material Maker, OpenUSD |
+| Graphics debugging & profiling | RenderDoc, Tracy |
+| Map editing | Tiled |
+| Image generation | ComfyUI |
+
+See the [DCC-MCP integration guide](/guide/dcc-mcp) for platform availability,
+installation methods, and connecting these runtimes to DCC-MCP.
+
+## Built-in Providers (169 Total)
 
 > **Note**: For detailed documentation, click the links above. For undocumented tools, please refer to the tool's official documentation.
 
-All 169 tools are immediately available with `vx <tool>`. No manual installation required — vx handles everything automatically.
+Run `vx list` to explore the runtimes supplied by 169 built-in Providers, and
+`vx search <query>` to find a runtime. Platform support and installation methods
+are documented in the guides above.
 
 ## Custom Tools
 

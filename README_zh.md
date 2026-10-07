@@ -423,9 +423,9 @@ vx cargo run
 
 ---
 
-## 支持的工具（169 个 provider）
+## 支持的工具（169 个 Provider）
 
-vx 通过 Starlark DSL provider 管理 169 个工具。以下是部分亮点：
+vx 内置 169 个使用 Starlark DSL 定义的 Provider。以下是部分亮点：
 
 ### 语言运行时
 
@@ -509,7 +509,13 @@ vx 通过 Starlark DSL provider 管理 169 个工具。以下是部分亮点：
 | **Ollama** | `ollama` | 本地运行 LLM |
 | **mcpcall** | `mcpcall` | CI/测试用 MCP 客户端 |
 
-> 运行 `vx list` 查看所有 169 个支持的工具，或使用 `vx search <query>` 搜索特定工具。
+### DCC 与创作软件
+
+内置 Provider 支持 Blender、FreeCAD、OpenSCAD、Godot、GIMP、Krita、Material Maker、
+OpenUSD、RenderDoc、Tiled、ComfyUI、OBS Studio、Kdenlive、OpenScreen 和 Tracy。
+支持平台、安装方式及连接流程见 [DCC-MCP 集成指南](docs/zh/guide/dcc-mcp.md)。
+
+> 运行 `vx list` 查看 169 个 Provider 提供的 Runtime，或使用 `vx search <query>` 搜索特定 Runtime。
 
 ---
 
