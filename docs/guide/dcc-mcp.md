@@ -32,6 +32,8 @@ On macOS, OpenSCAD resolves the `system` version and uses the `openscad@snapshot
 
 The DCC-MCP GIMP adapter requires GIMP 3.x. Verify the application version supplied by the OS package manager before installing the adapter. Windows executable discovery checks known default directories on `C:`.
 
+ZIP installation preserves regular Unix permissions and validated internal relative symbolic links on Linux and macOS. On Windows, file and directory links are materialized as copies of their targets after extraction, without requiring symbolic-link privileges. Windows rejects dangling links and copy cycles. Both paths reject escaping targets and writes through existing links or reparse points.
+
 ## Run and pin hosts
 
 ```bash

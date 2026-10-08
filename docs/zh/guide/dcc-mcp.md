@@ -30,6 +30,8 @@ macOS 上，OpenSCAD 解析为 `system` 版本，使用 `openscad@snapshot` Home
 
 DCC-MCP 的 GIMP 适配器要求 GIMP 3.x。安装适配器前需确认系统包管理器提供的应用版本。Windows 可执行文件发现使用 `C:` 盘上的已知默认目录。
 
+ZIP 安装在 Linux 和 macOS 上保留普通 Unix 权限及通过校验的内部相对符号链接。Windows 会在提取完成后，将文件和目录链接物化为目标内容的副本，无需符号链接权限；悬空链接和复制循环会导致安装失败。两种路径都会拒绝越界目标，以及经过已有链接或重解析点的写入。
+
 ## 使用示例
 
 ```bash
