@@ -20,6 +20,7 @@ pub mod builder;
 mod cache;
 mod execute;
 mod hooks;
+mod html_versions;
 mod store;
 pub mod types;
 pub mod version_cache;
