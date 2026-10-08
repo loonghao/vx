@@ -1,5 +1,6 @@
 # The Windows standalone executable is a 7z SFX, not an installer to execute.
-load("@vx//stdlib:provider.star", "runtime_def", "github_permissions", "fetch_versions_from_api", "pkg_strategy", "system_install_strategies")
+load("@vx//stdlib:provider.star", "runtime_def", "system_permissions", "pkg_strategy", "system_install_strategies")
+load("@vx//stdlib:http.star", "fetch_html_versions")
 load("@vx//stdlib:env.star", "env_prepend", "env_set")
 
 name = "kdenlive"
@@ -15,11 +16,27 @@ runtimes = [runtime_def("kdenlive", test_commands = [
     "C:/Program Files/kdenlive/bin/kdenlive.exe",
     "/Applications/kdenlive.app/Contents/MacOS/kdenlive", "/usr/bin/kdenlive",
 ])]
-permissions = github_permissions(extra_hosts = ["cdn.download.kde.org"], exec_cmds = ["brew"])
-_fetch_tags = fetch_versions_from_api("https://api.github.com/repos/KDE/kdenlive/tags?per_page=100", "github_tags")
+permissions = system_permissions(extra_hosts = ["kdenlive.org", "cdn.download.kde.org"], exec_cmds = ["brew"])
+
+_ASSET_SUFFIXES = {
+    "windows/x64": "_standalone.exe",
+    "linux/x64": "-x86_64.AppImage",
+    "macos/arm64": "-arm64.dmg",
+    "macos/x64": "-x86_64.dmg",
+}
 
 def fetch_versions(ctx):
-    descriptor = _fetch_tags(ctx)
+    suffix = _ASSET_SUFFIXES.get(ctx.platform.os + "/" + ctx.platform.arch)
+    if suffix == None:
+        return []
+    # Source tags can precede the platform binaries. Discover published assets.
+    descriptor = fetch_html_versions(
+        ctx,
+        "https://kdenlive.org/download/",
+        "https://download.kde.org/stable/kdenlive/",
+        "kdenlive-",
+        suffix,
+    )
     descriptor["version_filter"] = "numeric"
     # KDE uses .80 for beta and .90 for RC tags, without textual suffixes.
     descriptor["exclude_version_suffixes"] = ["." + str(patch) for patch in range(80, 100)]
@@ -50,10 +67,10 @@ def install_layout(ctx, version):
         return {"type": "archive", "strip_prefix": "kdenlive-{}_standalone".format(version), "executable_paths": ["bin/kdenlive.exe"], "required_paths": ["bin/kdenlive.exe", "bin/melt.exe", "bin/ffprobe.exe", "bin/ffmpeg.exe"]}
     return {"type": "binary", "target_name": "kdenlive", "target_dir": "bin", "executable_paths": ["bin/kdenlive"]}
 
-def system_install(ctx):
-    if ctx.platform.os == "macos" and ctx.platform.arch in ["x64", "arm64"]:
-        return system_install_strategies([pkg_strategy("brew", "kdenlive", install_args = "--cask", platforms = ["macos"])])
-    return system_install_strategies([])
+# The runtime reads this descriptor directly and filters strategies by OS.
+system_install = system_install_strategies([
+    pkg_strategy("brew", "kdenlive", install_args = "--cask", platforms = ["macos"]),
+])
 
 def store_root(ctx):
     return ctx.vx_home + "/store/kdenlive"
