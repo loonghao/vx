@@ -6,6 +6,64 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [0.9.35](https://github.com/loonghao/vx/compare/v0.9.34...v0.9.35) (2026-10-08)
+
+
+### Features
+
+* add AI coding agent providers so vx can install and run them ([db3b599](https://github.com/loonghao/vx/commit/db3b599cef758880e84d4b9f232fe078be9a0df9))
+* add blender Provider ([eb61d5b](https://github.com/loonghao/vx/commit/eb61d5b3cee2ce779b07370ae4647c12c58ccfef))
+* add blender Provider ([c6c3841](https://github.com/loonghao/vx/commit/c6c3841805a6c635310e35788485c6ff6d79ba61))
+* add comfyui Provider ([e40ba71](https://github.com/loonghao/vx/commit/e40ba7195f55ac9121ce73748ab8b877643d2db6))
+* add comfyui Provider ([cf8baec](https://github.com/loonghao/vx/commit/cf8baec0a831de89b7cbba6ac689d195f2bee496))
+* add freecad Provider ([445048e](https://github.com/loonghao/vx/commit/445048eb04446dccc226e4498598cae3e2c5cab6))
+* add freecad Provider ([977bc79](https://github.com/loonghao/vx/commit/977bc7914b356592f632394d3ad31febaa520a0d))
+* add gimp Provider ([f4ff64a](https://github.com/loonghao/vx/commit/f4ff64a7f8228b87041cebfa8b580309d03bdd76))
+* add gimp Provider ([85cdbd7](https://github.com/loonghao/vx/commit/85cdbd7791602c790590a6146a89fe78991f9771))
+* add godot Provider ([8e59578](https://github.com/loonghao/vx/commit/8e59578a74582cd879ca5491a1c4a47215810a16))
+* add godot Provider ([11e3d36](https://github.com/loonghao/vx/commit/11e3d367906f2617c73799c929be040f559e7a08))
+* add krita Provider ([ff5a6dd](https://github.com/loonghao/vx/commit/ff5a6dd1a0df1804218dc164a37b7e8994b67eb2))
+* add krita Provider ([d135078](https://github.com/loonghao/vx/commit/d13507841f603d860b7f6d774ee4025ab309f71e))
+* add material-maker Provider ([8ba8676](https://github.com/loonghao/vx/commit/8ba867628b23d827e1885a3d08e05ef77c48969c))
+* add material-maker Provider ([3a56ea3](https://github.com/loonghao/vx/commit/3a56ea3ad4afe8876ca6a2e543740480a0c0b759))
+* add openscad Provider ([0e837c5](https://github.com/loonghao/vx/commit/0e837c5bbe36a402258b2e318309cd84e0dd57e1))
+* add openscad Provider ([53f03f2](https://github.com/loonghao/vx/commit/53f03f2d9cdfc06b1224353857fbe56ab955ae71))
+* add openusd Provider ([7acee65](https://github.com/loonghao/vx/commit/7acee65508084117e3372ca8971a12930d8f0dba))
+* add openusd Provider ([6bdc368](https://github.com/loonghao/vx/commit/6bdc368504ba95dccbc72615ce7ac4c62bde5be5))
+* add per-platform command shims (vx shim) ([#1180](https://github.com/loonghao/vx/issues/1180)) ([1819443](https://github.com/loonghao/vx/commit/18194435d990267fd9be6e9c0977866758c9cd5a))
+* install Material Maker with Homebrew on macOS ([ac9d740](https://github.com/loonghao/vx/commit/ac9d7403dbecd668f6ba387012653128ccf36010))
+* support portable DCC installation contracts ([508cf04](https://github.com/loonghao/vx/commit/508cf042658a442da186e2af50205cb3223b061e))
+* support portable DCC installation contracts ([1db73c1](https://github.com/loonghao/vx/commit/1db73c19eb273ef5505170c3caf9a5f912dc4fe5))
+
+
+### Bug Fixes
+
+* align the OpenUSD license identifier with upstream ([b54045e](https://github.com/loonghao/vx/commit/b54045e622bd29a328f50034ba119c68c33c8022))
+* avoid ComfyUI launcher directory collisions ([9733ae6](https://github.com/loonghao/vx/commit/9733ae633d3b55f347e8c4cebfd2282295590204))
+* discover current GIMP Windows installations ([b6078ac](https://github.com/loonghao/vx/commit/b6078acde523f54ddd328c54fad6295c5d814997))
+* drain runtime check output before child exit ([81e3c0a](https://github.com/loonghao/vx/commit/81e3c0a40af811a81493a263b89ccd1f0e2791f0))
+* execute the Godot editor directly on Windows ([503b979](https://github.com/loonghao/vx/commit/503b9792ed576b489d2a592b1dc28d87659c1de9))
+* extract OpenSCAD AppImage without FUSE ([a1f2ff6](https://github.com/loonghao/vx/commit/a1f2ff65c50c405c9b29347720414861ddb4c2ed))
+* honor final runtime entries and safe ZIP links ([3158114](https://github.com/loonghao/vx/commit/3158114eec45f1c76e367cab37f079148b27614a))
+* honor portable runtime execution contracts ([224049e](https://github.com/loonghao/vx/commit/224049ebf1bbdb376a31e5870f0c7ba060a78b53))
+* keep Krita installation checks headless ([3f0530d](https://github.com/loonghao/vx/commit/3f0530d3da8c0720146711a07773b6df3d4a4c00))
+* materialize Windows ZIP links safely ([4f5b3d9](https://github.com/loonghao/vx/commit/4f5b3d92ab00270a1d12d3f9021337c2798af45b))
+* preserve portable archive extraction contracts ([f4355ce](https://github.com/loonghao/vx/commit/f4355cec24aeecdaa22879178b5721919facba33))
+* preserve the Godot macOS application bundle ([a1c38f9](https://github.com/loonghao/vx/commit/a1c38f90f66a7da4ad6b77c5975609985137bcfc))
+* resolve GIMP system package versions ([30efef7](https://github.com/loonghao/vx/commit/30efef7bcc17863fc3a6c8e54dda2fac2e23710a))
+* serialize manifest runtime installations ([208fe57](https://github.com/loonghao/vx/commit/208fe57b5b49b50ed1bb6f9aae5fad7fb25d774d))
+* use the supported OpenSCAD macOS snapshot ([635c88b](https://github.com/loonghao/vx/commit/635c88b8471bb6f1854bd3f3579cf9d1ac607f3f))
+* validate Godot versions without a display ([63ab290](https://github.com/loonghao/vx/commit/63ab29057017fc0ce720ecebf011fccd8eb17206))
+
+
+### Documentation
+
+* align repository contract checks ([076100d](https://github.com/loonghao/vx/commit/076100d80be7adbfb88d83a92fadef566aea648d))
+* clarify ComfyUI source setup on Unix hosts ([69ec2de](https://github.com/loonghao/vx/commit/69ec2de53d92fccf06a6a4204589006d6ad98538))
+* guide agents through managed command shims ([9411295](https://github.com/loonghao/vx/commit/94112950f63a08997fadd8999ef08dc3a46f997e))
+* **skill:** point vx-repo-contract at the shared contract JSON ([a8cb380](https://github.com/loonghao/vx/commit/a8cb380a30edb7a56b8cb484200df76222b7889f))
+* state the GIMP adapter version requirement ([3496e3b](https://github.com/loonghao/vx/commit/3496e3ba257e3638911c7537f6216dba8c2d8200))
+
 ## [0.9.34](https://github.com/loonghao/vx/compare/v0.9.33...v0.9.34) (2026-10-01)
 
 
