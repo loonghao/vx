@@ -23,7 +23,7 @@ This approach makes it easy to:
 
 ### Using Built-in Providers
 
-vx comes with 163 built-in Providers for popular tools:
+vx comes with 164 built-in Providers for popular tools:
 
 ```bash
 vx node --version      # Node.js
