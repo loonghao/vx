@@ -14,6 +14,7 @@ use anyhow::Result;
 use tracing::{debug, info, warn};
 use vx_system_pm::{PackageInstallSpec, PackageManagerRegistry};
 
+use crate::runtime::install_impl::InstallLock;
 use crate::{InstallResult, Runtime, RuntimeContext, platform::Platform};
 
 use super::ManifestDrivenRuntime;
@@ -43,6 +44,10 @@ impl ManifestDrivenRuntime {
             )
             .await;
         }
+
+        // Protect the physical store shared by primary and bundled runtimes.
+        // Keep the guard through cache checks, cleanup and archive processing.
+        let _install_lock = InstallLock::acquire(&install_path).await?;
 
         // Try Starlark-driven install_layout first (provides URL + strip_prefix + exe paths)
         if let Some(ref layout_fn) = self.install_layout_fn

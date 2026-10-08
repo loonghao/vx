@@ -248,6 +248,7 @@ fn read_msvc_environment(cl_path: &Path) -> Result<HashMap<String, String>> {
     ]))
 }
 
+use crate::runtime::install_impl::InstallLock;
 use crate::{Ecosystem, InstallResult, Platform, Runtime, RuntimeContext, VersionInfo};
 use vx_runtime_core::{MirrorConfig, NormalizeConfig};
 
@@ -831,6 +832,22 @@ impl ManifestDrivenRuntime {
         install_dir: &std::path::Path,
         ctx: &RuntimeContext,
     ) -> bool {
+        // A launcher may exist while another process is still extracting its SDK.
+        // Hold the same physical-store lock as writers until validation finishes.
+        let _install_lock = match InstallLock::try_acquire(install_dir) {
+            Ok(Some(lock)) => lock,
+            Ok(None) => return false,
+            Err(error) => {
+                debug!(
+                    runtime = %self.name,
+                    version,
+                    %error,
+                    "cannot protect managed installation validation"
+                );
+                return false;
+            }
+        };
+
         let Some(layout_fn) = &self.install_layout_fn else {
             return true;
         };
