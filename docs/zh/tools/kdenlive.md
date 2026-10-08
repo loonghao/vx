@@ -16,4 +16,4 @@ vx kdenlive --version
 
 Windows 使用官方独立版归档，包含 melt、FFprobe 和 FFmpeg。Provider 会在运行环境中设置 `DCC_MCP_KDENLIVE_EXECUTABLE`，并在 Windows 上额外设置 `DCC_MCP_KDENLIVE_MELT`、`DCC_MCP_KDENLIVE_FFPROBE` 和 `DCC_MCP_KDENLIVE_FFMPEG`。Linux/macOS 连接适配器时，需要另行配置渲染器和探测程序的路径。Linux AppImage 要求兼容的系统库及 AppImage/FUSE 支持；Qt 版本检查还需要显示服务或 Qt 离屏平台。
 
-应用继续遵循上游许可证。安装应用不会自动安装或连接 DCC-MCP 适配器。使用 `vx where kdenlive` 获取可执行文件路径，再按 [DCC-MCP 集成指南](../guide/dcc-mcp.md)完成适配器配置。
+应用继续遵循上游许可证。安装应用不会自动安装或连接 DCC-MCP 适配器。使用 `vx where kdenlive` 获取可执行文件路径，再按 DCC-MCP 适配器安装说明完成适配器配置。
