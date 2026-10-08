@@ -31,10 +31,7 @@ impl Fixture {
             .prefix("vx package shim ")
             .tempdir()
             .expect("create isolated fixture");
-        #[cfg(unix)]
-        let root = fs::canonicalize(temp.path()).unwrap();
-        #[cfg(windows)]
-        let root = temp.path().to_path_buf();
+        let root = canonical_shell_path(temp.path());
         let paths = VxPaths::with_base_dir(root.join("package home"));
         paths.ensure_dirs().expect("initialize isolated VX_HOME");
         let cwd = root.join("working directory");
@@ -171,6 +168,21 @@ impl Fixture {
         );
         command
     }
+}
+
+pub(crate) fn canonical_shell_path(path: &Path) -> PathBuf {
+    let resolved = fs::canonicalize(path).expect("resolve existing fixture path");
+    #[cfg(windows)]
+    {
+        let value = resolved.to_string_lossy();
+        if let Some(unc) = value.strip_prefix(r"\\?\UNC\") {
+            return PathBuf::from(format!(r"\\{unc}"));
+        }
+        if let Some(path) = value.strip_prefix(r"\\?\") {
+            return PathBuf::from(path);
+        }
+    }
+    resolved
 }
 
 fn binary_name() -> &'static str {

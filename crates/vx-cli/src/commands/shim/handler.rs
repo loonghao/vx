@@ -273,13 +273,30 @@ fn absolute_directory(home: &Path) -> Result<PathBuf> {
     let resolved = if absolute.exists() {
         absolute.canonicalize()?
     } else {
-        let mut resolved = PathBuf::new();
+        // Bind new homes and output directories through their existing parent.
+        // Their spelling must remain stable after creation, including /var on
+        // macOS and short user-directory names on Windows runners.
+        let mut normalized = PathBuf::new();
         for component in absolute.components() {
             if component == std::path::Component::ParentDir {
-                resolved.pop();
+                normalized.pop();
             } else {
-                resolved.push(component);
+                normalized.push(component);
             }
+        }
+        let mut ancestor = normalized.as_path();
+        let mut missing = Vec::new();
+        while !ancestor.exists() {
+            if let Some(name) = ancestor.file_name() {
+                missing.push(name.to_os_string());
+            }
+            ancestor = ancestor
+                .parent()
+                .context("Directory has no existing ancestor")?;
+        }
+        let mut resolved = ancestor.canonicalize()?;
+        for name in missing.iter().rev() {
+            resolved.push(name);
         }
         resolved
     };
@@ -356,9 +373,13 @@ fn dedup(dirs: Vec<PathBuf>) -> Vec<PathBuf> {
 
 /// Normalize Windows directory spelling while preserving Unix case sensitivity.
 fn normalize(dir: &Path) -> PathBuf {
+    let resolved = dir.canonicalize().unwrap_or_else(|_| dir.to_path_buf());
     #[cfg(windows)]
     {
-        let text = dir.to_string_lossy().replace('\\', "/").to_lowercase();
+        let text = resolved.to_string_lossy().replace('\\', "/").to_lowercase();
+        if let Some(unc) = text.strip_prefix("//?/unc/") {
+            return PathBuf::from(format!("//{}", unc.trim_end_matches('/')));
+        }
         PathBuf::from(
             text.strip_prefix("//?/")
                 .unwrap_or(&text)
@@ -367,7 +388,7 @@ fn normalize(dir: &Path) -> PathBuf {
     }
     #[cfg(not(windows))]
     {
-        dir.to_path_buf()
+        resolved
     }
 }
 

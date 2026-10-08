@@ -457,3 +457,123 @@ fn replaced_output_directory_cannot_redirect_update_or_removal() {
     assert!(saved.join("codex").exists());
     assert!(output.is_symlink());
 }
+
+#[cfg(unix)]
+#[test]
+fn canonical_parent_alias_preserves_command_ownership_and_refresh() {
+    use std::os::unix::fs::symlink;
+    let temp = TempDir::new().unwrap();
+    let real_parent = temp.path().join("real-parent");
+    std::fs::create_dir_all(&real_parent).unwrap();
+    let alias_parent = temp.path().join("alias-parent");
+    symlink(&real_parent, &alias_parent).unwrap();
+    assert_path_alias_lifecycle(&alias_parent, &real_parent);
+}
+
+#[cfg(windows)]
+#[test]
+fn windows_short_paths_preserve_command_ownership_and_refresh() {
+    use std::os::windows::process::CommandExt;
+
+    let temp = TempDir::new().unwrap();
+    let long_parent = temp.path().join("command shim long directory name");
+    std::fs::create_dir_all(&long_parent).unwrap();
+    // cmd's native path expansion queries 8.3 names without introducing a
+    // platform dependency. Some volumes disable short-name creation entirely.
+    let output = Command::new("cmd.exe")
+        .raw_arg(r#"/d /u /s /c "for %I in ("%VX_SHIM_LONG_TEST_PATH%") do @echo %~sI""#)
+        .env("VX_SHIM_LONG_TEST_PATH", &long_parent)
+        .output()
+        .unwrap();
+    assert!(output.status.success(), "{output:?}");
+    let wide_path = output
+        .stdout
+        .as_chunks::<2>()
+        .0
+        .iter()
+        .map(|bytes| u16::from_le_bytes(*bytes))
+        .collect::<Vec<_>>();
+    let short_parent = std::path::PathBuf::from(String::from_utf16(&wide_path).unwrap().trim());
+    if short_parent
+        .to_string_lossy()
+        .eq_ignore_ascii_case(&long_parent.to_string_lossy())
+    {
+        return;
+    }
+    assert_eq!(
+        short_parent.canonicalize().unwrap(),
+        long_parent.canonicalize().unwrap()
+    );
+    assert_path_alias_lifecycle(&short_parent, &long_parent);
+}
+
+fn assert_path_alias_lifecycle(recorded_parent: &Path, resolved_parent: &Path) {
+    let recorded_home = recorded_parent.join("home");
+    let resolved_home = resolved_parent.join("home");
+    let recorded_dir = recorded_parent.join("commands");
+    let resolved_dir = resolved_parent.join("commands");
+    std::fs::create_dir_all(&recorded_home).unwrap();
+    std::fs::create_dir_all(&recorded_dir).unwrap();
+    let launcher = resolved_parent.join(if cfg!(windows) { "vx.exe" } else { "vx" });
+    let original = create_command_shim_in_home(
+        "codex",
+        "codex",
+        &launcher,
+        &recorded_home,
+        std::slice::from_ref(&recorded_dir),
+        &Platform::current(),
+        None,
+    )
+    .unwrap();
+    let resolved_file = resolved_dir.join(original.files[0].file_name().unwrap());
+    assert!(original.owns_file(&resolved_file));
+
+    let refreshed = create_command_shim_in_home(
+        "codex",
+        "codex",
+        &launcher,
+        &resolved_home,
+        std::slice::from_ref(&resolved_dir),
+        &Platform::current(),
+        Some(&original),
+    )
+    .unwrap();
+    assert!(refreshed.is_complete());
+    assert!(refreshed.owns_file(&original.files[0]));
+    assert_eq!(refreshed.vx_home.as_deref(), Some(resolved_home.as_path()));
+
+    let modified_file = &refreshed.files[0];
+    let modified = format!(
+        "{}\n# user edit",
+        std::fs::read_to_string(modified_file).unwrap()
+    );
+    std::fs::write(modified_file, &modified).unwrap();
+    assert!(!refreshed.owns_file(&original.files[0]));
+    refreshed.remove_files().unwrap();
+    assert_eq!(std::fs::read_to_string(modified_file).unwrap(), modified);
+}
+
+#[cfg(unix)]
+#[test]
+fn canonical_alias_does_not_adopt_a_recorded_symlink_target() {
+    use std::os::unix::fs::symlink;
+    let temp = TempDir::new().unwrap();
+    let output = temp.path().join("commands");
+    let entry = create_command_shim_in_home(
+        "codex",
+        "codex",
+        &temp.path().join("vx"),
+        temp.path(),
+        std::slice::from_ref(&output),
+        &Platform::current(),
+        None,
+    )
+    .unwrap();
+    let target = temp.path().join("outside");
+    std::fs::rename(&entry.files[0], &target).unwrap();
+    symlink(&target, &entry.files[0]).unwrap();
+    assert!(!entry.owns_file(&target));
+    assert!(!entry.owns_file(&entry.files[0]));
+    assert!(entry.remove_files().unwrap().is_empty());
+    assert!(target.exists());
+}

@@ -83,22 +83,25 @@ impl CommandShim {
     /// Symbolic links, paths outside the recorded directories, edited wrappers,
     /// and wrappers bound to another home are not owned by this record.
     pub fn owns_file(&self, path: &Path) -> bool {
-        if self.validate().is_err() || !self.files.iter().any(|file| same_path(file, path)) {
+        if self.validate().is_err()
+            || !self
+                .files
+                .iter()
+                .any(|file| is_regular_file(file) && same_path(file, path))
+        {
             return false;
         }
-        let Ok(metadata) = std::fs::symlink_metadata(path) else {
-            return false;
-        };
-        if !metadata.is_file() || metadata.file_type().is_symlink() {
+        if !is_regular_file(path) {
             return false;
         }
         let shim = self.shim();
         let variant = [ShimType::Batch, ShimType::Shell, ShimType::PowerShell]
             .into_iter()
             .find(|variant| {
-                self.dirs
-                    .iter()
-                    .any(|dir| same_path(&shim.path_in(dir, *variant), path))
+                self.dirs.iter().any(|dir| {
+                    let expected = shim.path_in(dir, *variant);
+                    is_regular_file(&expected) && same_path(&expected, path)
+                })
             });
         let Some(variant) = variant else {
             return false;
@@ -209,14 +212,28 @@ fn same_name(left: &str, right: &str) -> bool {
 }
 
 fn same_path(left: &Path, right: &Path) -> bool {
+    // Existing files can be reached through filesystem aliases: macOS /var,
+    // Windows 8.3 names, or an already-resolved parent directory. Compare their
+    // filesystem paths before using lexical spelling for missing destinations.
+    let canonical = (left.canonicalize(), right.canonicalize());
+    let (left, right) = match &canonical {
+        (Ok(left), Ok(right)) => (left.as_path(), right.as_path()),
+        _ => (left, right),
+    };
     #[cfg(windows)]
     {
         let normalize = |path: &Path| {
-            let text = path.to_string_lossy().replace('\\', "/");
+            let text = path
+                .to_string_lossy()
+                .replace('\\', "/")
+                .to_ascii_lowercase();
+            if let Some(unc) = text.strip_prefix("//?/unc/") {
+                return format!("//{}", unc.trim_end_matches('/'));
+            }
             text.strip_prefix("//?/")
                 .unwrap_or(&text)
                 .trim_end_matches('/')
-                .to_ascii_lowercase()
+                .to_owned()
         };
         normalize(left) == normalize(right)
     }
@@ -224,6 +241,12 @@ fn same_path(left: &Path, right: &Path) -> bool {
     {
         left == right
     }
+}
+
+fn is_regular_file(path: &Path) -> bool {
+    std::fs::symlink_metadata(path)
+        .map(|metadata| metadata.is_file() && !metadata.file_type().is_symlink())
+        .unwrap_or(false)
 }
 
 /// Persistent set of [`CommandShim`]s

@@ -5,12 +5,12 @@ mod common;
 mod package_shims;
 
 use common::{assert_success, combined_output, run_command_with_timeout};
-use package_shims::{Fixture, TIMEOUT, shim_files};
+use package_shims::{Fixture, TIMEOUT, canonical_shell_path, shim_files};
 use rstest::rstest;
 use std::fs;
-#[cfg(windows)]
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::Command;
+use vx_paths::VxPaths;
 use vx_paths::global_packages::{GlobalPackage, PackageRegistry};
 use vx_runtime::CommandShim;
 use vx_runtime::ShimRegistry;
@@ -338,6 +338,115 @@ fn relative_home_is_bound_before_the_command_runs_in_another_directory() {
         "{stdout}"
     );
     fixture.assert_preserved();
+}
+
+#[test]
+fn missing_home_under_an_aliased_parent_remains_owned_across_the_shim_lifecycle() {
+    let fixture = Fixture::new();
+    let ancestor = fixture.cwd.join("home ancestor");
+    fs::create_dir(&ancestor).unwrap();
+    let alias = directory_alias(&ancestor, &fixture.cwd.join("home alias"));
+    assert_ne!(
+        alias, ancestor,
+        "exercise a distinct spelling of the directory"
+    );
+    assert_eq!(canonical_shell_path(&alias), ancestor);
+
+    let aliased_home = alias.join("initially missing home");
+    let paths = VxPaths::with_base_dir(ancestor.join("initially missing home"));
+    let aliased_bin = aliased_home.join("bin");
+    assert!(!paths.base_dir.exists());
+    let run = |args: &[&str]| {
+        let mut command = fixture.command(args);
+        command
+            .env("VX_HOME", &aliased_home)
+            .env("PATH", &aliased_bin);
+        run_command_with_timeout(command, TIMEOUT).unwrap()
+    };
+    let registry = || ShimRegistry::load(&ShimRegistry::default_path(&paths.config_dir)).unwrap();
+
+    assert_success(
+        &run(&["shim", "add", "codex@1.2.3"]),
+        "publish into a missing home below an aliased ancestor",
+    );
+    let entry = registry().get("codex").unwrap().clone();
+    assert_eq!(entry.vx_home.as_ref(), Some(&paths.base_dir));
+    assert!(entry.is_complete());
+    for file in shim_files(&aliased_bin, "codex") {
+        assert!(
+            entry.owns_file(&file),
+            "own the PATH alias {}",
+            file.display()
+        );
+    }
+
+    assert_success(&run(&["shim", "sync"]), "sync using the same home alias");
+    assert_success(
+        &run(&["shim", "add", "codex@1.2.3"]),
+        "recognize the existing owned command found through an aliased PATH",
+    );
+    assert!(registry().get("codex").unwrap().is_complete());
+    assert_success(
+        &run(&["shim", "remove", "codex"]),
+        "remove through the alias",
+    );
+    assert!(registry().is_empty());
+    assert!(entry.files.iter().all(|path| !path.exists()));
+    assert_success(
+        &run(&["shim", "add", "codex@1.2.3"]),
+        "re-add after the originally missing home exists",
+    );
+    assert!(registry().get("codex").unwrap().is_complete());
+    assert_success(
+        &run(&["shim", "remove", "codex"]),
+        "remove the re-added shim",
+    );
+    assert!(registry().is_empty());
+    assert!(entry.files.iter().all(|path| !path.exists()));
+    assert!(
+        !paths.packages_registry_file().exists(),
+        "publication never installs a package"
+    );
+    fixture.assert_preserved();
+}
+
+#[cfg(unix)]
+fn directory_alias(target: &Path, link: &Path) -> PathBuf {
+    std::os::unix::fs::symlink(target, link).expect("create aliased fixture ancestor");
+    link.to_path_buf()
+}
+
+#[cfg(windows)]
+fn directory_alias(target: &Path, _link: &Path) -> PathBuf {
+    use std::os::windows::process::CommandExt;
+
+    let mut short_path = Command::new(std::env::var_os("COMSPEC").expect("cmd.exe is available"));
+    short_path
+        .raw_arg(r#"/d /u /s /c "for %I in ("%VX_SHIM_TEST_TARGET%") do @echo %~sI""#)
+        .env("VX_SHIM_TEST_TARGET", target);
+    let output = run_command_with_timeout(short_path, TIMEOUT).unwrap();
+    assert_success(&output, "query the fixture's Windows short path");
+    let wide_path: Vec<_> = output
+        .stdout
+        .as_chunks::<2>()
+        .0
+        .iter()
+        .map(|bytes| u16::from_le_bytes(*bytes))
+        .collect();
+    let short = PathBuf::from(String::from_utf16(&wide_path).unwrap().trim());
+    if short.as_path() != target && short.is_dir() {
+        return short;
+    }
+
+    // Volumes can disable 8.3 names. Change only our controlled directory's
+    // spelling to exercise an existing Windows alias without creating a link.
+    let name = target.file_name().unwrap().to_str().unwrap();
+    let alias = target.with_file_name(name.to_ascii_uppercase());
+    assert!(
+        alias.is_dir(),
+        "the case alias must identify the existing directory"
+    );
+    alias
 }
 
 #[test]
