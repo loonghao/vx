@@ -16,4 +16,4 @@ Automated installation checks verify the GUI executable file without starting th
 
 Windows uses the official standalone archive and includes melt, FFprobe and FFmpeg. The Provider sets `DCC_MCP_KDENLIVE_EXECUTABLE`, plus `DCC_MCP_KDENLIVE_MELT`, `DCC_MCP_KDENLIVE_FFPROBE` and `DCC_MCP_KDENLIVE_FFMPEG` on Windows, in the runtime environment. On Linux/macOS, configure renderer and probe paths separately when connecting the adapter. Linux AppImages require compatible host libraries and AppImage/FUSE support; the Qt version check also needs a display or an offscreen Qt platform.
 
-The application remains subject to its upstream license. Installing it does not install or connect a DCC-MCP adapter. Resolve its executable with `vx where kdenlive` and follow the DCC-MCP adapter installation instructions.
+The application remains subject to its upstream license. Installing it does not install or connect a DCC-MCP adapter. Resolve its executable with `vx where kdenlive` and follow the [DCC-MCP integration guide](../guide/dcc-mcp.md).
