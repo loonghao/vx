@@ -813,6 +813,40 @@ impl ManifestDrivenRuntime {
         layout: &serde_json::Value,
         ctx: &RuntimeContext,
     ) -> bool {
+        if !self.layout_files_exist(install_dir, layout, ctx) {
+            return false;
+        }
+        let Some(digest) = layout.get("sha256") else {
+            return true;
+        };
+        let Some(digest) = digest.as_str() else {
+            return false;
+        };
+        let Ok(receipt) = ctx
+            .fs
+            .read_to_string(&install_dir.join(".vx-artifact.json"))
+        else {
+            return false;
+        };
+        let Ok(receipt) = serde_json::from_str::<serde_json::Value>(&receipt) else {
+            return false;
+        };
+        receipt
+            .get("schema_version")
+            .and_then(|value| value.as_u64())
+            == Some(1)
+            && receipt
+                .get("sha256")
+                .and_then(|value| value.as_str())
+                .is_some_and(|actual| actual.eq_ignore_ascii_case(digest))
+    }
+
+    pub(crate) fn layout_files_exist(
+        &self,
+        install_dir: &std::path::Path,
+        layout: &serde_json::Value,
+        ctx: &RuntimeContext,
+    ) -> bool {
         ctx.fs
             .exists(&self.resolve_exe_path_from_layout(install_dir, layout))
             && layout

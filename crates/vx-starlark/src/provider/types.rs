@@ -26,6 +26,12 @@ pub enum InstallLayout {
         strip_prefix: Option<String>,
         executable_paths: Vec<String>,
         required_paths: Vec<String>,
+        /// Expected SHA-256 of the complete archive before extraction.
+        #[serde(default)]
+        sha256: Option<String>,
+        /// Additional download sources for the same verified archive bytes.
+        #[serde(default)]
+        mirror_urls: Vec<String>,
     },
     /// Single binary installation
     Binary {
@@ -59,6 +65,8 @@ impl InstallLayout {
                 strip_prefix,
                 executable_paths,
                 required_paths,
+                sha256,
+                mirror_urls,
             } => {
                 let mut map = serde_json::Map::new();
                 if let Some(u) = url {
@@ -66,6 +74,12 @@ impl InstallLayout {
                 }
                 if let Some(sp) = strip_prefix {
                     map.insert("strip_prefix".into(), serde_json::Value::String(sp));
+                }
+                if let Some(digest) = sha256 {
+                    map.insert("sha256".into(), serde_json::Value::String(digest));
+                }
+                if !mirror_urls.is_empty() {
+                    map.insert("mirror_urls".into(), serde_json::json!(mirror_urls));
                 }
                 map.insert(
                     "executable_paths".into(),
