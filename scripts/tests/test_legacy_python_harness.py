@@ -3,6 +3,7 @@
 import argparse
 from pathlib import Path
 import sys
+import subprocess
 import tempfile
 import unittest
 from unittest.mock import patch
@@ -112,6 +113,21 @@ class LegacyPythonHarnessTests(unittest.TestCase):
         )
         dependent.assert_not_called()
         self.assertTrue(self.acceptance.receipt_path.is_file())
+
+    def test_offline_uv_disables_network_and_records_command(self) -> None:
+        def completed(command, **kwargs):
+            self.assertEqual(command[2], "--offline")
+            self.assertEqual(kwargs["env"]["UV_OFFLINE"], "1")
+            self.assertEqual(kwargs["env"]["HTTPS_PROXY"], "http://127.0.0.1:9")
+            kwargs["stdout"].write("offline invocation\n")
+            return subprocess.CompletedProcess(command, 0)
+
+        with patch.object(harness.subprocess, "run", side_effect=completed):
+            output = self.acceptance.run(
+                "offline", self.acceptance.uv, "--version", offline=True
+            )
+        self.assertIn("offline invocation", output)
+        self.assertTrue(self.acceptance.receipt["commands"][-1]["offline"])
 
 
 if __name__ == "__main__":
