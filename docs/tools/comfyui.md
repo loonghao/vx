@@ -4,7 +4,7 @@
 
 | Runtime | Windows | Linux | macOS |
 | --- | --- | --- | --- |
-| `comfyui` | Portable 7z, x64 | Source checkout + Python environment | Source checkout + Python environment |
+| `comfyui` | Portable 7z, x64 | Manual source setup | Manual source setup |
 
 ```bash
 vx comfyui --cpu --listen 127.0.0.1

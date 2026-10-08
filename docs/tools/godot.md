@@ -11,6 +11,6 @@ vx godot --headless --version
 vx godot --headless --path game --editor --quit
 ```
 
-The Provider installs the standard editor distribution. Windows executes the console wrapper and keeps the editor executable beside it. Stable release versions work with or without the `-stable` suffix.
+The Provider installs the standard editor distribution. Windows executes the editor directly and keeps its companion console wrapper beside it. Upstream command-line options pass through vx unchanged, including `--headless --version`. Stable release versions work with or without the `-stable` suffix.
 
 Godot retains its upstream license. Resolve the executable with `vx where godot`, then follow the DCC-MCP adapter's installation contract. Installing Godot does not install or connect its adapter.
