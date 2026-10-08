@@ -1468,14 +1468,27 @@ impl RuntimeTester {
 
 /// Run a command with timeout support
 ///
-/// This function spawns a child process and waits for it to complete with a timeout.
-/// If the timeout is exceeded, the process is killed and an error is returned.
+/// Drain both output pipes while waiting for the child. Some programs flush their
+/// pipe handles before exiting, and can block even when their output is small.
+/// The same timeout covers process completion and reading the remaining output.
 fn run_command_with_timeout(
     program: &str,
     args: &[&str],
     timeout: Duration,
 ) -> std::io::Result<std::process::Output> {
-    use std::io::Read;
+    use std::io::{self, Read};
+    use std::sync::mpsc::{self, Receiver, RecvTimeoutError};
+
+    fn drain(pipe: impl Read + Send + 'static) -> io::Result<Receiver<io::Result<Vec<u8>>>> {
+        let (sender, receiver) = mpsc::channel();
+        std::thread::Builder::new().spawn(move || {
+            let mut pipe = pipe;
+            let mut output = Vec::new();
+            let result = pipe.read_to_end(&mut output).map(|_| output);
+            let _ = sender.send(result);
+        })?;
+        Ok(receiver)
+    }
 
     let mut child = Command::new(program)
         .args(args)
@@ -1486,48 +1499,51 @@ fn run_command_with_timeout(
 
     let start = Instant::now();
 
-    // Poll for completion with timeout
-    loop {
-        match child.try_wait() {
-            Ok(Some(status)) => {
-                // Process has exited
-                let mut stdout = Vec::new();
-                let mut stderr = Vec::new();
+    let timed_out = || {
+        io::Error::new(
+            io::ErrorKind::TimedOut,
+            format!("Command timed out after {:?}", timeout),
+        )
+    };
+    let result = (|| {
+        let stdout = drain(child.stdout.take().expect("stdout is piped"))?;
+        let stderr = drain(child.stderr.take().expect("stderr is piped"))?;
 
-                if let Some(mut stdout_pipe) = child.stdout.take() {
-                    let _ = stdout_pipe.read_to_end(&mut stdout);
-                }
-                if let Some(mut stderr_pipe) = child.stderr.take() {
-                    let _ = stderr_pipe.read_to_end(&mut stderr);
-                }
+        let status = loop {
+            if let Some(status) = child.try_wait()? {
+                break status;
+            }
+            let remaining = timeout.saturating_sub(start.elapsed());
+            if remaining.is_zero() {
+                return Err(timed_out());
+            }
+            std::thread::sleep(remaining.min(Duration::from_millis(50)));
+        };
 
-                return Ok(std::process::Output {
-                    status,
-                    stdout,
-                    stderr,
-                });
-            }
-            Ok(None) => {
-                // Process still running
-                if start.elapsed() > timeout {
-                    // Timeout exceeded - kill the process
-                    let _ = child.kill();
-                    let _ = child.wait(); // Clean up zombie process
-                    return Err(std::io::Error::new(
-                        std::io::ErrorKind::TimedOut,
-                        format!("Command timed out after {:?}", timeout),
-                    ));
-                }
-                // Sleep briefly before polling again
-                std::thread::sleep(Duration::from_millis(50));
-            }
-            Err(e) => {
-                // Error checking status
-                let _ = child.kill();
-                return Err(e);
-            }
-        }
+        let receive = |receiver: Receiver<io::Result<Vec<u8>>>| {
+            receiver
+                .recv_timeout(timeout.saturating_sub(start.elapsed()))
+                .map_err(|error| match error {
+                    RecvTimeoutError::Timeout => timed_out(),
+                    RecvTimeoutError::Disconnected => {
+                        io::Error::other("Command output reader stopped unexpectedly")
+                    }
+                })?
+        };
+        Ok(std::process::Output {
+            status,
+            stdout: receive(stdout)?,
+            stderr: receive(stderr)?,
+        })
+    })();
+
+    if result.is_err() {
+        let _ = child.kill();
+        let _ = child.wait();
     }
+    // Do not join readers on failure: a descendant retaining an inherited pipe
+    // must not extend the deadline. Readers finish when those handles close.
+    result
 }
 
 /// Parse a command line string into arguments, respecting quotes
