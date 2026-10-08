@@ -72,7 +72,12 @@ impl RealInstaller {
     /// the GET response's Content-Disposition header or final redirected URL.
     /// For APIs like Adoptium that use redirect chains (307 → 302 → CDN),
     /// this saves ~3-5 seconds by eliminating the redundant HEAD round-trip.
-    async fn download_and_detect_filename(&self, url: &str, dest: &Path) -> Result<Option<String>> {
+    async fn download_and_detect_filename(
+        &self,
+        url: &str,
+        dest: &Path,
+        expected_sha256: Option<&str>,
+    ) -> Result<Option<String>> {
         use futures_util::StreamExt;
         use indicatif::{ProgressBar, ProgressStyle};
         use tokio::io::AsyncWriteExt;
@@ -97,6 +102,7 @@ impl RealInstaller {
                     }
                     std::fs::copy(&path, dest)?;
                     pb.finish_and_clear();
+                    self.verify_download(url, dest, expected_sha256)?;
                     tracing::debug!(url = url, cached_path = ?path, "Served from download cache");
                     // Return cached filename from metadata
                     let cached_filename = if !metadata.filename.is_empty()
@@ -125,6 +131,7 @@ impl RealInstaller {
                     }
                     std::fs::copy(&path, dest)?;
                     pb.finish_and_clear();
+                    self.verify_download(url, dest, expected_sha256)?;
                     tracing::debug!(url = url, cached_path = ?path, "Served from download cache (with ETag)");
                     return Ok(None);
                 }
@@ -268,6 +275,11 @@ impl RealInstaller {
 
         progress_bar.finish_and_clear();
         file.flush().await?;
+        drop(file);
+
+        // The catalog digest is authoritative for every transport, including
+        // mirrors and cache hits. Never admit an unverified payload to cache.
+        self.verify_download(url, dest, expected_sha256)?;
 
         // Store in download cache if enabled
         if let Some(cache) = &self.http.download_cache
@@ -277,6 +289,36 @@ impl RealInstaller {
         }
 
         Ok(detected_filename)
+    }
+
+    fn verify_download(&self, url: &str, path: &Path, expected: Option<&str>) -> Result<()> {
+        use sha2::{Digest, Sha256};
+        use std::io::Read;
+
+        let Some(expected) = expected else {
+            return Ok(());
+        };
+        let mut file = std::fs::File::open(path)?;
+        let mut hasher = Sha256::new();
+        let mut buffer = [0; 64 * 1024];
+        loop {
+            let count = file.read(&mut buffer)?;
+            if count == 0 {
+                break;
+            }
+            hasher.update(&buffer[..count]);
+        }
+        let actual = hex::encode(hasher.finalize());
+        if !actual.eq_ignore_ascii_case(expected) {
+            if let Some(cache) = &self.http.download_cache {
+                let _ = cache.remove(url);
+            }
+            anyhow::bail!(
+                "SHA256 mismatch for {url}: expected {expected}, got {actual}; refusing installation"
+            );
+        }
+        tracing::info!(url, sha256 = %actual, "Verified artifact SHA256");
+        Ok(())
     }
 
     /// Parse filename from Content-Disposition header value
@@ -526,7 +568,7 @@ impl Installer for RealInstaller {
     }
 
     async fn download_and_extract(&self, url: &str, dest: &Path) -> Result<()> {
-        self.download_and_extract_impl(url, dest, false).await
+        self.download_and_extract_impl(url, dest, false, None).await
     }
 
     async fn download_with_layout(
@@ -539,7 +581,13 @@ impl Installer for RealInstaller {
         // example, NSIS). Explicit archive extensions still take precedence.
         let skip_embedded_archive_detection =
             metadata.contains_key("target_name") && metadata.contains_key("target_dir");
-        self.download_and_extract_impl(url, dest, skip_embedded_archive_detection)
+        let expected_sha256 = metadata.get("sha256").map(String::as_str);
+        if let Some(digest) = expected_sha256
+            && (digest.len() != 64 || !digest.bytes().all(|byte| byte.is_ascii_hexdigit()))
+        {
+            anyhow::bail!("Invalid artifact SHA256: expected exactly 64 hexadecimal characters");
+        }
+        self.download_and_extract_impl(url, dest, skip_embedded_archive_detection, expected_sha256)
             .await?;
 
         // Debug: log metadata and dest contents
@@ -749,6 +797,7 @@ impl RealInstaller {
         url: &str,
         dest: &Path,
         skip_embedded_archive_detection: bool,
+        expected_sha256: Option<&str>,
     ) -> Result<()> {
         // Create temp file for download
         let temp_dir = tempfile::tempdir()?;
@@ -759,7 +808,11 @@ impl RealInstaller {
         // Download and detect filename in a single GET request (no separate HEAD).
         let temp_download_path = temp_dir.path().join("download_temp");
         let detected_filename = self
-            .download_and_detect_filename(url_without_fragment, &temp_download_path)
+            .download_and_detect_filename(
+                url_without_fragment,
+                &temp_download_path,
+                expected_sha256,
+            )
             .await?;
 
         let archive_name = detected_filename.unwrap_or_else(|| {

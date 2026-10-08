@@ -24,7 +24,7 @@ vx 使用 Astral 的 [python-build-standalone](https://github.com/astral-sh/pyth
 | Python 3.10 | 活跃 | 稳定版 |
 | Python 3.9 | 已终止 | 最后构建: 20251120 |
 | Python 3.8 | 已终止 | 有限可用性 |
-| Python 3.7 | 已终止 | 仅遗留支持 |
+| Python 3.7 | 已终止 | 固定 CPython 3.7.9，支持 Windows、Linux、macOS x64 |
 | Python 2.7 | 已终止 | 通过 PyPy2.7 提供遗留兼容 |
 
 > **注意**: 已达到生命周期终点 (EOL) 的 Python 版本可用性有限。Python 2.7 面向遗留测试和迁移场景；依赖 CPython 原生扩展的项目可能仍需要系统 CPython 2.7。
@@ -91,6 +91,40 @@ vx uv venv .venv27 --python 2.7
 ```
 
 当 `uv` 通过 `vx uv ... --python <version>` 接收到简单版本号时，vx 会先用自己的 Python Provider 解析并安装该版本，再把解释器路径传给 uv。Python 2.7 是特殊遗留场景：uv 本身要求 Python 3.6+，因此 `vx uv venv ... --python 2.7` 会保持同样的 vx 命令形态，但底层使用 PyPA 的 Python 2.7 `virtualenv.pyz` 创建环境。
+
+### Python 3.7 生命周期契约
+
+uv 当前仍将 Python 3.7 列为 [Tier 2 支持](https://docs.astral.sh/uv/reference/policies/python/)。[uv 0.7.0 移除了托管下载清单中的 Python 3.7](https://github.com/astral-sh/uv/pull/13022)，解释器运行支持与可下载发行版属于不同能力。因此，当前 uv 可以使用已有 CPython 3.7，但 `uv python install 3.7` 会提示没有可下载版本。
+
+这条版本线由 VX 负责获取。Python Provider 固定 CPython **3.7.9** 的发布版本、归档 SHA-256 和平台身份，不依赖上游当前发布清单。支持 Windows x64、使用 glibc 的 Linux x64、macOS x64；不支持的平台或其他 3.7 补丁版本会明确报错，不替换成 PyPy 或其他 Python 次版本。macOS 使用 [20200823 修复版](https://github.com/astral-sh/python-build-standalone/releases/tag/20200823)，避免 20200822 对 `libintl.dylib` 的额外依赖。
+
+完整性检查除了解释器可执行文件，还要求标准库、`venv`、Python 头文件和链接库。只有嵌入版解释器或未完成的解压目录不满足这个契约。
+
+历史发布者没有提供归档校验值或签名。这里的 SHA-256 是 VX 从官方 HTTPS 资产接收时计算的固定值，同时记录 GitHub 资产 ID 和字节数，用于检测下载文件及缓存归档变化，**不代表发布者签名证明**。镜像必须提供完全相同的固定归档字节；此目录条目尚未启用公共镜像。
+
+```bash
+vx install python@3.7.9
+vx python@3.7.9 -c "import sys, ssl, sqlite3; assert sys.version_info[:3] == (3, 7, 9); print(sys.executable)"
+vx uv venv .venv37 --python 3.7.9
+vx uv pip install --python .venv37 "requests==2.31.0"
+vx uv pip check --python .venv37
+```
+
+构建依赖有自己的 Python 版本要求。如果项目必须在 3.7 解释器上执行 PEP 517 后端，需要在 `pyproject.toml` 中固定兼容版本，例如：
+
+```toml
+[build-system]
+requires = ["setuptools==67.8.0", "wheel==0.42.0"]
+build-backend = "setuptools.build_meta"
+```
+
+```bash
+vx uv build --python .venv37 --no-python-downloads --out-dir dist37
+```
+
+缓存过所需包和构建依赖后，可以给 uv 操作添加 `--offline`。离线工作流需要同时保留 VX 解释器及归档缓存与 uv 包缓存。下载成功本身不能证明某个项目的依赖或原生扩展支持 Python 3.7。
+
+uv 还提供[自定义 Python 下载目录](https://docs.astral.sh/uv/reference/environment/#uv_python_downloads_json_url)和 [Python 归档镜像](https://docs.astral.sh/uv/reference/environment/#uv_python_install_mirror)能力，可以持续维护发行版部署而无需永久冻结旧版 uv。常规 `vx uv ... --python 3.7.9` 工作流使用 VX 获取的解释器。
 
 ### 项目管理
 

@@ -20,7 +20,7 @@ The `install_layout()` function returns a descriptor dict. The `__type` (or `typ
 
 | Type | Required Fields | Optional Fields | Use Case |
 |------|----------------|-----------------|----------|
-| `"archive"` | `type` | `strip_prefix`, `executable_paths` | tar.gz, zip archives |
+| `"archive"` | `type` | `strip_prefix`, `executable_paths`, `required_paths`, `sha256`, `mirror_urls` | tar.gz, zip archives |
 | `"binary"` | `type` | `executable_name`, `permissions` | Direct executable download |
 | `"msi"` | `type`, `url` | `executable_paths`, `strip_prefix`, `extra_args` | Windows MSI installer |
 | `"system_find"` | `type`, `executable` | `system_paths`, `hint` | System-installed tool lookup |
@@ -35,6 +35,18 @@ def install_layout(ctx, version):
         "executable_paths": ["bin/mytool", "mytool"],
     }
 ```
+
+For a retained runtime distribution, set `sha256` to the fixed SHA256 of the
+complete archive and `required_paths` to the files needed for a usable runtime
+and its supported build workflows. `mirror_urls` is an ordered list of sources
+for identical archive bytes; the `download_url()` origin is tried last. Mirrors
+require a fixed digest, and every source and cache hit is verified before
+extraction. A failed source cannot relax the digest for the next source.
+
+After extraction, VX checks the executable and required files before writing
+`.vx-artifact.json` with the verified digest. An old installation without a
+matching completion receipt is reacquired. This records archive verification;
+it does not rehash every installed file on each execution.
 
 ### Binary Layout
 

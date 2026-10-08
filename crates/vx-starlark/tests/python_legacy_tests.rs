@@ -5,6 +5,7 @@
 //! Python 2.7 compatibility is provided via PyPy2.7 portable archives because
 //! python-build-standalone does not publish CPython 2.7 artifacts.
 
+use rstest::rstest;
 use vx_starlark::StarlarkEngine;
 
 fn load_provider_content(provider_name: &str) -> (std::path::PathBuf, String) {
@@ -45,7 +46,7 @@ async fn test_python37_download_url_windows_uses_legacy_asset() {
 }
 
 #[tokio::test]
-async fn test_python37_download_url_unsupported_arm64_returns_none() {
+async fn test_python37_download_url_unsupported_arm64_reports_error() {
     let (star_path, content) = load_provider_content("python");
     let engine = StarlarkEngine::new();
     let mut ctx = vx_starlark::ProviderContext::new("python", std::env::temp_dir().join("vx-test"));
@@ -61,9 +62,121 @@ async fn test_python37_download_url_unsupported_arm64_returns_none() {
             &ctx,
             &[serde_json::json!("3.7.9")],
         )
-        .unwrap();
+        .unwrap_err();
 
-    assert!(result.is_null());
+    assert!(
+        result
+            .to_string()
+            .contains("portable build unavailable for linux/arm64")
+    );
+}
+
+#[rstest]
+#[case(
+    "windows",
+    "8769a244cfe54c32c5253b78897a0fe82fe419dfde653b1afc3f5f20594cca89",
+    "20200822",
+    "20200823T0118"
+)]
+#[case(
+    "linux",
+    "c6d6256d13e929e77e7ee6e53470fe63ad19d173fee6d56bb1b2dbda67081543",
+    "20200822",
+    "20200823T0036"
+)]
+#[case(
+    "macos",
+    "53657e7712cc7b24491fb1fc66dcc8f47a577fc77df137178746987ba4c5afb8",
+    "20200823",
+    "20200823T2228"
+)]
+fn test_python37_pinned_catalog_without_release_discovery(
+    #[case] os: &str,
+    #[case] digest: &str,
+    #[case] release: &str,
+    #[case] timestamp: &str,
+) {
+    let (star_path, content) = load_provider_content("python");
+    let engine = StarlarkEngine::new();
+    let mut ctx = vx_starlark::ProviderContext::new("python", std::env::temp_dir().join("vx-test"));
+    ctx.platform.os = os.to_string();
+    ctx.platform.arch = "x64".to_string();
+    assert!(ctx.version_date.is_none());
+
+    let url = engine
+        .call_function(
+            &star_path,
+            &content,
+            "download_url",
+            &ctx,
+            &[serde_json::json!("3.7.9")],
+        )
+        .unwrap();
+    let url = url.as_str().unwrap();
+    assert!(url.contains(&format!("/download/{release}/")), "{url}");
+    assert!(url.contains(timestamp), "{url}");
+
+    let layout = engine
+        .call_function(
+            &star_path,
+            &content,
+            "install_layout",
+            &ctx,
+            &[serde_json::json!("3.7.9")],
+        )
+        .unwrap();
+    assert_eq!(layout["sha256"], digest);
+    assert_eq!(layout["mirror_urls"], serde_json::json!([]));
+}
+
+#[rstest]
+#[case("windows", vec!["Lib/site.py", "Lib/venv/__init__.py", "include/Python.h", "libs/python37.lib"])]
+#[case("linux", vec!["lib/python3.7/site.py", "lib/python3.7/venv/__init__.py", "include/python3.7m/Python.h", "lib/libpython3.7m.a", "lib/libpython3.7m.so.1.0"])]
+#[case("macos", vec!["lib/python3.7/site.py", "lib/python3.7/venv/__init__.py", "include/python3.7m/Python.h", "lib/libpython3.7m.a", "lib/libpython3.7m.dylib"])]
+fn test_python37_completeness_requires_full_environment_and_build_support(
+    #[case] os: &str,
+    #[case] required_paths: Vec<&str>,
+) {
+    let (star_path, content) = load_provider_content("python");
+    let engine = StarlarkEngine::new();
+    let mut ctx = vx_starlark::ProviderContext::new("python", std::env::temp_dir().join("vx-test"));
+    ctx.platform.os = os.to_string();
+    ctx.platform.arch = "x64".to_string();
+    let layout = engine
+        .call_function(
+            &star_path,
+            &content,
+            "install_layout",
+            &ctx,
+            &[serde_json::json!("3.7.9")],
+        )
+        .unwrap();
+    assert_eq!(layout["required_paths"], serde_json::json!(required_paths));
+}
+
+#[rstest]
+#[case("download_url")]
+#[case("install_layout")]
+fn test_python37_other_patch_versions_are_not_substituted(#[case] function: &str) {
+    let (star_path, content) = load_provider_content("python");
+    let engine = StarlarkEngine::new();
+    let mut ctx = vx_starlark::ProviderContext::new("python", std::env::temp_dir().join("vx-test"));
+    ctx.platform.os = "windows".to_string();
+    ctx.platform.arch = "x64".to_string();
+    let error = engine
+        .call_function(
+            &star_path,
+            &content,
+            function,
+            &ctx,
+            &[serde_json::json!("3.7.17")],
+        )
+        .unwrap_err();
+    assert!(
+        error
+            .to_string()
+            .contains("Python 3.7.17 has no pinned portable build")
+    );
 }
 
 #[tokio::test]
