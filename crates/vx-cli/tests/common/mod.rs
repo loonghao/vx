@@ -2,10 +2,11 @@
 
 #![allow(dead_code)]
 
-use std::io::{self, ErrorKind};
+use std::io::{self, ErrorKind, Read};
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output, Stdio};
-use std::sync::Once;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Arc, Mutex, Once, mpsc};
 use std::thread;
 use std::time::{Duration, Instant};
 
@@ -133,30 +134,194 @@ pub fn run_command_with_timeout(mut cmd: Command, timeout: Duration) -> io::Resu
 
     configure_timeout_child(&mut cmd);
 
-    let mut child = cmd.spawn()?;
+    let mut child = cmd.spawn().map_err(|error| {
+        io::Error::new(
+            error.kind(),
+            format!("failed to spawn {command_debug}: {error}"),
+        )
+    })?;
     let child_id = child.id();
     let start = Instant::now();
+    let mut stdout = None;
+    let mut stderr = None;
 
-    loop {
-        if child.try_wait()?.is_some() {
-            return child.wait_with_output();
-        }
+    let result = (|| {
+        stdout = Some(OutputCapture::spawn(
+            child
+                .stdout
+                .take()
+                .ok_or_else(|| io::Error::other("missing child stdout pipe"))?,
+            "stdout",
+        )?);
+        stderr = Some(OutputCapture::spawn(
+            child
+                .stderr
+                .take()
+                .ok_or_else(|| io::Error::other("missing child stderr pipe"))?,
+            "stderr",
+        )?);
+        let stdout = stdout.as_mut().expect("stdout capture was initialized");
+        let stderr = stderr.as_mut().expect("stderr capture was initialized");
 
-        if start.elapsed() >= timeout {
-            terminate_process_tree(child_id, &mut child);
-            let mut message = format!(
-                "command timed out after {:.1}s: {command_debug}",
-                timeout.as_secs_f64()
-            );
-
-            if let Err(err) = wait_after_timeout(&mut child, Duration::from_secs(2)) {
-                message.push_str(&format!("\nfailed to reap child after timeout: {err}"));
+        loop {
+            let status = child.try_wait()?;
+            let stdout_complete = stdout.poll()?;
+            let stderr_complete = stderr.poll()?;
+            if let Some(status) = status
+                && stdout_complete
+                && stderr_complete
+            {
+                return Ok(Output {
+                    status,
+                    stdout: stdout.take_bytes(),
+                    stderr: stderr.take_bytes(),
+                });
             }
 
-            return Err(io::Error::new(ErrorKind::TimedOut, message));
-        }
+            // EOF can lag direct-child exit when a descendant inherits a pipe.
+            // Keep that wait under the same deadline as the command itself.
+            if start.elapsed() >= timeout {
+                return Err(io::Error::new(
+                    ErrorKind::TimedOut,
+                    format!(
+                        "command timed out after {:.1}s: {command_debug}",
+                        timeout.as_secs_f64()
+                    ),
+                ));
+            }
 
-        thread::sleep(Duration::from_millis(100));
+            thread::sleep(Duration::from_millis(100));
+        }
+    })();
+
+    match result {
+        Ok(output) => Ok(output),
+        Err(error) => {
+            // Cancel before cleanup/snapshotting so escaped writers cannot keep
+            // growing a detached capture buffer after this function returns.
+            for capture in [&stdout, &stderr].into_iter().flatten() {
+                capture.cancel();
+            }
+            terminate_process_tree(child_id, &mut child);
+            let mut message = format!("{error}\ncommand: {command_debug}");
+            if let Err(error) = wait_after_timeout(&mut child, Duration::from_secs(2)) {
+                message.push_str(&format!("\nfailed to reap child after failure: {error}"));
+            }
+            for capture in [&stdout, &stderr].into_iter().flatten() {
+                message.push_str(&capture.diagnostic());
+            }
+            Err(io::Error::new(error.kind(), message))
+        }
+    }
+}
+
+/// Drain one pipe without tying the caller's deadline to a blocking reader join.
+struct OutputCapture {
+    name: &'static str,
+    bytes: Arc<Mutex<Vec<u8>>>,
+    cancelled: Arc<AtomicBool>,
+    completion: mpsc::Receiver<io::Result<()>>,
+    complete: bool,
+}
+
+impl OutputCapture {
+    fn spawn(reader: impl Read + Send + 'static, name: &'static str) -> io::Result<Self> {
+        let bytes = Arc::new(Mutex::new(Vec::new()));
+        let cancelled = Arc::new(AtomicBool::new(false));
+        let (sender, completion) = mpsc::sync_channel(1);
+        let worker_bytes = Arc::clone(&bytes);
+        let worker_cancelled = Arc::clone(&cancelled);
+        // Portable std cannot interrupt an already-blocked pipe read. Never
+        // join this worker: process-tree cleanup normally closes the pipe; an
+        // escaped writer may keep the thread until its next write/EOF. The
+        // cancellation flag prevents further buffering while the caller exits.
+        thread::Builder::new()
+            .name(format!("vx-e2e-{name}"))
+            .spawn(move || {
+                let result = Self::read(reader, &worker_bytes, &worker_cancelled);
+                let _ = sender.send(result);
+            })?;
+        Ok(Self {
+            name,
+            bytes,
+            cancelled,
+            completion,
+            complete: false,
+        })
+    }
+
+    fn read(
+        mut reader: impl Read,
+        bytes: &Mutex<Vec<u8>>,
+        cancelled: &AtomicBool,
+    ) -> io::Result<()> {
+        let mut chunk = [0; 8192];
+        while !cancelled.load(Ordering::Acquire) {
+            match reader.read(&mut chunk) {
+                Ok(0) => break,
+                Ok(count) => {
+                    let mut bytes = bytes.lock().unwrap_or_else(|error| error.into_inner());
+                    if !cancelled.load(Ordering::Acquire) {
+                        bytes.extend_from_slice(&chunk[..count]);
+                    }
+                }
+                Err(error) if error.kind() == ErrorKind::Interrupted => continue,
+                Err(error) => return Err(error),
+            }
+        }
+        Ok(())
+    }
+
+    fn poll(&mut self) -> io::Result<bool> {
+        if !self.complete {
+            match self.completion.try_recv() {
+                Ok(result) => {
+                    self.complete = true;
+                    result.map_err(|error| {
+                        io::Error::new(error.kind(), format!("{} capture: {error}", self.name))
+                    })?;
+                }
+                Err(mpsc::TryRecvError::Empty) => {}
+                Err(mpsc::TryRecvError::Disconnected) => {
+                    return Err(io::Error::other(format!(
+                        "{} capture reader ended without a result",
+                        self.name
+                    )));
+                }
+            }
+        }
+        Ok(self.complete)
+    }
+
+    fn take_bytes(&self) -> Vec<u8> {
+        std::mem::take(&mut *self.bytes.lock().unwrap_or_else(|error| error.into_inner()))
+    }
+
+    fn cancel(&self) {
+        self.cancelled.store(true, Ordering::Release);
+    }
+
+    fn diagnostic(&self) -> String {
+        const MAX_DIAGNOSTIC_BYTES: usize = 4096;
+        let bytes = self.bytes.lock().unwrap_or_else(|error| error.into_inner());
+        let count = bytes.len().min(MAX_DIAGNOSTIC_BYTES);
+        let truncated = if count < bytes.len() {
+            ", truncated"
+        } else {
+            ""
+        };
+        format!(
+            "\n{} ({} bytes{truncated}):\n{}",
+            self.name,
+            bytes.len(),
+            String::from_utf8_lossy(&bytes[..count])
+        )
+    }
+}
+
+impl Drop for OutputCapture {
+    fn drop(&mut self) {
+        self.cancel();
     }
 }
 
@@ -172,32 +337,32 @@ fn e2e_timeout() -> Duration {
 fn terminate_process_tree(_pid: u32, child: &mut std::process::Child) {
     #[cfg(windows)]
     {
-        let _ = Command::new("taskkill")
-            .args(["/PID", &_pid.to_string(), "/T", "/F"])
-            .stdin(Stdio::null())
-            .stdout(Stdio::null())
-            .stderr(Stdio::null())
-            .status();
+        run_cleanup_command(Command::new("taskkill").args(["/PID", &_pid.to_string(), "/T", "/F"]));
         let _ = child.kill();
     }
 
     #[cfg(not(windows))]
     {
         let process_group = format!("-{_pid}");
-        let _ = Command::new("kill")
-            .args(["-TERM", "--", &process_group])
-            .stdin(Stdio::null())
-            .stdout(Stdio::null())
-            .stderr(Stdio::null())
-            .status();
+        run_cleanup_command(Command::new("kill").args(["-TERM", "--", &process_group]));
         thread::sleep(Duration::from_millis(100));
-        let _ = Command::new("kill")
-            .args(["-KILL", "--", &process_group])
-            .stdin(Stdio::null())
-            .stdout(Stdio::null())
-            .stderr(Stdio::null())
-            .status();
+        run_cleanup_command(Command::new("kill").args(["-KILL", "--", &process_group]));
         let _ = child.kill();
+    }
+}
+
+fn run_cleanup_command(command: &mut Command) {
+    let Ok(mut child) = command
+        .stdin(Stdio::null())
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .spawn()
+    else {
+        return;
+    };
+    if wait_after_timeout(&mut child, Duration::from_secs(2)).is_err() {
+        let _ = child.kill();
+        let _ = wait_after_timeout(&mut child, Duration::from_millis(500));
     }
 }
 
