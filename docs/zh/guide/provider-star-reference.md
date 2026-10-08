@@ -429,7 +429,37 @@ url = expand_asset(
 | `parse_github_tag(tag)` | `→ string` | 剥离 tag 的 `v`/`release-`/`version-` 前缀 |
 | `fetch_json(ctx, url)` | `→ descriptor` | 通用 JSON 获取描述符 |
 | `fetch_json_versions(ctx, url, transform, headers={})` | `→ descriptor` | 带变换策略的版本获取 |
+| `fetch_html_versions(ctx, url, href_prefix, filename_prefix, filename_suffix)` | `→ descriptor` | 从发布方下载页的实际二进制链接提取版本 |
 | `releases_to_versions(releases, tag_key="tag_name")` | `→ list \| descriptor` | 将 releases 数组转换为版本信息 |
+
+#### 从 HTML 下载链接获取已发布版本
+
+源代码标签早于平台二进制发布时，可以从官方页面发现实际下载链接：
+
+```python
+load("@vx//stdlib:http.star", "fetch_html_versions")
+
+def fetch_versions(ctx):
+    return fetch_html_versions(ctx,
+        "https://publisher.example/download/",
+        "https://download.publisher.example/stable/",
+        "editor-",
+        "-x86_64.AppImage",
+    )
+```
+
+该函数只返回描述符。Rust 以 30 秒超时获取页面，要求 HTTP 状态成功，
+仅匹配实际锚点的 `href` 属性。绝对 HTTP(S) `href_prefix` 必须以 `/` 结尾；
+文件名前后缀按字面量匹配链接的 basename。应按 `ctx.platform.os` 和
+`ctx.platform.arch` 选择平台文件后缀。结果只包含点分 ASCII 数字版本，
+去重后按版本降序排列；可在描述符中添加 `exclude_version_suffixes` 排除特定
+版本后缀。结果的 `stable=True`、`lts=False`，不包含发布日期。
+
+支持单引号、双引号和无引号属性。不读取注释、原始文本元素、非锚点属性或普通
+文本，也不接受相对链接、路径穿越、编码路径、查询参数或片段。不解码 HTML
+实体或执行 JavaScript。请求失败或没有匹配二进制时返回错误；现有过期缓存
+回退仅可复用同一 Provider 脚本、同一操作系统和架构的结果。其他版本描述符
+保持原有缓存格式。
 
 #### `fetch_json_versions` 支持的变换策略
 
