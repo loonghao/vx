@@ -31,12 +31,11 @@ def install_layout(ctx, version):
         return None
     return {"type": "archive", "strip_prefix": "", "executable_paths": ["bin/64bit/obs64.exe"]}
 
-def system_install(ctx):
-    if ctx.platform.os == "macos" and ctx.platform.arch in ["x64", "arm64"]:
-        return system_install_strategies([pkg_strategy("brew", "obs", install_args = "--cask", platforms = ["macos"])])
-    if ctx.platform.os == "linux" and ctx.platform.arch in ["x64", "arm64"]:
-        return system_install_strategies([apt_install("obs-studio")])
-    return system_install_strategies([])
+# The runtime reads this descriptor directly and filters strategies by OS.
+system_install = system_install_strategies([
+    pkg_strategy("brew", "obs", install_args = "--cask", platforms = ["macos"]),
+    apt_install("obs-studio"),
+])
 
 def store_root(ctx):
     return ctx.vx_home + "/store/obs"
