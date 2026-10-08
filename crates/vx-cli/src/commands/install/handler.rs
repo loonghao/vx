@@ -663,12 +663,21 @@ pub async fn install_quiet(
         .await?;
 
     // Install the version
-    let install_result = runtime
+    let mut install_result = runtime
         .install(&target_version, &context_with_cache)
         .await?;
 
     // Run post-install hook
     runtime.post_install(&target_version, context).await?;
+
+    // Hooks may replace a downloaded bootstrap with the final executable.
+    // Preserve the install result when runtime lookup is unavailable.
+    if let Ok(Some(executable_path)) = runtime
+        .get_executable_path_for_version(&install_result.version, context)
+        .await
+    {
+        install_result.executable_path = executable_path;
+    }
 
     Ok(install_result)
 }

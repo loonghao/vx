@@ -72,6 +72,18 @@ async fn test_kdenlive_runtime_registration(#[case] runtime: &str) {
     "26.08.1",
     "https://cdn.download.kde.org/stable/kdenlive/26.08/linux/kdenlive-26.08.1-x86_64.AppImage"
 )]
+#[case(
+    "windows",
+    "x64",
+    "26.08.2",
+    "https://cdn.download.kde.org/stable/kdenlive/26.08/windows/kdenlive-26.08.2_standalone.exe"
+)]
+#[case(
+    "linux",
+    "x64",
+    "26.08.2",
+    "https://cdn.download.kde.org/stable/kdenlive/26.08/linux/kdenlive-26.08.2-x86_64.AppImage"
+)]
 fn test_kdenlive_official_versioned_download(
     #[case] os: &str,
     #[case] arch: &str,
@@ -88,6 +100,8 @@ fn test_kdenlive_official_versioned_download(
 #[case("macos", "arm64", "26.08.1")]
 #[case("windows", "x64", "26.07.80")]
 #[case("windows", "x64", "26.07.90")]
+#[case("windows", "x64", "26.08.80")]
+#[case("linux", "x64", "26.08.90")]
 fn test_kdenlive_unsupported_download_has_no_layout(
     #[case] os: &str,
     #[case] arch: &str,
@@ -142,34 +156,58 @@ fn test_kdenlive_linux_appimage_is_a_binary_layout(#[case] version: &str) {
 }
 
 #[rstest]
-#[case("26.08.1", "kdenlive")]
-fn test_kdenlive_macos_system_install_is_a_scoped_cask(
-    #[case] version: &str,
-    #[case] package: &str,
-) {
-    let ctx = context("macos", "arm64", version);
-    let strategy = call("system_install", &ctx, &[]);
+#[case("kdenlive")]
+fn test_kdenlive_system_package_reaches_the_runtime_descriptor_bridge(#[case] package: &str) {
+    let path = provider_path();
+    let content = std::fs::read_to_string(&path).unwrap();
+    // The runtime builder reads a static variable before considering a callable.
+    let strategy = StarlarkEngine::new()
+        .get_variable(&path, &content, "system_install")
+        .unwrap()
+        .unwrap();
+    assert_eq!(strategy["strategies"].as_array().unwrap().len(), 1);
     assert_eq!(strategy["strategies"][0]["manager"], "brew");
     assert_eq!(strategy["strategies"][0]["package"], package);
     assert_eq!(strategy["strategies"][0]["install_args"], "--cask");
     assert_eq!(strategy["strategies"][0]["platforms"], json!(["macos"]));
-    let unsupported = context("freebsd", "x64", version);
-    assert_eq!(
-        call("system_install", &unsupported, &[])["strategies"],
-        json!([])
-    );
 }
 
-#[test]
-fn test_kdenlive_version_source_filters_numeric_prereleases() {
-    let ctx = context("linux", "x64", "26.08.1");
+#[rstest]
+#[case("linux", "x64", "-x86_64.AppImage")]
+#[case("windows", "x64", "_standalone.exe")]
+#[case("macos", "arm64", "-arm64.dmg")]
+#[case("macos", "x64", "-x86_64.dmg")]
+fn test_kdenlive_version_source_uses_published_platform_downloads(
+    #[case] os: &str,
+    #[case] arch: &str,
+    #[case] suffix: &str,
+) {
+    let ctx = context(os, arch, "26.08.1");
     let descriptor = call("fetch_versions", &ctx, &[]);
-    assert_eq!(descriptor["transform"], "github_tags");
+    assert_eq!(descriptor["__type"], "fetch_html_versions");
+    assert_eq!(descriptor["url"], "https://kdenlive.org/download/");
+    assert_eq!(
+        descriptor["href_prefix"],
+        "https://download.kde.org/stable/kdenlive/"
+    );
+    assert_eq!(descriptor["filename_prefix"], "kdenlive-");
+    assert_eq!(descriptor["filename_suffix"], suffix);
     assert_eq!(descriptor["version_filter"], "numeric");
     let excluded = descriptor["exclude_version_suffixes"].as_array().unwrap();
     assert!(excluded.contains(&json!(".80")));
     assert!(excluded.contains(&json!(".90")));
     assert!(!excluded.contains(&json!(".1")));
+}
+
+#[rstest]
+#[case("linux", "arm64")]
+#[case("windows", "arm64")]
+fn test_kdenlive_unsupported_platform_has_no_published_versions(
+    #[case] os: &str,
+    #[case] arch: &str,
+) {
+    let ctx = context(os, arch, "26.08.1");
+    assert_eq!(call("fetch_versions", &ctx, &[]), json!([]));
 }
 
 #[rstest]

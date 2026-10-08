@@ -1,6 +1,6 @@
 //! Version fetching logic for Starlark providers.
 //!
-//! Handles all version descriptor resolution and JSON transform strategies.
+//! Handles version descriptors for JSON APIs and published HTML asset links.
 //!
 //! # Caching
 //!
@@ -11,6 +11,7 @@
 //! Cache invalidation:
 //! - TTL expiry (default 24h)
 //! - Script content change (new hash → automatic miss)
+//! - HTML asset lists additionally isolate OS and architecture
 
 use crate::context::{ProviderContext, VersionInfo};
 use crate::engine::StarlarkEngine;
@@ -24,8 +25,8 @@ use super::version_cache::global_version_cache;
 impl StarlarkProvider {
     /// Execute fetch_versions function using the Starlark engine.
     ///
-    /// **Cache-aware**: checks L1 (memory) → L2 (disk) before executing Starlark.
-    /// On a cache miss, executes the Starlark function and stores the result.
+    /// Evaluates pure Starlark first to identify descriptor-specific cache scope,
+    /// then checks L1 (memory) → L2 (disk) before any HTTP request.
     ///
     /// Handles two return shapes from Starlark:
     ///
@@ -45,14 +46,34 @@ impl StarlarkProvider {
         let hash_hex = self.script_hash_hex();
         let cache = global_version_cache();
 
+        let engine = StarlarkEngine::new();
+        let result = engine.call_function(
+            &self.script_path,
+            &self.script_content,
+            "fetch_versions",
+            ctx,
+            &[],
+        );
+
         // For multi-runtime providers (e.g. build-tools with just/cmake/ninja),
         // the cache key must include the runtime name so that each runtime gets
         // its own cache entry. Without this, "just" versions (1.x) would be
         // returned for "cmake" queries (which should return 3.x/4.x).
-        let cache_key = match ctx.runtime_name.as_deref() {
+        let mut cache_key = match ctx.runtime_name.as_deref() {
             Some(rt) if !rt.is_empty() => format!("{}/{}", provider_name, rt),
             _ => provider_name.clone(),
         };
+        if result
+            .as_ref()
+            .ok()
+            .and_then(|json| json.get("__type"))
+            .and_then(|kind| kind.as_str())
+            == Some("fetch_html_versions")
+        {
+            // Published binaries can lag independently on each OS/architecture.
+            // Other descriptor cache keys retain their existing format.
+            cache_key = format!("{cache_key}/html/{}/{}", ctx.platform.os, ctx.platform.arch);
+        }
 
         // ── Cache lookup (L1 → L2) ────────────────────────────────────────────
         if let Some(cached) = cache.get(&cache_key, &hash_hex).await {
@@ -68,22 +89,12 @@ impl StarlarkProvider {
         debug!(
             provider = %provider_name,
             cache_key = %cache_key,
-            "fetch_versions: cache miss, executing Starlark"
+            "fetch_versions: cache miss, resolving descriptor"
         );
 
         // Preserve an expired entry as a last-resort network fallback. Cache
         // entries from a different provider script are deliberately excluded.
         let stale_versions = cache.get_stale(&cache_key, &hash_hex).await;
-
-        // ── Execute Starlark ──────────────────────────────────────────────────
-        let engine = StarlarkEngine::new();
-        let result = engine.call_function(
-            &self.script_path,
-            &self.script_content,
-            "fetch_versions",
-            ctx,
-            &[],
-        );
 
         let versions_result = match result {
             Ok(json) => {
@@ -98,6 +109,10 @@ impl StarlarkProvider {
                     && type_str == "fetch_json_versions"
                 {
                     self.resolve_fetch_json_versions_descriptor(&json).await
+                } else if json.get("__type").and_then(|kind| kind.as_str())
+                    == Some("fetch_html_versions")
+                {
+                    self.resolve_fetch_html_versions_descriptor(&json).await
                 }
                 // Shape 3: legacy go_versions descriptor (kept for backward compat)
                 else if let Some(type_str) = json.get("__type").and_then(|t| t.as_str())

@@ -423,9 +423,9 @@ vx cargo run
 
 ---
 
-## Supported Tools (169 providers)
+## Supported Tools (169 Providers)
 
-vx manages 169 tools via Starlark DSL providers. Below are some highlights:
+vx ships 169 Providers defined in Starlark DSL. Below are some highlights:
 
 ### Language Runtimes
 
@@ -509,7 +509,14 @@ vx manages 169 tools via Starlark DSL providers. Below are some highlights:
 | **Ollama** | `ollama` | Run LLMs locally |
 | **mcpcall** | `mcpcall` | MCP client for CI/smoke tests |
 
-> Run `vx list` to see all 169 supported tools, or `vx search <query>` to find a specific tool.
+### DCC and Creative Applications
+
+Blender, FreeCAD, OpenSCAD, Godot, GIMP, Krita, Material Maker, OpenUSD, RenderDoc,
+Tiled, ComfyUI, OBS Studio, Kdenlive, OpenScreen, and Tracy are available
+through built-in Providers. See the [DCC-MCP integration guide](docs/guide/dcc-mcp.md)
+for supported platforms, installation methods, and connection workflows.
+
+> Run `vx list` to explore runtimes from all 169 Providers, or `vx search <query>` to find a specific runtime.
 
 ---
 

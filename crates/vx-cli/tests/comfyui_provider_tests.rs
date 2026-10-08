@@ -77,7 +77,7 @@ fn test_comfyui_uses_embedded_python_and_a_store_local_script() {
     );
     assert_eq!(
         layout["required_paths"],
-        json!(["ComfyUI/main.py", "comfyui.cmd"])
+        json!(["ComfyUI/main.py", "vx-comfyui.cmd"])
     );
     let actions = call(
         "comfyui",
@@ -87,11 +87,19 @@ fn test_comfyui_uses_embedded_python_and_a_store_local_script() {
         &[json!("0.39.0"), json!("C:/vx host/comfyui")],
     );
     assert_eq!(actions[0]["__type"], "create_shim");
+    assert_eq!(actions[0]["name"], "vx-comfyui");
     assert_eq!(
         actions[0]["target"],
         "C:/vx host/comfyui/python_embeded/python.exe"
     );
-    assert_eq!(actions[0]["args"][1], "C:/vx host/comfyui/ComfyUI/main.py");
+    assert_eq!(
+        actions[0]["args"],
+        json!([
+            "-s",
+            "C:/vx host/comfyui/ComfyUI/main.py",
+            "--windows-standalone-build"
+        ])
+    );
     assert_eq!(actions[0]["shim_dir"], "C:/vx host/comfyui");
 }
 
@@ -125,7 +133,7 @@ async fn test_dcc_hook_warm_bootstrap_requires_final_executable(#[case] name: &s
         "comfyui",
         include_str!("../../vx-providers/comfyui/provider.star"),
         "python_embeded/python.exe",
-        "comfyui.cmd",
+        "vx-comfyui.cmd",
     );
     // The fixture checks the isolated managed store. Keep a real application
     // installed on the test host from satisfying provider system discovery.
@@ -171,8 +179,28 @@ async fn test_dcc_hook_warm_bootstrap_requires_final_executable(#[case] name: &s
             .is_none()
     );
 
+    runtime
+        .post_install("1.0", &ctx)
+        .await
+        .expect("create every launcher beside the upstream ComfyUI directory");
     let final_executable = install_dir.join(final_name);
-    std::fs::write(&final_executable, b"final application executable").expect("final executable");
+    let shim = vx_runtime::Shim::new("vx-comfyui", &bootstrap);
+    for path in shim.paths_in(&install_dir, &vx_runtime::Platform::current()) {
+        assert!(path.is_file(), "generated launcher must exist: {path:?}");
+        assert!(
+            !path
+                .file_name()
+                .unwrap()
+                .to_str()
+                .unwrap()
+                .eq_ignore_ascii_case("ComfyUI"),
+            "launchers must not collide with the upstream application directory"
+        );
+    }
+    assert_eq!(
+        std::fs::read(install_dir.join("ComfyUI/main.py")).unwrap(),
+        b"application entrypoint"
+    );
     assert!(
         runtime
             .is_installed("1.0", &ctx)

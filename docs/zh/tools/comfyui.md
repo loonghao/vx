@@ -4,7 +4,7 @@
 
 | Runtime | Windows | Linux | macOS |
 | --- | --- | --- | --- |
-| `comfyui` | 便携 7z，x64 | 源码 + 独立 Python 环境 | 源码 + 独立 Python 环境 |
+| `comfyui` | 便携 7z，x64 | 手动配置源码环境 | 手动配置源码环境 |
 
 ```bash
 vx comfyui --cpu --listen 127.0.0.1

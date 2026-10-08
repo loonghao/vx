@@ -50,7 +50,8 @@ def install_layout(ctx, version):
         return msi_install(url, strip_prefix = "PFiles/Tiled", executable_paths = ["tiled.exe"])
     if ctx.platform.os == "linux":
         return {"type": "binary", "target_name": "tiled", "target_dir": "bin", "executable_paths": ["bin/tiled"]}
-    return {"type": "archive", "strip_prefix": "", "executable_paths": ["Tiled.app/Contents/MacOS/Tiled"]}
+    # Keep the sole .app directory; an empty prefix requests auto-flattening.
+    return {"type": "archive", "executable_paths": ["Tiled.app/Contents/MacOS/Tiled"], "required_paths": ["Tiled.app/Contents/MacOS/Tiled"]}
 
 def store_root(ctx):
     return ctx.vx_home + "/store/tiled"

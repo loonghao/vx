@@ -1,6 +1,6 @@
 # 支持的工具概览
 
-vx 开箱即支持 **169 个工具**，涵盖语言运行时、包管理器、DevOps 工具、构建系统等。所有工具通过相同的统一接口管理。
+vx 开箱即支持 **169 个 Provider**，涵盖语言运行时、包管理器、DevOps 工具、构建系统等。所有工具通过相同的统一接口管理。
 
 ## 一览
 
@@ -17,6 +17,7 @@ vx 开箱即支持 **169 个工具**，涵盖语言运行时、包管理器、De
 | [AI](#ai) | Ollama, mcpcall, headroom | 3 |
 | [科学计算 & HPC](#科学计算--hpc) | Spack, Rez | 2 |
 | [媒体](#媒体) | FFmpeg, ImageMagick | 2 |
+| [DCC 与创作软件](#dcc-与创作软件) | Blender、FreeCAD、Godot、Krita、GIMP、ComfyUI 等 | 15 个 Provider |
 | [系统工具](#系统工具) | jq, gh, curl, pwsh, Git, NASM, x-cmd | 7+ |
 
 | [Windows 专属](#windows-专属) | choco, winget, rcedit, MSVC Build Tools | 4 |
@@ -139,6 +140,20 @@ vx 开箱即支持 **169 个工具**，涵盖语言运行时、包管理器、De
 | **winget** | Windows 包管理器 |
 | **rcedit** | Windows 资源编辑器 |
 | **MSVC Build Tools** | cl、link、lib、nmake、ml64、dumpbin、editbin |
+
+## DCC 与创作软件
+
+| 分类 | 软件 |
+|------|------|
+| 3D、CAD 与游戏开发 | Blender、FreeCAD、OpenSCAD、Godot |
+| 绘画 | GIMP、Krita |
+| 视频与录制 | OBS Studio、Kdenlive、OpenScreen |
+| 程序化材质与场景数据 | Material Maker、OpenUSD |
+| 图形调试与性能分析 | RenderDoc、Tracy |
+| 地图编辑 | Tiled |
+| 图像生成 | ComfyUI |
+
+支持平台、安装方式及 DCC-MCP 连接流程见 [DCC-MCP 集成指南](/zh/guide/dcc-mcp)。
 
 ## 使用模式
 

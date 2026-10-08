@@ -28,7 +28,8 @@ const enSidebar = {
         { text: 'Configuration', link: '/guide/configuration' },
         { text: 'Tool Pin Baseline', link: '/guide/tool-pin-baseline' },
         { text: 'Enhanced Scripts', link: '/guide/enhanced-scripts' },
-        { text: 'Shell Integration', link: '/guide/shell-integration' }
+        { text: 'Shell Integration', link: '/guide/shell-integration' },
+        { text: 'DCC-MCP Ecosystem', link: '/guide/dcc-mcp' }
       ]
     },
     {
@@ -204,7 +205,8 @@ const zhSidebar = {
         { text: '配置', link: '/zh/guide/configuration' },
         { text: '工具版本 Pin 基线', link: '/zh/guide/tool-pin-baseline' },
         { text: '增强脚本系统', link: '/zh/guide/enhanced-scripts' },
-        { text: 'Shell 集成', link: '/zh/guide/shell-integration' }
+        { text: 'Shell 集成', link: '/zh/guide/shell-integration' },
+        { text: 'DCC-MCP 生态', link: '/zh/guide/dcc-mcp' }
       ]
     },
     {

@@ -24,6 +24,25 @@ async fn test_load_dcc_provider_with_system_discovery(#[case] name: &str) {
     );
 }
 
+#[tokio::test]
+async fn test_krita_installation_check_does_not_initialize_qt() {
+    let (path, _) = source("krita");
+    let provider = StarlarkProvider::load(&path).await.unwrap();
+    let checks = &provider.runtimes()[0].test_commands;
+    assert_eq!(checks.len(), 1);
+    let check = &checks[0];
+    assert_eq!(check.command, "{executable}");
+    assert_eq!(
+        check.check_type,
+        vx_starlark::provider::types::TestCheckType::CheckFile
+    );
+    assert_eq!(
+        check.name.as_deref(),
+        Some("installed_application_executable")
+    );
+    assert!(check.expected_output.is_none());
+}
+
 #[rstest]
 #[case(
     "krita",

@@ -47,6 +47,38 @@ environment      = _p["environment"]
 
 ---
 
+## Published asset versions from HTML
+
+Use `fetch_html_versions(ctx, url, href_prefix, filename_prefix, filename_suffix)`
+from `@vx//stdlib:http.star` when source tags can precede published binaries:
+
+```python
+load("@vx//stdlib:http.star", "fetch_html_versions")
+
+def fetch_versions(ctx):
+    return fetch_html_versions(ctx,
+        "https://publisher.example/download/",
+        "https://download.publisher.example/stable/",
+        "editor-",
+        "-x86_64.AppImage",
+    )
+```
+
+This returns a pure descriptor. Rust fetches the page with a 30-second timeout,
+requires a successful HTTP status, and matches actual anchor `href` attributes.
+The absolute HTTP(S) `href_prefix` must end in `/`; filename literals match the
+linked basename. Choose the suffix for `ctx.platform.os` and `ctx.platform.arch`.
+Only dotted ASCII numeric versions are returned, deduplicated and sorted newest
+first; optional `exclude_version_suffixes` excludes release-specific suffixes.
+Results have `stable=True`, `lts=False`, and no release date.
+
+Quoted and unquoted attributes are supported. Comments, raw-text elements,
+non-anchor attributes, text, relative links, traversal, encoded paths, queries,
+and fragments are excluded. This is literal link discovery, without HTML entity
+decoding or JavaScript execution. No matching binary or a failed request returns
+an error; the existing expired-cache fallback can reuse only the same Provider
+script and OS/architecture scope. Other descriptor cache formats stay unchanged.
+
 ## See Also
 
 - [Core API Reference](./provider-star-core-api.md) — Execution model, file structure, provider functions, `ctx` object
