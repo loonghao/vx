@@ -433,7 +433,7 @@ fn replaced_output_directory_cannot_redirect_update_or_removal() {
         "codex",
         &temp.path().join("vx"),
         temp.path(),
-        &[output.clone()],
+        std::slice::from_ref(&output),
         &Platform::current(),
         None,
     )
@@ -448,7 +448,7 @@ fn replaced_output_directory_cannot_redirect_update_or_removal() {
             "codex",
             &temp.path().join("vx"),
             temp.path(),
-            &[output.clone()],
+            std::slice::from_ref(&output),
             &Platform::current(),
             Some(&entry),
         )
