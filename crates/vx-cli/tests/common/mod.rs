@@ -202,9 +202,13 @@ pub fn run_command_with_timeout(mut cmd: Command, timeout: Duration) -> io::Resu
             for capture in [&stdout, &stderr].into_iter().flatten() {
                 capture.cancel();
             }
-            terminate_process_tree(child_id, &mut child);
+            let cleanup_deadline = Instant::now() + Duration::from_secs(6);
+            let cleanup = terminate_process_tree(child_id, &mut child, cleanup_deadline);
             let mut message = format!("{error}\ncommand: {command_debug}");
-            if let Err(error) = wait_after_timeout(&mut child, Duration::from_secs(2)) {
+            message.push_str(&format!("\n{cleanup}"));
+            let reap_budget = Duration::from_secs(2)
+                .min(cleanup_deadline.saturating_duration_since(Instant::now()));
+            if let Err(error) = wait_after_timeout(&mut child, reap_budget) {
                 message.push_str(&format!("\nfailed to reap child after failure: {error}"));
             }
             for capture in [&stdout, &stderr].into_iter().flatten() {
@@ -334,35 +338,131 @@ fn e2e_timeout() -> Duration {
         .unwrap_or_else(|| Duration::from_secs(DEFAULT_E2E_TIMEOUT_SECS))
 }
 
-fn terminate_process_tree(_pid: u32, child: &mut std::process::Child) {
+fn terminate_process_tree(_pid: u32, child: &mut std::process::Child, deadline: Instant) -> String {
+    let mut diagnostics = Vec::new();
     #[cfg(windows)]
     {
-        run_cleanup_command(Command::new("taskkill").args(["/PID", &_pid.to_string(), "/T", "/F"]));
-        let _ = child.kill();
+        // A guarded taskkill may start a debugger/wrapper before forwarding the
+        // command. Allow that startup while bounding all cleanup to one deadline.
+        diagnostics.push(run_cleanup_command(
+            Command::new("taskkill").args(["/PID", &_pid.to_string(), "/T", "/F"]),
+            Duration::from_secs(5),
+            deadline,
+        ));
     }
 
     #[cfg(not(windows))]
     {
         let process_group = format!("-{_pid}");
-        run_cleanup_command(Command::new("kill").args(["-TERM", "--", &process_group]));
-        thread::sleep(Duration::from_millis(100));
-        run_cleanup_command(Command::new("kill").args(["-KILL", "--", &process_group]));
-        let _ = child.kill();
+        diagnostics.push(run_cleanup_command(
+            Command::new("kill").args(["-TERM", "--", &process_group]),
+            Duration::from_secs(2),
+            deadline,
+        ));
+        thread::sleep(
+            Duration::from_millis(100).min(deadline.saturating_duration_since(Instant::now())),
+        );
+        diagnostics.push(run_cleanup_command(
+            Command::new("kill").args(["-KILL", "--", &process_group]),
+            Duration::from_secs(2),
+            deadline,
+        ));
+    }
+    // Always attempt owned-child termination even if capture/spawning failed or
+    // the external cleanup command consumed its budget.
+    if let Err(error) = child.kill() {
+        diagnostics.push(format!("owned child kill: {error}"));
+    }
+    diagnostics.join("\n")
+}
+
+fn run_cleanup_command(command: &mut Command, budget: Duration, deadline: Instant) -> String {
+    let command_debug = format!("{command:?}");
+    let start = Instant::now();
+    let mut diagnostics = vec![format!("cleanup command: {command_debug}")];
+    if start >= deadline {
+        diagnostics.push("cleanup command skipped: shared deadline exhausted".to_string());
+        return diagnostics.join("\n");
+    }
+    let (stdout, stdout_stdio) = cleanup_output_capture("stdout", &mut diagnostics);
+    let (stderr, stderr_stdio) = cleanup_output_capture("stderr", &mut diagnostics);
+    let child = command
+        .stdin(Stdio::null())
+        .stdout(stdout_stdio)
+        .stderr(stderr_stdio)
+        .spawn();
+    let mut child = match child {
+        Ok(child) => child,
+        Err(error) => {
+            diagnostics.push(format!("cleanup spawn failed: {error}"));
+            return diagnostics.join("\n");
+        }
+    };
+    diagnostics.push(format!("cleanup spawned PID {}", child.id()));
+    let wait_budget = budget.min(deadline.saturating_duration_since(Instant::now()));
+    match wait_after_timeout(&mut child, wait_budget) {
+        Ok(()) => diagnostics.push(format!("cleanup exit: {:?}", child.try_wait())),
+        Err(error) => {
+            diagnostics.push(format!("cleanup wait {:?}: {error}", error.kind()));
+            if let Err(error) = child.kill() {
+                diagnostics.push(format!("cleanup helper kill failed: {error}"));
+            }
+            let reap_budget =
+                Duration::from_millis(500).min(deadline.saturating_duration_since(Instant::now()));
+            diagnostics.push(format!(
+                "cleanup helper reap: {:?}",
+                wait_after_timeout(&mut child, reap_budget)
+            ));
+        }
+    }
+    diagnostics.push(format!(
+        "cleanup elapsed {:.3}s",
+        start.elapsed().as_secs_f64()
+    ));
+    for (name, capture) in [("stdout", stdout), ("stderr", stderr)] {
+        if let Some(capture) = capture {
+            diagnostics.push(cleanup_output_diagnostic(name, &capture));
+        }
+    }
+    diagnostics.join("\n")
+}
+
+fn cleanup_output_capture(
+    name: &str,
+    diagnostics: &mut Vec<String>,
+) -> (Option<tempfile::NamedTempFile>, Stdio) {
+    match tempfile::NamedTempFile::new().and_then(|file| {
+        let writer = file.as_file().try_clone()?;
+        Ok((file, Stdio::from(writer)))
+    }) {
+        Ok((file, writer)) => (Some(file), writer),
+        Err(error) => {
+            diagnostics.push(format!("cleanup {name} capture unavailable: {error}"));
+            (None, Stdio::null())
+        }
     }
 }
 
-fn run_cleanup_command(command: &mut Command) {
-    let Ok(mut child) = command
-        .stdin(Stdio::null())
-        .stdout(Stdio::null())
-        .stderr(Stdio::null())
-        .spawn()
-    else {
-        return;
-    };
-    if wait_after_timeout(&mut child, Duration::from_secs(2)).is_err() {
-        let _ = child.kill();
-        let _ = wait_after_timeout(&mut child, Duration::from_millis(500));
+fn cleanup_output_diagnostic(name: &str, capture: &tempfile::NamedTempFile) -> String {
+    const LIMIT: usize = 4096;
+    // Open an independent regular-file cursor: inherited writers cannot block
+    // EOF or move this cursor. Never read unbounded cleanup output through pipes.
+    let result = std::fs::File::open(capture.path()).and_then(|file| {
+        let mut bytes = Vec::new();
+        file.take((LIMIT + 1) as u64).read_to_end(&mut bytes)?;
+        Ok(bytes)
+    });
+    match result {
+        Ok(bytes) => format!(
+            "cleanup {name}{}:\n{}",
+            if bytes.len() > LIMIT {
+                " (truncated)"
+            } else {
+                ""
+            },
+            String::from_utf8_lossy(&bytes[..bytes.len().min(LIMIT)])
+        ),
+        Err(error) => format!("cleanup {name} snapshot failed: {error}"),
     }
 }
 
