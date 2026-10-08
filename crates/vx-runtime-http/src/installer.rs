@@ -978,7 +978,7 @@ fn ensure_zip_output_path(root: &Path, path: &Path) -> std::io::Result<()> {
             current.push(component.as_os_str());
         }
         match current.symlink_metadata() {
-            Ok(metadata) if metadata.file_type().is_symlink() => {
+            Ok(metadata) if zip_path_is_link(&metadata) => {
                 return Err(std::io::Error::new(
                     std::io::ErrorKind::InvalidData,
                     "Symlink in ZIP output path",
@@ -990,6 +990,225 @@ fn ensure_zip_output_path(root: &Path, path: &Path) -> std::io::Result<()> {
         }
     }
     Ok(())
+}
+
+fn zip_path_is_link(metadata: &std::fs::Metadata) -> bool {
+    #[cfg(windows)]
+    {
+        use std::os::windows::fs::MetadataExt;
+        metadata.file_attributes() & 0x400 != 0 // FILE_ATTRIBUTE_REPARSE_POINT, including junctions.
+    }
+    #[cfg(not(windows))]
+    {
+        metadata.file_type().is_symlink()
+    }
+}
+
+#[cfg(windows)]
+fn windows_zip_path_starts_with(path: &Path, prefix: &Path) -> bool {
+    use std::os::windows::ffi::OsStrExt;
+
+    #[link(name = "kernel32")]
+    unsafe extern "system" {
+        #[link_name = "CompareStringOrdinal"]
+        fn compare_string_ordinal(
+            left: *const u16,
+            left_length: i32,
+            right: *const u16,
+            right_length: i32,
+            ignore_case: i32,
+        ) -> i32;
+    }
+
+    let mut components = path.components();
+    for prefix_component in prefix.components() {
+        let Some(component) = components.next() else {
+            return false;
+        };
+        let left: Vec<u16> = component.as_os_str().encode_wide().collect();
+        let right: Vec<u16> = prefix_component.as_os_str().encode_wide().collect();
+        let (Ok(left_length), Ok(right_length)) =
+            (i32::try_from(left.len()), i32::try_from(right.len()))
+        else {
+            return false;
+        };
+        // SAFETY: Both pointers refer to buffers valid for their explicit UTF-16
+        // lengths. Windows ordinal folding matches case-insensitive path names.
+        let comparison = unsafe {
+            compare_string_ordinal(left.as_ptr(), left_length, right.as_ptr(), right_length, 1)
+        };
+        if comparison != 2 {
+            // CSTR_EQUAL
+            return false;
+        }
+    }
+    true
+}
+
+#[cfg(windows)]
+fn windows_zip_link_target(
+    root: &Path,
+    link: &Path,
+    target: &str,
+) -> std::io::Result<std::path::PathBuf> {
+    use std::path::Component;
+    let invalid = || {
+        std::io::Error::new(
+            std::io::ErrorKind::InvalidData,
+            "Unsafe or noncanonical ZIP symlink target",
+        )
+    };
+    if target.is_empty() || target.contains(['\\', ':', '\0']) {
+        return Err(invalid());
+    }
+    let mut relative = link
+        .parent()
+        .and_then(|path| path.strip_prefix(root).ok())
+        .ok_or_else(invalid)?
+        .to_path_buf();
+    let mut normal_seen = false;
+    for component in Path::new(target).components() {
+        match component {
+            Component::CurDir => {}
+            Component::ParentDir if !normal_seen && relative.pop() => {}
+            Component::Normal(name) => {
+                normal_seen = true;
+                relative.push(name);
+            }
+            _ => return Err(invalid()),
+        }
+    }
+    Ok(root.join(relative))
+}
+
+/// Windows ZIPs may contain portable relative links without requiring Developer
+/// Mode. Materialize validated targets after all regular entries have arrived.
+#[cfg(windows)]
+fn materialize_windows_zip_links(
+    root: &Path,
+    links: &[(std::path::PathBuf, std::path::PathBuf)],
+) -> std::io::Result<()> {
+    use std::fs::{File, OpenOptions};
+    use std::path::PathBuf;
+    let invalid = || {
+        std::io::Error::new(
+            std::io::ErrorKind::InvalidData,
+            "Unsafe, cyclic or missing ZIP symlink target",
+        )
+    };
+
+    fn copy_target(
+        root: &Path,
+        source: &Path,
+        destination: &Path,
+        created: &mut Vec<PathBuf>,
+    ) -> std::io::Result<()> {
+        ensure_zip_output_path(root, source)?;
+        ensure_zip_output_path(root, destination)?;
+        // Canonical existing paths also catch aliases with different Windows
+        // case/short names before a directory could be copied into itself.
+        let canonical_source = source.canonicalize()?;
+        let canonical_destination = destination
+            .parent()
+            .ok_or_else(|| std::io::Error::other("Missing ZIP link parent"))?
+            .canonicalize()?
+            .join(
+                destination
+                    .file_name()
+                    .ok_or_else(|| std::io::Error::other("Missing ZIP link name"))?,
+            );
+        if windows_zip_path_starts_with(&canonical_destination, &canonical_source) {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                "ZIP symlink target contains its destination",
+            ));
+        }
+        let mut pending = vec![(source.to_path_buf(), destination.to_path_buf())];
+        while let Some((source, destination)) = pending.pop() {
+            ensure_zip_output_path(root, &source)?;
+            ensure_zip_output_path(root, &destination)?;
+            let metadata = source.symlink_metadata()?;
+            if metadata.is_dir() {
+                std::fs::create_dir(&destination)?;
+                created.push(destination.clone());
+                for entry in std::fs::read_dir(&source)? {
+                    let entry = entry?;
+                    pending.push((entry.path(), destination.join(entry.file_name())));
+                }
+            } else if metadata.is_file() {
+                let mut output = OpenOptions::new()
+                    .write(true)
+                    .create_new(true)
+                    .open(&destination)?;
+                created.push(destination);
+                std::io::copy(&mut File::open(source)?, &mut output)?;
+            } else {
+                return Err(std::io::Error::new(
+                    std::io::ErrorKind::InvalidData,
+                    "Unsupported ZIP symlink target type",
+                ));
+            }
+        }
+        Ok(())
+    }
+
+    fn materialize(
+        root: &Path,
+        links: &[(PathBuf, PathBuf)],
+        index: usize,
+        states: &mut [u8],
+        depth: usize,
+        created: &mut Vec<PathBuf>,
+    ) -> std::io::Result<()> {
+        if states[index] == 2 {
+            return Ok(());
+        }
+        if states[index] == 1 || depth >= 40 {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                "Cyclic or excessive ZIP symlink chain",
+            ));
+        }
+        states[index] = 1;
+        let (destination, source) = &links[index];
+        // Resolve an alias used by the target, and aliases anywhere inside a
+        // directory target, before copying. This includes forward references.
+        for (other, (link, _)) in links.iter().enumerate() {
+            if windows_zip_path_starts_with(source, link)
+                || windows_zip_path_starts_with(link, source)
+            {
+                materialize(root, links, other, states, depth + 1, created)?;
+            }
+        }
+        copy_target(root, source, destination, created)?;
+        states[index] = 2;
+        Ok(())
+    }
+
+    let mut states = vec![0; links.len()];
+    let mut created = Vec::new();
+    let result = (|| {
+        for (destination, source) in links {
+            ensure_zip_output_path(root, destination)?;
+            ensure_zip_output_path(root, source)?;
+            match destination.symlink_metadata() {
+                Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+                _ => return Err(invalid()),
+            }
+        }
+        for index in 0..links.len() {
+            materialize(root, links, index, &mut states, 0, &mut created)?;
+        }
+        Ok(())
+    })();
+    if result.is_err() {
+        // Only remove paths this call created, in reverse order. Never recurse
+        // through a pre-existing file, directory, symlink or junction.
+        for path in created.iter().rev() {
+            let _ = std::fs::remove_file(path).or_else(|_| std::fs::remove_dir(path));
+        }
+    }
+    result
 }
 
 #[cfg(unix)]
@@ -1101,6 +1320,8 @@ fn extract_zip_robust(archive_path: &Path, dest: &Path) -> Result<()> {
     let mut skipped_entries: usize = 0;
     #[cfg(unix)]
     let mut extracted_symlinks = Vec::new();
+    #[cfg(windows)]
+    let mut pending_links = Vec::new();
 
     for i in 0..total_entries {
         let mut entry = match archive.by_index(i) {
@@ -1132,6 +1353,19 @@ fn extract_zip_robust(archive_path: &Path, dest: &Path) -> Result<()> {
         };
 
         ensure_zip_output_path(dest, &entry_path)?;
+        #[cfg(windows)]
+        {
+            anyhow::ensure!(
+                !pending_links.iter().any(
+                    |(link, _): &(std::path::PathBuf, std::path::PathBuf)| {
+                        windows_zip_path_starts_with(&entry_path, link)
+                    }
+                ),
+                "ZIP entry writes through a pending symlink"
+            );
+        }
+        #[cfg(windows)]
+        let pending_path = entry_path.clone();
 
         // On Windows, handle paths that exceed MAX_PATH (260 chars).
         // Go archives with deep module paths can easily exceed this limit.
@@ -1180,7 +1414,24 @@ fn extract_zip_robust(archive_path: &Path, dest: &Path) -> Result<()> {
                 extracted_symlinks.push(entry_path);
                 extracted_files += 1;
             }
-            #[cfg(not(unix))]
+            #[cfg(windows)]
+            {
+                anyhow::ensure!(entry.size() <= 4096, "ZIP symlink target is too long");
+                let mut target = String::new();
+                let mut limited = std::io::Read::take(&mut entry, 4097);
+                std::io::Read::read_to_string(&mut limited, &mut target)?;
+                anyhow::ensure!(target.len() <= 4096, "ZIP symlink target is too long");
+                let source = windows_zip_link_target(dest, &pending_path, &target)?;
+                anyhow::ensure!(
+                    pending_path
+                        .symlink_metadata()
+                        .is_err_and(|error| error.kind() == std::io::ErrorKind::NotFound),
+                    "ZIP symlink would overwrite an existing path"
+                );
+                pending_links.push((pending_path, source));
+                extracted_files += 1;
+            }
+            #[cfg(not(any(unix, windows)))]
             anyhow::bail!("ZIP symlink extraction is unsupported on this platform");
         } else if entry.is_dir() {
             if !entry_path.exists() {
@@ -1218,6 +1469,8 @@ fn extract_zip_robust(archive_path: &Path, dest: &Path) -> Result<()> {
 
     #[cfg(unix)]
     validate_created_zip_symlinks(dest, &extracted_symlinks)?;
+    #[cfg(windows)]
+    materialize_windows_zip_links(dest, &pending_links)?;
 
     tracing::info!(
         archive = %archive_path.display(),
