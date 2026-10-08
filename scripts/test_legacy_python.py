@@ -267,6 +267,8 @@ class Acceptance:
 
     def run(self, label: str, *arguments: str, offline: bool = False) -> str:
         command = [str(self.vx), *arguments]
+        if offline and arguments and arguments[0] == self.uv:
+            command.insert(2, "--offline")
         environment = dict(self.environment)
         if offline:
             environment.update(
