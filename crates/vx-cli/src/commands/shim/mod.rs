@@ -14,6 +14,9 @@
 
 mod args;
 mod handler;
+mod packages;
+mod target;
 
 pub use args::{AddShimArgs, ListShimArgs, RemoveShimArgs, ShimCommand};
 pub use handler::handle;
+pub(crate) use packages::{publish_package, remove_package_shims};

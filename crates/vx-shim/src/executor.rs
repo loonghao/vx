@@ -26,7 +26,7 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 use std::process::Stdio;
 use tokio::process::Command;
-use tracing::{debug, info, warn};
+use tracing::{debug, info};
 
 use vx_env::ToolEnvironment;
 use vx_paths::global_packages::{GlobalPackage, PackageRegistry};
@@ -410,15 +410,12 @@ impl ShimExecutor {
         let target_path = match target_path {
             Some(p) => p,
             None => {
-                // Fall back to shim if direct executable not found
-                if !shims::shim_exists(&self.shims_dir, exe_name) {
-                    warn!(
-                        "Package '{}' provides '{}' but neither direct executable nor shim found",
-                        package.name, exe_name
-                    );
-                    return Ok(None);
-                }
-                shims::get_shim_path(&self.shims_dir, exe_name)
+                // Command shims dispatch back into vx. Falling back to one
+                // would recurse instead of repairing the missing package target.
+                return Err(ShimError::ExecutionFailed(format!(
+                    "Executable '{}' is missing from package '{}:{}'. Reinstall it with `vx pkg install {}:{} --force`.",
+                    exe_name, package.ecosystem, package.name, package.ecosystem, package.name
+                )));
             }
         };
 

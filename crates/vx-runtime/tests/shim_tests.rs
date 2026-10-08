@@ -195,8 +195,8 @@ fn test_generated_shim_applies_environment_variables() {
     assert!(shell.contains("BAZ='qux'"), "{}", shell);
 
     let batch = shim.content_for(ShimType::Batch);
-    assert!(batch.contains("set FOO=bar"), "{}", batch);
-    assert!(batch.contains("set BAZ=qux"), "{}", batch);
+    assert!(batch.contains("set \"FOO=bar\""), "{}", batch);
+    assert!(batch.contains("set \"BAZ=qux\""), "{}", batch);
 }
 
 #[test]
@@ -355,15 +355,19 @@ fn test_load_or_default_survives_a_corrupt_file() {
 
 #[test]
 fn test_is_complete_detects_deleted_files() {
-    let mut shim = sample_shim("jq", "jq");
-    assert!(!shim.is_complete(), "placeholder paths should be missing");
-
     let temp = TempDir::new().expect("failed to create temp dir");
-    let file = temp.path().join("jq");
-    std::fs::write(&file, "#!/bin/sh\n").expect("failed to write file");
-    shim.files = vec![file];
+    let shim = create_command_shim(
+        "jq",
+        "jq",
+        &fake_launcher(temp.path()),
+        &[temp.path().join("bin")],
+        &Platform::current(),
+    )
+    .expect("failed to create command shim");
 
     assert!(shim.is_complete());
+    std::fs::remove_file(&shim.files[0]).expect("failed to remove shim file");
+    assert!(!shim.is_complete());
 }
 
 /// A registry entry with placeholder paths
@@ -372,6 +376,7 @@ fn sample_shim(name: &str, runtime: &str) -> CommandShim {
         name: name.to_string(),
         runtime: runtime.to_string(),
         launcher: PathBuf::from("/usr/local/bin/vx"),
+        vx_home: None,
         dirs: vec![PathBuf::from("/usr/local/bin")],
         files: vec![PathBuf::from("/usr/local/bin").join(name)],
         created_at: "2026-01-01T00:00:00Z".to_string(),

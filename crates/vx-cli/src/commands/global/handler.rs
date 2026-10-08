@@ -5,15 +5,14 @@ use super::args::{
     UninstallGlobalArgs,
 };
 use crate::commands::CommandContext;
+use crate::commands::shim::{publish_package, remove_package_shims};
 use crate::ui::{ProgressSpinner, UI, progress_manager};
 use anyhow::{Context, Result};
 use colored::Colorize;
 use std::io::Write;
-use std::path::{Path, PathBuf};
 use vx_ecosystem_pm::{InstallOptions, get_installer};
 use vx_paths::global_packages::{GlobalPackage, PackageRegistry};
 use vx_paths::package_spec::PackageSpec;
-use vx_paths::shims;
 
 /// Ensure a runtime is installed, auto-installing if necessary
 ///
@@ -157,6 +156,7 @@ async fn handle_install(ctx: &CommandContext, args: &InstallGlobalArgs) -> Resul
     // Check if already installed
     if let Some(existing) = registry.get(&spec.ecosystem, &spec.package) {
         if !args.force {
+            publish_package(ctx, existing)?;
             UI::warn(&format!(
                 "{} {} is already installed (version {})",
                 spec.ecosystem, spec.package, existing.version
@@ -330,7 +330,7 @@ async fn handle_install(ctx: &CommandContext, args: &InstallGlobalArgs) -> Resul
         }
     }
 
-    registry.register(global_package);
+    registry.register(global_package.clone());
     registry.save(&registry_path)?;
 
     // Step 3: Create shims
@@ -343,54 +343,7 @@ async fn handle_install(ctx: &CommandContext, args: &InstallGlobalArgs) -> Resul
         ));
     }
 
-    let shims_dir = paths.shims_dir();
-    let shim_dirs = collect_stacked_shim_dirs(&shims_dir);
-    let bin_dir = result.bin_dir.clone();
-
-    let mut shim_count = 0;
-    for exe in &result.executables {
-        let exe_path = bin_dir.join(if cfg!(windows) {
-            format!("{}.exe", exe)
-        } else {
-            exe.to_string()
-        });
-
-        let target_path = if exe_path.exists() {
-            exe_path
-        } else {
-            bin_dir.join(exe)
-        };
-
-        if target_path.exists() {
-            let mut created_any = false;
-            for dir in &shim_dirs {
-                match shims::create_shim(dir, exe, &target_path) {
-                    Ok(_) => {
-                        created_any = true;
-                        if args.verbose {
-                            UI::detail(&format!("Created shim for: {} in {}", exe, dir.display()));
-                        }
-                    }
-                    Err(e) => {
-                        UI::warn(&format!(
-                            "Failed to create shim for {} in {}: {}",
-                            exe,
-                            dir.display(),
-                            e
-                        ));
-                    }
-                }
-            }
-            if created_any {
-                shim_count += 1;
-            }
-        } else if args.verbose {
-            UI::warn(&format!(
-                "Executable not found for shim: {}",
-                target_path.display()
-            ));
-        }
-    }
+    let shim_count = publish_package(ctx, &global_package)?;
 
     // Final summary
     progress.finish(&format!(
@@ -403,19 +356,7 @@ async fn handle_install(ctx: &CommandContext, args: &InstallGlobalArgs) -> Resul
 
     if shim_count > 0 {
         UI::success(&format!("Created {} shim(s)", shim_count));
-        if let Some(vx_bin_dir) = vx_bin_dir()
-            && shim_dirs.iter().any(|d| d == &vx_bin_dir)
-        {
-            UI::hint(&format!(
-                "Direct command shims are available in {}",
-                vx_bin_dir.display()
-            ));
-        } else {
-            UI::hint(&format!(
-                "Add {} to your PATH to use global tools directly",
-                shims_dir.display()
-            ));
-        }
+        UI::hint("Use 'vx shim list' to inspect published commands.");
     }
 
     Ok(())
@@ -544,6 +485,13 @@ async fn handle_uninstall(ctx: &CommandContext, args: &UninstallGlobalArgs) -> R
         package.ecosystem, package.name, package.version
     ));
 
+    // Remove shims
+    uninstall_spinner.set_message(&format!(
+        "Removing shims for {}:{}...",
+        package.ecosystem, package.name
+    ));
+    let shim_count = remove_package_shims(ctx, &package)?;
+
     // Remove package directory
     if package.install_dir.exists() {
         uninstall_spinner.set_message(&format!(
@@ -552,26 +500,6 @@ async fn handle_uninstall(ctx: &CommandContext, args: &UninstallGlobalArgs) -> R
         ));
         std::fs::remove_dir_all(&package.install_dir)
             .with_context(|| format!("Failed to remove {}", package.install_dir.display()))?;
-    }
-
-    // Remove shims
-    uninstall_spinner.set_message(&format!(
-        "Removing shims for {}:{}...",
-        package.ecosystem, package.name
-    ));
-    let shims_dir = paths.shims_dir();
-    let shim_dirs = collect_stacked_shim_dirs(&shims_dir);
-    let mut shim_count = 0;
-    for exe in &package.executables {
-        for dir in &shim_dirs {
-            if shims::shim_exists(dir, exe) {
-                shims::remove_shim(dir, exe)?;
-                shim_count += 1;
-                if args.verbose {
-                    UI::detail(&format!("Removed shim: {} from {}", exe, dir.display()));
-                }
-            }
-        }
     }
 
     // Unregister from registry
@@ -669,83 +597,17 @@ async fn handle_shim_update(ctx: &CommandContext) -> Result<()> {
     let paths = ctx.runtime_context().paths.clone();
     let registry_path = paths.packages_registry_file();
 
-    let registry = match PackageRegistry::load(&registry_path) {
-        Ok(r) => r,
-        Err(_) => {
-            UI::info("No global packages installed. Nothing to update.");
-            return Ok(());
-        }
-    };
-
-    // Collect all executables
-    let mut packages_with_exes: Vec<(String, std::path::PathBuf)> = Vec::new();
-    for pkg in registry.all_packages() {
-        let bin_dir = paths.global_package_bin_dir(&pkg.ecosystem, &pkg.name, &pkg.version);
-        for exe in &pkg.executables {
-            let exe_path = bin_dir.join(exe);
-            packages_with_exes.push((exe.clone(), exe_path));
-        }
-    }
-
-    if packages_with_exes.is_empty() {
-        UI::info("No executables to create shims for.");
+    if !registry_path.exists() {
+        UI::info("No global packages installed. Nothing to update.");
         return Ok(());
     }
+    let registry = PackageRegistry::load(&registry_path)?;
 
-    // Sync shims
-    let shims_dir = paths.shims_dir();
-    let shim_dirs = collect_stacked_shim_dirs(&shims_dir);
-    let mut total_created = 0;
-    let mut total_removed = 0;
-    let mut all_errors = Vec::new();
-    for dir in &shim_dirs {
-        let result = shims::sync_shims_from_registry(dir, &packages_with_exes)?;
-        total_created += result.created;
-        total_removed += result.removed;
-        all_errors.extend(result.errors);
+    let mut created = 0;
+    for package in registry.all_packages() {
+        created += publish_package(ctx, package)?;
     }
-
-    UI::success(&format!(
-        "Shims updated: {} created, {} removed",
-        total_created, total_removed
-    ));
-
-    if !all_errors.is_empty() {
-        UI::warn("Errors encountered:");
-        for err in &all_errors {
-            UI::error(err);
-        }
-    }
-
-    if let Some(vx_bin_dir) = vx_bin_dir()
-        && shim_dirs.iter().any(|d| d == &vx_bin_dir)
-    {
-        UI::hint(&format!(
-            "Direct command shims are available in {}",
-            vx_bin_dir.display()
-        ));
-    } else {
-        UI::hint(&format!(
-            "Add {} to your PATH to use global tools directly",
-            shims_dir.display()
-        ));
-    }
-
+    UI::success(&format!("Published {} command shim(s)", created));
+    UI::hint("Use 'vx shim list', 'vx shim sync', and 'vx shim remove' to manage them.");
     Ok(())
-}
-
-fn collect_stacked_shim_dirs(primary: &Path) -> Vec<PathBuf> {
-    let mut dirs = vec![primary.to_path_buf()];
-    if let Some(vx_dir) = vx_bin_dir()
-        && !dirs.iter().any(|d| d == &vx_dir)
-    {
-        dirs.push(vx_dir);
-    }
-    dirs
-}
-
-fn vx_bin_dir() -> Option<PathBuf> {
-    std::env::current_exe()
-        .ok()
-        .and_then(|path| path.parent().map(|p| p.to_path_buf()))
 }

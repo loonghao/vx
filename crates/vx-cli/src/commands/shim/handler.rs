@@ -13,9 +13,13 @@
 use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result, bail};
-use vx_runtime::{CommandShim, Platform, ShimRegistry, ShimType, create_command_shim};
+use vx_runtime::{
+    CommandShim, Platform, ShimRegistry, ShimType, create_command_shim_in_home,
+    validate_command_shim_name,
+};
 
 use super::args::{AddShimArgs, ListShimArgs, RemoveShimArgs, ShimCommand};
+use super::target::resolve_target;
 use crate::commands::CommandContext;
 use crate::ui::UI;
 
@@ -31,25 +35,60 @@ pub async fn handle(ctx: &CommandContext, command: &ShimCommand) -> Result<()> {
 }
 
 /// Expose a runtime as a directly callable command
-fn handle_add(ctx: &CommandContext, args: &AddShimArgs) -> Result<()> {
-    let name = shim_name(&args.runtime, args.name.as_deref())?;
+pub(super) fn handle_add(ctx: &CommandContext, args: &AddShimArgs) -> Result<()> {
+    let (runtime, default_name) = resolve_target(ctx, &args.runtime)?;
+    let name = args.name.as_deref().unwrap_or(&default_name);
+    validate_command_shim_name(name)?;
     let paths = ctx.runtime_context().paths.clone();
     let registry_path = ShimRegistry::default_path(&paths.config_dir());
-    let mut registry = ShimRegistry::load_or_default(&registry_path);
+    let mut registry = ShimRegistry::load(&registry_path)?;
 
     let launcher = current_launcher()?;
-    let dirs = target_dirs(&paths.bin_dir(), &args.dir);
+    let vx_home = absolute_directory(&paths.vx_home())?;
+    let previous = registry.get(name).cloned();
+    if let Some(entry) = &previous {
+        check_home(entry, &paths.vx_home())?;
+    }
+    let requested_dirs = if args.dir.is_empty() {
+        previous
+            .as_ref()
+            .map(|entry| entry.dirs.as_slice())
+            .unwrap_or(&[])
+    } else {
+        &args.dir
+    };
+    let dirs = target_dirs(&paths.bin_dir(), requested_dirs)?;
 
-    check_collision(&name, &dirs, args.force)?;
+    check_collision(name, previous.as_ref(), args.force)?;
 
-    let entry = create_command_shim(&name, &args.runtime, &launcher, &dirs, &Platform::current())?;
+    let entry = create_command_shim_in_home(
+        name,
+        &runtime,
+        &launcher,
+        &vx_home,
+        &dirs,
+        &Platform::current(),
+        previous.as_ref(),
+    )?;
     let files = entry.files.clone();
+    if let Some(previous) = &previous {
+        for file in &previous.files {
+            if !files
+                .iter()
+                .any(|current| normalize(current) == normalize(file))
+                && previous.owns_file(file)
+            {
+                std::fs::remove_file(file)
+                    .with_context(|| format!("Failed to remove old shim: {}", file.display()))?;
+            }
+        }
+    }
     registry.upsert(entry);
     registry
         .save(&registry_path)
         .with_context(|| format!("Failed to save shim registry: {}", registry_path.display()))?;
 
-    UI::success(&format!("'{}' now runs 'vx {}'", name, args.runtime));
+    UI::success(&format!("'{}' now runs 'vx {}'", name, runtime));
     for file in &files {
         UI::detail(&format!("created {}", file.display()));
     }
@@ -63,7 +102,7 @@ fn handle_add(ctx: &CommandContext, args: &AddShimArgs) -> Result<()> {
 fn handle_list(ctx: &CommandContext, args: &ListShimArgs) -> Result<()> {
     let paths = ctx.runtime_context().paths.clone();
     let registry_path = ShimRegistry::default_path(&paths.config_dir());
-    let registry = ShimRegistry::load_or_default(&registry_path);
+    let registry = ShimRegistry::load(&registry_path)?;
 
     if args.json || ctx.is_json() {
         println!(
@@ -104,10 +143,14 @@ fn handle_list(ctx: &CommandContext, args: &ListShimArgs) -> Result<()> {
 }
 
 /// Remove a shim vx created
-fn handle_remove(ctx: &CommandContext, args: &RemoveShimArgs) -> Result<()> {
+pub(super) fn handle_remove(ctx: &CommandContext, args: &RemoveShimArgs) -> Result<()> {
     let paths = ctx.runtime_context().paths.clone();
     let registry_path = ShimRegistry::default_path(&paths.config_dir());
-    let mut registry = ShimRegistry::load_or_default(&registry_path);
+    let mut registry = ShimRegistry::load(&registry_path)?;
+
+    if let Some(entry) = registry.get(&args.name) {
+        check_home(entry, &paths.vx_home())?;
+    }
 
     let Some(entry) = registry.remove(&args.name) else {
         bail!(
@@ -116,22 +159,15 @@ fn handle_remove(ctx: &CommandContext, args: &RemoveShimArgs) -> Result<()> {
         );
     };
 
-    let mut removed = 0;
     for file in &entry.files {
-        if !vx_runtime::Shim::is_managed(file) {
-            UI::warn(&format!("skipping {} — not created by vx", file.display()));
-            continue;
-        }
-
-        match std::fs::remove_file(file) {
-            Ok(()) => removed += 1,
-            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
-            Err(error) => {
-                return Err(error)
-                    .with_context(|| format!("Failed to remove shim file: {}", file.display()));
-            }
+        if file.symlink_metadata().is_ok() && !entry.owns_file(file) {
+            UI::warn(&format!(
+                "preserving modified or unowned file: {}",
+                file.display()
+            ));
         }
     }
+    let removed = entry.remove_files()?.len();
 
     registry.save(&registry_path)?;
 
@@ -148,7 +184,7 @@ fn handle_remove(ctx: &CommandContext, args: &RemoveShimArgs) -> Result<()> {
 fn handle_sync(ctx: &CommandContext) -> Result<()> {
     let paths = ctx.runtime_context().paths.clone();
     let registry_path = ShimRegistry::default_path(&paths.config_dir());
-    let mut registry = ShimRegistry::load_or_default(&registry_path);
+    let mut registry = ShimRegistry::load(&registry_path)?;
 
     if registry.is_empty() {
         UI::info("No command shims to sync.");
@@ -156,6 +192,7 @@ fn handle_sync(ctx: &CommandContext) -> Result<()> {
     }
 
     let launcher = current_launcher()?;
+    let vx_home = absolute_directory(&paths.vx_home())?;
     let platform = Platform::current();
     let entries: Vec<CommandShim> = registry.shims.clone();
 
@@ -163,18 +200,22 @@ fn handle_sync(ctx: &CommandContext) -> Result<()> {
     let mut stale = 0;
 
     for entry in entries {
+        check_home(&entry, &paths.vx_home())?;
         if entry.launcher != launcher || !entry.is_complete() {
             stale += 1;
         }
 
-        let refreshed = create_command_shim(
+        let refreshed = create_command_shim_in_home(
             &entry.name,
             &entry.runtime,
             &launcher,
+            &vx_home,
             &entry.dirs,
             &platform,
+            Some(&entry),
         )?;
         registry.upsert(refreshed);
+        registry.save(&registry_path)?;
         rewritten += 1;
     }
 
@@ -195,7 +236,7 @@ fn handle_sync(ctx: &CommandContext) -> Result<()> {
 /// Show where shims are written and whether those directories are on PATH
 fn handle_path(ctx: &CommandContext) -> Result<()> {
     let paths = ctx.runtime_context().paths.clone();
-    let dirs = target_dirs(&paths.bin_dir(), &[]);
+    let dirs = target_dirs(&paths.bin_dir(), &[])?;
 
     UI::header("Command shim directories");
     for (dir, on_path) in path_status(&dirs) {
@@ -213,25 +254,46 @@ fn handle_path(ctx: &CommandContext) -> Result<()> {
     Ok(())
 }
 
-/// Derive the command name from a runtime spec and an optional override
-fn shim_name(runtime: &str, override_name: Option<&str>) -> Result<String> {
-    let name = match override_name {
-        Some(name) => name.to_string(),
-        None => runtime
-            .split_once('@')
-            .map(|(base, _)| base)
-            .unwrap_or(runtime)
-            .to_string(),
+fn check_home(entry: &CommandShim, vx_home: &Path) -> Result<()> {
+    if let Some(home) = &entry.vx_home
+        && normalize(home) != normalize(&absolute_directory(vx_home)?)
+    {
+        bail!(
+            "Shim '{}' belongs to another VX_HOME: {}",
+            entry.name,
+            home.display()
+        );
+    }
+    Ok(())
+}
+
+/// Resolve directory paths without storing a shell-incompatible Windows prefix.
+fn absolute_directory(home: &Path) -> Result<PathBuf> {
+    let absolute = std::path::absolute(home)?;
+    let resolved = if absolute.exists() {
+        absolute.canonicalize()?
+    } else {
+        let mut resolved = PathBuf::new();
+        for component in absolute.components() {
+            if component == std::path::Component::ParentDir {
+                resolved.pop();
+            } else {
+                resolved.push(component);
+            }
+        }
+        resolved
     };
-
-    if name.trim().is_empty() {
-        bail!("Shim name cannot be empty");
+    #[cfg(windows)]
+    {
+        let value = resolved.to_string_lossy();
+        if let Some(unc) = value.strip_prefix(r"\\?\UNC\") {
+            return Ok(PathBuf::from(format!(r"\\{unc}")));
+        }
+        if let Some(path) = value.strip_prefix(r"\\?\") {
+            return Ok(PathBuf::from(path));
+        }
     }
-    if name.contains(std::path::MAIN_SEPARATOR) || name.contains('/') || name.contains('\\') {
-        bail!("Shim name cannot contain path separators: '{}'", name);
-    }
-
-    Ok(name)
+    Ok(resolved)
 }
 
 /// Absolute path of the running vx executable
@@ -244,9 +306,22 @@ fn current_launcher() -> Result<PathBuf> {
 /// With no explicit directories this mirrors the stacked layout used by global
 /// packages: the vx bin directory plus the directory holding the `vx`
 /// executable, which is the one directory known to already be on PATH.
-fn target_dirs(bin_dir: &Path, explicit: &[PathBuf]) -> Vec<PathBuf> {
+fn target_dirs(bin_dir: &Path, explicit: &[PathBuf]) -> Result<Vec<PathBuf>> {
+    let resolve = |dir: &Path| {
+        anyhow::ensure!(
+            !dir.is_symlink(),
+            "Shim output directory cannot be a symbolic link: {}",
+            dir.display()
+        );
+        absolute_directory(dir)
+    };
     if !explicit.is_empty() {
-        return dedup(explicit.to_vec());
+        return Ok(dedup(
+            explicit
+                .iter()
+                .map(|dir| resolve(dir))
+                .collect::<Result<Vec<_>>>()?,
+        ));
     }
 
     let mut dirs = vec![bin_dir.to_path_buf()];
@@ -256,10 +331,14 @@ fn target_dirs(bin_dir: &Path, explicit: &[PathBuf]) -> Vec<PathBuf> {
         dirs.push(parent.to_path_buf());
     }
 
-    dedup(dirs)
+    Ok(dedup(
+        dirs.iter()
+            .map(|dir| resolve(dir))
+            .collect::<Result<Vec<_>>>()?,
+    ))
 }
 
-/// Drop duplicates and non-absolute entries while keeping order
+/// Drop duplicate directories while keeping order
 ///
 /// Comparison uses [`normalize`] so `C:\Bin` and `C:\bin\` collapse together on
 /// Windows, but the original path is preserved — returning the normalized form
@@ -275,30 +354,30 @@ fn dedup(dirs: Vec<PathBuf>) -> Vec<PathBuf> {
     seen
 }
 
-/// Lowercase, separator-normalized form used for directory comparison
+/// Normalize Windows directory spelling while preserving Unix case sensitivity.
 fn normalize(dir: &Path) -> PathBuf {
-    let text = dir.to_string_lossy().replace('\\', "/").to_lowercase();
-    PathBuf::from(text.trim_end_matches('/'))
+    #[cfg(windows)]
+    {
+        let text = dir.to_string_lossy().replace('\\', "/").to_lowercase();
+        PathBuf::from(
+            text.strip_prefix("//?/")
+                .unwrap_or(&text)
+                .trim_end_matches('/'),
+        )
+    }
+    #[cfg(not(windows))]
+    {
+        dir.to_path_buf()
+    }
 }
 
 /// Refuse to shadow a binary vx did not create unless `--force` is given
-fn check_collision(name: &str, dirs: &[PathBuf], force: bool) -> Result<()> {
+fn check_collision(name: &str, previous: Option<&CommandShim>, force: bool) -> Result<()> {
     let Ok(existing) = which::which(name) else {
         return Ok(());
     };
 
-    if vx_runtime::Shim::is_managed(&existing) {
-        return Ok(());
-    }
-
-    let owned_dir = dirs.iter().any(|dir| {
-        let dir = normalize(dir);
-        existing
-            .parent()
-            .map(|parent| normalize(parent) == dir)
-            .unwrap_or(false)
-    });
-    if owned_dir && force {
+    if previous.is_some_and(|entry| entry.owns_file(&existing)) {
         return Ok(());
     }
 

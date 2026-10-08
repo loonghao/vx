@@ -47,10 +47,11 @@ pub struct AddShimArgs {
     #[arg(long = "dir", value_name = "DIR")]
     pub dir: Vec<std::path::PathBuf>,
 
-    /// Overwrite an existing command with the same name
+    /// Allow shadowing a command in another PATH directory
     ///
     /// Required when the name already resolves to a binary that vx did not
     /// create, so `vx shim add git` cannot silently shadow the system git.
+    /// Files not owned by this registry are never overwritten.
     #[arg(short, long)]
     pub force: bool,
 }

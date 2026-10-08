@@ -4,7 +4,6 @@ use anyhow::{Context, Result};
 use clap::Parser;
 use vx_ecosystem_pm::{EcosystemInstaller, InstallOptions, get_installer};
 use vx_paths::global_packages::{GlobalPackage, PackageRegistry};
-use vx_paths::shims;
 use vx_resolver::RuntimeRequest;
 use vx_runtime::ProviderRegistry;
 use vx_runtime_core::WithDependency;
@@ -859,47 +858,6 @@ async fn auto_install_package(ctx: &CommandContext, pkg_request: &PackageRequest
         "Installed {}:{}@{}",
         ecosystem, package, result.version
     ));
-
-    // Create shims for package executables
-    let shims_dir = paths.shims_dir();
-    let mut shim_dirs = vec![shims_dir.clone()];
-    if let Ok(vx_exe) = std::env::current_exe()
-        && let Some(vx_bin_dir) = vx_exe.parent()
-    {
-        let vx_bin_dir = vx_bin_dir.to_path_buf();
-        if !shim_dirs.iter().any(|d| d == &vx_bin_dir) {
-            shim_dirs.push(vx_bin_dir);
-        }
-    }
-    let bin_dir = result.bin_dir.clone();
-
-    for exe in &result.executables {
-        let exe_path = bin_dir.join(if cfg!(windows) {
-            format!("{}.exe", exe)
-        } else {
-            exe.to_string()
-        });
-
-        // Try with the extension first, then without on Windows
-        let target_path = if exe_path.exists() {
-            exe_path
-        } else {
-            bin_dir.join(exe)
-        };
-
-        if target_path.exists() {
-            for shim_dir in &shim_dirs {
-                if let Err(e) = shims::create_shim(shim_dir, exe, &target_path) {
-                    ui::UI::warn(&format!(
-                        "Failed to create shim for {} in {}: {}",
-                        exe,
-                        shim_dir.display(),
-                        e
-                    ));
-                }
-            }
-        }
-    }
 
     Ok(())
 }

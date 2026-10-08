@@ -275,7 +275,7 @@ fn test_shim_add_rejects_shadowing_without_force() {
 }
 
 #[test]
-fn test_shim_add_force_shadows_an_existing_command() {
+fn test_shim_add_force_shadows_without_overwriting_an_existing_command() {
     init_test_env();
     if !vx_available() {
         return;
@@ -285,9 +285,11 @@ fn test_shim_add_force_shadows_an_existing_command() {
     let vx_home = temp.path().join("vx-home");
     let shim_dir = temp.path().join("shims");
     std::fs::create_dir_all(&shim_dir).expect("failed to create shim dir");
+    let existing_dir = temp.path().join("existing-bin");
+    std::fs::create_dir_all(&existing_dir).expect("failed to create existing command dir");
 
     let name = unique_name();
-    let decoy = shim_dir.join(if cfg!(windows) {
+    let decoy = existing_dir.join(if cfg!(windows) {
         format!("{name}.cmd")
     } else {
         name.clone()
@@ -303,9 +305,35 @@ fn test_shim_add_force_shadows_an_existing_command() {
     let path = std::env::var("PATH").unwrap_or_default();
     let path = format!(
         "{}{}{}",
-        shim_dir.display(),
+        existing_dir.display(),
         if cfg!(windows) { ";" } else { ":" },
         path
+    );
+
+    let refused = Command::new(vx_binary())
+        .args([
+            "shim",
+            "add",
+            RUNTIME,
+            "--as",
+            &name,
+            "--force",
+            "--dir",
+            &existing_dir.display().to_string(),
+        ])
+        .env("VX_HOME", &vx_home)
+        .env("PATH", &path)
+        .output()
+        .expect("failed to run vx shim add against an unmanaged destination");
+    assert!(
+        !refused.status.success(),
+        "--force must not overwrite an unmanaged destination"
+    );
+    assert_eq!(std::fs::read_to_string(&decoy).unwrap(), "not a vx shim");
+    assert!(
+        ShimRegistry::load(&vx_home.join("config").join("command-shims.json"))
+            .unwrap()
+            .is_empty()
     );
 
     let output = Command::new(vx_binary())
@@ -333,15 +361,20 @@ fn test_shim_add_force_shadows_an_existing_command() {
         let content = std::fs::read_to_string(&file).expect("failed to read shim");
         assert!(
             content.contains(VX_SHIM_MARKER),
-            "--force did not replace {}:\n{}",
+            "--force did not create a separate command shim {}:\n{}",
             file.display(),
             content
         );
     }
+    assert_eq!(
+        std::fs::read_to_string(&decoy).unwrap(),
+        "not a vx shim",
+        "PATH shadowing must preserve the original command"
+    );
 }
 
 #[test]
-fn test_shim_sync_rewrites_existing_shims() {
+fn test_shim_sync_restores_missing_shims_and_preserves_user_edits() {
     init_test_env();
     if !vx_available() {
         return;
@@ -352,7 +385,7 @@ fn test_shim_sync_rewrites_existing_shims() {
     let shim_dir = temp.path().join("shims");
     let name = unique_name();
 
-    run_vx(
+    let added = run_vx(
         &vx_home,
         &[
             "shim",
@@ -365,22 +398,40 @@ fn test_shim_sync_rewrites_existing_shims() {
         ],
     )
     .expect("failed to run vx shim add");
+    assert_success(&added, "create registered shims before syncing");
 
-    // Simulate a shim broken by hand or by a vx upgrade
-    for file in expected_files(&shim_dir, &name) {
-        std::fs::write(&file, "stale").expect("failed to overwrite shim");
-    }
+    let files: Vec<_> = expected_files(&shim_dir, &name)
+        .into_iter()
+        .map(|file| {
+            let contents = std::fs::read_to_string(&file).expect("failed to read original shim");
+            (file, contents)
+        })
+        .collect();
+    // A missing registered variant can be restored while existing owned files
+    // continue to match the record; user edits are a different ownership state.
+    std::fs::remove_file(&files[0].0).expect("failed to remove a registered shim variant");
 
     let output = run_vx(&vx_home, &["shim", "sync"]).expect("failed to run vx shim sync");
     assert_success(&output, "vx shim sync");
 
-    for file in expected_files(&shim_dir, &name) {
-        let content = std::fs::read_to_string(&file).expect("failed to read shim");
-        assert!(
-            content.contains(VX_SHIM_MARKER),
-            "sync did not rewrite {}",
-            file.display()
+    for (file, expected) in &files {
+        assert_eq!(
+            std::fs::read_to_string(file).unwrap(),
+            *expected,
+            "sync did not restore {}",
+            file.display(),
         );
+    }
+    let edited = format!("{}\n# user customization\n", files[0].1);
+    std::fs::write(&files[0].0, &edited).unwrap();
+    let refused = run_vx(&vx_home, &["shim", "sync"]).expect("failed to run vx shim sync");
+    assert!(
+        !refused.status.success(),
+        "sync must refuse to overwrite an edited registered wrapper"
+    );
+    assert_eq!(std::fs::read_to_string(&files[0].0).unwrap(), edited);
+    for (file, expected) in files.iter().skip(1) {
+        assert_eq!(std::fs::read_to_string(file).unwrap(), *expected);
     }
 }
 

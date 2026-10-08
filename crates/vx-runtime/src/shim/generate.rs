@@ -103,7 +103,7 @@ pub(crate) fn batch(shim: &Shim) -> String {
 
     // Add environment variables
     for (key, value) in &shim.env {
-        lines.push(format!("set {}={}", key, value));
+        lines.push(format!("set \"{}={}\"", key, value.replace('%', "%%")));
     }
 
     // Add working directory change if specified
