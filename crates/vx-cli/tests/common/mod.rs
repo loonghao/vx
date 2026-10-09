@@ -2,7 +2,7 @@
 
 #![allow(dead_code)]
 
-use std::io::{self, ErrorKind};
+use std::io::{self, ErrorKind, Read, Seek};
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output, Stdio};
 use std::sync::Once;
@@ -127,9 +127,12 @@ pub fn run_vx_with_env(args: &[&str], env: &[(&str, &str)]) -> std::io::Result<O
 /// Run a command with a timeout so external tools cannot hang the whole E2E suite.
 pub fn run_command_with_timeout(mut cmd: Command, timeout: Duration) -> io::Result<Output> {
     let command_debug = format!("{cmd:?}");
+    // File captures prevent a verbose child from blocking on a full pipe before exit.
+    let mut stdout = tempfile::tempfile()?;
+    let mut stderr = tempfile::tempfile()?;
     cmd.stdin(Stdio::null())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped());
+        .stdout(stdout.try_clone()?)
+        .stderr(stderr.try_clone()?);
 
     configure_timeout_child(&mut cmd);
 
@@ -138,8 +141,17 @@ pub fn run_command_with_timeout(mut cmd: Command, timeout: Duration) -> io::Resu
     let start = Instant::now();
 
     loop {
-        if child.try_wait()?.is_some() {
-            return child.wait_with_output();
+        if let Some(status) = child.try_wait()? {
+            stdout.rewind()?;
+            stderr.rewind()?;
+            let mut output = Output {
+                status,
+                stdout: Vec::new(),
+                stderr: Vec::new(),
+            };
+            stdout.read_to_end(&mut output.stdout)?;
+            stderr.read_to_end(&mut output.stderr)?;
+            return Ok(output);
         }
 
         if start.elapsed() >= timeout {
