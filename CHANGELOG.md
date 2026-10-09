@@ -6,6 +6,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [0.9.36](https://github.com/loonghao/vx/compare/v0.9.35...v0.9.36) (2026-10-09)
+
+
+### Features
+
+* add openscreen Provider ([4951457](https://github.com/loonghao/vx/commit/49514572968840dc484725f22e771c7d16436d18))
+
+
+### Bug Fixes
+
+* **rust:** validate numeric vx.toml rust pin without a rust-toolchain file ([87bc7a5](https://github.com/loonghao/vx/commit/87bc7a5eb9e62dc704904a2affc67fa5a0ae5ddf))
+* **rust:** validate numeric vx.toml rust pin without a rust-toolchain file ([#1208](https://github.com/loonghao/vx/issues/1208)) ([d1d1af5](https://github.com/loonghao/vx/commit/d1d1af5709311bafbe1d418e19fa8a607c11c478))
+
 ## [0.9.35](https://github.com/loonghao/vx/compare/v0.9.34...v0.9.35) (2026-10-08)
 
 
