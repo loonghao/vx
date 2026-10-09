@@ -211,7 +211,7 @@ vx-providers/
 ├── rust/
 ├── uv/
 ├── deno/
-└── ... (168 Providers)
+└── ... (169 Providers)
 ```
 
 Each provider includes a `provider.toml` manifest:

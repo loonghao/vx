@@ -423,9 +423,9 @@ vx cargo run
 
 ---
 
-## Supported Tools (168 providers)
+## Supported Tools (169 providers)
 
-vx manages 168 tools via Starlark DSL providers. Below are some highlights:
+vx manages 169 tools via Starlark DSL providers. Below are some highlights:
 
 ### Language Runtimes
 
@@ -509,7 +509,7 @@ vx manages 168 tools via Starlark DSL providers. Below are some highlights:
 | **Ollama** | `ollama` | Run LLMs locally |
 | **mcpcall** | `mcpcall` | MCP client for CI/smoke tests |
 
-> Run `vx list` to see all 168 supported tools, or `vx search <query>` to find a specific tool.
+> Run `vx list` to see all 169 supported tools, or `vx search <query>` to find a specific tool.
 
 ---
 
