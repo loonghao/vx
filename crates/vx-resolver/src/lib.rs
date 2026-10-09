@@ -44,6 +44,12 @@ pub mod rust_toolchain;
 pub mod version;
 
 pub use config::{DEFAULT_RESOLUTION_CACHE_TTL, ResolverConfig};
+
+// Re-exported because `ProjectToolsConfig` carries a `[check]` section: the types are
+// part of this crate's public surface, and callers building one need them without
+// depending on `vx-config` themselves.
+pub use vx_config::{CheckConfig, ToolchainPinMismatch};
+
 pub use executor::{
     BUNDLE_DIR, BUNDLE_MANIFEST, BundleContext, BundleManifest, BundledToolInfo, Executor,
     ProjectToolsConfig, clear_bin_dir_cache, execute_bundle, execute_system_runtime,
