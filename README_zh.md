@@ -10,11 +10,11 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Rust](https://img.shields.io/badge/rust-1.95.0+-blue.svg)](https://www.rust-lang.org)
-[![Test](https://github.com/loonghao/vx/workflows/Test/badge.svg)](https://github.com/loonghao/vx/actions)
-[![Release](https://github.com/loonghao/vx/workflows/Release/badge.svg)](https://github.com/loonghao/vx/actions)
-[![codecov](https://codecov.io/gh/loonghao/vx/branch/main/graph/badge.svg)](https://codecov.io/gh/loonghao/vx)
-[![GitHub release](https://img.shields.io/github/release/loonghao/vx.svg)](https://github.com/loonghao/vx/releases)
-[![GitHub downloads](https://img.shields.io/github/downloads/loonghao/vx/total.svg)](https://github.com/loonghao/vx/releases)
+[![Test](https://github.com/vx-org/vx/workflows/Test/badge.svg)](https://github.com/vx-org/vx/actions)
+[![Release](https://github.com/vx-org/vx/workflows/Release/badge.svg)](https://github.com/vx-org/vx/actions)
+[![codecov](https://codecov.io/gh/vx-org/vx/branch/main/graph/badge.svg)](https://codecov.io/gh/vx-org/vx)
+[![GitHub release](https://img.shields.io/github/release/loonghao/vx.svg)](https://github.com/vx-org/vx/releases)
+[![GitHub downloads](https://img.shields.io/github/downloads/loonghao/vx/total.svg)](https://github.com/vx-org/vx/releases)
 
 </div>
 
@@ -87,30 +87,30 @@ vx go run main.go               # 需要时自动安装 Go
 **Linux/macOS:**
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/loonghao/vx/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/vx-org/vx/main/install.sh | bash
 ```
 
 **Windows (PowerShell):**
 
 ```powershell
-powershell -c "irm https://raw.githubusercontent.com/loonghao/vx/main/install.ps1 | iex"
+powershell -c "irm https://raw.githubusercontent.com/vx-org/vx/main/install.ps1 | iex"
 ```
 
 ### 在限流网络中稳定安装
 
 ```bash
 # 1）固定稳定安装版本（推荐用于 CI 与企业网络）
-VX_VERSION="0.9.6" curl -fsSL https://raw.githubusercontent.com/loonghao/vx/main/install.sh | bash
+VX_VERSION="0.9.6" curl -fsSL https://raw.githubusercontent.com/vx-org/vx/main/install.sh | bash
 
 # 2）配置多源发布镜像（逗号分隔）
-VX_RELEASE_BASE_URLS="https://mirror.example.com/vx/releases,https://github.com/loonghao/vx/releases" \
-  curl -fsSL https://raw.githubusercontent.com/loonghao/vx/main/install.sh | bash
+VX_RELEASE_BASE_URLS="https://mirror.example.com/vx/releases,https://github.com/vx-org/vx/releases" \
+  curl -fsSL https://raw.githubusercontent.com/vx-org/vx/main/install.sh | bash
 ```
 
 ```powershell
 # Windows 镜像回退（逗号或分号分隔）
-$env:VX_RELEASE_BASE_URLS="https://mirror.example.com/vx/releases,https://github.com/loonghao/vx/releases"
-powershell -c "irm https://raw.githubusercontent.com/loonghao/vx/main/install.ps1 | iex"
+$env:VX_RELEASE_BASE_URLS="https://mirror.example.com/vx/releases,https://github.com/vx-org/vx/releases"
+powershell -c "irm https://raw.githubusercontent.com/vx-org/vx/main/install.ps1 | iex"
 ```
 
 > 安装器会自动遍历所有配置的发布基址，并对不同资产命名模式执行回退重试。
@@ -586,7 +586,7 @@ brew tap loonghao/vx && brew install vx
 yay -S vx-bin
 
 # Cargo
-cargo install --git https://github.com/loonghao/vx
+cargo install --git https://github.com/vx-org/vx
 ```
 
 ### GitHub Actions
@@ -594,7 +594,7 @@ cargo install --git https://github.com/loonghao/vx
 在 CI/CD 工作流中使用 vx：
 
 ```yaml
-- uses: loonghao/vx@main
+- uses: vx-org/vx@main
   with:
     github-token: ${{ secrets.GITHUB_TOKEN }}
 
@@ -603,7 +603,7 @@ cargo install --git https://github.com/loonghao/vx
 - run: vx npm test
 ```
 
-> **注意**: 请使用 `@main` 获取最新版本，或使用具体的版本标签（如 `@vx-v0.9.13`）。查看 [releases](https://github.com/loonghao/vx/releases) 获取最新版本。
+> **注意**: 请使用 `@main` 获取最新版本，或使用具体的版本标签（如 `@vx-v0.9.13`）。查看 [releases](https://github.com/vx-org/vx/releases) 获取最新版本。
 
 详细文档请参阅 [GitHub Action 指南](docs/guides/github-action.md)。
 
@@ -613,8 +613,8 @@ cargo install --git https://github.com/loonghao/vx
 
 我们欢迎贡献！请参阅 [CONTRIBUTING.md](CONTRIBUTING.md) 了解指南。
 
-1. **报告问题**: [提交问题](https://github.com/loonghao/vx/issues)
-2. **功能请求**: [开始讨论](https://github.com/loonghao/vx/discussions)
+1. **报告问题**: [提交问题](https://github.com/vx-org/vx/issues)
+2. **功能请求**: [开始讨论](https://github.com/vx-org/vx/discussions)
 3. **代码贡献**: 提交拉取请求
 
 ---
@@ -625,7 +625,7 @@ MIT 许可证 - 详情请参见 [LICENSE](LICENSE)。
 
 ## 支持
 
-- **文档**: [GitHub Wiki](https://github.com/loonghao/vx/wiki)
-- **讨论**: [GitHub Discussions](https://github.com/loonghao/vx/discussions)
-- **问题**: [Bug Reports](https://github.com/loonghao/vx/issues)
+- **文档**: [GitHub Wiki](https://github.com/vx-org/vx/wiki)
+- **讨论**: [GitHub Discussions](https://github.com/vx-org/vx/discussions)
+- **问题**: [Bug Reports](https://github.com/vx-org/vx/issues)
 - **联系**: <hal.long@outlook.com>

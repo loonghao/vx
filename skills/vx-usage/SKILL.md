@@ -192,7 +192,7 @@ is listed, check `vx shim --help` and `vx shim add --help`: the required interfa
 is `add/list/remove/sync/path`. Release v0.9.34 predates this interface; a merged
 PR alone does not mean the installed binary supports it.
 
-Read the [managed command shim guide](https://github.com/loonghao/vx/blob/main/docs/guide/managed-command-shims.md)
+Read the [managed command shim guide](https://github.com/vx-org/vx/blob/main/docs/guide/managed-command-shims.md)
 before creating or repairing entries. It covers Codex package targets, safe
 `--as`/`--dir` selection, Windows shells, PATH precedence, upgrade `sync`, and
 ownership checks. Do not default to `--force` or change global PATH.
@@ -631,7 +631,7 @@ vx provides a GitHub Action (`action.yml`) for CI/CD workflows. Use it in `.gith
 ### Basic Usage
 
 ```yaml
-- uses: loonghao/vx@main
+- uses: vx-org/vx@main
   with:
     version: 'latest'           # vx version (default: latest)
     github-token: ${{ secrets.GITHUB_TOKEN }}
@@ -640,7 +640,7 @@ vx provides a GitHub Action (`action.yml`) for CI/CD workflows. Use it in `.gith
 ### Pre-install Tools
 
 ```yaml
-- uses: loonghao/vx@main
+- uses: vx-org/vx@main
   with:
     tools: 'node go uv'         # Space-separated tools to pre-install
     cache: 'true'               # Enable tool caching (default: true)
@@ -649,7 +649,7 @@ vx provides a GitHub Action (`action.yml`) for CI/CD workflows. Use it in `.gith
 ### Project Setup (vx.toml)
 
 ```yaml
-- uses: loonghao/vx@main
+- uses: vx-org/vx@main
   with:
     setup: 'true'               # Run `vx setup --ci` for vx.toml projects
 ```
@@ -670,7 +670,7 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - uses: loonghao/vx@main
+      - uses: vx-org/vx@main
         with:
           tools: 'node@22 uv'
           setup: 'true'
@@ -705,7 +705,7 @@ vx also provides a container image for containerized workflows, and it can be co
 
 ```dockerfile
 # Use vx as base image
-FROM ghcr.io/loonghao/vx:latest
+FROM ghcr.io/vx-org/vx:latest
 
 # Tools are auto-installed on first use
 RUN vx node --version
@@ -715,7 +715,7 @@ RUN vx uv pip install mypackage
 ### Multi-stage Build with vx
 
 ```dockerfile
-FROM ghcr.io/loonghao/vx:latest AS builder
+FROM ghcr.io/vx-org/vx:latest AS builder
 RUN vx node --version && vx npm ci && vx npm run build
 
 FROM nginx:alpine
@@ -729,7 +729,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     container:
-      image: ghcr.io/loonghao/vx:latest
+      image: ghcr.io/vx-org/vx:latest
     steps:
       - uses: actions/checkout@v6
       - run: vx node --version

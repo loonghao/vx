@@ -47,4 +47,4 @@ def download_url(ctx, version, platform):
 
 - [Manifest-Driven Providers Guide](/guide/manifest-driven-providers)
 - [Provider Development Documentation](/advanced/plugin-development)
-- [Built-in Providers](https://github.com/loonghao/vx/tree/main/crates/vx-providers)
+- [Built-in Providers](https://github.com/vx-org/vx/tree/main/crates/vx-providers)

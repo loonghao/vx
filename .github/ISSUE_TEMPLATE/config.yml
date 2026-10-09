@@ -1,5 +1,5 @@
 blank_issues_disabled: true
 contact_links:
   - name: Documentation
-    url: https://github.com/loonghao/vx#readme
+    url: https://github.com/vx-org/vx#readme
     about: Read the README and docs before filing an issue

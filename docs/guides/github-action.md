@@ -11,12 +11,12 @@ vx provides an official GitHub Action that makes it easy to use vx in your CI/CD
 Add the following to your GitHub Actions workflow:
 
 ```yaml
-- uses: loonghao/vx@main
+- uses: vx-org/vx@main
   with:
     github-token: ${{secrets.GITHUB_TOKEN}}
 ```
 
-> **Note**: You can use `@main` for the latest version, or pin to a specific release tag (e.g., `@vx-v0.6.4`). Check [releases](https://github.com/loonghao/vx/releases) for available versions.
+> **Note**: You can use `@main` for the latest version, or pin to a specific release tag (e.g., `@vx-v0.6.4`). Check [releases](https://github.com/vx-org/vx/releases) for available versions.
 
 Then use vx to run any supported tool:
 
@@ -44,7 +44,7 @@ jobs:
       - uses: actions/checkout@v6
 
       # Setup vx with caching
-      - uses: loonghao/vx@main
+      - uses: vx-org/vx@main
         with:
           github-token: ${{secrets.GITHUB_TOKEN}}
           tools: 'node uv'  # Pre-install these tools
@@ -110,7 +110,7 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - uses: loonghao/vx@main
+      - uses: vx-org/vx@main
         with:
           github-token: ${{secrets.GITHUB_TOKEN}}
           tools: 'node'
@@ -131,7 +131,7 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - uses: loonghao/vx@main
+      - uses: vx-org/vx@main
         with:
           github-token: ${{secrets.GITHUB_TOKEN}}
           tools: 'uv'
@@ -152,7 +152,7 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - uses: loonghao/vx@main
+      - uses: vx-org/vx@main
         with:
           github-token: ${{secrets.GITHUB_TOKEN}}
           tools: 'go'
@@ -172,7 +172,7 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - uses: loonghao/vx@main
+      - uses: vx-org/vx@main
         with:
           github-token: ${{secrets.GITHUB_TOKEN}}
           tools: 'node uv go'
@@ -201,7 +201,7 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - uses: loonghao/vx@main
+      - uses: vx-org/vx@main
         with:
           github-token: ${{secrets.GITHUB_TOKEN}}
 
@@ -230,7 +230,7 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - uses: loonghao/vx@main
+      - uses: vx-org/vx@main
         with:
           github-token: ${{secrets.GITHUB_TOKEN}}
 
@@ -293,7 +293,7 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - uses: loonghao/vx@main
+      - uses: vx-org/vx@main
         with:
           github-token: ${{secrets.GITHUB_TOKEN}}
 
@@ -328,7 +328,7 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - uses: loonghao/vx@main
+      - uses: vx-org/vx@main
         with:
           github-token: ${{secrets.GITHUB_TOKEN}}
 
@@ -363,7 +363,7 @@ This is particularly useful when:
 The action automatically caches the vx tools directory (`~/.vx`) to speed up subsequent runs. You can customize the cache behavior:
 
 ```yaml
-- uses: loonghao/vx@main
+- uses: vx-org/vx@main
   with:
     cache: 'true'
     cache-key-prefix: 'my-project-vx'
@@ -372,7 +372,7 @@ The action automatically caches the vx tools directory (`~/.vx`) to speed up sub
 To disable caching:
 
 ```yaml
-- uses: loonghao/vx@main
+- uses: vx-org/vx@main
   with:
     cache: 'false'
 ```
@@ -384,7 +384,7 @@ To disable caching:
 If you encounter GitHub API rate limiting, make sure to provide a GitHub token:
 
 ```yaml
-- uses: loonghao/vx@main
+- uses: vx-org/vx@main
   with:
     github-token: ${{secrets.GITHUB_TOKEN}}
 ```
@@ -405,8 +405,8 @@ For highly restricted or heavily rate-limited networks, you can also pin install
   shell: bash
   env:
     VX_VERSION: "0.8.4"
-    VX_RELEASE_BASE_URLS: "https://mirror.example.com/vx/releases,https://github.com/loonghao/vx/releases"
-  run: curl -fsSL https://raw.githubusercontent.com/loonghao/vx/main/install.sh | bash
+    VX_RELEASE_BASE_URLS: "https://mirror.example.com/vx/releases,https://github.com/vx-org/vx/releases"
+  run: curl -fsSL https://raw.githubusercontent.com/vx-org/vx/main/install.sh | bash
 ```
 
 
@@ -456,7 +456,7 @@ Before:
 After:
 
 ```yaml
-- uses: loonghao/vx@main
+- uses: vx-org/vx@main
 - run: vx npm ci
 ```
 
@@ -474,7 +474,7 @@ Before:
 After:
 
 ```yaml
-- uses: loonghao/vx@main
+- uses: vx-org/vx@main
 - run: vx uv pip install -r requirements.txt
 ```
 
@@ -492,7 +492,7 @@ Before:
 After:
 
 ```yaml
-- uses: loonghao/vx@main
+- uses: vx-org/vx@main
 - run: vx go build ./...
 ```
 
@@ -537,7 +537,7 @@ jobs:
   lint:
     runs-on: ubuntu-latest
     container:
-      image: ghcr.io/loonghao/vx:tools-latest
+      image: ghcr.io/vx-org/vx:tools-latest
     steps:
       - uses: actions/checkout@v6
 
@@ -560,8 +560,8 @@ jobs:
 
 ```bash
 # From GitHub Container Registry (recommended)
-docker pull ghcr.io/loonghao/vx:latest
-docker pull ghcr.io/loonghao/vx:tools-latest
+docker pull ghcr.io/vx-org/vx:latest
+docker pull ghcr.io/vx-org/vx:tools-latest
 
 # From Docker Hub
 docker pull longhal/vx:latest
@@ -576,7 +576,7 @@ version: '3.8'
 
 services:
   dev:
-    image: ghcr.io/loonghao/vx:tools-latest
+    image: ghcr.io/vx-org/vx:tools-latest
     working_dir: /app
     volumes:
       - .:/app
@@ -588,7 +588,7 @@ services:
 You can extend the vx images with your own tools:
 
 ```dockerfile
-FROM ghcr.io/loonghao/vx:tools-latest
+FROM ghcr.io/vx-org/vx:tools-latest
 
 # Pre-install additional tools
 RUN vx go version

@@ -128,7 +128,7 @@ inspect every destination file and its ownership; an `ok`/`complete` listing
 only confirms files exist. Before `remove`, preserve any locally replaced files:
 unmarked replacements survive, but the registry entry is removed.
 
-Follow the [managed command shim guide](https://github.com/loonghao/vx/blob/main/docs/guide/managed-command-shims.md)
+Follow the [managed command shim guide](https://github.com/vx-org/vx/blob/main/docs/guide/managed-command-shims.md)
 for Codex, PATH precedence, shell-specific commands, `sync`, and safe removal.
 
 ### Runtime Issues
@@ -361,8 +361,8 @@ cat diagnostics.txt
 
 ### Support Channels
 
-- GitHub Issues: https://github.com/loonghao/vx/issues
-- Documentation: https://github.com/loonghao/vx#readme
+- GitHub Issues: https://github.com/vx-org/vx/issues
+- Documentation: https://github.com/vx-org/vx#readme
 
 ## Quick Triage for AI Agents
 
@@ -371,8 +371,8 @@ When a user reports a vx issue, follow this decision tree:
 ```
 1. "command not found: vx"
    → vx is not installed. Run the install script.
-   → Linux/macOS: curl -fsSL https://raw.githubusercontent.com/loonghao/vx/main/install.sh | bash
-   → Windows: powershell -c "irm https://raw.githubusercontent.com/loonghao/vx/main/install.ps1 | iex"
+   → Linux/macOS: curl -fsSL https://raw.githubusercontent.com/vx-org/vx/main/install.sh | bash
+   → Windows: powershell -c "irm https://raw.githubusercontent.com/vx-org/vx/main/install.ps1 | iex"
 
 2. "Failed to download" / "network error" (exit code 5)
    → Try: vx cache clean && vx install <tool> --verbose

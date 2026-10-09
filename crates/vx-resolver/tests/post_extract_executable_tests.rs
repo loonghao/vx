@@ -7,7 +7,7 @@
 //! installation finishes, and dispatching to it fails (`rustup-init` has no
 //! `component` subcommand).
 //!
-//! See <https://github.com/loonghao/vx/issues/1152>.
+//! See <https://github.com/vx-org/vx/issues/1152>.
 
 use std::path::{Path, PathBuf};
 use std::sync::Arc;

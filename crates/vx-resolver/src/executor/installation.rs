@@ -288,7 +288,7 @@ impl<'a> InstallationManager<'a> {
         // the bootstrapper (`rustup-init` has no `component` subcommand) while a warm
         // store dispatches to the real `rustup`.
         //
-        // See <https://github.com/loonghao/vx/issues/1152>.
+        // See <https://github.com/vx-org/vx/issues/1152>.
         if !is_system_install && runtime.has_post_extract_hook() {
             match runtime
                 .get_executable_path_for_version(version, effective_ctx)

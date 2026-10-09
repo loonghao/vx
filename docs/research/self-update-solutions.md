@@ -227,7 +227,7 @@ Use [Goreleaser](https://goreleaser.com/) for release automation:
 **Solution**:
 - Add `update_channel` field to `update_check.json`
 - Check different endpoints for different channels:
-  - stable: `https://data.jsdelivr.com/v1/package/gh/loonghao/vx`
+  - stable: `https://data.jsdelivr.com/v1/package/gh/vx-org/vx`
   - beta: GitHub Releases with `beta` tag
   - dev: GitHub Releases with `dev` tag
 

@@ -74,7 +74,7 @@ jobs:
             RUST_ARCH="aarch64-unknown-linux-gnu"
           fi
 
-          DOWNLOAD_URL="https://github.com/loonghao/vx/releases/download/${VERSION}/vx-${RUST_ARCH}.tar.gz"
+          DOWNLOAD_URL="https://github.com/vx-org/vx/releases/download/${VERSION}/vx-${RUST_ARCH}.tar.gz"
           echo "Downloading from: $DOWNLOAD_URL"
 
           curl -fsSL "$DOWNLOAD_URL" -o vx.tar.gz
@@ -111,7 +111,7 @@ jobs:
           Priority: optional
           Architecture: ${ARCH}
           Maintainer: Long Hao <hal.long@outlook.com>
-          Homepage: https://github.com/loonghao/vx
+          Homepage: https://github.com/vx-org/vx
           Description: Universal version manager for developer tools
            vx is a fast, cross-platform version manager for developer tools
            including Node.js (npm, pnpm, yarn, bun), Python (uv, pip), Go, Rust,
@@ -177,7 +177,7 @@ jobs:
             RUST_ARCH="aarch64-unknown-linux-gnu"
           fi
 
-          DOWNLOAD_URL="https://github.com/loonghao/vx/releases/download/${VERSION}/vx-${RUST_ARCH}.tar.gz"
+          DOWNLOAD_URL="https://github.com/vx-org/vx/releases/download/${VERSION}/vx-${RUST_ARCH}.tar.gz"
           echo "Downloading from: $DOWNLOAD_URL"
 
           # Download to SOURCES
@@ -196,7 +196,7 @@ jobs:
           Summary:        Universal version manager for developer tools
 
           License:        MIT
-          URL:            https://github.com/loonghao/vx
+          URL:            https://github.com/vx-org/vx
           Source0:        vx-${{ matrix.arch }}.tar.gz
 
           %description
@@ -299,8 +299,8 @@ jobs:
           cd aur-repo
 
           # Download and calculate checksums
-          X86_URL="https://github.com/loonghao/vx/releases/download/${VERSION}/vx-x86_64-unknown-linux-gnu.tar.gz"
-          ARM_URL="https://github.com/loonghao/vx/releases/download/${VERSION}/vx-aarch64-unknown-linux-gnu.tar.gz"
+          X86_URL="https://github.com/vx-org/vx/releases/download/${VERSION}/vx-x86_64-unknown-linux-gnu.tar.gz"
+          ARM_URL="https://github.com/vx-org/vx/releases/download/${VERSION}/vx-aarch64-unknown-linux-gnu.tar.gz"
 
           X86_SHA256=$(curl -fsSL "$X86_URL" | sha256sum | cut -d' ' -f1)
           ARM_SHA256=$(curl -fsSL "$ARM_URL" | sha256sum | cut -d' ' -f1)
@@ -316,7 +316,7 @@ jobs:
           	pkgdesc = Universal version manager for developer tools
           	pkgver = ${VERSION_SHORT}
           	pkgrel = 1
-          	url = https://github.com/loonghao/vx
+              url = https://github.com/vx-org/vx
           	arch = x86_64
           	arch = aarch64
           	license = MIT
@@ -356,14 +356,14 @@ jobs:
           echo "**Debian/Ubuntu:**" >> $GITHUB_STEP_SUMMARY
           echo '```bash' >> $GITHUB_STEP_SUMMARY
           echo "# Download and install" >> $GITHUB_STEP_SUMMARY
-          echo "curl -fsSLO https://github.com/loonghao/vx/releases/download/${VERSION}/vx_\${VERSION#v}_amd64.deb" >> $GITHUB_STEP_SUMMARY
+          echo "curl -fsSLO https://github.com/vx-org/vx/releases/download/${VERSION}/vx_\${VERSION#v}_amd64.deb" >> $GITHUB_STEP_SUMMARY
           echo "sudo dpkg -i vx_*.deb" >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Fedora/RHEL:**" >> $GITHUB_STEP_SUMMARY
           echo '```bash' >> $GITHUB_STEP_SUMMARY
           echo "# Download and install" >> $GITHUB_STEP_SUMMARY
-          echo "curl -fsSLO https://github.com/loonghao/vx/releases/download/${VERSION}/vx-\${VERSION#v}-1.x86_64.rpm" >> $GITHUB_STEP_SUMMARY
+          echo "curl -fsSLO https://github.com/vx-org/vx/releases/download/${VERSION}/vx-\${VERSION#v}-1.x86_64.rpm" >> $GITHUB_STEP_SUMMARY
           echo "sudo rpm -i vx-*.rpm" >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY

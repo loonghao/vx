@@ -6,7 +6,7 @@
 
 ```bash
 # 直接从 GitHub 安装 hello-world 示例
-vx ext install https://github.com/loonghao/vx/tree/main/examples/extensions/hello-world
+vx ext install https://github.com/vx-org/vx/tree/main/examples/extensions/hello-world
 
 # 运行扩展
 vx x hello-world
@@ -17,7 +17,7 @@ vx x hello-world greet Alice
 
 ```bash
 # GitHub 简写带路径
-vx ext install github:loonghao/vx/examples/extensions/hello-world
+vx ext install github:vx-org/vx/examples/extensions/hello-world
 
 # 安装独立的扩展仓库
 vx ext install github:user/vx-ext-name
@@ -32,7 +32,7 @@ vx ext install github:user/vx-ext-name@v1.0.0
 
 ```bash
 # 从 GitHub 安装
-vx ext install https://github.com/loonghao/vx/tree/main/examples/extensions/hello-world
+vx ext install https://github.com/vx-org/vx/tree/main/examples/extensions/hello-world
 
 # 或本地链接用于开发
 vx ext dev ./examples/extensions/hello-world
@@ -49,7 +49,7 @@ vx x hello-world info
 
 ```bash
 # 从 GitHub 安装
-vx ext install https://github.com/loonghao/vx/tree/main/examples/extensions/project-info
+vx ext install https://github.com/vx-org/vx/tree/main/examples/extensions/project-info
 
 # 或本地链接用于开发
 vx ext dev ./examples/extensions/project-info

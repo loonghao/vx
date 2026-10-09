@@ -8,7 +8,7 @@
 # - node: Node.js runtime (LTS version)
 #
 # Usage:
-#   docker pull ghcr.io/loonghao/vx:tools-latest
+#   docker pull ghcr.io/vx-org/vx:tools-latest
 #   docker pull longhal/vx:tools-latest
 #
 # We use Ubuntu 24.04 (Noble) for glibc 2.39 compatibility:
@@ -20,8 +20,8 @@ FROM ubuntu:26.04
 
 LABEL org.opencontainers.image.title="vx-tools"
 LABEL org.opencontainers.image.description="Universal version manager with pre-installed common tools"
-LABEL org.opencontainers.image.url="https://github.com/loonghao/vx"
-LABEL org.opencontainers.image.source="https://github.com/loonghao/vx"
+LABEL org.opencontainers.image.url="https://github.com/vx-org/vx"
+LABEL org.opencontainers.image.source="https://github.com/vx-org/vx"
 LABEL org.opencontainers.image.vendor="loonghao"
 LABEL org.opencontainers.image.licenses="MIT"
 

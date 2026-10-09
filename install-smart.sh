@@ -3,14 +3,14 @@
 # This installer automatically detects the best distribution channel based on
 # geographic location, network conditions, and availability
 #
-# Usage: curl -fsSL https://raw.githubusercontent.com/loonghao/vx/main/install-smart.sh | bash
-# Usage with version: VX_VERSION="0.1.0" bash <(curl -fsSL https://raw.githubusercontent.com/loonghao/vx/main/install-smart.sh)
-# Usage with token: GITHUB_TOKEN="token" bash <(curl -fsSL https://raw.githubusercontent.com/loonghao/vx/main/install-smart.sh)
+# Usage: curl -fsSL https://raw.githubusercontent.com/vx-org/vx/main/install-smart.sh | bash
+# Usage with version: VX_VERSION="0.1.0" bash <(curl -fsSL https://raw.githubusercontent.com/vx-org/vx/main/install-smart.sh)
+# Usage with token: GITHUB_TOKEN="token" bash <(curl -fsSL https://raw.githubusercontent.com/vx-org/vx/main/install-smart.sh)
 
 set -euo pipefail
 
 # Configuration
-REPO_OWNER="loonghao"
+REPO_OWNER="vx-org"
 REPO_NAME="vx"
 VX_VERSION="${VX_VERSION:-latest}"
 VX_INSTALL_DIR="${VX_INSTALL_DIR:-$HOME/.local/bin}"

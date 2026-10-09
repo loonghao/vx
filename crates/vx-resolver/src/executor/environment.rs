@@ -372,7 +372,7 @@ impl<'a> EnvironmentManager<'a> {
         // This uses execution_environment() which may provide additional env vars
         // needed only when the tool is directly invoked (e.g., MSVC's LIB/INCLUDE/PATH
         // are only needed when directly running cl/link/nmake, not when running npm)
-        // See: https://github.com/loonghao/vx/issues/573
+        // See: https://github.com/vx-org/vx/issues/573
         match runtime.execution_environment(&version, context).await {
             Ok(runtime_env) => {
                 env.extend(runtime_env);
@@ -477,8 +477,8 @@ impl<'a> EnvironmentManager<'a> {
         // command: a successful `vx git --version` should not emit MSVC repair
         // failures just because the project declares msvc.
         //
-        // See: https://github.com/loonghao/vx/issues/573
-        // See: https://github.com/loonghao/vx/issues/889
+        // See: https://github.com/vx-org/vx/issues/573
+        // See: https://github.com/vx-org/vx/issues/889
         if let Some(project_config) = self.project_config {
             let companion_tools = project_config.get_companion_tools(runtime_name);
             debug!(

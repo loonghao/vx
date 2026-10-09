@@ -2,22 +2,22 @@
 # vx installer script for Linux and macOS
 #
 # Usage:
-#   curl -fsSL https://raw.githubusercontent.com/loonghao/vx/main/install.sh | bash
+#   curl -fsSL https://raw.githubusercontent.com/vx-org/vx/main/install.sh | bash
 #
 # With specific version:
-#   VX_VERSION="0.8.4" curl -fsSL https://raw.githubusercontent.com/loonghao/vx/main/install.sh | bash
+#   VX_VERSION="0.8.4" curl -fsSL https://raw.githubusercontent.com/vx-org/vx/main/install.sh | bash
 #
 # With custom install directory:
-#   VX_INSTALL_DIR="$HOME/bin" curl -fsSL https://raw.githubusercontent.com/loonghao/vx/main/install.sh | bash
+#   VX_INSTALL_DIR="$HOME/bin" curl -fsSL https://raw.githubusercontent.com/vx-org/vx/main/install.sh | bash
 #
 # With custom release mirrors (comma separated):
-#   VX_RELEASE_BASE_URLS="https://mirror.example.com/vx/releases,https://github.com/loonghao/vx/releases" curl -fsSL https://raw.githubusercontent.com/loonghao/vx/main/install.sh | bash
+#   VX_RELEASE_BASE_URLS="https://mirror.example.com/vx/releases,https://github.com/vx-org/vx/releases" curl -fsSL https://raw.githubusercontent.com/vx-org/vx/main/install.sh | bash
 #
 # With GitHub token (to avoid rate limits when specifying a version):
-#   GITHUB_TOKEN="your_token" curl -fsSL https://raw.githubusercontent.com/loonghao/vx/main/install.sh | bash
+#   GITHUB_TOKEN="your_token" curl -fsSL https://raw.githubusercontent.com/vx-org/vx/main/install.sh | bash
 #
 # CDN acceleration (disabled by default, opt-in for slow GitHub access):
-#   VX_CDN=1 curl -fsSL https://raw.githubusercontent.com/loonghao/vx/main/install.sh | bash
+#   VX_CDN=1 curl -fsSL https://raw.githubusercontent.com/vx-org/vx/main/install.sh | bash
 #
 # Environment variables:
 #   VX_VERSION          - Version to install (default: latest stable)
@@ -32,7 +32,7 @@ set -euo pipefail
 # Global temp dir so the EXIT trap can always reference it
 _VX_TEMP_DIR=""
 
-REPO_OWNER="loonghao"
+REPO_OWNER="vx-org"
 REPO_NAME="vx"
 BASE_URL="https://github.com/$REPO_OWNER/$REPO_NAME/releases"
 
@@ -298,7 +298,7 @@ main() {
     if [[ -z "$archive_path" ]]; then
         local hint_ver="${latest_ver:-0.8.4}"
         fail "Download failed. Check your internet connection or specify a version:
-  VX_VERSION='$hint_ver' curl -fsSL https://raw.githubusercontent.com/loonghao/vx/main/install.sh | bash"
+  VX_VERSION='$hint_ver' curl -fsSL https://raw.githubusercontent.com/vx-org/vx/main/install.sh | bash"
     fi
 
     # Extract

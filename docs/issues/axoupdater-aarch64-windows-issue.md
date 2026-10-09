@@ -79,4 +79,4 @@ axoupdater = { workspace = true, optional = true }
 
 - axoupdater 仓库: https://github.com/axodotdev/axoupdater
 - 相关 Issue #313: Support additional prebuilts for uncommon target triples
-- vx PR #572: https://github.com/loonghao/vx/pull/572
+- vx PR #572: https://github.com/vx-org/vx/pull/572

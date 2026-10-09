@@ -6,7 +6,7 @@ This directory contains example extensions demonstrating the vx extension system
 
 ```bash
 # Install the hello-world example directly from GitHub
-vx ext install https://github.com/loonghao/vx/tree/main/examples/extensions/hello-world
+vx ext install https://github.com/vx-org/vx/tree/main/examples/extensions/hello-world
 
 # Run the extension
 vx x hello-world
@@ -17,7 +17,7 @@ vx x hello-world greet Alice
 
 ```bash
 # GitHub shorthand with path
-vx ext install github:loonghao/vx/examples/extensions/hello-world
+vx ext install github:vx-org/vx/examples/extensions/hello-world
 
 # Install a standalone extension repository
 vx ext install github:user/vx-ext-name
@@ -32,7 +32,7 @@ A simple Python-based extension demonstrating basic extension capabilities.
 
 ```bash
 # Install from GitHub
-vx ext install https://github.com/loonghao/vx/tree/main/examples/extensions/hello-world
+vx ext install https://github.com/vx-org/vx/tree/main/examples/extensions/hello-world
 
 # Or link locally for development
 vx ext dev ./examples/extensions/hello-world
@@ -49,7 +49,7 @@ A Node.js-based extension that displays project information.
 
 ```bash
 # Install from GitHub
-vx ext install https://github.com/loonghao/vx/tree/main/examples/extensions/project-info
+vx ext install https://github.com/vx-org/vx/tree/main/examples/extensions/project-info
 
 # Or link locally for development
 vx ext dev ./examples/extensions/project-info

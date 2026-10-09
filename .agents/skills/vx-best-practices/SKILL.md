@@ -123,7 +123,7 @@ Use the vx GitHub Action:
 
 ```yaml
 # .github/workflows/ci.yml
-- uses: loonghao/vx@main
+- uses: vx-org/vx@main
   with:
     setup: 'true'
     cache: 'true'

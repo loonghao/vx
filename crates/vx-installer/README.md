@@ -7,7 +7,7 @@
 [![Crates.io](https://img.shields.io/crates/v/vx-installer.svg)](https://crates.io/crates/vx-installer)
 [![Documentation](https://docs.rs/vx-installer/badge.svg)](https://docs.rs/vx-installer)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![Build Status](https://github.com/loonghao/vx/workflows/CI/badge.svg)](https://github.com/loonghao/vx/actions)
+[![Build Status](https://github.com/vx-org/vx/workflows/CI/badge.svg)](https://github.com/vx-org/vx/actions)
 
 *Lightning-fast, format-agnostic tool installation with beautiful progress tracking*
 
@@ -392,7 +392,7 @@ We welcome contributions! Here's how you can help:
 
 ```bash
 # Clone the repository
-git clone https://github.com/loonghao/vx
+git clone https://github.com/vx-org/vx
 cd vx/crates/vx-installer
 
 # Run tests
@@ -439,6 +439,6 @@ This project is licensed under the MIT License - see the [LICENSE](../../LICENSE
 
 **Made with 🦀 Rust**
 
-[⭐ Star us on GitHub](https://github.com/loonghao/vx) | [📖 Read the Docs](https://docs.rs/vx-installer) | [💬 Join the Discussion](https://github.com/loonghao/vx/discussions)
+[⭐ Star us on GitHub](https://github.com/vx-org/vx) | [📖 Read the Docs](https://docs.rs/vx-installer) | [💬 Join the Discussion](https://github.com/vx-org/vx/discussions)
 
 </div>

@@ -150,7 +150,7 @@ jobs:
     steps:
       - uses: actions/checkout@v6
       - name: Setup vx
-        uses: loonghao/vx@v1
+        uses: vx-org/vx@v1
       - name: Test Node.js
         run: vx node@${{ matrix.node }} npm test
       - name: Test Python

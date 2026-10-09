@@ -12,7 +12,7 @@ Thank you for your interest in contributing to vx!
 ### Clone and Build
 
 ```bash
-git clone https://github.com/loonghao/vx.git
+git clone https://github.com/vx-org/vx.git
 cd vx
 cargo build
 ```
@@ -291,7 +291,7 @@ The `bincode` crate is pinned to v1.3 because:
 - `bincode v3` has a completely different API (the crate was restructured)
 - Until `msvc-kit` releases a version supporting `bincode v3`, we cannot upgrade
 
-**Workaround**: Renovate is configured to skip major `bincode` updates. See [PR #378](https://github.com/loonghao/vx/pull/378) for details.
+**Workaround**: Renovate is configured to skip major `bincode` updates. See [PR #378](https://github.com/vx-org/vx/pull/378) for details.
 
 **Resolution**: Monitor `msvc-kit` releases for `bincode v3` support. Once available:
 1. Update `msvc-kit` to the new version
@@ -316,8 +316,8 @@ When reporting bugs:
 
 ## Community
 
-- [GitHub Issues](https://github.com/loonghao/vx/issues)
-- [GitHub Discussions](https://github.com/loonghao/vx/discussions)
+- [GitHub Issues](https://github.com/vx-org/vx/issues)
+- [GitHub Discussions](https://github.com/vx-org/vx/discussions)
 
 ## License
 

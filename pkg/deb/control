@@ -4,7 +4,7 @@ Section: devel
 Priority: optional
 Architecture: {{ARCH}}
 Maintainer: Long Hao <hal.long@outlook.com>
-Homepage: https://github.com/loonghao/vx
+Homepage: https://github.com/vx-org/vx
 Description: Universal version manager for developer tools
  vx is a fast, cross-platform version manager for developer tools
  including Node.js (npm, pnpm, yarn, bun), Python (uv, pip), Go, Rust,

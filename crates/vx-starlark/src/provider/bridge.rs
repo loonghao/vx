@@ -538,7 +538,7 @@ pub type ExecutePathClosure = Box<
 /// only produces `cargo/bin/rustup` after `post_extract`) must declare the real
 /// executable here so dispatch never targets the bootstrapper on a cold store.
 ///
-/// See <https://github.com/loonghao/vx/issues/1152>.
+/// See <https://github.com/vx-org/vx/issues/1152>.
 pub fn make_execute_path_fn(
     name: impl Into<String>,
     content: impl Into<String>,

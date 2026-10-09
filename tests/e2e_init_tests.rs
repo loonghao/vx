@@ -324,7 +324,7 @@ dev-dependencies = ["pytest", "nox"]
 
 # This file defines the tools and environment for this project.
 # Run 'vx setup' to install all required tools.
-# Documentation: https://github.com/loonghao/vx/docs/config
+# Documentation: https://github.com/vx-org/vx/docs/config
 
 # Tool versions
 [tools]

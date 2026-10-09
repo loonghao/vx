@@ -6,7 +6,7 @@ Thank you for your interest in contributing to vx! 🎉
 
 ```bash
 # Clone and build
-git clone https://github.com/loonghao/vx.git
+git clone https://github.com/vx-org/vx.git
 cd vx
 vx cargo build
 
@@ -75,8 +75,8 @@ For the complete contributing guide including CI pipeline details, dependency co
 
 ## Community
 
-- [GitHub Issues](https://github.com/loonghao/vx/issues) — Bug reports
-- [GitHub Discussions](https://github.com/loonghao/vx/discussions) — Feature requests and questions
+- [GitHub Issues](https://github.com/vx-org/vx/issues) — Bug reports
+- [GitHub Discussions](https://github.com/vx-org/vx/discussions) — Feature requests and questions
 - Contact: <hal.long@outlook.com>
 
 ## License

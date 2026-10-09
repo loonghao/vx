@@ -564,7 +564,7 @@ pub trait Runtime: Send + Sync {
     /// *after* `install()` resolved the executable. Callers use this to decide
     /// whether the executable must be re-resolved once `post_install` returns.
     ///
-    /// See <https://github.com/loonghao/vx/issues/1152>.
+    /// See <https://github.com/vx-org/vx/issues/1152>.
     fn has_post_extract_hook(&self) -> bool {
         false
     }
@@ -985,7 +985,7 @@ pub trait Runtime: Send + Sync {
     ///
     /// Default: delegates to `prepare_environment()`.
     ///
-    /// See: <https://github.com/loonghao/vx/issues/573>
+    /// See: <https://github.com/vx-org/vx/issues/573>
     async fn execution_environment(
         &self,
         version: &str,

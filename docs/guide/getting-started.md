@@ -11,11 +11,11 @@ Get up and running with vx in 5 minutes.
 
 ::: code-group
 ```bash [Linux / macOS]
-curl -fsSL https://raw.githubusercontent.com/loonghao/vx/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/vx-org/vx/main/install.sh | bash
 ```
 
 ```powershell [Windows (PowerShell)]
-irm https://raw.githubusercontent.com/loonghao/vx/main/install.ps1 | iex
+irm https://raw.githubusercontent.com/vx-org/vx/main/install.ps1 | iex
 ```
 
 ```bash [Cargo]

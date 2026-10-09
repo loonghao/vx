@@ -30,7 +30,7 @@ permissions:
 
 env:
   DOCKER_HUB_REPO: longhal/vx
-  GHCR_REPO: ghcr.io/loonghao/vx
+  GHCR_REPO: ghcr.io/vx-org/vx
 
 jobs:
   check-release:
@@ -101,8 +101,8 @@ jobs:
 
           # Try versioned format first (newer releases), then fall back to non-versioned format
           VERSION_NUM=$(echo "${VERSION}" | sed -E 's/^(vx-)?v//')
-          DOWNLOAD_URL_VERSIONED="https://github.com/loonghao/vx/releases/download/${VERSION}/vx-${VERSION_NUM}-${ARCH}.tar.gz"
-          DOWNLOAD_URL_COMPAT="https://github.com/loonghao/vx/releases/download/${VERSION}/vx-${ARCH}.tar.gz"
+          DOWNLOAD_URL_VERSIONED="https://github.com/vx-org/vx/releases/download/${VERSION}/vx-${VERSION_NUM}-${ARCH}.tar.gz"
+          DOWNLOAD_URL_COMPAT="https://github.com/vx-org/vx/releases/download/${VERSION}/vx-${ARCH}.tar.gz"
 
           echo "Trying versioned URL: $DOWNLOAD_URL_VERSIONED"
           if curl -fsSL "$DOWNLOAD_URL_VERSIONED" -o vx.tar.gz 2>/dev/null; then
@@ -252,8 +252,8 @@ jobs:
 
           # Try versioned format first, then fall back to non-versioned format
           VERSION_NUM=$(echo "${VERSION}" | sed -E 's/^(vx-)?v//')
-          DOWNLOAD_URL_VERSIONED="https://github.com/loonghao/vx/releases/download/${VERSION}/vx-${VERSION_NUM}-${ARCH}.tar.gz"
-          DOWNLOAD_URL_COMPAT="https://github.com/loonghao/vx/releases/download/${VERSION}/vx-${ARCH}.tar.gz"
+          DOWNLOAD_URL_VERSIONED="https://github.com/vx-org/vx/releases/download/${VERSION}/vx-${VERSION_NUM}-${ARCH}.tar.gz"
+          DOWNLOAD_URL_COMPAT="https://github.com/vx-org/vx/releases/download/${VERSION}/vx-${ARCH}.tar.gz"
 
           echo "Trying versioned URL: $DOWNLOAD_URL_VERSIONED"
           if curl -fsSL "$DOWNLOAD_URL_VERSIONED" -o vx.tar.gz 2>/dev/null; then
@@ -385,8 +385,8 @@ jobs:
           echo "docker pull longhal/vx:latest" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "# GitHub Container Registry" >> $GITHUB_STEP_SUMMARY
-          echo "docker pull ghcr.io/loonghao/vx:${VERSION_SHORT}" >> $GITHUB_STEP_SUMMARY
-          echo "docker pull ghcr.io/loonghao/vx:latest" >> $GITHUB_STEP_SUMMARY
+          echo "docker pull ghcr.io/vx-org/vx:${VERSION_SHORT}" >> $GITHUB_STEP_SUMMARY
+          echo "docker pull ghcr.io/vx-org/vx:latest" >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Tools Image (with pre-installed uv, ruff, node)" >> $GITHUB_STEP_SUMMARY
@@ -396,6 +396,6 @@ jobs:
           echo "docker pull longhal/vx:tools-latest" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "# GitHub Container Registry" >> $GITHUB_STEP_SUMMARY
-          echo "docker pull ghcr.io/loonghao/vx:tools-${VERSION_SHORT}" >> $GITHUB_STEP_SUMMARY
-          echo "docker pull ghcr.io/loonghao/vx:tools-latest" >> $GITHUB_STEP_SUMMARY
+          echo "docker pull ghcr.io/vx-org/vx:tools-${VERSION_SHORT}" >> $GITHUB_STEP_SUMMARY
+          echo "docker pull ghcr.io/vx-org/vx:tools-latest" >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY

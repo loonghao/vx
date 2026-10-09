@@ -6,7 +6,7 @@
 //! `rustup-init` rejects `component`/`target`/`toolchain` subcommands — on a cold
 //! store exactly as it does on a warm one.
 //!
-//! See <https://github.com/loonghao/vx/issues/1152>.
+//! See <https://github.com/vx-org/vx/issues/1152>.
 
 use std::path::{Path, PathBuf};
 use std::sync::Arc;

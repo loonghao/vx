@@ -7,7 +7,7 @@
 [![Crates.io](https://img.shields.io/crates/v/vx-cli.svg)](https://crates.io/crates/vx-cli)
 [![Documentation](https://docs.rs/vx-cli/badge.svg)](https://docs.rs/vx-cli)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Build Status](https://github.com/loonghao/vx/workflows/CI/badge.svg)](https://github.com/loonghao/vx/actions)
+[![Build Status](https://github.com/vx-org/vx/workflows/CI/badge.svg)](https://github.com/vx-org/vx/actions)
 
 *Lightning-fast CLI with beautiful progress bars and intelligent tool management*
 
@@ -52,7 +52,7 @@ cargo install vx-cli
 ### From Source
 
 ```bash
-git clone https://github.com/loonghao/vx
+git clone https://github.com/vx-org/vx
 cd vx
 cargo install --path crates/vx-cli
 ```

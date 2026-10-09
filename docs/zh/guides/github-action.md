@@ -11,12 +11,12 @@ vx 提供了官方的 GitHub Action，使您可以轻松地在 CI/CD 工作流�
 在您的 GitHub Actions 工作流程中添加以下内容：
 
 ```yaml
-- uses: loonghao/vx@main
+- uses: vx-org/vx@main
   with:
     github-token: ${{secrets.GITHUB_TOKEN}}
 ```
 
-> **注意**：您可以使用 `@main` 获取最新版本，或者固定到特定的发布标签（例如 `@vx-v0.6.4`）。查看 [releases](https://github.com/loonghao/vx/releases) 了解可用版本。
+> **注意**：您可以使用 `@main` 获取最新版本，或者固定到特定的发布标签（例如 `@vx-v0.6.4`）。查看 [releases](https://github.com/vx-org/vx/releases) 了解可用版本。
 
 然后使用 vx 运行任何支持的工具：
 
@@ -44,7 +44,7 @@ jobs:
       - uses: actions/checkout@v6
 
       # 设置 vx 并启用缓存
-      - uses: loonghao/vx@main
+      - uses: vx-org/vx@main
         with:
           github-token: ${{secrets.GITHUB_TOKEN}}
           tools: 'node uv'  # 预安装这些工具
@@ -111,7 +111,7 @@ jobs:
   lint:
     runs-on: ubuntu-latest
     container:
-      image: ghcr.io/loonghao/vx:tools-latest
+      image: ghcr.io/vx-org/vx:tools-latest
     steps:
       - uses: actions/checkout@v6
 
@@ -134,8 +134,8 @@ jobs:
 
 ```bash
 # 从 GitHub Container Registry（推荐）
-docker pull ghcr.io/loonghao/vx:latest
-docker pull ghcr.io/loonghao/vx:tools-latest
+docker pull ghcr.io/vx-org/vx:latest
+docker pull ghcr.io/vx-org/vx:tools-latest
 
 # 从 Docker Hub
 docker pull longhal/vx:latest
@@ -150,7 +150,7 @@ version: '3.8'
 
 services:
   dev:
-    image: ghcr.io/loonghao/vx:tools-latest
+    image: ghcr.io/vx-org/vx:tools-latest
     working_dir: /app
     volumes:
       - .:/app
@@ -162,7 +162,7 @@ services:
 您可以扩展 vx 镜像并添加自己的工具：
 
 ```dockerfile
-FROM ghcr.io/loonghao/vx:tools-latest
+FROM ghcr.io/vx-org/vx:tools-latest
 
 # 预安装其他工具
 RUN vx go version
@@ -228,7 +228,7 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - uses: loonghao/vx@main
+      - uses: vx-org/vx@main
         with:
           github-token: ${{secrets.GITHUB_TOKEN}}
           tools: 'node'
@@ -247,7 +247,7 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - uses: loonghao/vx@main
+      - uses: vx-org/vx@main
         with:
           github-token: ${{secrets.GITHUB_TOKEN}}
           tools: 'uv'
@@ -266,7 +266,7 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - uses: loonghao/vx@main
+      - uses: vx-org/vx@main
         with:
           github-token: ${{secrets.GITHUB_TOKEN}}
           tools: 'go'
@@ -284,7 +284,7 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - uses: loonghao/vx@main
+      - uses: vx-org/vx@main
         with:
           github-token: ${{secrets.GITHUB_TOKEN}}
           tools: 'node uv go'
@@ -313,7 +313,7 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - uses: loonghao/vx@main
+      - uses: vx-org/vx@main
         with:
           github-token: ${{secrets.GITHUB_TOKEN}}
 
@@ -328,7 +328,7 @@ jobs:
 该 action 会自动缓存 vx 工具目录（`~/.vx`）以加速后续运行。您可以自定义缓存行为：
 
 ```yaml
-- uses: loonghao/vx@main
+- uses: vx-org/vx@main
   with:
     cache: 'true'
     cache-key-prefix: 'my-project-vx'
@@ -337,7 +337,7 @@ jobs:
 禁用缓存：
 
 ```yaml
-- uses: loonghao/vx@main
+- uses: vx-org/vx@main
   with:
     cache: 'false'
 ```
@@ -349,7 +349,7 @@ jobs:
 如果遇到 GitHub API 速率限制，请确保提供 GitHub 令牌：
 
 ```yaml
-- uses: loonghao/vx@main
+- uses: vx-org/vx@main
   with:
     github-token: ${{secrets.GITHUB_TOKEN}}
 ```

@@ -475,7 +475,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
-      - uses: loonghao/vx@main
+      - uses: vx-org/vx@main
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
 

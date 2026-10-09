@@ -415,7 +415,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Setup vx
-        uses: loonghao/vx@main
+        uses: vx-org/vx@main
 
       - name: Install tools
         run: |

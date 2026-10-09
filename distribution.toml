@@ -14,8 +14,8 @@ auto_fallback = true
 [channels.github]
 name = "GitHub Releases"
 type = "github"
-base_url = "https://github.com/loonghao/vx/releases"
-api_url = "https://api.github.com/repos/loonghao/vx/releases"
+base_url = "https://github.com/vx-org/vx/releases"
+api_url = "https://api.github.com/repos/vx-org/vx/releases"
 # Supports authentication for higher rate limits
 supports_auth = true
 rate_limit = { unauthenticated = 60, authenticated = 5000 }
@@ -26,8 +26,8 @@ timeout = { connect = 10, total = 30 }
 [channels.jsdelivr]
 name = "jsDelivr CDN"
 type = "cdn"
-base_url = "https://cdn.jsdelivr.net/gh/loonghao/vx@{version}"
-api_url = "https://data.jsdelivr.com/v1/package/gh/loonghao/vx"
+base_url = "https://cdn.jsdelivr.net/gh/vx-org/vx@{version}"
+api_url = "https://data.jsdelivr.com/v1/package/gh/vx-org/vx"
 # No rate limits for public CDN
 rate_limit = { unlimited = true }
 # Automatically syncs from GitHub releases
@@ -38,7 +38,7 @@ timeout = { connect = 10, total = 30 }
 [channels.fastly]
 name = "Fastly CDN"
 type = "cdn"
-base_url = "https://fastly.jsdelivr.net/gh/loonghao/vx@{version}"
+base_url = "https://fastly.jsdelivr.net/gh/vx-org/vx@{version}"
 rate_limit = { unlimited = true }
 sync_source = "github"
 timeout = { connect = 10, total = 30 }
@@ -123,13 +123,13 @@ install_command = "sudo rpm -i vx-*.rpm"
 [package_managers.docker]
 enabled = true
 image_name = "loonghao/vx"
-ghcr_image = "ghcr.io/loonghao/vx"
+ghcr_image = "ghcr.io/vx-org/vx"
 install_command = "docker pull loonghao/vx:latest"
 
 [package_managers.nix]
 enabled = true
-flake_url = "github:loonghao/vx"
-install_command = "nix profile install github:loonghao/vx"
+flake_url = "github:vx-org/vx"
+install_command = "nix profile install github:vx-org/vx"
 
 # Mirror configuration for different regions
 [mirrors]
@@ -159,20 +159,20 @@ methods = ["curl", "wget", "powershell", "package_manager"]
 
 # Curl-based installation (Linux/macOS)
 [install_scripts.curl]
-url = "https://raw.githubusercontent.com/loonghao/vx/main/install.sh"
-mirror_url = "https://fastly.jsdelivr.net/gh/loonghao/vx@main/install.sh"
+url = "https://raw.githubusercontent.com/vx-org/vx/main/install.sh"
+mirror_url = "https://fastly.jsdelivr.net/gh/vx-org/vx@main/install.sh"
 description = "Universal installer for Linux and macOS"
 
 # PowerShell-based installation (Windows)
 [install_scripts.powershell]
-url = "https://raw.githubusercontent.com/loonghao/vx/main/install.ps1"
-mirror_url = "https://fastly.jsdelivr.net/gh/loonghao/vx@main/install.ps1"
+url = "https://raw.githubusercontent.com/vx-org/vx/main/install.ps1"
+mirror_url = "https://fastly.jsdelivr.net/gh/vx-org/vx@main/install.ps1"
 description = "Windows installer using PowerShell"
 
 # Smart installer with multi-channel support
 [install_scripts.smart]
-url = "https://raw.githubusercontent.com/loonghao/vx/main/install-smart.sh"
-mirror_url = "https://fastly.jsdelivr.net/gh/loonghao/vx@main/install-smart.sh"
+url = "https://raw.githubusercontent.com/vx-org/vx/main/install-smart.sh"
+mirror_url = "https://fastly.jsdelivr.net/gh/vx-org/vx@main/install-smart.sh"
 description = "Smart installer with automatic fallback"
 
 # Monitoring and analytics

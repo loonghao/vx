@@ -4,23 +4,23 @@
 
 vx eliminates the complexity of managing multiple language runtimes (Node.js, Python, Go, Rust, etc.) while maintaining zero learning curve. Built with Rust for performance, it supports direct execution, project environments via `vx.toml`, MCP integration, and AI-native development workflows. Providers are defined using Starlark DSL (`provider.star`) — a declarative, zero-compilation approach that covers 164 Providers.
 
-- **Install (Linux/macOS)**: `curl -fsSL https://raw.githubusercontent.com/loonghao/vx/main/install.sh | bash`
-- **Install (Windows)**: `powershell -c "irm https://raw.githubusercontent.com/loonghao/vx/main/install.ps1 | iex"`
+- **Install (Linux/macOS)**: `curl -fsSL https://raw.githubusercontent.com/vx-org/vx/main/install.sh | bash`
+- **Install (Windows)**: `powershell -c "irm https://raw.githubusercontent.com/vx-org/vx/main/install.ps1 | iex"`
 - **Platforms**: Windows, macOS, Linux (x86_64, aarch64)
 - **Language**: Rust 1.95.0+
 - **License**: MIT
-- **Repository**: https://github.com/loonghao/vx
-- **Releases**: https://github.com/loonghao/vx/releases
-- **AI Agent Entry Point**: [AGENTS.md](https://github.com/loonghao/vx/blob/main/AGENTS.md)
-- **Claude Code Instructions**: [CLAUDE.md](https://github.com/loonghao/vx/blob/main/CLAUDE.md)
-- **Copilot Instructions**: [.github/copilot-instructions.md](https://github.com/loonghao/vx/blob/main/.github/copilot-instructions.md)
+- **Repository**: https://github.com/vx-org/vx
+- **Releases**: https://github.com/vx-org/vx/releases
+- **AI Agent Entry Point**: [AGENTS.md](https://github.com/vx-org/vx/blob/main/AGENTS.md)
+- **Claude Code Instructions**: [CLAUDE.md](https://github.com/vx-org/vx/blob/main/CLAUDE.md)
+- **Copilot Instructions**: [.github/copilot-instructions.md](https://github.com/vx-org/vx/blob/main/.github/copilot-instructions.md)
 
-- **Windsurf Rules**: [.windsurfrules](https://github.com/loonghao/vx/blob/main/.windsurfrules)
-- **Kiro Steering**: [.kiro/steering/](https://github.com/loonghao/vx/blob/main/.kiro/steering/)
-- **Trae Rules**: [.trae/rules/](https://github.com/loonghao/vx/blob/main/.trae/rules/)
-- **Cursor Rules**: [.cursor/rules/](https://github.com/loonghao/vx/blob/main/.cursor/rules/) (4 .mdc files)
-- **Cline/Roo Rules**: [.clinerules](https://github.com/loonghao/vx/blob/main/.clinerules)
-- **Copilot File-scoped Instructions**: [.github/instructions/](https://github.com/loonghao/vx/blob/main/.github/instructions/) (3 .instructions.md files)
+- **Windsurf Rules**: [.windsurfrules](https://github.com/vx-org/vx/blob/main/.windsurfrules)
+- **Kiro Steering**: [.kiro/steering/](https://github.com/vx-org/vx/blob/main/.kiro/steering/)
+- **Trae Rules**: [.trae/rules/](https://github.com/vx-org/vx/blob/main/.trae/rules/)
+- **Cursor Rules**: [.cursor/rules/](https://github.com/vx-org/vx/blob/main/.cursor/rules/) (4 .mdc files)
+- **Cline/Roo Rules**: [.clinerules](https://github.com/vx-org/vx/blob/main/.clinerules)
+- **Copilot File-scoped Instructions**: [.github/instructions/](https://github.com/vx-org/vx/blob/main/.github/instructions/) (3 .instructions.md files)
 
 ## Quick Start (for AI Agents)
 
@@ -62,53 +62,53 @@ vx analyze --json          # Project analysis as JSON
 
 ## Documentation
 
-- [Getting Started](https://github.com/loonghao/vx/blob/main/docs/guide/getting-started.md): Quick start guide for new users
-- [Installation](https://github.com/loonghao/vx/blob/main/docs/guide/installation.md): All installation methods (script, package managers, Docker)
-- [Core Concepts](https://github.com/loonghao/vx/blob/main/docs/guide/concepts.md): Runtimes, Providers, Ecosystems explained
-- [Project Configuration (vx.toml)](https://github.com/loonghao/vx/blob/main/docs/config/vx-toml.md): Full vx.toml reference
-- [Direct Execution](https://github.com/loonghao/vx/blob/main/docs/guide/direct-execution.md): How `vx <tool>` works
-- [Enhanced Scripts](https://github.com/loonghao/vx/blob/main/docs/guide/enhanced-scripts.md): Advanced script system with `{{args}}`
-- [Version Management](https://github.com/loonghao/vx/blob/main/docs/guide/version-management.md): Pinning, ranges, and switching versions
-- [Shell Integration](https://github.com/loonghao/vx/blob/main/docs/guide/shell-integration.md): Auto-completion setup
-- [Environment Variables](https://github.com/loonghao/vx/blob/main/docs/config/env-vars.md): All supported environment variables
+- [Getting Started](https://github.com/vx-org/vx/blob/main/docs/guide/getting-started.md): Quick start guide for new users
+- [Installation](https://github.com/vx-org/vx/blob/main/docs/guide/installation.md): All installation methods (script, package managers, Docker)
+- [Core Concepts](https://github.com/vx-org/vx/blob/main/docs/guide/concepts.md): Runtimes, Providers, Ecosystems explained
+- [Project Configuration (vx.toml)](https://github.com/vx-org/vx/blob/main/docs/config/vx-toml.md): Full vx.toml reference
+- [Direct Execution](https://github.com/vx-org/vx/blob/main/docs/guide/direct-execution.md): How `vx <tool>` works
+- [Enhanced Scripts](https://github.com/vx-org/vx/blob/main/docs/guide/enhanced-scripts.md): Advanced script system with `{{args}}`
+- [Version Management](https://github.com/vx-org/vx/blob/main/docs/guide/version-management.md): Pinning, ranges, and switching versions
+- [Shell Integration](https://github.com/vx-org/vx/blob/main/docs/guide/shell-integration.md): Auto-completion setup
+- [Environment Variables](https://github.com/vx-org/vx/blob/main/docs/config/env-vars.md): All supported environment variables
 
 ## Provider System (Starlark DSL)
 
-- [Creating a Provider](https://github.com/loonghao/vx/blob/main/docs/guide/creating-provider.md): Step-by-step guide to adding a new tool
-- [provider.star Reference](https://github.com/loonghao/vx/blob/main/docs/guide/provider-star-reference.md): Complete Starlark DSL reference (execution model, context objects, stdlib modules, templates)
-- [Starlark Providers — Advanced Guide](https://github.com/loonghao/vx/blob/main/docs/guide/starlark-providers.md): Multi-runtime, hooks, system integration
+- [Creating a Provider](https://github.com/vx-org/vx/blob/main/docs/guide/creating-provider.md): Step-by-step guide to adding a new tool
+- [provider.star Reference](https://github.com/vx-org/vx/blob/main/docs/guide/provider-star-reference.md): Complete Starlark DSL reference (execution model, context objects, stdlib modules, templates)
+- [Starlark Providers — Advanced Guide](https://github.com/vx-org/vx/blob/main/docs/guide/starlark-providers.md): Multi-runtime, hooks, system integration
 
 ## CLI Reference
 
-- [CLI Overview](https://github.com/loonghao/vx/blob/main/docs/cli/overview.md): All commands at a glance
-- [Global Commands](https://github.com/loonghao/vx/blob/main/docs/cli/global.md): install, uninstall, list, versions, which, search
-- [Command Shims](https://github.com/loonghao/vx/blob/main/docs/cli/shim.md): `vx shim` — expose runtimes as plain commands, generated per platform
-- [Dev Environment](https://github.com/loonghao/vx/blob/main/docs/cli/dev.md): `vx dev` — enter project shell
-- [Setup Command](https://github.com/loonghao/vx/blob/main/docs/cli/setup.md): `vx setup` — install all project tools
-- [Run Command](https://github.com/loonghao/vx/blob/main/docs/cli/run.md): `vx run <script>` — run project scripts
-- [Implicit Package Execution](https://github.com/loonghao/vx/blob/main/docs/cli/implicit-package-execution.md): How `vx vite` maps to `vx npx vite`
-- [Metrics](https://github.com/loonghao/vx/blob/main/docs/cli/metrics.md): `vx metrics` — execution telemetry
+- [CLI Overview](https://github.com/vx-org/vx/blob/main/docs/cli/overview.md): All commands at a glance
+- [Global Commands](https://github.com/vx-org/vx/blob/main/docs/cli/global.md): install, uninstall, list, versions, which, search
+- [Command Shims](https://github.com/vx-org/vx/blob/main/docs/cli/shim.md): `vx shim` — expose runtimes as plain commands, generated per platform
+- [Dev Environment](https://github.com/vx-org/vx/blob/main/docs/cli/dev.md): `vx dev` — enter project shell
+- [Setup Command](https://github.com/vx-org/vx/blob/main/docs/cli/setup.md): `vx setup` — install all project tools
+- [Run Command](https://github.com/vx-org/vx/blob/main/docs/cli/run.md): `vx run <script>` — run project scripts
+- [Implicit Package Execution](https://github.com/vx-org/vx/blob/main/docs/cli/implicit-package-execution.md): How `vx vite` maps to `vx npx vite`
+- [Metrics](https://github.com/vx-org/vx/blob/main/docs/cli/metrics.md): `vx metrics` — execution telemetry
 
 ## Tools Reference
 
-- [Tools Overview](https://github.com/loonghao/vx/blob/main/docs/tools/overview.md): All 164 supported Providers
-- [Node.js Tools](https://github.com/loonghao/vx/blob/main/docs/tools/nodejs.md): node, npm, npx, bun, deno
-- [Python Tools](https://github.com/loonghao/vx/blob/main/docs/tools/python.md): uv, uvx, python, pip
-- [Rust Tools](https://github.com/loonghao/vx/blob/main/docs/tools/rust.md): cargo, rustc, rustup
-- [Go Tools](https://github.com/loonghao/vx/blob/main/docs/tools/go.md): go, gofmt
-- [Build Tools](https://github.com/loonghao/vx/blob/main/docs/tools/build-tools.md): just, task, cmake, ninja, vite, protoc, meson, xmake
-- [DevOps Tools](https://github.com/loonghao/vx/blob/main/docs/tools/devops.md): docker, terraform, kubectl, helm, podman
-- [AI Tools](https://github.com/loonghao/vx/blob/main/docs/tools/ai.md): AI/ML development tools (ollama, mcpcall, headroom)
+- [Tools Overview](https://github.com/vx-org/vx/blob/main/docs/tools/overview.md): All 164 supported Providers
+- [Node.js Tools](https://github.com/vx-org/vx/blob/main/docs/tools/nodejs.md): node, npm, npx, bun, deno
+- [Python Tools](https://github.com/vx-org/vx/blob/main/docs/tools/python.md): uv, uvx, python, pip
+- [Rust Tools](https://github.com/vx-org/vx/blob/main/docs/tools/rust.md): cargo, rustc, rustup
+- [Go Tools](https://github.com/vx-org/vx/blob/main/docs/tools/go.md): go, gofmt
+- [Build Tools](https://github.com/vx-org/vx/blob/main/docs/tools/build-tools.md): just, task, cmake, ninja, vite, protoc, meson, xmake
+- [DevOps Tools](https://github.com/vx-org/vx/blob/main/docs/tools/devops.md): docker, terraform, kubectl, helm, podman
+- [AI Tools](https://github.com/vx-org/vx/blob/main/docs/tools/ai.md): AI/ML development tools (ollama, mcpcall, headroom)
 
 ## Guides
 
-- [GitHub Actions](https://github.com/loonghao/vx/blob/main/docs/guides/github-action.md): Using vx in CI/CD pipelines
-- [MCP Integration](https://github.com/loonghao/vx/blob/main/docs/guide/concepts.md): Using vx with Model Context Protocol servers
-- [Creating a Provider](https://github.com/loonghao/vx/blob/main/docs/guide/creating-provider.md): Adding new tools via provider.star
-- [Best Practices](https://github.com/loonghao/vx/blob/main/docs/guide/best-practices.md): Recommended patterns for teams
-- [Migration Guide](https://github.com/loonghao/vx/blob/main/docs/guide/migration.md): Migrating from nvm, pyenv, asdf, etc.
-- [CDN Fallback](https://github.com/loonghao/vx/blob/main/docs/guide/cdn-fallback.md): Download acceleration for restricted networks
-- [Command Syntax Rules](https://github.com/loonghao/vx/blob/main/docs/guide/command-syntax-rules.md): Unified command syntax contract
+- [GitHub Actions](https://github.com/vx-org/vx/blob/main/docs/guides/github-action.md): Using vx in CI/CD pipelines
+- [MCP Integration](https://github.com/vx-org/vx/blob/main/docs/guide/concepts.md): Using vx with Model Context Protocol servers
+- [Creating a Provider](https://github.com/vx-org/vx/blob/main/docs/guide/creating-provider.md): Adding new tools via provider.star
+- [Best Practices](https://github.com/vx-org/vx/blob/main/docs/guide/best-practices.md): Recommended patterns for teams
+- [Migration Guide](https://github.com/vx-org/vx/blob/main/docs/guide/migration.md): Migrating from nvm, pyenv, asdf, etc.
+- [CDN Fallback](https://github.com/vx-org/vx/blob/main/docs/guide/cdn-fallback.md): Download acceleration for restricted networks
+- [Command Syntax Rules](https://github.com/vx-org/vx/blob/main/docs/guide/command-syntax-rules.md): Unified command syntax contract
 
 ## MCP Integration
 
@@ -129,33 +129,33 @@ This eliminates the need for users to pre-install Node.js, Python, or any runtim
 
 ## Advanced
 
-- [Architecture](https://github.com/loonghao/vx/blob/main/docs/architecture/OVERVIEW.md): Internal design — 5-layer architecture, crate dependency graph
-- [provider.star Reference](https://github.com/loonghao/vx/blob/main/docs/guide/provider-star-reference.md): Complete DSL reference
-- [Extension Development](https://github.com/loonghao/vx/blob/main/docs/advanced/extension-development.md): Building custom providers
-- [Pre-commit Hooks](https://github.com/loonghao/vx/blob/main/docs/advanced/pre-commit-hooks.md): cargo-hakari and justfile checks
-- [Security](https://github.com/loonghao/vx/blob/main/docs/advanced/security.md): Security model and best practices
-- [Contributing](https://github.com/loonghao/vx/blob/main/docs/advanced/contributing.md): Development setup and contribution guide
-- [Metrics Analysis](https://github.com/loonghao/vx/blob/main/docs/advanced/metrics-analysis.md): Telemetry implementation and usage
+- [Architecture](https://github.com/vx-org/vx/blob/main/docs/architecture/OVERVIEW.md): Internal design — 5-layer architecture, crate dependency graph
+- [provider.star Reference](https://github.com/vx-org/vx/blob/main/docs/guide/provider-star-reference.md): Complete DSL reference
+- [Extension Development](https://github.com/vx-org/vx/blob/main/docs/advanced/extension-development.md): Building custom providers
+- [Pre-commit Hooks](https://github.com/vx-org/vx/blob/main/docs/advanced/pre-commit-hooks.md): cargo-hakari and justfile checks
+- [Security](https://github.com/vx-org/vx/blob/main/docs/advanced/security.md): Security model and best practices
+- [Contributing](https://github.com/vx-org/vx/blob/main/docs/advanced/contributing.md): Development setup and contribution guide
+- [Metrics Analysis](https://github.com/vx-org/vx/blob/main/docs/advanced/metrics-analysis.md): Telemetry implementation and usage
 
 ## Optional
 
-- [FAQ](https://github.com/loonghao/vx/blob/main/docs/appendix/faq.md): Frequently asked questions
-- [Troubleshooting](https://github.com/loonghao/vx/blob/main/docs/appendix/troubleshooting.md): Common issues and solutions
-- [Windows Long Path](https://github.com/loonghao/vx/blob/main/docs/guide/windows-long-path.md): Fixing Windows path length issues
-- [Virtual Environment Isolation](https://github.com/loonghao/vx/blob/main/docs/guide/virtual-env-isolation.md): Per-project tool isolation
-- [Platform Redirection](https://github.com/loonghao/vx/blob/main/docs/guides/platform-redirection.md): Platform-specific tool routing
-- [Runtime Lifecycle](https://github.com/loonghao/vx/blob/main/docs/guides/runtime-lifecycle.md): Install, execute, uninstall lifecycle
-- [Headroom](https://github.com/loonghao/vx/blob/main/docs/guides/headroom.md): AI context compression for LLM agents
-- [Use Cases](https://github.com/loonghao/vx/blob/main/docs/guides/use-cases.md): Real-world usage scenarios
-- [Chinese Documentation](https://github.com/loonghao/vx/blob/main/README_zh.md): 中文文档
+- [FAQ](https://github.com/vx-org/vx/blob/main/docs/appendix/faq.md): Frequently asked questions
+- [Troubleshooting](https://github.com/vx-org/vx/blob/main/docs/appendix/troubleshooting.md): Common issues and solutions
+- [Windows Long Path](https://github.com/vx-org/vx/blob/main/docs/guide/windows-long-path.md): Fixing Windows path length issues
+- [Virtual Environment Isolation](https://github.com/vx-org/vx/blob/main/docs/guide/virtual-env-isolation.md): Per-project tool isolation
+- [Platform Redirection](https://github.com/vx-org/vx/blob/main/docs/guides/platform-redirection.md): Platform-specific tool routing
+- [Runtime Lifecycle](https://github.com/vx-org/vx/blob/main/docs/guides/runtime-lifecycle.md): Install, execute, uninstall lifecycle
+- [Headroom](https://github.com/vx-org/vx/blob/main/docs/guides/headroom.md): AI context compression for LLM agents
+- [Use Cases](https://github.com/vx-org/vx/blob/main/docs/guides/use-cases.md): Real-world usage scenarios
+- [Chinese Documentation](https://github.com/vx-org/vx/blob/main/README_zh.md): 中文文档
 
 ## AI Agent Skills
 
-- [Skills Overview](https://github.com/loonghao/vx/blob/main/skills/README.md): AI agent skills distribution and activation
-- [AGENTS.md](https://github.com/loonghao/vx/blob/main/AGENTS.md): Primary AI agent entry point with rules, architecture, and quick reference
-- [vx-usage Skill](https://github.com/loonghao/vx/blob/main/skills/vx-usage/SKILL.md): Core usage guide — commands, vx.toml, providers, MCP, GitHub Actions
-- [vx-commands Skill](https://github.com/loonghao/vx/blob/main/skills/vx-commands/SKILL.md): CLI command reference with --json, --toon, --compact, and --output-format output
-- [vx-project Skill](https://github.com/loonghao/vx/blob/main/skills/vx-project/SKILL.md): Project management — init, sync, setup, monorepo
-- [vx-best-practices Skill](https://github.com/loonghao/vx/blob/main/skills/vx-best-practices/SKILL.md): Best practices and provider development
-- [vx-troubleshooting Skill](https://github.com/loonghao/vx/blob/main/skills/vx-troubleshooting/SKILL.md): Troubleshooting and recovery procedures
-- [vx-repo-contract Skill](https://github.com/loonghao/vx/blob/main/skills/vx-repo-contract/SKILL.md): Repository layout contract — root allowlist, justfile naming, vx.toml scope, AGENTS.md single source of truth
+- [Skills Overview](https://github.com/vx-org/vx/blob/main/skills/README.md): AI agent skills distribution and activation
+- [AGENTS.md](https://github.com/vx-org/vx/blob/main/AGENTS.md): Primary AI agent entry point with rules, architecture, and quick reference
+- [vx-usage Skill](https://github.com/vx-org/vx/blob/main/skills/vx-usage/SKILL.md): Core usage guide — commands, vx.toml, providers, MCP, GitHub Actions
+- [vx-commands Skill](https://github.com/vx-org/vx/blob/main/skills/vx-commands/SKILL.md): CLI command reference with --json, --toon, --compact, and --output-format output
+- [vx-project Skill](https://github.com/vx-org/vx/blob/main/skills/vx-project/SKILL.md): Project management — init, sync, setup, monorepo
+- [vx-best-practices Skill](https://github.com/vx-org/vx/blob/main/skills/vx-best-practices/SKILL.md): Best practices and provider development
+- [vx-troubleshooting Skill](https://github.com/vx-org/vx/blob/main/skills/vx-troubleshooting/SKILL.md): Troubleshooting and recovery procedures
+- [vx-repo-contract Skill](https://github.com/vx-org/vx/blob/main/skills/vx-repo-contract/SKILL.md): Repository layout contract — root allowlist, justfile naming, vx.toml scope, AGENTS.md single source of truth

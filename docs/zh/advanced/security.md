@@ -168,7 +168,7 @@ DEBUG runtime="go" cache_hit=false "Resolution cache miss"
 
 ```yaml
 - name: Setup vx
-  uses: loonghao/vx@v1
+  uses: vx-org/vx@v1
 
 - name: 安装工具并验证
   run: |

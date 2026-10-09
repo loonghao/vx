@@ -3,18 +3,18 @@
   <metadata>
     <id>vx</id>
     <version>{{VERSION}}</version>
-    <packageSourceUrl>https://github.com/loonghao/vx</packageSourceUrl>
+    <packageSourceUrl>https://github.com/vx-org/vx</packageSourceUrl>
     <owners>loonghao</owners>
     <title>vx - Universal Version Management Tool</title>
     <authors>loonghao</authors>
-    <projectUrl>https://github.com/loonghao/vx</projectUrl>
-    <iconUrl>https://raw.githubusercontent.com/loonghao/vx/main/assets/logo.png</iconUrl>
+    <projectUrl>https://github.com/vx-org/vx</projectUrl>
+    <iconUrl>https://raw.githubusercontent.com/vx-org/vx/main/assets/logo.png</iconUrl>
     <copyright>2025 loonghao</copyright>
-    <licenseUrl>https://github.com/loonghao/vx/blob/main/LICENSE</licenseUrl>
+    <licenseUrl>https://github.com/vx-org/vx/blob/main/LICENSE</licenseUrl>
     <requireLicenseAcceptance>false</requireLicenseAcceptance>
-    <projectSourceUrl>https://github.com/loonghao/vx</projectSourceUrl>
-    <docsUrl>https://github.com/loonghao/vx/blob/main/README.md</docsUrl>
-    <bugTrackerUrl>https://github.com/loonghao/vx/issues</bugTrackerUrl>
+    <projectSourceUrl>https://github.com/vx-org/vx</projectSourceUrl>
+    <docsUrl>https://github.com/vx-org/vx/blob/main/README.md</docsUrl>
+    <bugTrackerUrl>https://github.com/vx-org/vx/issues</bugTrackerUrl>
     <tags>version-management rust cli tool development</tags>
     <summary>Universal version management tool for development environments</summary>
     <description><![CDATA[
@@ -45,7 +45,7 @@ Examples:
 - `vx npm install`
 - `vx node --version`
 
-For more information, visit: https://github.com/loonghao/vx
+For more information, visit: https://github.com/vx-org/vx
 ]]></description>
     <releaseNotes>{{RELEASE_NOTES}}</releaseNotes>
   </metadata>

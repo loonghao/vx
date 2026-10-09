@@ -125,7 +125,7 @@ After upgrading or moving vx, use `vx shim sync` only after checking ownership
 of every registered destination: it rewrites all entries, including existing
 files. `--force` is an explicit overwrite decision, never the default repair.
 For Codex targets, shell-specific resolution, conflicts, and safe removal, read
-the [managed command shim guide](https://github.com/loonghao/vx/blob/main/docs/guide/managed-command-shims.md).
+the [managed command shim guide](https://github.com/vx-org/vx/blob/main/docs/guide/managed-command-shims.md).
 There is no `vx shim rebuild` or `vx shim codex` form in this interface.
 
 ## Output Formats

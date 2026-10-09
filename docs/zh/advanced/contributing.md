@@ -12,7 +12,7 @@
 ### 克隆与构建
 
 ```bash
-git clone https://github.com/loonghao/vx.git
+git clone https://github.com/vx-org/vx.git
 cd vx
 cargo build
 ```
@@ -263,7 +263,7 @@ CI 流水线采用 **crate 级别的变更检测** 优化，以最小化构建�
 - `bincode v3` 具有完全不同的 API（该 crate 已被重构）
 - 在 `msvc-kit` 发布支持 `bincode v3` 的版本之前，我们无法升级
 
-**解决方案**：Renovate 已配置为跳过 `bincode` 的主版本更新。详情请参阅 [PR #378](https://github.com/loonghao/vx/pull/378)。
+**解决方案**：Renovate 已配置为跳过 `bincode` 的主版本更新。详情请参阅 [PR #378](https://github.com/vx-org/vx/pull/378)。
 
 **后续处理**：监控 `msvc-kit` 的新版本以获取 `bincode v3` 支持。一旦可用：
 1. 将 `msvc-kit` 更新到新版本
@@ -288,8 +288,8 @@ CI 流水线采用 **crate 级别的变更检测** 优化，以最小化构建�
 
 ## 社区
 
-- [GitHub Issues](https://github.com/loonghao/vx/issues)
-- [GitHub Discussions](https://github.com/loonghao/vx/discussions)
+- [GitHub Issues](https://github.com/vx-org/vx/issues)
+- [GitHub Discussions](https://github.com/vx-org/vx/discussions)
 
 ## 许可证
 

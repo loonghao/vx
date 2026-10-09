@@ -392,13 +392,13 @@ export default defineConfig({
               { text: '常见问题', link: '/zh/appendix/faq' },
               { text: '故障排除', link: '/zh/appendix/troubleshooting' },
               { text: '贡献指南', link: '/zh/advanced/contributing' },
-              { text: '更新日志', link: 'https://github.com/loonghao/vx/releases' }
+              { text: '更新日志', link: 'https://github.com/vx-org/vx/releases' }
             ]
           }
         ],
         sidebar: zhSidebar,
         editLink: {
-          pattern: 'https://github.com/loonghao/vx/edit/main/docs/:path',
+          pattern: 'https://github.com/vx-org/vx/edit/main/docs/:path',
           text: '在 GitHub 上编辑此页'
         },
         footer: {
@@ -439,7 +439,7 @@ export default defineConfig({
           { text: 'FAQ', link: '/appendix/faq' },
           { text: 'Troubleshooting', link: '/appendix/troubleshooting' },
           { text: 'Contributing', link: '/advanced/contributing' },
-          { text: 'Changelog', link: 'https://github.com/loonghao/vx/releases' }
+          { text: 'Changelog', link: 'https://github.com/vx-org/vx/releases' }
         ]
       }
     ],
@@ -447,7 +447,7 @@ export default defineConfig({
     sidebar: enSidebar,
 
     socialLinks: [
-      { icon: 'github', link: 'https://github.com/loonghao/vx' }
+      { icon: 'github', link: 'https://github.com/vx-org/vx' }
     ],
 
     footer: {
@@ -460,7 +460,7 @@ export default defineConfig({
     },
 
     editLink: {
-      pattern: 'https://github.com/loonghao/vx/edit/main/docs/:path',
+      pattern: 'https://github.com/vx-org/vx/edit/main/docs/:path',
       text: 'Edit this page on GitHub'
     }
   }

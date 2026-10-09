@@ -420,7 +420,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           gh workflow run package-managers.yml \
-            --repo loonghao/vx \
+            --repo vx-org/vx \
             -f version="${{ needs.plan.outputs.tag }}"
           echo "Dispatched package-managers.yml for ${{ needs.plan.outputs.tag }}"
       - name: Create legacy compatibility release
@@ -434,9 +434,9 @@ jobs:
           # To allow old binaries to self-update, we create a secondary
           # GitHub Release under the legacy tag with the same artifacts.
           # This ensures URLs like:
-          #   github.com/loonghao/vx/releases/download/vx-v0.7.7/vx-0.7.7-x86_64-...
+          #   github.com/vx-org/vx/releases/download/vx-v0.7.7/vx-0.7.7-x86_64-...
           # and CDN URLs like:
-          #   cdn.jsdelivr.net/gh/loonghao/vx@vx-v0.7.7/vx-0.7.7-x86_64-...
+          #   cdn.jsdelivr.net/gh/vx-org/vx@vx-v0.7.7/vx-0.7.7-x86_64-...
           # resolve correctly for old binaries.
           TAG="${{ needs.plan.outputs.tag }}"
           if [[ "$TAG" == v* && "$TAG" != vx-* ]]; then
@@ -446,7 +446,7 @@ jobs:
 
             # Create the legacy tag via GitHub API (persist-credentials is false,
             # so we use gh api instead of git push)
-            gh api repos/loonghao/vx/git/refs \
+            gh api repos/vx-org/vx/git/refs \
               -f ref="refs/tags/${LEGACY_TAG}" \
               -f sha="${RELEASE_COMMIT}" \
               2>/dev/null || echo "Tag ${LEGACY_TAG} already exists"
@@ -455,7 +455,7 @@ jobs:
             gh release create "$LEGACY_TAG" \
               --target "$RELEASE_COMMIT" \
               --title "vx ${VERSION} (compatibility)" \
-              --notes "This is a backward-compatibility release for older vx versions (v0.5.x, v0.6.x). See [${TAG}](https://github.com/loonghao/vx/releases/tag/${TAG}) for full release notes." \
+              --notes "This is a backward-compatibility release for older vx versions (v0.5.x, v0.6.x). See [${TAG}](https://github.com/vx-org/vx/releases/tag/${TAG}) for full release notes." \
               --latest=false \
               artifacts/* \
               2>/dev/null || echo "Legacy release ${LEGACY_TAG} already exists, skipping"
