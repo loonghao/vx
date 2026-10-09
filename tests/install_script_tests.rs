@@ -86,7 +86,7 @@ fn test_archive_name_generation(
 /// Verifies that GitHub release URLs are correctly formatted
 #[rstest]
 #[case::basic_release(
-    "loonghao",
+    "vx-org",
     "vx",
     "v0.6.0",
     "vx-0.6.0-x86_64-unknown-linux-gnu.tar.gz",
@@ -174,21 +174,21 @@ fn test_legacy_naming_deprecated(#[case] legacy_name: &str) {
 #[rstest]
 #[case::github_channel(
     "github",
-    "loonghao",
+    "vx-org",
     "vx",
     "0.6.0",
     "vx-0.6.0-x86_64-unknown-linux-gnu.tar.gz"
 )]
 #[case::jsdelivr_channel(
     "jsdelivr",
-    "loonghao",
+    "vx-org",
     "vx",
     "0.6.0",
     "vx-0.6.0-x86_64-unknown-linux-gnu.tar.gz"
 )]
 #[case::fastly_channel(
     "fastly",
-    "loonghao",
+    "vx-org",
     "vx",
     "0.6.0",
     "vx-0.6.0-x86_64-unknown-linux-gnu.tar.gz"
