@@ -50,10 +50,20 @@ fn project_with_pin(dir: &Path, rust_pin: &str, extra: &str) {
     let _ = std::fs::remove_file(dir.join("rust-toolchain"));
 }
 
-/// The version the toolchain under test actually reports.
-fn actual_rustc_version() -> Option<String> {
+/// The version the toolchain under test actually reports, resolved the way the
+/// code under test resolves it.
+///
+/// Both halves matter. `cargo test` runs under rustup's shim, so a plain `rustc`
+/// inherits the suite's cwd — which sits under a repository root carrying a
+/// `rust-toolchain.toml`, so rustup resolves *that* channel. The code under test
+/// resolves from `project_root` with `RUSTUP_TOOLCHAIN` removed instead. Ask the
+/// question differently and the oracle reports a version the subject never sees,
+/// which makes the assertions below fail deterministically.
+fn actual_rustc_version(dir: &Path) -> Option<String> {
     let output = std::process::Command::new("rustc")
         .arg("--version")
+        .current_dir(dir)
+        .env_remove("RUSTUP_TOOLCHAIN")
         .output()
         .ok()?;
     if !output.status.success() {
@@ -66,14 +76,14 @@ fn actual_rustc_version() -> Option<String> {
 /// The regression: a pin that does not match produces a visible stderr signal.
 #[test]
 fn test_mismatched_pin_warns() {
-    let Some(actual) = actual_rustc_version() else {
-        eprintln!("skipping: rustc not available");
-        return;
-    };
-
     let _guard = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     let dir = tempfile::tempdir().unwrap();
     project_with_pin(dir.path(), "1.0.0", "");
+
+    let Some(actual) = actual_rustc_version(dir.path()) else {
+        eprintln!("skipping: rustc not available");
+        return;
+    };
 
     let output = check_without_toolchain_env(dir.path(), &["check"]);
     let stderr = stderr_str(&output);
@@ -93,14 +103,14 @@ fn test_mismatched_pin_warns() {
 /// Default severity is warn, so a drifting repository is not broken by upgrading.
 #[test]
 fn test_mismatched_pin_exits_zero_by_default() {
-    if actual_rustc_version().is_none() {
-        eprintln!("skipping: rustc not available");
-        return;
-    }
-
     let _guard = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     let dir = tempfile::tempdir().unwrap();
     project_with_pin(dir.path(), "1.0.0", "");
+
+    if actual_rustc_version(dir.path()).is_none() {
+        eprintln!("skipping: rustc not available");
+        return;
+    }
 
     let output = check_without_toolchain_env(dir.path(), &["check"]);
 
@@ -115,11 +125,6 @@ fn test_mismatched_pin_exits_zero_by_default() {
 /// Opting in to `"error"` is what makes the pin enforced.
 #[test]
 fn test_mismatched_pin_exits_non_zero_when_configured_as_error() {
-    if actual_rustc_version().is_none() {
-        eprintln!("skipping: rustc not available");
-        return;
-    }
-
     let _guard = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     let dir = tempfile::tempdir().unwrap();
     project_with_pin(
@@ -127,6 +132,11 @@ fn test_mismatched_pin_exits_non_zero_when_configured_as_error() {
         "1.0.0",
         "\n[check]\ntoolchain_pin_mismatch = \"error\"\n",
     );
+
+    if actual_rustc_version(dir.path()).is_none() {
+        eprintln!("skipping: rustc not available");
+        return;
+    }
 
     let output = check_without_toolchain_env(dir.path(), &["check"]);
 
@@ -142,13 +152,14 @@ fn test_mismatched_pin_exits_non_zero_when_configured_as_error() {
 /// The zero-noise requirement: a correctly pinned repository sees no mismatch message.
 #[test]
 fn test_matching_pin_is_silent() {
-    let Some(actual) = actual_rustc_version() else {
+    let _guard = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    let dir = tempfile::tempdir().unwrap();
+
+    let Some(actual) = actual_rustc_version(dir.path()) else {
         eprintln!("skipping: rustc not available");
         return;
     };
 
-    let _guard = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
-    let dir = tempfile::tempdir().unwrap();
     project_with_pin(dir.path(), &actual, "");
 
     let output = check_without_toolchain_env(dir.path(), &["check"]);
@@ -177,17 +188,48 @@ fn test_rustup_managed_pin_is_never_a_mismatch() {
     );
 }
 
+/// `"ignore"` must actually silence the mismatch — the level is documented as such,
+/// and without this case the level can be silently unwired on the CLI side.
+#[test]
+fn test_mismatched_pin_is_silent_when_configured_as_ignore() {
+    let _guard = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    let dir = tempfile::tempdir().unwrap();
+    project_with_pin(
+        dir.path(),
+        "1.0.0",
+        "\n[check]\ntoolchain_pin_mismatch = \"ignore\"\n",
+    );
+
+    if actual_rustc_version(dir.path()).is_none() {
+        eprintln!("skipping: rustc not available");
+        return;
+    }
+
+    let output = check_without_toolchain_env(dir.path(), &["check"]);
+    let combined = format!("{}\n{}", stdout_str(&output), stderr_str(&output));
+
+    assert!(
+        !combined.contains("the vx.toml pin is ignored"),
+        "toolchain_pin_mismatch = \"ignore\" must suppress the mismatch. output:\n{combined}"
+    );
+    assert_eq!(
+        output.status.code(),
+        Some(0),
+        "ignore must not fail the command"
+    );
+}
+
 /// `vx check` must report the declared and actual values as two distinct fields.
 #[test]
 fn test_check_json_reports_declared_and_actual() {
-    let Some(actual) = actual_rustc_version() else {
-        eprintln!("skipping: rustc not available");
-        return;
-    };
-
     let _guard = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     let dir = tempfile::tempdir().unwrap();
     project_with_pin(dir.path(), "1.0.0", "");
+
+    let Some(actual) = actual_rustc_version(dir.path()) else {
+        eprintln!("skipping: rustc not available");
+        return;
+    };
 
     let output = check_without_toolchain_env(dir.path(), &["check", "--json"]);
     let stdout = stdout_str(&output);

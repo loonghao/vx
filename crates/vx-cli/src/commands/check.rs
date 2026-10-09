@@ -160,6 +160,22 @@ pub async fn handle(
 
         let rust_owner = rust_owner(name, config_version);
 
+        // The toolchain that will actually run, for the tools whose version is decided
+        // outside vx's store. Resolved once and reused: both the "installed" column and
+        // the pin comparison below need it, and each call spawns `rustc --version`.
+        //
+        // A numeric pin used to be validated only when something *named* a toolchain (a
+        // `rust-toolchain.toml`, an exported `RUSTUP_TOOLCHAIN`, ...). With none of those
+        // present — the case this bug is about — `owner.channel()` was `None`, every
+        // branch was skipped, and a `rust = "1.93.1"` pin was silently ignored while the
+        // build ran on stable. Falling back to the resolved toolchain gives the
+        // comparison a real value in every case.
+        let effective_version = match rust_owner.as_ref().and_then(|owner| owner.channel()) {
+            Some(channel) => Some(channel.to_string()),
+            None if is_rust_toolchain_runtime(name) => effective_toolchain_version(project_root),
+            None => None,
+        };
+
         // Determine status type
         let (status_type, installed_version) = match status {
             ToolStatus::Installed => {
@@ -199,7 +215,7 @@ pub async fn handle(
                         owner
                             .channel()
                             .map(str::to_string)
-                            .or_else(|| effective_toolchain_version(project_root)),
+                            .or_else(|| effective_version.clone()),
                     )
                 } else {
                     tool_warnings.push("Using system fallback version".to_string());
@@ -216,18 +232,6 @@ pub async fn handle(
                 tool_ok = false;
                 (RequirementStatusType::NotInstalled, None)
             }
-        };
-
-        // A numeric pin that disagrees with the toolchain that will actually run used to
-        // be checked only when something *named* a toolchain (a `rust-toolchain.toml`, an
-        // exported `RUSTUP_TOOLCHAIN`, ...). With none of those present — the case this
-        // bug is about — `owner.channel()` was `None`, every branch was skipped, and a
-        // `rust = "1.93.1"` pin was silently ignored while the build ran on stable.
-        // Resolve the real toolchain first so the comparison always has an actual value.
-        let effective_version = match rust_owner.as_ref().and_then(|owner| owner.channel()) {
-            Some(channel) => Some(channel.to_string()),
-            None if is_rust_toolchain_runtime(name) => effective_toolchain_version(project_root),
-            None => None,
         };
 
         if let Some(actual) = &effective_version
@@ -247,11 +251,12 @@ pub async fn handle(
             // Warn by default. Failing here would turn every already-drifting repository
             // red on upgrade, which is a breaking change to a published CLI contract;
             // repositories that want the pin enforced opt in with
-            // `[check] toolchain_pin_mismatch = "error"`.
+            // `[check] toolchain_pin_mismatch = "error"`, or silence it entirely with
+            // "ignore" when the drift is known and accepted.
             if pin_mismatch_severity.is_error() {
                 tool_errors.push(message);
                 tool_ok = false;
-            } else {
+            } else if !pin_mismatch_severity.is_ignored() {
                 tool_warnings.push(message);
             }
         }
