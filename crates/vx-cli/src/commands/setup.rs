@@ -28,7 +28,7 @@ use std::env;
 use std::fs;
 use std::path::{Path, PathBuf};
 use vx_config::config_manager::TomlWriter;
-use vx_config::{HookExecutor, ScriptConfig, VxConfig, parse_config};
+use vx_config::{CheckConfig, HookExecutor, ScriptConfig, VxConfig, parse_config};
 use vx_paths::{find_config_file, find_vx_config as find_vx_config_path};
 use vx_runtime::ProviderRegistry;
 use vx_setup::ci::{CiProvider, PathExporter};
@@ -53,6 +53,8 @@ pub struct ConfigView {
     pub passenv: Vec<String>,
     /// Environment variables to explicitly set (setenv)
     pub setenv: HashMap<String, String>,
+    /// `vx check` behaviour, kept typed because it carries a non-string enum
+    pub check: Option<CheckConfig>,
 }
 
 impl ConfigView {
@@ -121,6 +123,7 @@ impl From<VxConfig> for ConfigView {
             isolation: config.is_isolation_mode(),
             passenv: config.get_passenv(),
             setenv: config.get_setenv(),
+            check: config.check.clone(),
         }
     }
 }

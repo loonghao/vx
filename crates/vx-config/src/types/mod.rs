@@ -7,6 +7,7 @@
 //!
 //! Types are organized by feature area:
 //! - `config`: Root `VxConfig` struct
+//! - `check`: `vx check` behaviour
 //! - `project`: Project metadata
 //! - `tool`: Tool version and configuration
 //! - `python`: Python environment configuration
@@ -27,6 +28,7 @@
 //! - `versioning`: Versioning strategy
 
 mod ai;
+mod check;
 mod config;
 mod container;
 mod dependencies;
@@ -49,6 +51,7 @@ mod versioning;
 
 // Re-export all types
 pub use ai::*;
+pub use check::*;
 pub use config::*;
 pub use container::*;
 pub use dependencies::*;

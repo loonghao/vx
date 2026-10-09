@@ -81,8 +81,9 @@ pub use runtime_spec::{Ecosystem, RuntimeDependency, RuntimeSpec};
 pub use rust_toolchain::{
     RUST_TOOLCHAIN_LEGACY, RUST_TOOLCHAIN_TOML, RUSTUP_MANAGED, RUSTUP_TOOLCHAIN_ENV,
     RustToolchainOwner, RustToolchainSource, detect_toolchain_file_in_dir,
-    detect_toolchain_override, detect_toolchain_owner, executable_for, find_rustup_executable,
-    find_toolchain_file, is_rust_toolchain_runtime, versions_conflict,
+    detect_toolchain_override, detect_toolchain_owner, detect_toolchain_owner_with_env,
+    effective_toolchain_version, executable_for, find_rustup_executable, find_toolchain_file,
+    is_rust_toolchain_runtime, parse_rustc_version, versions_conflict,
 };
 
 // Re-export version types for convenience
