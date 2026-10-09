@@ -320,6 +320,12 @@ impl<'a> ResolveStage<'a> {
     /// Written with `eprintln!` rather than `tracing::warn!` on purpose: the default
     /// CLI filter (`"warn,error"`) resolves to error-only, so a `tracing::warn!` here
     /// would be invisible in exactly the situation it exists to flag.
+    ///
+    /// `[check] toolchain_pin_mismatch` applies here too, not just to the `vx check`
+    /// subcommand: `"ignore"` silences this warning on the `vx run` / `vx cargo` path
+    /// as well. Only the `"error"` level stays `vx check`-only — failing a build here
+    /// would make an already-drifting repository unbuildable, so this path warns
+    /// regardless of the configured severity.
     fn warn_on_rust_pin_mismatch(
         &self,
         runtime: &str,
@@ -327,6 +333,15 @@ impl<'a> ResolveStage<'a> {
         owner: &RustToolchainOwner,
         working_dir: &Path,
     ) {
+        // Checked before the `rustc --version` spawn below, so `ignore` skips the
+        // subprocess entirely rather than resolving a version only to discard it.
+        if self
+            .project_config
+            .is_some_and(|config| config.pin_mismatch_severity().is_ignored())
+        {
+            return;
+        }
+
         let Some(pinned) = pinned else {
             return;
         };

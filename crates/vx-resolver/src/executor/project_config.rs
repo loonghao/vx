@@ -16,7 +16,7 @@
 
 use std::collections::HashMap;
 use tracing::debug;
-use vx_config::parse_config;
+use vx_config::{CheckConfig, ToolchainPinMismatch, parse_config};
 use vx_paths::find_config_file_upward;
 
 use crate::version::LockFile;
@@ -34,6 +34,9 @@ pub struct ProjectToolsConfig {
     /// Per-tool install options extracted from detailed ToolConfig
     /// (e.g., msvc -> {"VX_MSVC_COMPONENTS": "spectre", "VX_MSVC_EXCLUDE_PATTERNS": "..."})
     tool_install_options: HashMap<String, InstallEnvVars>,
+    /// The `[check]` section, which governs how loudly a pin mismatch is reported on
+    /// every path that can report one — not just `vx check`.
+    check: Option<CheckConfig>,
 }
 
 impl ProjectToolsConfig {
@@ -43,6 +46,7 @@ impl ProjectToolsConfig {
             tools,
             locked_tools: HashMap::new(),
             tool_install_options: HashMap::new(),
+            check: None,
         }
     }
 
@@ -55,6 +59,7 @@ impl ProjectToolsConfig {
             tools,
             locked_tools,
             tool_install_options: HashMap::new(),
+            check: None,
         }
     }
 
@@ -67,6 +72,20 @@ impl ProjectToolsConfig {
             tools,
             locked_tools: HashMap::new(),
             tool_install_options,
+            check: None,
+        }
+    }
+
+    /// Create a ProjectToolsConfig with a `[check]` section (for testing)
+    pub fn from_tools_with_check(
+        tools: HashMap<String, String>,
+        check: Option<CheckConfig>,
+    ) -> Self {
+        Self {
+            tools,
+            locked_tools: HashMap::new(),
+            tool_install_options: HashMap::new(),
+            check,
         }
     }
 
@@ -104,6 +123,7 @@ impl ProjectToolsConfig {
                 tools,
                 locked_tools,
                 tool_install_options,
+                check: config.check.clone(),
             })
         }
     }
@@ -258,6 +278,18 @@ impl ProjectToolsConfig {
             })
             .map(|(name, version)| (name.as_str(), version.as_str()))
             .collect()
+    }
+
+    /// How loudly a toolchain pin mismatch should be reported.
+    ///
+    /// Read on the resolve path as well as by `vx check`, so `[check]
+    /// toolchain_pin_mismatch = "ignore"` silences every path that can emit the
+    /// warning rather than only the `vx check` subcommand.
+    pub fn pin_mismatch_severity(&self) -> ToolchainPinMismatch {
+        self.check
+            .as_ref()
+            .map(CheckConfig::pin_mismatch_severity)
+            .unwrap_or_default()
     }
 
     /// Get install options for a specific tool.

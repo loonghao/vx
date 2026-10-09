@@ -9,7 +9,11 @@
 //! * declared != actual → a visible signal on stderr, and `vx check` exits 0 by
 //!   default (warn is the non-breaking default);
 //! * with `[check] toolchain_pin_mismatch = "error"` → `vx check` exits non-zero;
-//! * declared == actual → no mismatch message at all.
+//! * declared == actual → no mismatch message at all;
+//! * `[check] toolchain_pin_mismatch` also governs the **run** path (`vx cargo …`),
+//!   which warns from the resolver rather than from `vx check`. `"ignore"` must
+//!   silence it there too, while `"error"` must still only fail `vx check` — failing
+//!   a build would leave an already-drifting repository unbuildable.
 
 #![allow(clippy::unwrap_used)]
 
@@ -38,6 +42,20 @@ fn check_without_toolchain_env(dir: &Path, args: &[&str]) -> Output {
         .stdin(std::process::Stdio::null());
 
     cmd.output().expect("vx check should run")
+}
+
+/// Run any `vx` subcommand in `dir` with `RUSTUP_TOOLCHAIN` removed.
+///
+/// Used for the run path (`vx cargo …`), which reports the same mismatch as `vx
+/// check` but from a different crate.
+fn run_without_toolchain_env(dir: &Path, args: &[&str]) -> Output {
+    let mut cmd = Command::new(common::vx_binary());
+    cmd.args(args)
+        .current_dir(dir)
+        .env_remove("RUSTUP_TOOLCHAIN")
+        .stdin(std::process::Stdio::null());
+
+    cmd.output().expect("vx should run")
 }
 
 /// Write a `vx.toml` declaring the given rust pin, with no `rust-toolchain` file.
@@ -254,5 +272,166 @@ fn test_check_json_reports_declared_and_actual() {
         rust["installed"].as_str().unwrap_or_default(),
         actual,
         "installed must report the actual toolchain version"
+    );
+}
+
+// =============================================================================
+// Run path: the same severity must govern `vx cargo …`
+// =============================================================================
+//
+// The mismatch is reported from the resolver on this path, not from `vx check`, and
+// the two used to disagree: `ignore` silenced `vx check` and nothing else. Every
+// assertion below is paired with its opposite so neither can pass because the
+// warning simply never fired.
+
+/// The positive control: with no `[check]` section the run path must warn.
+///
+/// Without this, the `ignore` case below would also pass if the warning were broken
+/// outright, so the pair is what actually pins the behaviour.
+#[test]
+fn test_run_path_warns_by_default() {
+    let _guard = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    let dir = tempfile::tempdir().unwrap();
+    project_with_pin(dir.path(), "1.0.0", "");
+
+    if actual_rustc_version(dir.path()).is_none() {
+        eprintln!("skipping: rustc not available");
+        return;
+    }
+
+    let output = run_without_toolchain_env(dir.path(), &["cargo", "--version"]);
+    let combined = format!("{}\n{}", stdout_str(&output), stderr_str(&output));
+
+    assert!(
+        combined.contains("the vx.toml pin is ignored"),
+        "the run path must warn about a drifting pin. output:\n{combined}"
+    );
+}
+
+/// The regression: `ignore` must silence the run path, not just `vx check`.
+#[test]
+fn test_run_path_is_silent_when_configured_as_ignore() {
+    let _guard = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    let dir = tempfile::tempdir().unwrap();
+    project_with_pin(
+        dir.path(),
+        "1.0.0",
+        "\n[check]\ntoolchain_pin_mismatch = \"ignore\"\n",
+    );
+
+    if actual_rustc_version(dir.path()).is_none() {
+        eprintln!("skipping: rustc not available");
+        return;
+    }
+
+    let output = run_without_toolchain_env(dir.path(), &["cargo", "--version"]);
+    let combined = format!("{}\n{}", stdout_str(&output), stderr_str(&output));
+
+    assert!(
+        !combined.contains("the vx.toml pin is ignored"),
+        "ignore must silence the run path too. output:\n{combined}"
+    );
+}
+
+/// An explicit `warn` behaves like the default.
+#[test]
+fn test_run_path_warns_when_configured_as_warn() {
+    let _guard = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    let dir = tempfile::tempdir().unwrap();
+    project_with_pin(
+        dir.path(),
+        "1.0.0",
+        "\n[check]\ntoolchain_pin_mismatch = \"warn\"\n",
+    );
+
+    if actual_rustc_version(dir.path()).is_none() {
+        eprintln!("skipping: rustc not available");
+        return;
+    }
+
+    let output = run_without_toolchain_env(dir.path(), &["cargo", "--version"]);
+    let combined = format!("{}\n{}", stdout_str(&output), stderr_str(&output));
+
+    assert!(
+        combined.contains("the vx.toml pin is ignored"),
+        "warn must still report the mismatch on the run path. output:\n{combined}"
+    );
+}
+
+/// `error` escalates only `vx check`'s exit code. Failing here would make an
+/// already-drifting repository unbuildable, so the run path keeps warning.
+#[test]
+fn test_run_path_still_warns_when_configured_as_error() {
+    let _guard = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    let dir = tempfile::tempdir().unwrap();
+    project_with_pin(
+        dir.path(),
+        "1.0.0",
+        "\n[check]\ntoolchain_pin_mismatch = \"error\"\n",
+    );
+
+    if actual_rustc_version(dir.path()).is_none() {
+        eprintln!("skipping: rustc not available");
+        return;
+    }
+
+    let output = run_without_toolchain_env(dir.path(), &["cargo", "--version"]);
+    let combined = format!("{}\n{}", stdout_str(&output), stderr_str(&output));
+
+    assert!(
+        combined.contains("the vx.toml pin is ignored"),
+        "error must not suppress the run-path warning. output:\n{combined}"
+    );
+    assert_eq!(
+        output.status.code(),
+        Some(0),
+        "error must not fail the build on the run path. output:\n{combined}"
+    );
+}
+
+/// `ignore` must not change what the command actually does — only its noise.
+#[test]
+fn test_run_path_ignore_does_not_change_command_output() {
+    let _guard = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    let dir = tempfile::tempdir().unwrap();
+    project_with_pin(
+        dir.path(),
+        "1.0.0",
+        "\n[check]\ntoolchain_pin_mismatch = \"ignore\"\n",
+    );
+
+    if actual_rustc_version(dir.path()).is_none() {
+        eprintln!("skipping: rustc not available");
+        return;
+    }
+
+    let output = run_without_toolchain_env(dir.path(), &["cargo", "--version"]);
+
+    assert!(
+        stdout_str(&output).contains("cargo"),
+        "the delegated command must still run. stderr:\n{}",
+        stderr_str(&output)
+    );
+}
+
+/// The zero-noise requirement on the run path: a matching pin stays silent.
+#[test]
+fn test_run_path_matching_pin_is_silent() {
+    let _guard = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    let dir = tempfile::tempdir().unwrap();
+
+    let Some(actual) = actual_rustc_version(dir.path()) else {
+        eprintln!("skipping: rustc not available");
+        return;
+    };
+
+    project_with_pin(dir.path(), &actual, "");
+
+    let output = run_without_toolchain_env(dir.path(), &["cargo", "--version"]);
+    let combined = format!("{}\n{}", stdout_str(&output), stderr_str(&output));
+
+    assert!(
+        !combined.contains("the vx.toml pin is ignored"),
+        "a pin equal to the actual version must not warn. output:\n{combined}"
     );
 }
