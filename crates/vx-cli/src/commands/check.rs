@@ -41,7 +41,8 @@ use std::env;
 use vx_paths::project::LOCK_FILE_NAME;
 use vx_resolver::{
     ConflictDetector, LockFile, RUSTUP_MANAGED, Version, VersionRangeConfig, VersionRangeResolver,
-    VersionRequest, executable_for, find_rustup_executable, versions_conflict,
+    VersionRequest, effective_toolchain_version, executable_for, find_rustup_executable,
+    is_rust_toolchain_runtime, versions_conflict,
 };
 use vx_runtime::ProviderRegistry;
 
@@ -146,6 +147,12 @@ pub async fn handle(
     let rust_owner =
         |name: &str, config_version: &str| rust_toolchain_owner(name, config_version, project_root);
 
+    let pin_mismatch_severity = config
+        .check
+        .as_ref()
+        .map(|check| check.pin_mismatch_severity())
+        .unwrap_or_default();
+
     for (name, config_version, status, path, detected_version) in &statuses {
         let mut tool_ok = true;
         let mut tool_warnings = Vec::new();
@@ -184,9 +191,15 @@ pub async fn handle(
                             owner.reason()
                         ));
                     }
+                    // Report the version that will actually run, not just the channel an
+                    // override names: `rust = "rustup-managed"` carries no channel, and
+                    // an empty "installed" column is what made a drifting pin invisible.
                     (
                         RequirementStatusType::SystemFallback,
-                        owner.channel().map(str::to_string),
+                        owner
+                            .channel()
+                            .map(str::to_string)
+                            .or_else(|| effective_toolchain_version(project_root)),
                     )
                 } else {
                     tool_warnings.push("Using system fallback version".to_string());
@@ -205,23 +218,42 @@ pub async fn handle(
             }
         };
 
-        // A numeric pin that disagrees with the toolchain that will actually run is an
-        // error, not a warning: silently ignoring such a pin is exactly what let the
-        // original bug ship unnoticed.
-        if let Some(owner) = &rust_owner
-            && let Some(channel) = owner.channel()
-            && versions_conflict(config_version, channel)
+        // A numeric pin that disagrees with the toolchain that will actually run used to
+        // be checked only when something *named* a toolchain (a `rust-toolchain.toml`, an
+        // exported `RUSTUP_TOOLCHAIN`, ...). With none of those present — the case this
+        // bug is about — `owner.channel()` was `None`, every branch was skipped, and a
+        // `rust = "1.93.1"` pin was silently ignored while the build ran on stable.
+        // Resolve the real toolchain first so the comparison always has an actual value.
+        let effective_version = match rust_owner.as_ref().and_then(|owner| owner.channel()) {
+            Some(channel) => Some(channel.to_string()),
+            None if is_rust_toolchain_runtime(name) => effective_toolchain_version(project_root),
+            None => None,
+        };
+
+        if let Some(actual) = &effective_version
+            && versions_conflict(config_version, actual)
         {
-            tool_errors.push(format!(
-                "{} is pinned to {} in vx.toml but {} selects {} — the vx.toml pin is ignored. \
+            let reason = rust_owner
+                .as_ref()
+                .map(|owner| owner.reason())
+                .unwrap_or_else(|| "the toolchain resolved on this machine".to_string());
+
+            let message = format!(
+                "{} is pinned to {} in vx.toml but {} runs {} — the vx.toml pin is ignored. \
                  Remove it, or set rust = \"{}\" to record that rustup owns the toolchain.",
-                name,
-                config_version,
-                owner.reason(),
-                channel,
-                RUSTUP_MANAGED,
-            ));
-            tool_ok = false;
+                name, config_version, reason, actual, RUSTUP_MANAGED,
+            );
+
+            // Warn by default. Failing here would turn every already-drifting repository
+            // red on upgrade, which is a breaking change to a published CLI contract;
+            // repositories that want the pin enforced opt in with
+            // `[check] toolchain_pin_mismatch = "error"`.
+            if pin_mismatch_severity.is_error() {
+                tool_errors.push(message);
+                tool_ok = false;
+            } else {
+                tool_warnings.push(message);
+            }
         }
 
         // Check lock file consistency

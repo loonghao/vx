@@ -12,7 +12,7 @@
 //! The ResolveStage is intentionally a thin wrapper that delegates to the existing
 //! `Resolver`. This ensures backward compatibility while enabling testability.
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use async_trait::async_trait;
 use tracing::{debug, trace};
@@ -20,8 +20,8 @@ use vx_runtime::{ProviderRegistry, RuntimeContext, get_default_constraints};
 
 use crate::executor::project_config::ProjectToolsConfig;
 use crate::rust_toolchain::{
-    RUSTUP_MANAGED, RustToolchainOwner, detect_toolchain_owner, find_rustup_executable,
-    is_rust_toolchain_runtime, versions_conflict,
+    RUSTUP_MANAGED, RustToolchainOwner, detect_toolchain_owner, effective_toolchain_version,
+    find_rustup_executable, is_rust_toolchain_runtime, versions_conflict,
 };
 use crate::{ResolutionCache, ResolutionCacheKey, ResolutionResult, Resolver, ResolverConfig};
 
@@ -228,13 +228,21 @@ impl<'a> ResolveStage<'a> {
             _ => detect_toolchain_owner(&working_dir),
         };
 
+        // Warn before the ownership check below. When vx owns the toolchain there is no
+        // override to compare against, which is precisely the no-toolchain-file case
+        // where a numeric pin used to be ignored with no signal at all.
+        self.warn_on_rust_pin_mismatch(
+            &request.runtime_name,
+            pinned.as_deref(),
+            &owner,
+            &working_dir,
+        );
+
         if !owner.is_rustup_managed() {
             return None;
         }
 
         let executable = find_rustup_executable(&request.runtime_name)?;
-
-        self.warn_on_rust_pin_mismatch(&request.runtime_name, pinned.as_deref(), &owner);
 
         debug!(
             "[ResolveStage] {} is rustup-managed ({}); delegating to {}",
@@ -317,20 +325,39 @@ impl<'a> ResolveStage<'a> {
         runtime: &str,
         pinned: Option<&str>,
         owner: &RustToolchainOwner,
+        working_dir: &Path,
     ) {
-        let (Some(pinned), Some(channel)) = (pinned, owner.channel()) else {
+        let Some(pinned) = pinned else {
             return;
         };
 
-        if !versions_conflict(pinned, channel) {
+        // `owner.channel()` only names a toolchain when an override exists. A repository
+        // with a numeric pin and no `rust-toolchain` file hits `None`, and returning
+        // there is what left that pin entirely unvalidated. Falling back to the toolchain
+        // that will actually run gives the comparison a real value in every case; with no
+        // toolchain resolvable at all there is nothing to compare, so stay quiet.
+        let effective = match owner.channel() {
+            Some(channel) => channel.to_string(),
+            None => match effective_toolchain_version(working_dir) {
+                Some(version) => version,
+                None => return,
+            },
+        };
+
+        if !versions_conflict(pinned, &effective) {
             return;
         }
 
+        let reason = if owner.channel().is_some() {
+            owner.reason()
+        } else {
+            "the toolchain resolved on this machine".to_string()
+        };
+
         eprintln!(
-            "warning: {runtime} is pinned to {pinned} in vx.toml, but {} selects {channel} — \
-             running the rustup toolchain. Remove the vx.toml pin or set \
+            "warning: {runtime} is pinned to {pinned} in vx.toml, but {reason} runs {effective} — \
+             the vx.toml pin is ignored. Remove the pin or set \
              rust = \"{RUSTUP_MANAGED}\" to silence this warning.",
-            owner.reason(),
         );
     }
 

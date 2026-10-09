@@ -239,6 +239,44 @@ pub fn versions_conflict(pinned: &str, effective: &str) -> bool {
     }
 }
 
+/// The toolchain a Rust runtime will actually run under in `working_dir`.
+///
+/// This is the missing half of ownership detection. [`RustToolchainOwner::channel`] only
+/// answers when an override *names* a toolchain: a `rust-toolchain.toml`, an exported
+/// `RUSTUP_TOOLCHAIN`, or the `rustup-managed` opt-out all leave it `None`, and so did
+/// the plain "vx owns it" case. A repository with a numeric `vx.toml` pin and **no**
+/// toolchain file therefore produced no channel to compare against, and the pin was
+/// silently ignored — which is exactly the bug this module was created to stop.
+///
+/// Falling back to `rustc --version` closes that gap: the reported version is whatever
+/// rustup (or the system installation) will actually run, so a declared pin finally has
+/// something to be checked against.
+///
+/// Returns `None` when no toolchain can be determined at all, in which case the caller
+/// should stay quiet rather than invent a mismatch.
+pub fn effective_toolchain_version(working_dir: &Path) -> Option<String> {
+    let output = std::process::Command::new("rustc")
+        .arg("--version")
+        .current_dir(working_dir)
+        .output()
+        .ok()?;
+
+    if !output.status.success() {
+        return None;
+    }
+
+    parse_rustc_version(&String::from_utf8_lossy(&output.stdout))
+}
+
+/// Extract the version from `rustc --version` output.
+///
+/// rustc prints `rustc 1.98.0 (abc 2026-01-01)`; the second whitespace-separated token
+/// is the version. Trimmed variants (`1.98.0-beta.1`) are kept verbatim — the numeric
+/// comparison in [`versions_conflict`] handles the normalisation.
+pub fn parse_rustc_version(stdout: &str) -> Option<String> {
+    stdout.split_whitespace().nth(1).map(str::to_string)
+}
+
 /// Reduce a version string to `major.minor.patch`, or `None` if it is not numeric.
 fn normalize_version(value: &str) -> Option<String> {
     let value = value.trim();
@@ -306,6 +344,7 @@ fn parse_legacy_toolchain_file(path: &Path) -> Option<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use rstest::rstest;
 
     fn env_with(pairs: &[(&str, &str)]) -> HashMap<String, String> {
         pairs
@@ -510,6 +549,52 @@ mod tests {
         assert!(!versions_conflict("latest", "1.99.0"));
         assert!(!versions_conflict(RUSTUP_MANAGED, "1.99.0"));
         assert!(!versions_conflict("1.99.0", "*"));
+    }
+
+    #[rstest]
+    #[case("rustc 1.98.0 (abc123 2026-01-01)\n", Some("1.98.0"))]
+    #[case("rustc 1.93.1\n", Some("1.93.1"))]
+    #[case("rustc 1.98.0-beta.1 (x 2026-01-01)\n", Some("1.98.0-beta.1"))]
+    #[case("", None)]
+    #[case("rustc\n", None)]
+    fn test_parse_rustc_version(#[case] stdout: &str, #[case] expected: Option<&str>) {
+        assert_eq!(parse_rustc_version(stdout).as_deref(), expected);
+    }
+
+    /// The reported toolchain must be numeric — a channel name would make the declared
+    /// pin look like it always conflicts.
+    #[test]
+    fn test_effective_toolchain_version_is_numeric() {
+        let Some(version) = effective_toolchain_version(std::env::current_dir().unwrap().as_path())
+        else {
+            // No rustc on PATH in this environment; nothing to assert.
+            return;
+        };
+
+        assert!(
+            version.starts_with(|c: char| c.is_ascii_digit()),
+            "expected a numeric version, got {version:?}"
+        );
+    }
+
+    /// The regression this module exists for: with no toolchain file anywhere, the
+    /// declared pin must still have an actual version to be compared against.
+    #[test]
+    fn test_effective_toolchain_version_without_override() {
+        let dir = tempfile::tempdir().unwrap();
+
+        assert_eq!(
+            detect_toolchain_owner_with_env(dir.path(), &HashMap::new()),
+            RustToolchainOwner::Vx
+        );
+
+        // The owner carries no channel, so the only way a pin can be validated is the
+        // effective-version fallback below it.
+        assert_eq!(RustToolchainOwner::Vx.channel(), None);
+
+        if let Some(version) = effective_toolchain_version(dir.path()) {
+            assert!(!version.is_empty());
+        }
     }
 
     #[test]

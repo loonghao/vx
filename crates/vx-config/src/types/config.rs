@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, HashMap};
 
 use super::{
-    AiConfig, ContainerConfig, DependenciesConfig, DocsConfig, EnvConfig, HooksConfig,
+    AiConfig, CheckConfig, ContainerConfig, DependenciesConfig, DocsConfig, EnvConfig, HooksConfig,
     ProjectConfig, PythonConfig, RemoteConfig, ScriptConfig, SecurityConfig, ServiceConfig,
     SettingsConfig, SetupConfig, TeamConfig, TelemetryConfig, TestConfig, ToolConfig, ToolVersion,
     VersioningConfig,
@@ -111,6 +111,10 @@ pub struct VxConfig {
     /// Versioning strategy
     #[serde(skip_serializing_if = "Option::is_none")]
     pub versioning: Option<VersioningConfig>,
+
+    /// `vx check` behaviour
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub check: Option<CheckConfig>,
 }
 
 // ============================================
