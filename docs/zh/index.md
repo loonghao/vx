@@ -14,7 +14,7 @@ hero:
       link: /zh/guide/getting-started
     - theme: alt
       text: 在 GitHub 上查看
-      link: https://github.com/loonghao/vx
+      link: https://github.com/vx-org/vx
 
 features:
   - icon: "🚀"
@@ -68,11 +68,11 @@ vx go run main.go               # 如果需要，自动安装 Go
 ::: code-group
 
 ```bash [Linux/macOS]
-curl -fsSL https://raw.githubusercontent.com/loonghao/vx/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/vx-org/vx/main/install.sh | bash
 ```
 
 ```powershell [Windows]
-irm https://raw.githubusercontent.com/loonghao/vx/main/install.ps1 | iex
+irm https://raw.githubusercontent.com/vx-org/vx/main/install.ps1 | iex
 ```
 
 :::

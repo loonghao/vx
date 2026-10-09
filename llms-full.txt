@@ -4,15 +4,15 @@
 
 vx eliminates the complexity of managing multiple language runtimes (Node.js, Python, Go, Rust, etc.) while maintaining zero learning curve. Built with Rust for performance, it supports direct execution, project environments via `vx.toml`, MCP integration, and AI-native development workflows. Providers are defined using Starlark DSL (`provider.star`) — a declarative, zero-compilation extension system.
 
-- **Install (Linux/macOS)**: `curl -fsSL https://raw.githubusercontent.com/loonghao/vx/main/install.sh | bash`
-- **Install (Windows)**: `powershell -c "irm https://raw.githubusercontent.com/loonghao/vx/main/install.ps1 | iex"`
+- **Install (Linux/macOS)**: `curl -fsSL https://raw.githubusercontent.com/vx-org/vx/main/install.sh | bash`
+- **Install (Windows)**: `powershell -c "irm https://raw.githubusercontent.com/vx-org/vx/main/install.ps1 | iex"`
 - **Platforms**: Windows, macOS, Linux (x86_64, aarch64)
 - **Language**: Rust 1.95.0+, **License**: MIT
-- **Repository**: https://github.com/loonghao/vx
+- **Repository**: https://github.com/vx-org/vx
 - **GitHub Action**: `loonghao/vx@main`
-- **AI Agent Entry Point**: [AGENTS.md](https://github.com/loonghao/vx/blob/main/AGENTS.md)
-- **Claude Code Instructions**: [CLAUDE.md](https://github.com/loonghao/vx/blob/main/CLAUDE.md)
-- **Full doc index**: [llms.txt](https://github.com/loonghao/vx/blob/main/llms.txt)
+- **AI Agent Entry Point**: [AGENTS.md](https://github.com/vx-org/vx/blob/main/AGENTS.md)
+- **Claude Code Instructions**: [CLAUDE.md](https://github.com/vx-org/vx/blob/main/CLAUDE.md)
+- **Full doc index**: [llms.txt](https://github.com/vx-org/vx/blob/main/llms.txt)
 
 **vx = prefix any dev tool command with `vx` → it auto-installs the tool and runs it.**
 
@@ -44,9 +44,9 @@ vx eliminates the complexity of managing multiple language runtimes (Node.js, Py
 
 ```bash
 # Install (Linux/macOS)
-curl -fsSL https://raw.githubusercontent.com/loonghao/vx/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/vx-org/vx/main/install.sh | bash
 # Install (Windows)
-powershell -c "irm https://raw.githubusercontent.com/loonghao/vx/main/install.ps1 | iex"
+powershell -c "irm https://raw.githubusercontent.com/vx-org/vx/main/install.ps1 | iex"
 # Other: winget install loonghao.vx  |  brew tap loonghao/vx && brew install vx
 
 # Direct execution — runtimes auto-install on first use
@@ -170,7 +170,7 @@ Replace `npx`/`uvx` with `vx` in any MCP server configuration:
 ## GitHub Actions
 
 ```yaml
-- uses: loonghao/vx@main
+- uses: vx-org/vx@main
   with:
     github-token: ${{ secrets.GITHUB_TOKEN }}
 - run: vx node --version
@@ -349,15 +349,15 @@ migrate = "uvx alembic upgrade head"
 
 ## Key RFCs (Design Documents)
 
-- [RFC 0001: vx.toml v2](https://github.com/loonghao/vx/blob/main/docs/rfcs/0001-vx-toml-v2-enhancement.md): Project configuration design
-- [RFC 0003: Dynamic Scripts](https://github.com/loonghao/vx/blob/main/docs/rfcs/0003-dynamic-scripts.md): `{{args}}` passthrough design
-- [RFC 0027: Implicit Package Execution](https://github.com/loonghao/vx/blob/main/docs/rfcs/0027-implicit-package-execution.md): `vx vite` → `vx npx vite`
-- [RFC 0035: AI Integration](https://github.com/loonghao/vx/blob/main/docs/rfcs/0035-ai-integration-optimization.md): AI-native workflow optimization
-- [RFC 0036: Starlark Provider Support](https://github.com/loonghao/vx/blob/main/docs/rfcs/0036-starlark-provider-support.md): Starlark DSL design
-- [RFC 0037: Provider.star Unified Facade](https://github.com/loonghao/vx/blob/main/docs/rfcs/0037-provider-star-unified-facade.md): Unified stdlib API
-- [RFC 0038: provider.star replaces TOML](https://github.com/loonghao/vx/blob/main/docs/rfcs/0038-provider-star-replaces-toml.md): Single source of truth
-- [RFC 0039: Star-only Providers](https://github.com/loonghao/vx/blob/main/docs/rfcs/0039-star-only-providers-and-dynamic-registry.md): Dynamic provider registry
-- [RFC 0040: Toolchain Version Indirection](https://github.com/loonghao/vx/blob/main/docs/rfcs/0040-toolchain-version-indirection.md): Version management design
+- [RFC 0001: vx.toml v2](https://github.com/vx-org/vx/blob/main/docs/rfcs/0001-vx-toml-v2-enhancement.md): Project configuration design
+- [RFC 0003: Dynamic Scripts](https://github.com/vx-org/vx/blob/main/docs/rfcs/0003-dynamic-scripts.md): `{{args}}` passthrough design
+- [RFC 0027: Implicit Package Execution](https://github.com/vx-org/vx/blob/main/docs/rfcs/0027-implicit-package-execution.md): `vx vite` → `vx npx vite`
+- [RFC 0035: AI Integration](https://github.com/vx-org/vx/blob/main/docs/rfcs/0035-ai-integration-optimization.md): AI-native workflow optimization
+- [RFC 0036: Starlark Provider Support](https://github.com/vx-org/vx/blob/main/docs/rfcs/0036-starlark-provider-support.md): Starlark DSL design
+- [RFC 0037: Provider.star Unified Facade](https://github.com/vx-org/vx/blob/main/docs/rfcs/0037-provider-star-unified-facade.md): Unified stdlib API
+- [RFC 0038: provider.star replaces TOML](https://github.com/vx-org/vx/blob/main/docs/rfcs/0038-provider-star-replaces-toml.md): Single source of truth
+- [RFC 0039: Star-only Providers](https://github.com/vx-org/vx/blob/main/docs/rfcs/0039-star-only-providers-and-dynamic-registry.md): Dynamic provider registry
+- [RFC 0040: Toolchain Version Indirection](https://github.com/vx-org/vx/blob/main/docs/rfcs/0040-toolchain-version-indirection.md): Version management design
 
 ## Supported Tools (164 Providers)
 
@@ -610,13 +610,13 @@ vx currently ships **164 Providers** across multiple ecosystems. All tools are a
 
 ## Documentation Index
 
-See [llms.txt](https://github.com/loonghao/vx/blob/main/llms.txt) for the full documentation index. Key references:
+See [llms.txt](https://github.com/vx-org/vx/blob/main/llms.txt) for the full documentation index. Key references:
 
-- [provider.star Reference](https://github.com/loonghao/vx/blob/main/docs/guide/provider-star-reference.md): Complete Starlark DSL reference
-- [Creating a Provider](https://github.com/loonghao/vx/blob/main/docs/guide/creating-provider.md): Step-by-step guide
-- [Architecture Overview](https://github.com/loonghao/vx/blob/main/docs/architecture/OVERVIEW.md): Internal design, crate dependency graph
-- [vx.toml Reference](https://github.com/loonghao/vx/blob/main/docs/config/vx-toml.md): Full project config reference
-- [Troubleshooting](https://github.com/loonghao/vx/blob/main/docs/appendix/troubleshooting.md): Common issues and solutions
-- [GitHub Actions Guide](https://github.com/loonghao/vx/blob/main/docs/guides/github-action.md): CI/CD integration
-- [AGENTS.md](https://github.com/loonghao/vx/blob/main/AGENTS.md): Primary AI agent entry point with rules and decision trees
-- [Metrics Analysis](https://github.com/loonghao/vx/blob/main/docs/advanced/metrics-analysis.md): Telemetry implementation and detailed metrics command analysis
+- [provider.star Reference](https://github.com/vx-org/vx/blob/main/docs/guide/provider-star-reference.md): Complete Starlark DSL reference
+- [Creating a Provider](https://github.com/vx-org/vx/blob/main/docs/guide/creating-provider.md): Step-by-step guide
+- [Architecture Overview](https://github.com/vx-org/vx/blob/main/docs/architecture/OVERVIEW.md): Internal design, crate dependency graph
+- [vx.toml Reference](https://github.com/vx-org/vx/blob/main/docs/config/vx-toml.md): Full project config reference
+- [Troubleshooting](https://github.com/vx-org/vx/blob/main/docs/appendix/troubleshooting.md): Common issues and solutions
+- [GitHub Actions Guide](https://github.com/vx-org/vx/blob/main/docs/guides/github-action.md): CI/CD integration
+- [AGENTS.md](https://github.com/vx-org/vx/blob/main/AGENTS.md): Primary AI agent entry point with rules and decision trees
+- [Metrics Analysis](https://github.com/vx-org/vx/blob/main/docs/advanced/metrics-analysis.md): Telemetry implementation and detailed metrics command analysis

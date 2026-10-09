@@ -246,7 +246,7 @@ jobs:
       - uses: actions/checkout@v6
       
       - name: Setup vx
-        uses: loonghao/vx@main
+        uses: vx-org/vx@main
         
       - name: Install tools
         run: vx install msvc cmake ninja
@@ -263,7 +263,7 @@ jobs:
 build:
   image: ubuntu:latest
   script:
-    - curl -fsSL https://raw.githubusercontent.com/loonghao/vx/main/install.sh | sh
+    - curl -fsSL https://raw.githubusercontent.com/vx-org/vx/main/install.sh | sh
     - vx install node uv
     - vx pnpm install
     - vx pnpm run build

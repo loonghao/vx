@@ -64,7 +64,7 @@ lint-update = "pre-commit autoupdate"
 ```yaml
 # GitHub Actions 示例
 - name: 设置 vx
-  uses: loonghao/vx@v0.5
+  uses: vx-org/vx@v0.5
 
 - name: 安装 pre-commit
   run: vx install pre-commit latest

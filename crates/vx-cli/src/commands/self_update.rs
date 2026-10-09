@@ -287,8 +287,8 @@ async fn legacy_update(
                         (e.g., v0.6.x → v0.7.x).\n\
                         Please re-install manually using the install script:\n\
                         \n\
-                        • Windows:  powershell -c \"irm https://raw.githubusercontent.com/loonghao/vx/main/install.ps1 | iex\"\n\
-                        • Linux/macOS: curl -fsSL https://raw.githubusercontent.com/loonghao/vx/main/install.sh | bash",
+                        • Windows:  powershell -c \"irm https://raw.githubusercontent.com/vx-org/vx/main/install.ps1 | iex\"\n\
+                        • Linux/macOS: curl -fsSL https://raw.githubusercontent.com/vx-org/vx/main/install.sh | bash",
                         binary_err,
                         script_err
                     ));
@@ -337,7 +337,7 @@ async fn try_installer_script_fallback(
     let mut script_content = None;
     for tag in &tag_candidates {
         let url = format!(
-            "https://github.com/loonghao/vx/releases/download/{}/{}",
+            "https://github.com/vx-org/vx/releases/download/{}/{}",
             tag, script_name
         );
         UI::detail(&format!("Trying: {}", url));
@@ -456,7 +456,7 @@ fn create_authenticated_client(token: Option<&str>) -> Result<reqwest::Client> {
     // Always set User-Agent
     headers.insert(
         USER_AGENT,
-        HeaderValue::from_static("vx-cli/0.3.0 (https://github.com/loonghao/vx)"),
+        HeaderValue::from_static("vx-cli/0.3.0 (https://github.com/vx-org/vx)"),
     );
 
     // Add authentication if token is provided
@@ -551,7 +551,7 @@ async fn try_github_api_specific(client: &reqwest::Client, version: &str) -> Res
 
     for tag in &tag_formats {
         let url = format!(
-            "https://api.github.com/repos/loonghao/vx/releases/tags/{}",
+            "https://api.github.com/repos/vx-org/vx/releases/tags/{}",
             tag
         );
 
@@ -571,7 +571,7 @@ async fn try_jsdelivr_api_specific(
     version: &str,
 ) -> Result<GitHubRelease> {
     // Verify the version exists by checking the CDN API
-    let url = "https://data.jsdelivr.com/v1/package/gh/loonghao/vx";
+    let url = "https://data.jsdelivr.com/v1/package/gh/vx-org/vx";
     let response = client.get(url).send().await?;
 
     if !response.status().is_success() {
@@ -682,9 +682,9 @@ async fn get_latest_release(
 /// Try to get release info from GitHub API
 async fn try_github_api(client: &reqwest::Client, prerelease: bool) -> Result<GitHubRelease> {
     let url = if prerelease {
-        "https://api.github.com/repos/loonghao/vx/releases"
+        "https://api.github.com/repos/vx-org/vx/releases"
     } else {
-        "https://api.github.com/repos/loonghao/vx/releases/latest"
+        "https://api.github.com/repos/vx-org/vx/releases/latest"
     };
 
     let response = client.get(url).send().await?;
@@ -888,7 +888,7 @@ async fn download_and_install(
                     UI::detail("  - Close ALL terminals and run update in a fresh terminal");
                     UI::detail("  - Manual update:");
                     UI::detail(&format!(
-                        "    1. Download: https://github.com/loonghao/vx/releases/download/{}/{}",
+                        "    1. Download: https://github.com/vx-org/vx/releases/download/{}/{}",
                         get_tag_for_version(version),
                         asset.name
                     ));
@@ -1071,7 +1071,7 @@ fn extract_from_tar_gz(content: &[u8], output_path: &PathBuf) -> Result<()> {
 /// multi-channel fallback (CDN → Fastly → GitHub Releases, multiple tag
 /// formats and naming conventions), so a missing CDN asset is not fatal.
 async fn try_jsdelivr_api(client: &reqwest::Client, prerelease: bool) -> Result<GitHubRelease> {
-    let url = "https://data.jsdelivr.com/v1/package/gh/loonghao/vx";
+    let url = "https://data.jsdelivr.com/v1/package/gh/vx-org/vx";
 
     let response = client.get(url).send().await?;
 
@@ -1165,7 +1165,7 @@ fn get_tag_candidates(version: &str) -> Vec<String> {
 /// Supports both legacy naming (vx-arch-platform.ext) and versioned naming (vx-version-arch-platform.ext)
 fn create_cdn_assets(version: &str) -> Vec<GitHubAsset> {
     let tag = get_tag_for_version(version);
-    let base_url = format!("https://cdn.jsdelivr.net/gh/loonghao/vx@{}", tag);
+    let base_url = format!("https://cdn.jsdelivr.net/gh/vx-org/vx@{}", tag);
     let use_versioned = uses_versioned_artifact_naming(version);
 
     // Platform configurations: (base_name, extension, os, arch)
@@ -1248,7 +1248,7 @@ async fn download_with_fallback(
                     channels.push((
                         "jsDelivr CDN (alt)",
                         format!(
-                            "https://cdn.jsdelivr.net/gh/loonghao/vx@{}/{}",
+                            "https://cdn.jsdelivr.net/gh/vx-org/vx@{}/{}",
                             tag, asset_name
                         ),
                     ));
@@ -1256,14 +1256,14 @@ async fn download_with_fallback(
                 channels.push((
                     "Fastly CDN",
                     format!(
-                        "https://fastly.jsdelivr.net/gh/loonghao/vx@{}/{}",
+                        "https://fastly.jsdelivr.net/gh/vx-org/vx@{}/{}",
                         tag, asset_name
                     ),
                 ));
                 channels.push((
                     "GitHub Releases",
                     format!(
-                        "https://github.com/loonghao/vx/releases/download/{}/{}",
+                        "https://github.com/vx-org/vx/releases/download/{}/{}",
                         tag, asset_name
                     ),
                 ));
@@ -1275,7 +1275,7 @@ async fn download_with_fallback(
                     channels.push((
                         "GitHub Releases (alt)",
                         format!(
-                            "https://github.com/loonghao/vx/releases/download/{}/{}",
+                            "https://github.com/vx-org/vx/releases/download/{}/{}",
                             tag, asset_name
                         ),
                     ));
@@ -1283,14 +1283,14 @@ async fn download_with_fallback(
                 channels.push((
                     "jsDelivr CDN",
                     format!(
-                        "https://cdn.jsdelivr.net/gh/loonghao/vx@{}/{}",
+                        "https://cdn.jsdelivr.net/gh/vx-org/vx@{}/{}",
                         tag, asset_name
                     ),
                 ));
                 channels.push((
                     "Fastly CDN",
                     format!(
-                        "https://fastly.jsdelivr.net/gh/loonghao/vx@{}/{}",
+                        "https://fastly.jsdelivr.net/gh/vx-org/vx@{}/{}",
                         tag, asset_name
                     ),
                 ));
@@ -1415,20 +1415,20 @@ async fn verify_checksum(
         for tag in &tag_candidates {
             if version_source == VersionSource::Cdn {
                 checksum_urls.push(format!(
-                    "https://cdn.jsdelivr.net/gh/loonghao/vx@{}/{}",
+                    "https://cdn.jsdelivr.net/gh/vx-org/vx@{}/{}",
                     tag, checksum_filename
                 ));
                 checksum_urls.push(format!(
-                    "https://github.com/loonghao/vx/releases/download/{}/{}",
+                    "https://github.com/vx-org/vx/releases/download/{}/{}",
                     tag, checksum_filename
                 ));
             } else {
                 checksum_urls.push(format!(
-                    "https://github.com/loonghao/vx/releases/download/{}/{}",
+                    "https://github.com/vx-org/vx/releases/download/{}/{}",
                     tag, checksum_filename
                 ));
                 checksum_urls.push(format!(
-                    "https://cdn.jsdelivr.net/gh/loonghao/vx@{}/{}",
+                    "https://cdn.jsdelivr.net/gh/vx-org/vx@{}/{}",
                     tag, checksum_filename
                 ));
             }

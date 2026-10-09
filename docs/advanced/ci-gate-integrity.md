@@ -57,9 +57,9 @@ File contents are unaffected: only commit messages are scanned.
 
 | Layer | Workflow | What it does |
 | --- | --- | --- |
-| Block | [CI Skip Marker Guard](https://github.com/loonghao/vx/actions/workflows/pr-ci-marker-guard.yml) | Fails the pull request when the title or any branch commit carries a marker. It runs on `pull_request_target`, which GitHub evaluates on the default branch, so it becomes active once this change reaches `main` |
+| Block | [CI Skip Marker Guard](https://github.com/vx-org/vx/actions/workflows/pr-ci-marker-guard.yml) | Fails the pull request when the title or any branch commit carries a marker. It runs on `pull_request_target`, which GitHub evaluates on the default branch, so it becomes active once this change reaches `main` |
 | Prevent | `ci.yml` | No longer writes the marker in the commit CI itself pushes to pull request branches |
-| Detect | [CI Gate Sentinel](https://github.com/loonghao/vx/actions/workflows/ci-gate-sentinel.yml) | Hourly scan of `main` for commits with no push-event run |
+| Detect | [CI Gate Sentinel](https://github.com/vx-org/vx/actions/workflows/ci-gate-sentinel.yml) | Hourly scan of `main` for commits with no push-event run |
 
 The first two layers stop the marker before a merge. The third catches what they
 cannot see: pull requests opened before the guard existed, direct pushes to
@@ -132,7 +132,7 @@ After the merge, confirm the gate actually ran. Zero push runs means it did
 not:
 
 ```bash
-gh api "repos/loonghao/vx/actions/runs?head_sha=<sha>&event=push" --jq .total_count
+gh api "repos/vx-org/vx/actions/runs?head_sha=<sha>&event=push" --jq .total_count
 ```
 
 If the count is `0`, re-trigger the checks for that commit — an empty commit on

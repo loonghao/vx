@@ -430,7 +430,7 @@ impl ConfigMigrator {
             output.push_str("# VX Project Configuration (v2)\n");
             output.push_str("# This file defines the tools and environment for this project.\n");
             output.push_str("# Run 'vx setup' to install all required tools.\n");
-            output.push_str("# Documentation: https://github.com/loonghao/vx/docs/config\n");
+            output.push_str("# Documentation: https://github.com/vx-org/vx/docs/config\n");
             output.push('\n');
         }
 

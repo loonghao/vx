@@ -2,9 +2,9 @@
 # This installer automatically detects the best distribution channel based on
 # geographic location, network conditions, and availability
 #
-# Usage: powershell -c "irm https://raw.githubusercontent.com/loonghao/vx/main/install-smart.ps1 | iex"
-# Usage with version: $env:VX_VERSION="0.1.0"; powershell -c "irm https://raw.githubusercontent.com/loonghao/vx/main/install-smart.ps1 | iex"
-# Usage with token: $env:GITHUB_TOKEN="token"; powershell -c "irm https://raw.githubusercontent.com/loonghao/vx/main/install-smart.ps1 | iex"
+# Usage: powershell -c "irm https://raw.githubusercontent.com/vx-org/vx/main/install-smart.ps1 | iex"
+# Usage with version: $env:VX_VERSION="0.1.0"; powershell -c "irm https://raw.githubusercontent.com/vx-org/vx/main/install-smart.ps1 | iex"
+# Usage with token: $env:GITHUB_TOKEN="token"; powershell -c "irm https://raw.githubusercontent.com/vx-org/vx/main/install-smart.ps1 | iex"
 
 param(
     [string]$Version = $env:VX_VERSION,
@@ -15,7 +15,7 @@ param(
 )
 
 # Configuration
-$RepoOwner = "loonghao"
+$RepoOwner = "vx-org"
 $RepoName = "vx"
 $DefaultInstallDir = "$env:USERPROFILE\.local\bin"
 

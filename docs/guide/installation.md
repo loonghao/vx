@@ -7,11 +7,11 @@ vx can be installed on Windows, macOS, and Linux using various methods.
 ::: code-group
 
 ```bash [Linux/macOS]
-curl -fsSL https://raw.githubusercontent.com/loonghao/vx/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/vx-org/vx/main/install.sh | bash
 ```
 
 ```powershell [Windows]
-irm https://raw.githubusercontent.com/loonghao/vx/main/install.ps1 | iex
+irm https://raw.githubusercontent.com/vx-org/vx/main/install.ps1 | iex
 ```
 
 :::
@@ -23,19 +23,19 @@ If you encounter a rate limit error during installation, you have several option
 **Option 1: Use a GitHub token**
 ```bash
 # Linux/macOS
-GITHUB_TOKEN='your_token' curl -fsSL https://raw.githubusercontent.com/loonghao/vx/main/install.sh | bash
+GITHUB_TOKEN='your_token' curl -fsSL https://raw.githubusercontent.com/vx-org/vx/main/install.sh | bash
 
 # Windows
-$env:GITHUB_TOKEN='your_token'; irm https://raw.githubusercontent.com/loonghao/vx/main/install.ps1 | iex
+$env:GITHUB_TOKEN='your_token'; irm https://raw.githubusercontent.com/vx-org/vx/main/install.ps1 | iex
 ```
 
 **Option 2: Specify version explicitly**
 ```bash
 # Linux/macOS
-VX_VERSION='0.6.7' curl -fsSL https://raw.githubusercontent.com/loonghao/vx/main/install.sh | bash
+VX_VERSION='0.6.7' curl -fsSL https://raw.githubusercontent.com/vx-org/vx/main/install.sh | bash
 
 # Windows
-$env:VX_VERSION='0.6.7'; irm https://raw.githubusercontent.com/loonghao/vx/main/install.ps1 | iex
+$env:VX_VERSION='0.6.7'; irm https://raw.githubusercontent.com/vx-org/vx/main/install.ps1 | iex
 ```
 
 **Option 3: Use package managers** (see below)
@@ -80,7 +80,7 @@ cargo install vx
 
 ### Download Binary
 
-1. Go to the [Releases page](https://github.com/loonghao/vx/releases)
+1. Go to the [Releases page](https://github.com/vx-org/vx/releases)
 2. Download the appropriate binary for your platform:
 
    - `vx-x86_64-unknown-linux-gnu.tar.gz` - Linux x64
@@ -191,11 +191,11 @@ The self-update command features:
 ::: code-group
 
 ```bash [Linux/macOS]
-curl -fsSL https://raw.githubusercontent.com/loonghao/vx/main/install.sh | bash -s -- --uninstall
+curl -fsSL https://raw.githubusercontent.com/vx-org/vx/main/install.sh | bash -s -- --uninstall
 ```
 
 ```powershell [Windows]
-irm https://raw.githubusercontent.com/loonghao/vx/main/install.ps1 | iex -Uninstall
+irm https://raw.githubusercontent.com/vx-org/vx/main/install.ps1 | iex -Uninstall
 ```
 
 :::

@@ -32,8 +32,8 @@ load("@vx//stdlib:env.star", "env_prepend")
 # ---------------------------------------------------------------------------
 name        = "unix-tools"
 description = "Modern Unix command-line tools: jq, ripgrep, fd, bat"
-homepage    = "https://github.com/loonghao/vx"
-repository  = "https://github.com/loonghao/vx"
+homepage    = "https://github.com/vx-org/vx"
+repository  = "https://github.com/vx-org/vx"
 license     = "MIT"
 ecosystem   = "devtools"
 

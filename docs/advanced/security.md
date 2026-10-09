@@ -168,7 +168,7 @@ When using vx in CI/CD pipelines:
 
 ```yaml
 - name: Setup vx
-  uses: loonghao/vx@v1
+  uses: vx-org/vx@v1
 
 - name: Install tools with verification
   run: |

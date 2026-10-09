@@ -1229,7 +1229,7 @@ struct StarlarkHttpClient {
 impl StarlarkHttpClient {
     fn new() -> Self {
         let client = reqwest::Client::builder()
-            .user_agent("vx/0.1 (https://github.com/loonghao/vx)")
+            .user_agent("vx/0.1 (https://github.com/vx-org/vx)")
             .timeout(std::time::Duration::from_secs(30))
             // Force HTTP/1.1 — some GitHub API endpoints return 503 with HTTP/2
             .http1_only()

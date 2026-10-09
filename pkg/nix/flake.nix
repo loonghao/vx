@@ -45,7 +45,7 @@
 
           meta = with pkgs.lib; {
             description = "Universal version manager for developer tools";
-            homepage = "https://github.com/loonghao/vx";
+            homepage = "https://github.com/vx-org/vx";
             license = licenses.mit;
             mainProgram = "vx";
           };

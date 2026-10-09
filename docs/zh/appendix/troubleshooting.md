@@ -12,7 +12,7 @@
 
 1. 检查网络连接
 2. 尝试手动下载：
-   - 访问 [Releases](https://github.com/loonghao/vx/releases)
+   - 访问 [Releases](https://github.com/vx-org/vx/releases)
    - 下载适合你平台的二进制文件
    - 手动添加到 PATH
 
@@ -144,4 +144,4 @@ vx shell completions bash > ~/.local/share/bash-completion/completions/vx
 
 - 启用调试模式：`VX_DEBUG=true vx <command>`
 - 查看日志：`~/.local/share/vx/logs/`
-- 提交 Issue：[GitHub Issues](https://github.com/loonghao/vx/issues)
+- 提交 Issue：[GitHub Issues](https://github.com/vx-org/vx/issues)

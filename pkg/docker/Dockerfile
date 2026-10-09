@@ -21,8 +21,8 @@ FROM alpine:3.24 AS runtime
 
 LABEL org.opencontainers.image.title="vx"
 LABEL org.opencontainers.image.description="Universal version manager for developer tools"
-LABEL org.opencontainers.image.url="https://github.com/loonghao/vx"
-LABEL org.opencontainers.image.source="https://github.com/loonghao/vx"
+LABEL org.opencontainers.image.url="https://github.com/vx-org/vx"
+LABEL org.opencontainers.image.source="https://github.com/vx-org/vx"
 LABEL org.opencontainers.image.vendor="loonghao"
 LABEL org.opencontainers.image.licenses="MIT"
 

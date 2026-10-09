@@ -93,6 +93,6 @@ rustls = { version = "0.23", default-features = false, features = [
 
 ## 相关链接
 
-- vx PR #572: https://github.com/loonghao/vx/pull/572
+- vx PR #572: https://github.com/vx-org/vx/pull/572
 - turbo-cdn Issue #102: https://github.com/loonghao/turbo-cdn/issues/102
 - msvc-kit Issue #44: https://github.com/loonghao/msvc-kit/issues/44

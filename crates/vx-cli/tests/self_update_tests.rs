@@ -266,19 +266,19 @@ fn extract_version_from_url(url: &str) -> String {
 
 #[rstest]
 #[case(
-    "https://github.com/loonghao/vx/releases/download/vx-v0.5.9/vx-x86_64-pc-windows-msvc.zip",
+    "https://github.com/vx-org/vx/releases/download/vx-v0.5.9/vx-x86_64-pc-windows-msvc.zip",
     "0.5.9"
 )]
 #[case(
-    "https://cdn.jsdelivr.net/gh/loonghao/vx@vx-v0.5.9/vx-x86_64-pc-windows-msvc.zip",
+    "https://cdn.jsdelivr.net/gh/vx-org/vx@vx-v0.5.9/vx-x86_64-pc-windows-msvc.zip",
     "0.5.9"
 )]
 #[case(
-    "https://github.com/loonghao/vx/releases/download/v1.0.0/vx-x86_64-pc-windows-msvc.zip",
+    "https://github.com/vx-org/vx/releases/download/v1.0.0/vx-x86_64-pc-windows-msvc.zip",
     "1.0.0"
 )]
 #[case(
-    "https://cdn.jsdelivr.net/gh/loonghao/vx@v1.0.0/vx-x86_64-pc-windows-msvc.zip",
+    "https://cdn.jsdelivr.net/gh/vx-org/vx@v1.0.0/vx-x86_64-pc-windows-msvc.zip",
     "1.0.0"
 )]
 fn test_extract_version_from_url(#[case] url: &str, #[case] expected_version: &str) {
@@ -503,21 +503,21 @@ fn generate_download_urls(version: &str, asset_name: &str) -> Vec<(&'static str,
         (
             "GitHub Releases",
             format!(
-                "https://github.com/loonghao/vx/releases/download/vx-v{}/{}",
+                "https://github.com/vx-org/vx/releases/download/vx-v{}/{}",
                 version, asset_name
             ),
         ),
         (
             "jsDelivr CDN",
             format!(
-                "https://cdn.jsdelivr.net/gh/loonghao/vx@vx-v{}/{}",
+                "https://cdn.jsdelivr.net/gh/vx-org/vx@vx-v{}/{}",
                 version, asset_name
             ),
         ),
         (
             "Fastly CDN",
             format!(
-                "https://fastly.jsdelivr.net/gh/loonghao/vx@vx-v{}/{}",
+                "https://fastly.jsdelivr.net/gh/vx-org/vx@vx-v{}/{}",
                 version, asset_name
             ),
         ),
@@ -552,11 +552,11 @@ fn generate_checksum_urls(version: &str, asset_name: &str) -> Vec<String> {
     let checksum_filename = format!("{}.sha256", asset_name);
     vec![
         format!(
-            "https://github.com/loonghao/vx/releases/download/vx-v{}/{}",
+            "https://github.com/vx-org/vx/releases/download/vx-v{}/{}",
             version, checksum_filename
         ),
         format!(
-            "https://cdn.jsdelivr.net/gh/loonghao/vx@vx-v{}/{}",
+            "https://cdn.jsdelivr.net/gh/vx-org/vx@vx-v{}/{}",
             version, checksum_filename
         ),
     ]
@@ -798,7 +798,7 @@ fn test_cdn_asset_naming_consistency(
 
     // Verify expected CDN URL structure
     let cdn_url = format!(
-        "https://cdn.jsdelivr.net/gh/loonghao/vx@{}/{}",
+        "https://cdn.jsdelivr.net/gh/vx-org/vx@{}/{}",
         tag, expected_windows_asset
     );
     assert!(
@@ -837,17 +837,17 @@ fn test_regression_v06x_to_v07x_update_urls() {
 
     // The correct download URL
     let correct_url = format!(
-        "https://github.com/loonghao/vx/releases/download/{}/{}",
+        "https://github.com/vx-org/vx/releases/download/{}/{}",
         primary_tag, expected_asset
     );
     assert_eq!(
         correct_url,
-        "https://github.com/loonghao/vx/releases/download/v0.7.3/vx-x86_64-pc-windows-msvc.zip"
+        "https://github.com/vx-org/vx/releases/download/v0.7.3/vx-x86_64-pc-windows-msvc.zip"
     );
 
     // The WRONG URL that old v0.6.26 binaries would generate
     let wrong_url = format!(
-        "https://github.com/loonghao/vx/releases/download/vx-v{}/vx-{}-x86_64-pc-windows-msvc.zip",
+        "https://github.com/vx-org/vx/releases/download/vx-v{}/vx-{}-x86_64-pc-windows-msvc.zip",
         target_version, target_version
     );
     assert_ne!(
@@ -1038,29 +1038,29 @@ fn test_v077_download_url_both_formats() {
 
     // Primary URL (unversioned - what cargo-dist actually produces)
     let primary_url = format!(
-        "https://github.com/loonghao/vx/releases/download/{}/vx-x86_64-pc-windows-msvc.zip",
+        "https://github.com/vx-org/vx/releases/download/{}/vx-x86_64-pc-windows-msvc.zip",
         tag
     );
     assert_eq!(
         primary_url,
-        "https://github.com/loonghao/vx/releases/download/v0.7.7/vx-x86_64-pc-windows-msvc.zip"
+        "https://github.com/vx-org/vx/releases/download/v0.7.7/vx-x86_64-pc-windows-msvc.zip"
     );
 
     // Fallback URL (versioned - what old binaries might try)
     let fallback_url = format!(
-        "https://github.com/loonghao/vx/releases/download/{}/vx-{}-x86_64-pc-windows-msvc.zip",
+        "https://github.com/vx-org/vx/releases/download/{}/vx-{}-x86_64-pc-windows-msvc.zip",
         tag, version
     );
     assert_eq!(
         fallback_url,
-        "https://github.com/loonghao/vx/releases/download/v0.7.7/vx-0.7.7-x86_64-pc-windows-msvc.zip"
+        "https://github.com/vx-org/vx/releases/download/v0.7.7/vx-0.7.7-x86_64-pc-windows-msvc.zip"
     );
 }
 
 /// Test installer script URL generation for cargo-dist releases (v0.7.0+)
 /// The installer scripts are always at:
-///   - https://github.com/loonghao/vx/releases/download/v{ver}/vx-installer.sh
-///   - https://github.com/loonghao/vx/releases/download/v{ver}/vx-installer.ps1
+///   - https://github.com/vx-org/vx/releases/download/v{ver}/vx-installer.sh
+///   - https://github.com/vx-org/vx/releases/download/v{ver}/vx-installer.ps1
 #[test]
 fn test_installer_script_urls_for_cargo_dist() {
     let version = "0.7.7";
@@ -1071,21 +1071,21 @@ fn test_installer_script_urls_for_cargo_dist() {
     assert_eq!(tags[1], "vx-v0.7.7");
 
     let script_sh = format!(
-        "https://github.com/loonghao/vx/releases/download/{}/vx-installer.sh",
+        "https://github.com/vx-org/vx/releases/download/{}/vx-installer.sh",
         tags[0]
     );
     assert_eq!(
         script_sh,
-        "https://github.com/loonghao/vx/releases/download/v0.7.7/vx-installer.sh"
+        "https://github.com/vx-org/vx/releases/download/v0.7.7/vx-installer.sh"
     );
 
     let script_ps1 = format!(
-        "https://github.com/loonghao/vx/releases/download/{}/vx-installer.ps1",
+        "https://github.com/vx-org/vx/releases/download/{}/vx-installer.ps1",
         tags[0]
     );
     assert_eq!(
         script_ps1,
-        "https://github.com/loonghao/vx/releases/download/v0.7.7/vx-installer.ps1"
+        "https://github.com/vx-org/vx/releases/download/v0.7.7/vx-installer.ps1"
     );
 }
 
@@ -1102,12 +1102,12 @@ fn test_installer_script_urls_for_legacy_versions() {
 
     // The fallback will try both tags, but only v0.7.0+ releases have installer scripts
     let script_url_primary = format!(
-        "https://github.com/loonghao/vx/releases/download/{}/vx-installer.sh",
+        "https://github.com/vx-org/vx/releases/download/{}/vx-installer.sh",
         tags[0]
     );
     assert_eq!(
         script_url_primary,
-        "https://github.com/loonghao/vx/releases/download/vx-v0.6.27/vx-installer.sh"
+        "https://github.com/vx-org/vx/releases/download/vx-v0.6.27/vx-installer.sh"
     );
 }
 
@@ -1132,11 +1132,11 @@ fn test_cross_era_upgrade_fallback_chain() {
 
     // Installer script URLs (the final fallback)
     let installer_url = format!(
-        "https://github.com/loonghao/vx/releases/download/{}/vx-installer.ps1",
+        "https://github.com/vx-org/vx/releases/download/{}/vx-installer.ps1",
         tags[0]
     );
     assert_eq!(
         installer_url,
-        "https://github.com/loonghao/vx/releases/download/v0.7.7/vx-installer.ps1"
+        "https://github.com/vx-org/vx/releases/download/v0.7.7/vx-installer.ps1"
     );
 }

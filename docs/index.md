@@ -14,7 +14,7 @@ hero:
       link: /guide/getting-started
     - theme: alt
       text: View on GitHub
-      link: https://github.com/loonghao/vx
+      link: https://github.com/vx-org/vx
 
 features:
   - title: Zero Configuration
@@ -62,11 +62,11 @@ vx go run main.go               # Auto-installs Go if needed
 ::: code-group
 
 ```bash [Linux/macOS]
-curl -fsSL https://raw.githubusercontent.com/loonghao/vx/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/vx-org/vx/main/install.sh | bash
 ```
 
 ```powershell [Windows]
-irm https://raw.githubusercontent.com/loonghao/vx/main/install.ps1 | iex
+irm https://raw.githubusercontent.com/vx-org/vx/main/install.ps1 | iex
 ```
 
 :::

@@ -194,7 +194,7 @@ async fn fetch_latest_version() -> Result<String> {
     );
 
     // Try CDN first (no auth needed, no rate limits)
-    let cdn_url = "https://data.jsdelivr.com/v1/package/gh/loonghao/vx";
+    let cdn_url = "https://data.jsdelivr.com/v1/package/gh/vx-org/vx";
 
     tracing::debug!("Sending request to CDN...");
     match client.get(cdn_url).headers(headers.clone()).send().await {
@@ -213,7 +213,7 @@ async fn fetch_latest_version() -> Result<String> {
     }
 
     // Fallback to GitHub API (may have rate limits)
-    let github_url = "https://api.github.com/repos/loonghao/vx/releases/latest";
+    let github_url = "https://api.github.com/repos/vx-org/vx/releases/latest";
 
     // Add authorization if token is available
     if let Ok(token) = env::var("GITHUB_TOKEN").or_else(|_| env::var("VX_GITHUB_TOKEN"))

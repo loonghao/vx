@@ -97,7 +97,7 @@ jobs:
           echo "Checking if GitHub Release exists for version: ${version}"
 
           # Check if release exists
-          release_url="https://api.github.com/repos/loonghao/vx/releases/tags/${version}"
+          release_url="https://api.github.com/repos/vx-org/vx/releases/tags/${version}"
           if curl -s -f -H "Accept: application/vnd.github.v3+json" "$release_url" > /dev/null; then
             echo "OK GitHub Release found for ${version}"
 
@@ -129,8 +129,8 @@ jobs:
           # Prefer the unversioned cargo-dist asset name, fall back to the
           # versioned compatibility copy if the unversioned one is missing.
           $urls = @(
-            "https://github.com/loonghao/vx/releases/download/$versionTag/vx-x86_64-pc-windows-msvc.zip",
-            "https://github.com/loonghao/vx/releases/download/$versionTag/vx-$versionNum-x86_64-pc-windows-msvc.zip"
+            "https://github.com/vx-org/vx/releases/download/$versionTag/vx-x86_64-pc-windows-msvc.zip",
+            "https://github.com/vx-org/vx/releases/download/$versionTag/vx-$versionNum-x86_64-pc-windows-msvc.zip"
           )
           $downloaded = $false
           foreach ($url in $urls) {
@@ -181,11 +181,11 @@ jobs:
               <version>$version</version>
               <title>vx</title>
               <authors>loonghao</authors>
-              <projectUrl>https://github.com/loonghao/vx</projectUrl>
+              <projectUrl>https://github.com/vx-org/vx</projectUrl>
               <license type="expression">MIT</license>
               <requireLicenseAcceptance>false</requireLicenseAcceptance>
               <description>Universal development tool manager - run any dev tool with automatic runtime management</description>
-              <releaseNotes>See https://github.com/loonghao/vx/releases/tag/v$version</releaseNotes>
+              <releaseNotes>See https://github.com/vx-org/vx/releases/tag/v$version</releaseNotes>
               <tags>vx devtools package-manager</tags>
             </metadata>
             <files>
@@ -235,7 +235,7 @@ jobs:
           set -euo pipefail
           TAG="${{ needs.check-release.outputs.version }}"
           VERSION_NUM="${{ needs.check-release.outputs.version-num }}"
-          BASE_URL="https://github.com/loonghao/vx/releases/download/${TAG}"
+          BASE_URL="https://github.com/vx-org/vx/releases/download/${TAG}"
 
           echo "Generating Scoop manifest for version: ${VERSION_NUM}"
 
@@ -255,7 +255,7 @@ jobs:
           # --- Windows ARM64 checksum (optional) ---
           WIN_ARM64_SHA256=""
           ASSET_NAMES="$(curl -fsSL -H "Authorization: token ${GH_TOKEN}" \
-            "https://api.github.com/repos/loonghao/vx/releases/tags/${TAG}" | jq -r '.assets[].name' 2>/dev/null || true)"
+            "https://api.github.com/repos/vx-org/vx/releases/tags/${TAG}" | jq -r '.assets[].name' 2>/dev/null || true)"
           if echo "${ASSET_NAMES}" | grep -qx 'vx-aarch64-pc-windows-msvc.zip'; then
             WIN_ARM64_SHA256="$(curl -fsSL "${BASE_URL}/vx-aarch64-pc-windows-msvc.zip.sha256" | awk '{print $1}' || true)"
             if [[ ! "${WIN_ARM64_SHA256}" =~ ^[0-9a-f]{64}$ ]]; then
@@ -279,12 +279,12 @@ jobs:
             '{
                version: $version,
                description: "Universal development tool manager - run any dev tool with automatic runtime management",
-               homepage: "https://github.com/loonghao/vx",
+               homepage: "https://github.com/vx-org/vx",
                license: "MIT",
                architecture: {"64bit": {url: $url, hash: $hash}},
                bin: "vx.exe",
                checkver: "github",
-               autoupdate: {architecture: {"64bit": {url: ("https://github.com/loonghao/vx/releases/download/v" + "$" + "version/vx-x86_64-pc-windows-msvc.zip")}}}
+               autoupdate: {architecture: {"64bit": {url: ("https://github.com/vx-org/vx/releases/download/v" + "$" + "version/vx-x86_64-pc-windows-msvc.zip")}}}
              }')"
 
           if [[ -n "${WIN_ARM64_SHA256}" ]]; then
@@ -292,7 +292,7 @@ jobs:
               --argjson manifest "${MANIFEST}" \
               --arg url "${BASE_URL}/vx-aarch64-pc-windows-msvc.zip" \
               --arg hash "${WIN_ARM64_SHA256}" \
-              '$manifest | .architecture.arm64 = {url: $url, hash: $hash} | .autoupdate.architecture.arm64 = {url: ("https://github.com/loonghao/vx/releases/download/v" + "$" + "version/vx-aarch64-pc-windows-msvc.zip")}')"
+              '$manifest | .architecture.arm64 = {url: $url, hash: $hash} | .autoupdate.architecture.arm64 = {url: ("https://github.com/vx-org/vx/releases/download/v" + "$" + "version/vx-aarch64-pc-windows-msvc.zip")}')"
           fi
 
           echo "${MANIFEST}" | jq . > vx.json

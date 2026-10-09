@@ -127,7 +127,7 @@ Bash、Zsh、Fish 和 PowerShell。
 ### 如何在 GitHub Actions 中使用？
 
 ```yaml
-- uses: loonghao/vx@main
+- uses: vx-org/vx@main
   with:
     tools: node@22 python@3.12
 ```
@@ -184,5 +184,5 @@ def download_url(ctx, version, platform):
 ## 更多帮助
 
 - [故障排除](/zh/appendix/troubleshooting)
-- [GitHub Issues](https://github.com/loonghao/vx/issues)
+- [GitHub Issues](https://github.com/vx-org/vx/issues)
 - [贡献指南](/zh/advanced/contributing)

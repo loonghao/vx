@@ -1,16 +1,16 @@
 # vx installer script for Windows
 #
 # Usage:
-#   irm https://raw.githubusercontent.com/loonghao/vx/main/install.ps1 | iex
+#   irm https://raw.githubusercontent.com/vx-org/vx/main/install.ps1 | iex
 #
 # With specific version:
-#   $env:VX_VERSION="0.8.4"; irm https://raw.githubusercontent.com/loonghao/vx/main/install.ps1 | iex
+#   $env:VX_VERSION="0.8.4"; irm https://raw.githubusercontent.com/vx-org/vx/main/install.ps1 | iex
 #
 # With custom install directory:
-#   $env:VX_INSTALL_DIR="C:\tools\bin"; irm https://raw.githubusercontent.com/loonghao/vx/main/install.ps1 | iex
+#   $env:VX_INSTALL_DIR="C:\tools\bin"; irm https://raw.githubusercontent.com/vx-org/vx/main/install.ps1 | iex
 #
 # CDN acceleration (disabled by default, opt-in for slow GitHub access):
-#   $env:VX_CDN="1"; irm https://raw.githubusercontent.com/loonghao/vx/main/install.ps1 | iex
+#   $env:VX_CDN="1"; irm https://raw.githubusercontent.com/vx-org/vx/main/install.ps1 | iex
 #
 # Alternative package managers:
 #   winget install loonghao.vx
@@ -31,7 +31,7 @@ param(
 
 $ErrorActionPreference = "Stop"
 
-$RepoOwner = "loonghao"
+$RepoOwner = "vx-org"
 $RepoName  = "vx"
 $BaseUrl   = "https://github.com/$RepoOwner/$RepoName/releases"
 
@@ -204,7 +204,7 @@ function Main {
         if (-not $archivePath) {
             $hintVer = if ($latestVersion) { $latestVersion } else { "0.8.4" }
             Write-Fail "Download failed. Please check your internet connection or specify a version:"
-            Write-Host "  `$env:VX_VERSION='$hintVer'; irm https://raw.githubusercontent.com/loonghao/vx/main/install.ps1 | iex"
+            Write-Host "  `$env:VX_VERSION='$hintVer'; irm https://raw.githubusercontent.com/vx-org/vx/main/install.ps1 | iex"
             exit 1
         }
 

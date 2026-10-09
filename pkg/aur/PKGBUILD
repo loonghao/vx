@@ -6,7 +6,7 @@ pkgver={{VERSION}}
 pkgrel=1
 pkgdesc="Universal version manager for developer tools - Node.js, Python, Go, Rust and more"
 arch=('x86_64' 'aarch64')
-url="https://github.com/loonghao/vx"
+url="https://github.com/vx-org/vx"
 license=('MIT')
 provides=('vx')
 conflicts=('vx' 'vx-git')
@@ -16,8 +16,8 @@ optdepends=(
     'curl: for downloading tools'
 )
 
-source_x86_64=("${pkgname}-${pkgver}-x86_64.tar.gz::https://github.com/loonghao/vx/releases/download/v${pkgver}/vx-x86_64-unknown-linux-gnu.tar.gz")
-source_aarch64=("${pkgname}-${pkgver}-aarch64.tar.gz::https://github.com/loonghao/vx/releases/download/v${pkgver}/vx-aarch64-unknown-linux-gnu.tar.gz")
+source_x86_64=("${pkgname}-${pkgver}-x86_64.tar.gz::https://github.com/vx-org/vx/releases/download/v${pkgver}/vx-x86_64-unknown-linux-gnu.tar.gz")
+source_aarch64=("${pkgname}-${pkgver}-aarch64.tar.gz::https://github.com/vx-org/vx/releases/download/v${pkgver}/vx-aarch64-unknown-linux-gnu.tar.gz")
 
 sha256sums_x86_64=('SKIP')
 sha256sums_aarch64=('SKIP')

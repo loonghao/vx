@@ -269,10 +269,10 @@ To verify release assets are available:
 
 ```bash
 # Check release exists
-curl -s https://api.github.com/repos/loonghao/vx/releases/tags/vx-v0.1.0
+curl -s https://api.github.com/repos/vx-org/vx/releases/tags/vx-v0.1.0
 
 # List assets
-curl -s https://api.github.com/repos/loonghao/vx/releases/tags/vx-v0.1.0 | \
+curl -s https://api.github.com/repos/vx-org/vx/releases/tags/vx-v0.1.0 | \
   jq -r '.assets[] | "\(.name) (\(.size) bytes)"'
 ```
 

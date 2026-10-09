@@ -127,5 +127,5 @@ axoupdater = { git = "https://github.com/loonghao/axoupdater", branch = "fix/aws
 
 - axoupdater 仓库: https://github.com/axodotdev/axoupdater
 - Issue #313: https://github.com/axodotdev/axoupdater/issues/313
-- vx PR #572: https://github.com/loonghao/vx/pull/572
+- vx PR #572: https://github.com/vx-org/vx/pull/572
 - turbo-cdn Issue #126: https://github.com/loonghao/turbo-cdn/issues/126

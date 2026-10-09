@@ -28,8 +28,8 @@ load("@vx//stdlib:env.star", "env_prepend")
 # ---------------------------------------------------------------------------
 name        = "network-tools"
 description = "Network & HTTP tools: gh (GitHub CLI), xh (HTTPie in Rust)"
-homepage    = "https://github.com/loonghao/vx"
-repository  = "https://github.com/loonghao/vx"
+homepage    = "https://github.com/vx-org/vx"
+repository  = "https://github.com/vx-org/vx"
 license     = "MIT"
 ecosystem   = "devtools"
 

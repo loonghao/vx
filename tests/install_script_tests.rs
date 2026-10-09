@@ -90,7 +90,7 @@ fn test_archive_name_generation(
     "vx",
     "v0.6.0",
     "vx-0.6.0-x86_64-unknown-linux-gnu.tar.gz",
-    "https://github.com/loonghao/vx/releases/download/v0.6.0/vx-0.6.0-x86_64-unknown-linux-gnu.tar.gz"
+    "https://github.com/vx-org/vx/releases/download/v0.6.0/vx-0.6.0-x86_64-unknown-linux-gnu.tar.gz"
 )]
 fn test_download_url_construction(
     #[case] owner: &str,

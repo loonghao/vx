@@ -15,7 +15,7 @@
 //! installs side-by-side), so a plain `which` lookup fails and the tool never
 //! makes it into the dev shell's PATH even though `vx cl` runs it fine.
 //!
-//! See <https://github.com/loonghao/vx/issues/1083>.
+//! See <https://github.com/vx-org/vx/issues/1083>.
 
 use crate::commands::common::find_system_tool;
 use std::path::PathBuf;

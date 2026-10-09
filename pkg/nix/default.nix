@@ -44,7 +44,7 @@ rustPlatform.buildRustPackage rec {
       and more. It automatically detects and installs the right tool versions
       for your projects.
     '';
-    homepage = "https://github.com/loonghao/vx";
+    homepage = "https://github.com/vx-org/vx";
     license = licenses.mit;
     maintainers = with maintainers; [ ];
     mainProgram = "vx";

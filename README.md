@@ -10,11 +10,11 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Rust](https://img.shields.io/badge/rust-1.95.0+-blue.svg)](https://www.rust-lang.org)
-[![Test](https://github.com/loonghao/vx/workflows/Test/badge.svg)](https://github.com/loonghao/vx/actions)
-[![Release](https://github.com/loonghao/vx/workflows/Release/badge.svg)](https://github.com/loonghao/vx/actions)
-[![codecov](https://codecov.io/gh/loonghao/vx/branch/main/graph/badge.svg)](https://codecov.io/gh/loonghao/vx)
-[![GitHub release](https://img.shields.io/github/release/loonghao/vx.svg)](https://github.com/loonghao/vx/releases)
-[![GitHub downloads](https://img.shields.io/github/downloads/loonghao/vx/total.svg)](https://github.com/loonghao/vx/releases)
+[![Test](https://github.com/vx-org/vx/workflows/Test/badge.svg)](https://github.com/vx-org/vx/actions)
+[![Release](https://github.com/vx-org/vx/workflows/Release/badge.svg)](https://github.com/vx-org/vx/actions)
+[![codecov](https://codecov.io/gh/vx-org/vx/branch/main/graph/badge.svg)](https://codecov.io/gh/vx-org/vx)
+[![GitHub release](https://img.shields.io/github/release/loonghao/vx.svg)](https://github.com/vx-org/vx/releases)
+[![GitHub downloads](https://img.shields.io/github/downloads/loonghao/vx/total.svg)](https://github.com/vx-org/vx/releases)
 
 </div>
 
@@ -87,30 +87,30 @@ vx go run main.go               # Auto-installs Go if needed
 **Linux/macOS:**
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/loonghao/vx/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/vx-org/vx/main/install.sh | bash
 ```
 
 **Windows (PowerShell):**
 
 ```powershell
-powershell -c "irm https://raw.githubusercontent.com/loonghao/vx/main/install.ps1 | iex"
+powershell -c "irm https://raw.githubusercontent.com/vx-org/vx/main/install.ps1 | iex"
 ```
 
 ### Stable Installation in Rate-Limited Networks
 
 ```bash
 # 1) Pin a stable installer version (recommended for CI and enterprise networks)
-VX_VERSION="0.9.6" curl -fsSL https://raw.githubusercontent.com/loonghao/vx/main/install.sh | bash
+VX_VERSION="0.9.6" curl -fsSL https://raw.githubusercontent.com/vx-org/vx/main/install.sh | bash
 
 # 2) Configure multi-source release mirrors (comma separated)
-VX_RELEASE_BASE_URLS="https://mirror.example.com/vx/releases,https://github.com/loonghao/vx/releases" \
-  curl -fsSL https://raw.githubusercontent.com/loonghao/vx/main/install.sh | bash
+VX_RELEASE_BASE_URLS="https://mirror.example.com/vx/releases,https://github.com/vx-org/vx/releases" \
+  curl -fsSL https://raw.githubusercontent.com/vx-org/vx/main/install.sh | bash
 ```
 
 ```powershell
 # Windows mirror fallback (comma/semicolon separated)
-$env:VX_RELEASE_BASE_URLS="https://mirror.example.com/vx/releases,https://github.com/loonghao/vx/releases"
-powershell -c "irm https://raw.githubusercontent.com/loonghao/vx/main/install.ps1 | iex"
+$env:VX_RELEASE_BASE_URLS="https://mirror.example.com/vx/releases,https://github.com/vx-org/vx/releases"
+powershell -c "irm https://raw.githubusercontent.com/vx-org/vx/main/install.ps1 | iex"
 ```
 
 > The installer will try all configured release base URLs automatically, then fallback across different asset naming patterns.
@@ -586,7 +586,7 @@ brew tap loonghao/vx && brew install vx
 yay -S vx-bin
 
 # Cargo
-cargo install --git https://github.com/loonghao/vx
+cargo install --git https://github.com/vx-org/vx
 ```
 
 ### GitHub Actions
@@ -594,7 +594,7 @@ cargo install --git https://github.com/loonghao/vx
 Use vx in your CI/CD workflows:
 
 ```yaml
-- uses: loonghao/vx@main
+- uses: vx-org/vx@main
   with:
     github-token: ${{ secrets.GITHUB_TOKEN }}
 
@@ -603,7 +603,7 @@ Use vx in your CI/CD workflows:
 - run: vx npm test
 ```
 
-> **Note**: Use `@main` for latest, or pin to a specific release tag (e.g., `@vx-v0.9.13`). Check [releases](https://github.com/loonghao/vx/releases) for the latest version.
+> **Note**: Use `@main` for latest, or pin to a specific release tag (e.g., `@vx-v0.9.13`). Check [releases](https://github.com/vx-org/vx/releases) for the latest version.
 
 See [GitHub Action Guide](docs/guides/github-action.md) for full documentation.
 
@@ -613,8 +613,8 @@ See [GitHub Action Guide](docs/guides/github-action.md) for full documentation.
 
 We welcome contributions! See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 
-1. **Report Issues**: [Open an issue](https://github.com/loonghao/vx/issues)
-2. **Feature Requests**: [Start a discussion](https://github.com/loonghao/vx/discussions)
+1. **Report Issues**: [Open an issue](https://github.com/vx-org/vx/issues)
+2. **Feature Requests**: [Start a discussion](https://github.com/vx-org/vx/discussions)
 3. **Code Contributions**: Submit pull requests
 
 ---
@@ -625,7 +625,7 @@ MIT License - see [LICENSE](LICENSE) for details.
 
 ## Support
 
-- **Documentation**: [GitHub Wiki](https://github.com/loonghao/vx/wiki)
-- **Discussions**: [GitHub Discussions](https://github.com/loonghao/vx/discussions)
-- **Issues**: [Bug Reports](https://github.com/loonghao/vx/issues)
+- **Documentation**: [GitHub Wiki](https://github.com/vx-org/vx/wiki)
+- **Discussions**: [GitHub Discussions](https://github.com/vx-org/vx/discussions)
+- **Issues**: [Bug Reports](https://github.com/vx-org/vx/issues)
 - **Contact**: <hal.long@outlook.com>

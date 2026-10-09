@@ -187,4 +187,4 @@ DATABASE_URL = "PostgreSQL 连接字符串"
 
 - [配置参考](/zh/config/vx-toml) - 完整字段参考
 - [最佳实践](/zh/guide/best-practices) - 推荐模式
-- [GitHub Issues](https://github.com/loonghao/vx/issues) - 报告问题
+- [GitHub Issues](https://github.com/vx-org/vx/issues) - 报告问题

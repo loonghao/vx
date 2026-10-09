@@ -127,7 +127,7 @@ Bash, Zsh, Fish, and PowerShell.
 ### How do I use vx in GitHub Actions?
 
 ```yaml
-- uses: loonghao/vx@main
+- uses: vx-org/vx@main
   with:
     tools: node@22 python@3.12
 ```
@@ -184,5 +184,5 @@ See the [Extension Development Guide](/advanced/extension-development).
 ## More Help
 
 - [Troubleshooting](/appendix/troubleshooting)
-- [GitHub Issues](https://github.com/loonghao/vx/issues)
+- [GitHub Issues](https://github.com/vx-org/vx/issues)
 - [Contributing](/advanced/contributing)

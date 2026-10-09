@@ -19,10 +19,10 @@ use tokio::runtime::Runtime;
 mod test_urls {
     /// Small file from GitHub releases (~1KB)
     pub const GITHUB_SMALL: &str =
-        "https://github.com/loonghao/vx/releases/download/v0.4.0/checksums.txt";
+        "https://github.com/vx-org/vx/releases/download/v0.4.0/checksums.txt";
 
     /// Medium file from GitHub releases (~100KB)
-    pub const GITHUB_MEDIUM: &str = "https://raw.githubusercontent.com/loonghao/vx/main/Cargo.lock";
+    pub const GITHUB_MEDIUM: &str = "https://raw.githubusercontent.com/vx-org/vx/main/Cargo.lock";
 
     /// Go download page JSON (~50KB)
     pub const GO_VERSION_JSON: &str = "https://go.dev/dl/?mode=json";

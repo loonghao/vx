@@ -269,7 +269,7 @@ vx --version
 
 If you can't resolve an issue:
 
-1. Search [existing issues](https://github.com/loonghao/vx/issues)
+1. Search [existing issues](https://github.com/vx-org/vx/issues)
 2. Create a new issue with:
    - vx version
    - OS and shell

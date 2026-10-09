@@ -8,7 +8,7 @@
 use strsim::levenshtein;
 
 /// GitHub repository for issue creation
-const GITHUB_REPO: &str = "https://github.com/loonghao/vx";
+const GITHUB_REPO: &str = "https://github.com/vx-org/vx";
 
 /// Threshold for Levenshtein distance to consider a match
 const SIMILARITY_THRESHOLD: usize = 3;
@@ -228,7 +228,7 @@ mod tests {
     #[test]
     fn test_feature_request_url() {
         let url = get_feature_request_url("mytool");
-        assert!(url.contains("github.com/loonghao/vx/issues/new"));
+        assert!(url.contains("github.com/vx-org/vx/issues/new"));
         assert!(url.contains("mytool"));
     }
 }

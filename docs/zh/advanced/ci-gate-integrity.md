@@ -50,9 +50,9 @@ marker」「跳过标记」），不要粘贴带方括号的原始形式；否�
 
 | 层次 | 位置 | 作用 |
 | --- | --- | --- |
-| 阻断 | [CI Skip Marker Guard](https://github.com/loonghao/vx/actions/workflows/pr-ci-marker-guard.yml) | PR 标题或分支任一提交带标记时让 PR 失败；它使用 `pull_request_target`，GitHub 只按默认分支上的定义执行，因此本次改动合入 `main` 后即生效 |
+| 阻断 | [CI Skip Marker Guard](https://github.com/vx-org/vx/actions/workflows/pr-ci-marker-guard.yml) | PR 标题或分支任一提交带标记时让 PR 失败；它使用 `pull_request_target`，GitHub 只按默认分支上的定义执行，因此本次改动合入 `main` 后即生效 |
 | 预防 | `ci.yml` | CI 自己推回 PR 分支的提交不再写这个标记 |
-| 发现 | [CI Gate Sentinel](https://github.com/loonghao/vx/actions/workflows/ci-gate-sentinel.yml) | 每小时扫描 `main`，找出没有 push 事件运行的提交 |
+| 发现 | [CI Gate Sentinel](https://github.com/vx-org/vx/actions/workflows/ci-gate-sentinel.yml) | 每小时扫描 `main`，找出没有 push 事件运行的提交 |
 
 前两层在合并前拦住标记；第三层负责它们看不见的情况：在守卫上线之前开启的 PR、直接推到
 `main` 的提交，以及通过其他路径进来的标记。
@@ -117,7 +117,7 @@ gh pr merge 1097 --squash \
 合并后确认门禁确实跑过。push 运行数为 0 就说明没有：
 
 ```bash
-gh api "repos/loonghao/vx/actions/runs?head_sha=<sha>&event=push" --jq .total_count
+gh api "repos/vx-org/vx/actions/runs?head_sha=<sha>&event=push" --jq .total_count
 ```
 
 如果结果是 `0`，需要为这个提交重新触发检查——在 `main` 上补一个空提交，或针对该合并

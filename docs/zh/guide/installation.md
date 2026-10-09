@@ -7,11 +7,11 @@ vx 可以通过多种方式安装在 Windows、macOS 和 Linux 上。
 ::: code-group
 
 ```bash [Linux/macOS]
-curl -fsSL https://raw.githubusercontent.com/loonghao/vx/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/vx-org/vx/main/install.sh | bash
 ```
 
 ```powershell [Windows]
-irm https://raw.githubusercontent.com/loonghao/vx/main/install.ps1 | iex
+irm https://raw.githubusercontent.com/vx-org/vx/main/install.ps1 | iex
 ```
 
 :::
@@ -23,19 +23,19 @@ irm https://raw.githubusercontent.com/loonghao/vx/main/install.ps1 | iex
 **方案 1：使用 GitHub token**
 ```bash
 # Linux/macOS
-GITHUB_TOKEN='your_token' curl -fsSL https://raw.githubusercontent.com/loonghao/vx/main/install.sh | bash
+GITHUB_TOKEN='your_token' curl -fsSL https://raw.githubusercontent.com/vx-org/vx/main/install.sh | bash
 
 # Windows
-$env:GITHUB_TOKEN='your_token'; irm https://raw.githubusercontent.com/loonghao/vx/main/install.ps1 | iex
+$env:GITHUB_TOKEN='your_token'; irm https://raw.githubusercontent.com/vx-org/vx/main/install.ps1 | iex
 ```
 
 **方案 2：指定版本号**
 ```bash
 # Linux/macOS
-VX_VERSION='0.6.7' curl -fsSL https://raw.githubusercontent.com/loonghao/vx/main/install.sh | bash
+VX_VERSION='0.6.7' curl -fsSL https://raw.githubusercontent.com/vx-org/vx/main/install.sh | bash
 
 # Windows
-$env:VX_VERSION='0.6.7'; irm https://raw.githubusercontent.com/loonghao/vx/main/install.ps1 | iex
+$env:VX_VERSION='0.6.7'; irm https://raw.githubusercontent.com/vx-org/vx/main/install.ps1 | iex
 ```
 
 **方案 3：使用包管理器**（见下文）
@@ -80,7 +80,7 @@ cargo install vx
 
 ### 下载二进制文件
 
-1. 前往 [Releases 页面](https://github.com/loonghao/vx/releases)
+1. 前往 [Releases 页面](https://github.com/vx-org/vx/releases)
 2. 下载适合你平台的二进制文件：
 
    - `vx-x86_64-unknown-linux-gnu.tar.gz` - Linux x64
@@ -191,11 +191,11 @@ self-update 命令特性：
 ::: code-group
 
 ```bash [Linux/macOS]
-curl -fsSL https://raw.githubusercontent.com/loonghao/vx/main/install.sh | bash -s -- --uninstall
+curl -fsSL https://raw.githubusercontent.com/vx-org/vx/main/install.sh | bash -s -- --uninstall
 ```
 
 ```powershell [Windows]
-irm https://raw.githubusercontent.com/loonghao/vx/main/install.ps1 | iex -Uninstall
+irm https://raw.githubusercontent.com/vx-org/vx/main/install.ps1 | iex -Uninstall
 ```
 
 :::
