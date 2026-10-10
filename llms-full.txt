@@ -9,7 +9,7 @@ vx eliminates the complexity of managing multiple language runtimes (Node.js, Py
 - **Platforms**: Windows, macOS, Linux (x86_64, aarch64)
 - **Language**: Rust 1.95.0+, **License**: MIT
 - **Repository**: https://github.com/vx-org/vx
-- **GitHub Action**: `loonghao/vx@main`
+- **GitHub Action**: `vx-org/vx@main`
 - **AI Agent Entry Point**: [AGENTS.md](https://github.com/vx-org/vx/blob/main/AGENTS.md)
 - **Claude Code Instructions**: [CLAUDE.md](https://github.com/vx-org/vx/blob/main/CLAUDE.md)
 - **Full doc index**: [llms.txt](https://github.com/vx-org/vx/blob/main/llms.txt)
@@ -27,7 +27,7 @@ vx eliminates the complexity of managing multiple language runtimes (Node.js, Py
 - **Starlark DSL Providers**: Define custom tools via `provider.star` without writing Rust code. 4 templates cover 90% of cases.
 - **Package Aliases**: `vx vite` → `vx npm:vite`, `vx meson` → `vx uv:meson`.
 - **Companion Tool Injection**: Tools like MSVC auto-inject env vars for all subprocesses.
-- **Shell Integration**: Auto-completion for bash, zsh, and fish. GitHub Actions via `loonghao/vx`.
+- **Shell Integration**: Auto-completion for bash, zsh, and fish. GitHub Actions via `vx-org/vx`.
 
 ## Technical Stack
 

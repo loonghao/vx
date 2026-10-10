@@ -13,8 +13,8 @@
 [![Test](https://github.com/vx-org/vx/workflows/Test/badge.svg)](https://github.com/vx-org/vx/actions)
 [![Release](https://github.com/vx-org/vx/workflows/Release/badge.svg)](https://github.com/vx-org/vx/actions)
 [![codecov](https://codecov.io/gh/vx-org/vx/branch/main/graph/badge.svg)](https://codecov.io/gh/vx-org/vx)
-[![GitHub release](https://img.shields.io/github/release/loonghao/vx.svg)](https://github.com/vx-org/vx/releases)
-[![GitHub downloads](https://img.shields.io/github/downloads/loonghao/vx/total.svg)](https://github.com/vx-org/vx/releases)
+[![GitHub release](https://img.shields.io/github/release/vx-org/vx.svg)](https://github.com/vx-org/vx/releases)
+[![GitHub downloads](https://img.shields.io/github/downloads/vx-org/vx/total.svg)](https://github.com/vx-org/vx/releases)
 
 </div>
 

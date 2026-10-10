@@ -175,7 +175,7 @@ Full walkthrough: [`docs/guide/creating-provider.md`](../guide/creating-provider
 | User says "use vite" | `vx vite` (package alias, auto-routes to `vx npm:vite`) |
 | MCP server needs `npx` | Use `"command": "vx", "args": ["npx", ...]` in the MCP config |
 | Need to check tool version | `vx which <tool>` or `vx <tool> --version` |
-| CI/CD setup | Use `loonghao/vx@main` GitHub Action with `setup: 'true'` |
+| CI/CD setup | Use `vx-org/vx@main` GitHub Action with `setup: 'true'` |
 | Developing vx itself | `vx just quick` for format → lint → test → build |
 | User encounters errors | `vx doctor` first, then `vx --debug <command>` |
 | Need to update vx itself | `vx self-update` |
