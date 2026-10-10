@@ -74,6 +74,12 @@ fn test_obs_official_versioned_download(
 #[rstest]
 #[case("windows", "x86", "32.2.2")]
 #[case("windows", "arm64", "31.0.0")]
+// Reachable today via an explicit pin: 31.0.4 ships no x64 archive.
+#[case("windows", "x64", "31.0.4")]
+#[case("windows", "x64", "30.2.3")]
+#[case("windows", "x64", "31.1.0-beta1")]
+#[case("windows", "x64", "32")]
+#[case("windows", "x64", "v32.2.2")]
 #[case("macos", "arm64", "32.2.2")]
 #[case("linux", "x64", "32.2.2")]
 fn test_obs_unsupported_download_has_no_layout(
