@@ -202,6 +202,18 @@ impl StarlarkProvider {
                 if json.is_null() {
                     Ok(None)
                 } else if let Some(type_str) = json.get("__type").and_then(|t| t.as_str())
+                    && type_str == "rez_bundle_asset"
+                    && json.get("supported").and_then(|s| s.as_bool()) == Some(false)
+                {
+                    // An unsupported official target must fail with the reason the
+                    // recipe declares rather than silently resolving to no URL.
+                    Err(Error::EvalError(
+                        json.get("reason")
+                            .and_then(|reason| reason.as_str())
+                            .unwrap_or("no official Rez bundle is available")
+                            .to_string(),
+                    ))
+                } else if let Some(type_str) = json.get("__type").and_then(|t| t.as_str())
                     && type_str == "github_smart_detect"
                 {
                     Box::pin(self.resolve_smart_detect_descriptor(ctx, &json)).await

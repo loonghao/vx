@@ -27,6 +27,7 @@ const RUNTIME_STAR: &str = include_str!("../stdlib/runtime.star");
 const SCRIPT_INSTALL_STAR: &str = include_str!("../stdlib/script_install.star");
 const SYSTEM_INSTALL_STAR: &str = include_str!("../stdlib/system_install.star");
 const SMART_DETECT_STAR: &str = include_str!("../stdlib/smart_detect.star");
+const REZ_STAR: &str = include_str!("../stdlib/rez.star");
 const TEST_STAR: &str = include_str!("../stdlib/test.star");
 
 /// Module loader for `@vx//stdlib:*` virtual modules.
@@ -69,6 +70,7 @@ impl VxModuleLoader {
             "@vx//stdlib:smart_detect.star".to_string(),
             SMART_DETECT_STAR,
         );
+        stdlib_modules.insert("@vx//stdlib:rez.star".to_string(), REZ_STAR);
 
         Self { stdlib_modules }
     }
