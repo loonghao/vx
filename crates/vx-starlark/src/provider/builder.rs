@@ -13,7 +13,7 @@ use super::bridge::{
     make_deps_fn_owned, make_download_url_fn, make_download_url_fn_owned, make_execute_path_fn,
     make_execute_path_fn_owned, make_fetch_versions_fn, make_fetch_versions_fn_owned,
     make_install_layout_fn, make_install_layout_fn_owned, make_post_extract_fn_owned,
-    make_version_info_fn_owned,
+    make_rez_bundle_fn, make_version_info_fn_owned,
 };
 
 use crate::context::ProviderContext;
@@ -268,6 +268,14 @@ pub fn build_runtimes(
                     name.clone(),
                 ));
             }
+
+            // Providers that declare rez_bundle() opt into immutable Rez bundle
+            // activation; the bridge returns None for everyone else.
+            runtime = runtime.with_rez_bundle_fn(make_rez_bundle_fn(
+                Arc::clone(&provider_name),
+                Arc::clone(&content),
+                name.clone(),
+            ));
 
             // Wire up system_paths glob patterns (for tools like MSVC cl.exe that are
             // not on PATH — used to locate the executable after system installation)

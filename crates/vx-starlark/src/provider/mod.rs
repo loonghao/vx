@@ -305,6 +305,109 @@ impl StarlarkProvider {
         self.environment(version).await
     }
 
+    /// Resolve an optional Rez bundle activation request for one runtime.
+    pub async fn rez_bundle_for_runtime(
+        &self,
+        version: &str,
+        runtime_name: &str,
+    ) -> Result<Option<vx_runtime::RezBundleRequest>> {
+        let ctx = ProviderContext::new(&self.meta.name, self.vx_home.clone())
+            .with_description(&self.meta.description)
+            .with_sandbox(self.sandbox.clone())
+            .with_runtime_name(runtime_name)
+            .with_version(version);
+        let engine = StarlarkEngine::new();
+        let value = match engine.call_function(
+            &self.script_path,
+            &self.script_content,
+            "rez_bundle",
+            &ctx,
+            &[serde_json::json!(version)],
+        ) {
+            Ok(value) => value,
+            Err(Error::FunctionNotFound { .. }) => return Ok(None),
+            Err(error) => return Err(error),
+        };
+
+        if value.get("__type").and_then(|value| value.as_str()) != Some("rez_bundle_request") {
+            return Err(Error::EvalError(
+                "rez_bundle() must return a rez_bundle_request descriptor".to_string(),
+            ));
+        }
+        if !value
+            .get("enabled")
+            .and_then(|value| value.as_bool())
+            .unwrap_or(false)
+        {
+            return Ok(None);
+        }
+        if value
+            .get("asset")
+            .and_then(|asset| asset.get("supported"))
+            .and_then(|supported| supported.as_bool())
+            == Some(false)
+        {
+            let reason = value
+                .get("asset")
+                .and_then(|asset| asset.get("reason"))
+                .and_then(|reason| reason.as_str())
+                .unwrap_or("no official Rez bundle is available");
+            return Err(Error::EvalError(reason.to_string()));
+        }
+
+        let required_string = |field: &str| -> Result<String> {
+            value
+                .get(field)
+                .and_then(|value| value.as_str())
+                .filter(|value| !value.is_empty())
+                .map(str::to_string)
+                .ok_or_else(|| Error::MissingField(format!("rez_bundle.{field}")))
+        };
+        let requirements = value
+            .get("requirements")
+            .and_then(|value| value.as_array())
+            .ok_or_else(|| Error::MissingField("rez_bundle.requirements".to_string()))?
+            .iter()
+            .map(|requirement| {
+                requirement
+                    .as_str()
+                    .filter(|requirement| !requirement.is_empty())
+                    .map(str::to_string)
+                    .ok_or_else(|| {
+                        Error::EvalError(
+                            "rez_bundle.requirements must contain non-empty strings".to_string(),
+                        )
+                    })
+            })
+            .collect::<Result<Vec<_>>>()?;
+        let schema_version = value
+            .get("bundle_schema_version")
+            .and_then(|value| value.as_u64())
+            .ok_or_else(|| Error::MissingField("rez_bundle.bundle_schema_version".to_string()))?;
+        // The bundle platform and architecture live on the selected asset,
+        // because that is what the release index maps the host target onto.
+        let asset = value
+            .get("asset")
+            .ok_or_else(|| Error::MissingField("rez_bundle.asset".to_string()))?;
+        let asset_string = |field: &str| -> Result<String> {
+            asset
+                .get(field)
+                .and_then(|value| value.as_str())
+                .filter(|value| !value.is_empty())
+                .map(str::to_string)
+                .ok_or_else(|| Error::MissingField(format!("rez_bundle.asset.{field}")))
+        };
+        let mut request = vx_runtime::RezBundleRequest::new(
+            required_string("repository")?,
+            requirements,
+            asset_string("rez_platform")?,
+            asset_string("architecture")?,
+            required_string("program")?,
+        );
+        request.bundle_schema_version = schema_version;
+        Ok(Some(request))
+    }
+
     // -----------------------------------------------------------------------
     // RFC 0040: Toolchain Version Indirection
     // -----------------------------------------------------------------------
