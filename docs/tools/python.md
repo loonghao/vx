@@ -24,7 +24,7 @@ vx uses [python-build-standalone](https://github.com/astral-sh/python-build-stan
 | Python 3.10 | Active | Stable |
 | Python 3.9 | EOL | Last build: 20251120 |
 | Python 3.8 | EOL | Limited availability |
-| Python 3.7 | EOL | Legacy support only |
+| Python 3.7 | EOL | Pinned CPython 3.7.9 on Windows, Linux and macOS x64 |
 | Python 2.7 | EOL | Legacy compatibility via PyPy2.7 |
 
 > **Note**: Python versions that have reached End-of-Life (EOL) may have limited availability. Python 2.7 is intended for legacy test and migration workflows; CPython-specific native extensions may require a system CPython 2.7 installation.
@@ -91,6 +91,40 @@ vx uv venv .venv27 --python 2.7
 ```
 
 When `uv` receives a simple version through `vx uv ... --python <version>`, vx resolves that version with the vx Python provider first and passes the installed interpreter path to uv. Python 2.7 is a special legacy case: uv itself requires Python 3.6+, so `vx uv venv ... --python 2.7` creates the environment with PyPA's Python 2.7 `virtualenv.pyz` while preserving the same vx command shape.
+
+### Python 3.7 lifecycle contract
+
+uv still lists Python 3.7 as [Tier 2 supported](https://docs.astral.sh/uv/reference/policies/python/). Its [0.7.0 release removed Python 3.7 from the managed download catalog](https://github.com/astral-sh/uv/pull/13022); interpreter support and downloadable distributions are separate capabilities. A current uv can use an existing CPython 3.7 interpreter even though `uv python install 3.7` reports that no download is available.
+
+VX owns acquisition for this line. The Python provider pins CPython **3.7.9** release assets, archive SHA-256 values and platform identity independently of the current upstream release list. Supported targets are Windows x64, Linux x64 with glibc, and macOS x64. Unsupported targets and other 3.7 patch versions produce an explicit error. VX does not substitute PyPy or another Python minor version. The macOS asset comes from [20200823](https://github.com/astral-sh/python-build-standalone/releases/tag/20200823), which fixes the unwanted `libintl.dylib` dependency in 20200822.
+
+Completeness checks require the standard library, `venv`, Python headers and link libraries, in addition to the interpreter executable. An embedded-only distribution or interrupted extraction does not satisfy this contract.
+
+The historical publisher supplied no archive checksums or signatures. These SHA-256 values are VX intake pins calculated from official HTTPS assets and recorded with their GitHub asset IDs and byte sizes. They detect changed downloads and cached archives; they are **not publisher-signed provenance**. A mirror must serve the identical pinned archive bytes. No public mirror is enabled by this catalog entry.
+
+```bash
+vx install python@3.7.9
+vx python@3.7.9 -c "import sys, ssl, sqlite3; assert sys.version_info[:3] == (3, 7, 9); print(sys.executable)"
+vx uv venv .venv37 --python 3.7.9
+vx uv pip install --python .venv37 "requests==2.31.0"
+vx uv pip check --python .venv37
+```
+
+Build dependencies have their own Python requirements. For a project that needs to execute its PEP 517 backend on 3.7, pin compatible backend dependencies in `pyproject.toml`, for example:
+
+```toml
+[build-system]
+requires = ["setuptools==67.8.0", "wheel==0.42.0"]
+build-backend = "setuptools.build_meta"
+```
+
+```bash
+vx uv build --python .venv37 --no-python-downloads --out-dir dist37
+```
+
+Use `--offline` for uv operations after their package and build dependencies have been cached. Retain both the VX interpreter/archive cache and uv package cache for offline workflows. A successful download alone does not establish that a project's dependencies or native extension build supports Python 3.7.
+
+uv also exposes [a custom Python download catalog](https://docs.astral.sh/uv/reference/environment/#uv_python_downloads_json_url) and [Python archive mirrors](https://docs.astral.sh/uv/reference/environment/#uv_python_install_mirror). These can support managed distribution deployments without freezing an old uv executable; the normal `vx uv ... --python 3.7.9` workflow uses the interpreter acquired by VX.
 
 ### Project Management
 

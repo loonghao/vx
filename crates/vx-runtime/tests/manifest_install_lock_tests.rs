@@ -1,6 +1,8 @@
 //! Manifest installations and completeness readers share the physical store lock.
 
+use std::collections::HashMap;
 use std::path::Path;
+use std::sync::Mutex;
 use std::sync::{
     Arc,
     atomic::{AtomicUsize, Ordering},
@@ -121,6 +123,163 @@ fn runtime(inline_url: bool) -> ManifestDrivenRuntime {
             Box::pin(async { Ok(Some("https://example.invalid/sdk.zip".to_string())) })
         })
         .with_install_layout(move |_| Box::pin(async move { Ok(Some(layout(inline_url))) }))
+}
+
+type RecordedDownload = (String, HashMap<String, String>);
+
+#[derive(Default)]
+struct RecordingInstaller {
+    calls: Mutex<Vec<RecordedDownload>>,
+}
+
+#[async_trait]
+impl Installer for RecordingInstaller {
+    async fn extract(&self, _archive: &Path, _dest: &Path) -> Result<()> {
+        bail!("only layout downloads are allowed")
+    }
+
+    async fn download_and_extract(&self, _url: &str, _dest: &Path) -> Result<()> {
+        bail!("the integrity contract must be retained")
+    }
+
+    async fn download_with_layout(
+        &self,
+        url: &str,
+        dest: &Path,
+        metadata: &HashMap<String, String>,
+    ) -> Result<()> {
+        self.calls
+            .lock()
+            .unwrap()
+            .push((url.to_string(), metadata.clone()));
+        std::fs::create_dir_all(dest.join("bin"))?;
+        if url.contains("mirror.invalid") {
+            std::fs::write(dest.join("partial"), b"partial extraction")?;
+            bail!("mirror unavailable")
+        }
+        assert!(!dest.join("partial").exists(), "fallback must start clean");
+        std::fs::write(dest.join("bin").join(executable()), b"verified sdk")?;
+        Ok(())
+    }
+}
+
+#[rstest]
+#[case::inline_layout_url(true)]
+#[case::separate_download_url(false)]
+#[tokio::test]
+async fn mirror_fallback_preserves_the_fixed_digest(#[case] inline_url: bool) {
+    let temp = tempfile::tempdir().unwrap();
+    let installer = Arc::new(RecordingInstaller::default());
+    let ctx = RuntimeContext::new(
+        Arc::new(RealPathProvider::with_base_dir(temp.path())),
+        Arc::new(NoopHttpClient),
+        Arc::new(RealFileSystem::new()),
+        installer.clone(),
+    );
+    let runtime = runtime(inline_url).with_install_layout(move |_| {
+        Box::pin(async move {
+            let mut layout = layout(inline_url);
+            layout["sha256"] = "e".repeat(64).into();
+            layout["mirror_urls"] = serde_json::json!(["https://mirror.invalid/sdk.zip"]);
+            Ok(Some(layout))
+        })
+    });
+    runtime.install(VERSION, &ctx).await.unwrap();
+    let calls = installer.calls.lock().unwrap();
+    assert_eq!(calls.len(), 2);
+    assert_eq!(calls[0].0, "https://mirror.invalid/sdk.zip");
+    assert_eq!(calls[1].0, "https://example.invalid/sdk.zip");
+    assert_eq!(calls[0].1, calls[1].1);
+    assert_eq!(calls[0].1["sha256"], "e".repeat(64));
+}
+
+#[rstest]
+#[case::layout_error(None)]
+#[case::wrong_digest_type(Some(serde_json::json!({"sha256": 42})))]
+#[case::mirror_without_digest(Some(serde_json::json!({"mirror_urls": ["https://mirror.invalid/sdk.zip"]})))]
+#[tokio::test]
+async fn invalid_integrity_contract_never_falls_back_to_an_unchecked_download(
+    #[case] invalid: Option<serde_json::Value>,
+) {
+    let temp = tempfile::tempdir().unwrap();
+    let installer = Arc::new(RecordingInstaller::default());
+    let ctx = RuntimeContext::new(
+        Arc::new(RealPathProvider::with_base_dir(temp.path())),
+        Arc::new(NoopHttpClient),
+        Arc::new(RealFileSystem::new()),
+        installer.clone(),
+    );
+    let runtime = runtime(false).with_install_layout(move |_| {
+        let invalid = invalid.clone();
+        Box::pin(async move {
+            match invalid {
+                Some(invalid) => Ok(Some(invalid)),
+                None => bail!("malformed provider layout"),
+            }
+        })
+    });
+    assert!(runtime.install(VERSION, &ctx).await.is_err());
+    assert!(installer.calls.lock().unwrap().is_empty());
+}
+
+#[tokio::test]
+async fn verified_layout_replaces_an_existing_install_without_a_matching_receipt() {
+    let temp = tempfile::tempdir().unwrap();
+    let installer = Arc::new(RecordingInstaller::default());
+    let ctx = RuntimeContext::new(
+        Arc::new(RealPathProvider::with_base_dir(temp.path())),
+        Arc::new(NoopHttpClient),
+        Arc::new(RealFileSystem::new()),
+        installer.clone(),
+    );
+    let runtime = runtime(false).with_install_layout(|_| {
+        Box::pin(async {
+            let mut layout = layout(false);
+            layout["sha256"] = "e".repeat(64).into();
+            Ok(Some(layout))
+        })
+    });
+    let install_dir = ctx.paths.version_store_dir("sdk", VERSION);
+    std::fs::create_dir_all(install_dir.join("bin")).unwrap();
+    std::fs::write(
+        install_dir.join("bin").join(executable()),
+        b"unverified sdk",
+    )
+    .unwrap();
+    assert!(!runtime.is_installed(VERSION, &ctx).await.unwrap());
+    runtime.install(VERSION, &ctx).await.unwrap();
+    assert!(runtime.is_installed(VERSION, &ctx).await.unwrap());
+    assert_eq!(installer.calls.lock().unwrap().len(), 1);
+    // A receipt from another catalog digest cannot validate this installation.
+    std::fs::write(
+        install_dir.join(".vx-artifact.json"),
+        r#"{"schema_version":1,"sha256":"old"}"#,
+    )
+    .unwrap();
+    assert!(!runtime.is_installed(VERSION, &ctx).await.unwrap());
+}
+
+#[tokio::test]
+async fn incomplete_verified_layout_never_gets_a_completion_receipt() {
+    let temp = tempfile::tempdir().unwrap();
+    let installer = Arc::new(RecordingInstaller::default());
+    let ctx = RuntimeContext::new(
+        Arc::new(RealPathProvider::with_base_dir(temp.path())),
+        Arc::new(NoopHttpClient),
+        Arc::new(RealFileSystem::new()),
+        installer,
+    );
+    let runtime = runtime(false).with_install_layout(|_| {
+        Box::pin(async {
+            let mut layout = layout(false);
+            layout["sha256"] = "e".repeat(64).into();
+            layout["required_paths"] = serde_json::json!(["include/Python.h"]);
+            Ok(Some(layout))
+        })
+    });
+    assert!(runtime.install(VERSION, &ctx).await.is_err());
+    let install_dir = ctx.paths.version_store_dir("sdk", VERSION);
+    assert!(!install_dir.exists());
 }
 
 #[rstest]

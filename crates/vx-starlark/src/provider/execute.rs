@@ -8,6 +8,21 @@ use tracing::debug;
 use super::StarlarkProvider;
 use super::types::{EnvOp, InstallLayout, PostExtractAction, PreRunAction, VersionInfoResult};
 
+/// Parse declared archive fields without silently discarding invalid types.
+fn archive_layout_field<T: serde::de::DeserializeOwned + Default>(
+    descriptor: &serde_json::Value,
+    field: &str,
+) -> Result<T> {
+    match descriptor.get(field) {
+        None => Ok(T::default()),
+        Some(value) => serde_json::from_value(value.clone()).map_err(|error| {
+            Error::EvalError(format!(
+                "Invalid archive descriptor field '{field}': {error}"
+            ))
+        }),
+    }
+}
+
 impl StarlarkProvider {
     pub(super) async fn execute_install(
         &self,
@@ -284,38 +299,24 @@ impl StarlarkProvider {
                     "archive_install" | "archive" => {
                         // "archive" is the legacy format (no URL, just layout hints)
                         // "archive_install" includes the URL for complete install info
-                        let url = json
-                            .get("url")
-                            .and_then(|u| u.as_str())
-                            .map(|s| s.to_string());
-                        let strip_prefix = json
-                            .get("strip_prefix")
-                            .and_then(|s| s.as_str())
-                            .map(|s| s.to_string());
-                        let executable_paths = json
-                            .get("executable_paths")
-                            .and_then(|p| p.as_array())
-                            .map(|arr| {
-                                arr.iter()
-                                    .filter_map(|v| v.as_str().map(|s| s.to_string()))
-                                    .collect()
-                            })
-                            .unwrap_or_default();
-                        let required_paths = json
-                            .get("required_paths")
-                            .and_then(|p| p.as_array())
-                            .map(|arr| {
-                                arr.iter()
-                                    .filter_map(|v| v.as_str().map(|s| s.to_string()))
-                                    .collect()
-                            })
-                            .unwrap_or_default();
+                        let url = archive_layout_field(&json, "url")?;
+                        let strip_prefix = archive_layout_field(&json, "strip_prefix")?;
+                        let executable_paths = archive_layout_field(&json, "executable_paths")?;
+                        let required_paths = archive_layout_field(&json, "required_paths")?;
+                        let sha256 = if json.get("sha256").is_some() {
+                            Some(archive_layout_field::<String>(&json, "sha256")?)
+                        } else {
+                            None
+                        };
+                        let mirror_urls = archive_layout_field(&json, "mirror_urls")?;
                         debug!(provider = %self.meta.name, url = ?url, strip_prefix = ?strip_prefix, "Resolved archive_install/archive descriptor");
                         Ok(Some(InstallLayout::Archive {
                             url,
                             strip_prefix,
                             executable_paths,
                             required_paths,
+                            sha256,
+                            mirror_urls,
                         }))
                     }
                     "binary_install" | "binary" => {
