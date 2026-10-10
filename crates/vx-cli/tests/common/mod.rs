@@ -69,7 +69,14 @@ pub fn vx_binary() -> PathBuf {
         return path;
     }
 
-    PathBuf::from(env!("CARGO_BIN_EXE_vx"))
+    // vx-cli is a library; the workspace binary shares the test profile directory.
+    let mut path = std::env::current_exe().expect("test executable must have a path");
+    path.pop();
+    if path.ends_with("deps") {
+        path.pop();
+    }
+    path.push(binary_name());
+    path
 }
 
 /// Check if the selected vx binary is available
@@ -144,6 +151,18 @@ pub fn run_command_with_timeout(mut cmd: Command, timeout: Duration) -> io::Resu
 
             if let Err(err) = wait_after_timeout(&mut child, Duration::from_secs(2)) {
                 message.push_str(&format!("\nfailed to reap child after timeout: {err}"));
+            }
+
+            for (stream, file) in [("stdout", &mut stdout), ("stderr", &mut stderr)] {
+                if file.rewind().is_ok() {
+                    let mut bytes = Vec::new();
+                    if file.take(16 * 1024).read_to_end(&mut bytes).is_ok() && !bytes.is_empty() {
+                        message.push_str(&format!(
+                            "\n{stream} (first 16 KiB):\n{}",
+                            String::from_utf8_lossy(&bytes)
+                        ));
+                    }
+                }
             }
 
             return Err(io::Error::new(ErrorKind::TimedOut, message));

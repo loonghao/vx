@@ -61,7 +61,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           DEPTH: ${{ inputs.depth || 25 }}
-          MIN_AGE: ${{ inputs.min_age_minutes || 20 }}
+          MIN_AGE: ${{ inputs.min-age-minutes || 20 }}
           STRICT: ${{ inputs.strict || false }}
         shell: bash
         run: |
