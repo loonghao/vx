@@ -69,9 +69,9 @@ impl EcosystemInstaller for BunInstaller {
             format!("{}@{}", package, version)
         };
 
-        // Use bun install with --global and custom prefix
-        let install_dir_str = install_dir.to_string_lossy().to_string();
-        let mut args = vec!["install", "--global", "--global-dir", &install_dir_str];
+        // Bun uses BUN_INSTALL_GLOBAL_DIR and BUN_INSTALL_BIN for isolation.
+        // --global-dir is not a supported install option.
+        let mut args = vec!["install", "--global"];
 
         // Force reinstall if requested
         if options.force {

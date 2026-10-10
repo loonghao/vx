@@ -1,92 +1,88 @@
 # vx shim
 
-Expose any Runtime as a plain command, so you can type `jq --version` instead of
-`vx jq --version`.
-
-`vx shim` writes a small wrapper script into a chosen directory. The
-wrapper forwards every argument to `vx <runtime>`, which installs the runtime on
-first use. This is the same wrapper people write by hand into
-`~/.local/bin`, generated for you and per platform.
+Expose a Runtime or package executable as a plain command while vx manages its
+execution environment.
 
 ```bash
-vx shim add jq
-jq --version          # -> jq-1.8.1
+vx codex --version          # install and run in an isolated package environment
+vx shim add codex           # explicitly expose the codex command
+codex --version             # runs through vx with its managed dependencies
 ```
 
-> **RFC**: [RFC 0042 — Platform Command Shims](../rfcs/0042-platform-command-shims.md)
->
-> Check that your installed `vx --help` lists `shim` before using these commands.
-> See [Managed command shims](../guide/managed-command-shims.md) for release
-> availability, Codex examples, and checks before writing or refreshing files.
+Running `vx codex` does not create global command shims. `vx shim add` writes
+wrappers that bind the absolute vx executable and the `VX_HOME` used to create
+them. The command therefore keeps using that managed environment when invoked
+from another shell or directory.
+
+The public interface is `vx shim add/list/remove/sync/path`. Use `add` to create
+an entry point; `vx shim codex` and bare `vx shim` are not creation commands.
 
 ## Subcommands
 
 | Subcommand | Purpose |
 |---|---|
-| `add` | Create a shim for a runtime |
-| `list` | Show shims created by vx (alias `ls`) |
-| `remove` | Delete a shim created by vx (alias `rm`) |
-| `sync` | Rewrite every shim against the current `vx` executable |
-| `path` | Show target directories and whether they are on `PATH` |
+| `add` | Create a shim for a Runtime or package command |
+| `list` | Show registered shims (alias `ls`) |
+| `remove` | Remove a registered shim (alias `rm`) |
+| `sync` | Refresh registered shims against the current vx executable |
+| `path` | Show default target directories and their PATH status |
 
 ## add
 
 ```bash
-vx shim add jq                       # create `jq`
-vx shim add git@2.53.0               # pin a version behind the runtime name
-vx shim add jq --as jqp              # different command name
-vx shim add jq --dir "/absolute/path/to/shim-bin" # repeatable; use an owned directory
+vx shim add jq
+vx shim add git@2.53.0
+vx shim add codex --as codex-vx
+vx shim add "npm:@openai/codex::codex" --as codex-vx
+vx shim add codex --dir "/absolute/path/to/shim-bin"
 ```
 
 | Flag | Description |
 |---|---|
-| `--as <NAME>` | Command name to create. Defaults to the runtime name without its `@version`. |
-| `--dir <DIR>` | Directory to write into. Repeatable. Defaults to the vx bin directory and the directory holding the `vx` executable. |
-| `-f, --force` | Permit the detected same-name command collision on PATH. |
+| `--as <NAME>` | Command name to create instead of the default executable name. |
+| `--dir <DIR>` | Destination directory, stored as an absolute path. Repeatable; replaces the defaults. |
+| `-f, --force` | Permit intentional shadowing of another command found on PATH. |
 
-### Shadowing protection
+Default destinations are `$VX_HOME/bin` and the directory containing the running
+vx executable, with duplicate directories removed. The vx executable directory
+is normally already on PATH after installation. `--dir` is useful when only one
+particular shell or editor should see the command.
 
-If the name already resolves to a binary on `PATH` that vx did not create, `add`
-refuses:
+`add` does not install or run the target. The first command invocation can install
+it through vx. Package aliases such as `codex` resolve to their package execution
+request; explicit package syntax supports executables whose names differ from
+the package name. See [AI coding agents](../tools/ai.md#ai-coding-agents).
 
-```text
-$ vx shim add git
-✗ 'git' already resolves to C:\Program Files\Git\mingw64\bin\git.exe on PATH.
-  Re-run with --force to shadow it, or pick another name with --as.
-```
+### Collision protection
 
-Prefer `--as` to pick a different name. Use `--force` only after reviewing an
-intentional collision. The guard checks the command resolved on PATH, not every
-destination file or shell alias. Inspect all output paths before adding a shim,
-including both Windows variants; existing destination files can be replaced.
+`add` checks command resolution on PATH and validates every destination file,
+including both Windows variants. Existing registered wrappers can be refreshed;
+unrelated files, modified wrappers and symbolic links are preserved. Use a
+different `--as` name or destination to resolve a file conflict. `--force` permits
+PATH shadowing, but does not bypass destination ownership checks.
 
 ## list
 
 ```bash
 vx shim list
-vx shim list --json      # machine-readable
+vx shim list --json
 ```
 
-```text
-Command shims (2)
-  git              -> vx git                  [ok]
-    C:\Users\me\.vx\bin
-  jq               -> vx jq                   [ok]
-    C:\Users\me\.vx\bin
-```
-
-`incomplete` means one of the recorded files is missing. Inspect the recorded
-destinations before running `vx shim sync`. `ok` checks file existence only.
+The text output reports each registered command and whether its recorded files
+match the expected wrappers. JSON exposes the command request, launcher,
+`vx_home`, directories and generated file paths. A complete wrapper does not
+prove that its target package is installed or that it takes precedence on PATH.
 
 ## remove
 
 ```bash
-vx shim remove jq
+vx shim remove codex
 ```
 
-Only recorded files carrying the `vx-shim` marker are deleted. Unmarked files
-are reported and left alone, but the registry entry is still removed. The
-`--force` flag does not bypass this ownership check.
+Removes the registry entry and its unchanged, owned wrapper files. Modified files
+and unrelated replacements are reported and left intact. `--force` does not
+bypass ownership checks. Removing a shim leaves its package installed; subsequent
+`vx codex` execution does not recreate the shim.
 
 ## sync
 
@@ -94,11 +90,11 @@ are reported and left alone, but the registry entry is still removed. The
 vx shim sync
 ```
 
-Shims bake in the absolute path of the `vx` executable. After upgrading or
-moving vx, `sync` rewrites every registered shim against the new location and
-recreates any file that went missing. It rewrites all entries in their recorded
-directories without checking file ownership first. Review user edits or
-replacement files before syncing; it does not upgrade the target runtime.
+Refreshes registered shims against the running vx executable in the current
+`VX_HOME`. It retains their recorded directories and recreates missing variants.
+Conflicting files are preserved and reported. Older records without a bound home
+are upgraded when refreshed. `sync` does not install packages, upgrade their
+versions or publish commands for packages without a registered shim.
 
 ## path
 
@@ -106,47 +102,48 @@ replacement files before syncing; it does not upgrade the target runtime.
 vx shim path
 ```
 
-Prints the default target directories, whether they are on `PATH`, and a shell
-hint to add missing directories. Custom `--dir` entries appear in `list --json`:
+Reports the default directories and their presence on the current process's
+PATH. Custom `--dir` locations appear in `vx shim list --json`.
 
-```text
-Command shim directories
-  C:\Users\me\.vx\bin      not on PATH
-    Platform variants: <name>.cmd (cmd.exe, PowerShell), <name> (sh, Git Bash, MSYS2)
-💡 $env:PATH = "C:\Users\me\.vx\bin;$env:PATH"
-```
+vx prints PATH hints but does not change shell profiles, persistent PATH or the
+Windows registry. If a directory is not on PATH, add it to the environment of the
+shell or application that needs the command.
 
-vx never edits your shell configuration or the Windows registry. Adding the
-directory to `PATH` stays under your control.
+## Package installation
+
+Explicit `vx install codex` and `vx pkg install npm:@openai/codex` also publish
+package executables for compatibility. Those shims use the same registry and
+managed execution path as `vx shim add`.
+
+`vx pkg shim-update` explicitly publishes installed package executables through
+that shared lifecycle. Use `vx shim sync` when only existing registered commands
+should be refreshed. Package maintenance preserves unrelated command shims and
+files. Uninstalling a package removes its registered package entry points.
+
+Older package wrappers that are absent from the command shim registry are left
+unchanged. They may cause a collision when creating a new shim. Use a different
+`--as` name and, if needed, a private `--dir`; vx does not assume ownership of
+those files.
 
 ## Platform behaviour
 
-One `add` produces every file the platform needs:
-
-| Platform | Files | Reachable from |
+| Platform | Generated files | Callers |
 |---|---|---|
-| Windows | `jq.cmd` | cmd.exe, PowerShell (`PATHEXT` resolves `jq` → `jq.cmd`) |
-| Windows | `jq` | Git Bash, MSYS2, Cygwin |
-| Linux / macOS | `jq` | every POSIX shell |
+| Windows | `<name>.cmd` | cmd.exe and PowerShell |
+| Windows | `<name>` | Git Bash, MSYS2 and Cygwin |
+| Linux / macOS | `<name>` | POSIX shells |
 
-Windows generates separate batch and POSIX entry points for these callers.
-It does not generate a `.ps1` file. Unix uses the POSIX shell wrapper.
+Windows generates both batch and shell wrappers, without a `.ps1` file.
+Arguments and the child exit code are forwarded to the caller. A native process
+launcher that cannot execute scripts should invoke vx directly with separate
+arguments.
 
-Generated scripts carry a `vx-shim` marker line and propagate the exit code of
-the wrapped command.
-
-## Safety
-
-- Inspect each destination before `add` or `sync`; the PATH collision guard is
-  not a per-file ownership check.
-- `remove` only deletes files recorded in the registry **and** carrying the
-  `vx-shim` marker.
-- The registry lives at `$VX_HOME/config/command-shims.json` and honours
-  `VX_HOME`.
+The registry is stored at `$VX_HOME/config/command-shims.json`. An unreadable or
+malformed registry is reported rather than replaced with an empty one.
 
 ## Related
 
-- [`vx global`](./global) — global package management, which uses the same
-  shim-stacking layout.
-- [Implicit Package Execution](./implicit-package-execution) — running packages
-  without installing them first.
+- [Managed command shims](../guide/managed-command-shims.md)
+- [RFC 0042 — Platform Command Shims](../rfcs/0042-platform-command-shims.md)
+- [`vx global`](./global) — isolated package management
+- [Implicit Package Execution](./implicit-package-execution)

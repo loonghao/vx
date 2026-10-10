@@ -203,9 +203,11 @@ impl PackageRegistry {
         let key = format!("{}:{}", ecosystem, name);
 
         if let Some(package) = self.packages.remove(&key) {
-            // Remove from executable index
+            // Another installed package may now own a shared executable name.
             for exe in &package.executables {
-                self.executable_index.remove(exe);
+                if self.executable_index.get(exe) == Some(&key) {
+                    self.executable_index.remove(exe);
+                }
             }
             Some(package)
         } else {

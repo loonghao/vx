@@ -1,139 +1,195 @@
-//! Local, non-network coverage for global shim management commands.
+//! Offline global package lifecycle coverage through the command shim registry.
 
 mod common;
+#[path = "common/package_shims.rs"]
+mod package_shims;
 
-use common::{assert_success, init_test_env, vx_available, vx_binary};
-use std::path::PathBuf;
-use std::process::{Command, Output};
-use tempfile::TempDir;
-use vx_paths::VxPaths;
-use vx_paths::global_packages::{GlobalPackage, PackageRegistry};
+use common::assert_success;
+use package_shims::Fixture;
+use rstest::rstest;
+use std::fs;
+use vx_paths::global_packages::PackageRegistry;
 use vx_paths::shims;
 
 #[test]
-fn test_global_shim_update_recreates_from_registry() {
-    init_test_env();
-    if !vx_available() {
-        return;
+fn global_shim_update_registers_dispatch_wrappers_without_sweeping_unknown_files() {
+    let fixture = Fixture::new();
+    let target = fixture.cwd.join("legacy-target");
+    fs::write(&target, "unknown legacy target").unwrap();
+    let mut legacy_files = Vec::new();
+    for directory in [&fixture.paths.shims_dir, fixture.binary_dir()] {
+        let legacy = shims::create_shim(directory, "stale", &target).unwrap();
+        legacy_files.push((
+            legacy.shim_path.clone(),
+            fs::read(legacy.shim_path).unwrap(),
+        ));
     }
+    let packages_before = fs::read(fixture.paths.packages_registry_file()).unwrap();
 
-    let vx_path = vx_binary();
-    if !vx_path.exists() {
-        return;
+    assert_success(
+        &fixture.run(&["global", "shim-update"]),
+        "register dispatch wrappers for installed packages",
+    );
+
+    let registry = fixture.registry();
+    for executable in ["codex", "claude"] {
+        let entry = registry
+            .get(executable)
+            .expect("register installed executable");
+        assert!(entry.is_complete());
+        assert!(entry.runtime.starts_with("npm:"));
+        assert!(entry.runtime.ends_with(&format!("::{executable}")));
     }
-
-    let temp = TempDir::new().expect("failed to create temp dir");
-    let vx_home = temp.path().join("vx-home");
-    let paths = VxPaths::with_base_dir(&vx_home);
-    paths
-        .ensure_dirs()
-        .expect("failed to initialize vx directories");
-
-    let package_dir = paths.global_package_dir("npm", "vite", "5.4.0");
-    let package_bin_dir = package_dir.join("bin");
-    std::fs::create_dir_all(&package_bin_dir).expect("failed to create package bin dir");
-    std::fs::write(package_bin_dir.join("vite"), "shim target")
-        .expect("failed to create fake executable");
-
-    let mut registry = PackageRegistry::new();
-    registry
-        .register(GlobalPackage::new("vite", "5.4.0", "npm", package_dir).with_executable("vite"));
-    registry
-        .save(&paths.packages_registry_file())
-        .expect("failed to save registry");
-
-    let stale_target = package_bin_dir.join("stale");
-    std::fs::write(&stale_target, "stale").expect("failed to create stale target");
-    shims::create_shim(&paths.shims_dir, "stale", &stale_target)
-        .expect("failed to create stale shim");
-
-    let output = run_vx_with_home(&vx_path, temp.path(), &vx_home, &["global", "shim-update"])
-        .expect("failed to run vx global shim-update");
-    assert_success(&output, "vx global shim-update");
-
-    assert!(shims::shim_exists(&paths.shims_dir, "vite"));
-    assert!(!shims::shim_exists(&paths.shims_dir, "stale"));
+    for (file, contents) in legacy_files {
+        assert_eq!(
+            fs::read(file).unwrap(),
+            contents,
+            "unknown wrappers must not be swept"
+        );
+    }
+    assert_eq!(
+        fs::read(fixture.paths.packages_registry_file()).unwrap(),
+        packages_before
+    );
+    fixture.assert_preserved();
 }
 
 #[test]
-fn test_global_uninstall_removes_stack_shims_and_registry() {
-    init_test_env();
-    if !vx_available() {
-        return;
-    }
+fn explicit_pkg_install_publishes_an_already_installed_package_without_reinstalling() {
+    let fixture = Fixture::new();
+    let packages_before = fs::read(fixture.paths.packages_registry_file()).unwrap();
+    assert!(fixture.registry().is_empty());
 
-    let vx_path = vx_binary();
-    if !vx_path.exists() {
-        return;
-    }
-
-    let temp = TempDir::new().expect("failed to create temp dir");
-    let vx_home = temp.path().join("vx-home");
-    let paths = VxPaths::with_base_dir(&vx_home);
-    paths
-        .ensure_dirs()
-        .expect("failed to initialize vx directories");
-
-    let package_name = "toolpkg";
-    let ecosystem = "npm";
-    let version = "1.0.0";
-    let executable = "toolx";
-
-    let package_dir = paths.global_package_dir(ecosystem, package_name, version);
-    let package_bin_dir = package_dir.join("bin");
-    std::fs::create_dir_all(&package_bin_dir).expect("failed to create package bin dir");
-    let target_path = package_bin_dir.join(executable);
-    std::fs::write(&target_path, "shim target").expect("failed to create fake executable");
-
-    let mut registry = PackageRegistry::new();
-    registry.register(
-        GlobalPackage::new(package_name, version, ecosystem, package_dir.clone())
-            .with_executable(executable),
+    assert_success(
+        &fixture.run(&["pkg", "install", "npm:@openai/codex"]),
+        "publish the already installed package without a network install",
     );
-    registry
-        .save(&paths.packages_registry_file())
-        .expect("failed to save registry");
 
-    shims::create_shim(&paths.shims_dir, executable, &target_path)
-        .expect("failed to create primary shim");
-
-    let vx_bin_dir = vx_path.parent().map(PathBuf::from);
-    if let Some(dir) = &vx_bin_dir {
-        let _ = shims::create_shim(dir, executable, &target_path);
-    }
-
-    let output = run_vx_with_home(
-        &vx_path,
-        temp.path(),
-        &vx_home,
-        &["global", "uninstall", "npm:toolpkg", "--force"],
-    )
-    .expect("failed to run vx global uninstall");
-    assert_success(&output, "vx global uninstall npm:toolpkg --force");
-
-    let registry_after = PackageRegistry::load(&paths.packages_registry_file())
-        .expect("failed to reload package registry");
-    assert!(!registry_after.contains(ecosystem, package_name));
-    assert!(!package_dir.exists());
-    assert!(!shims::shim_exists(&paths.shims_dir, executable));
-
-    if let Some(dir) = vx_bin_dir {
-        assert!(
-            !shims::shim_exists(&dir, executable),
-            "stacked shim should be removed from vx bin dir"
-        );
-    }
+    let registry = fixture.registry();
+    let entry = registry
+        .get("codex")
+        .expect("publish codex on explicit package install");
+    assert!(entry.is_complete());
+    assert_eq!(entry.runtime, "npm:@openai/codex::codex");
+    assert_eq!(
+        fs::read(fixture.paths.packages_registry_file()).unwrap(),
+        packages_before
+    );
+    fixture.assert_preserved();
 }
 
-fn run_vx_with_home(
-    vx_path: &std::path::Path,
-    cwd: &std::path::Path,
-    vx_home: &std::path::Path,
-    args: &[&str],
-) -> std::io::Result<Output> {
-    Command::new(vx_path)
-        .args(args)
-        .current_dir(cwd)
-        .env("VX_HOME", vx_home)
-        .output()
+#[test]
+fn package_uninstall_removes_registered_aliases_and_preserves_unknown_legacy_wrappers() {
+    let fixture = Fixture::new();
+    assert_success(&fixture.run(&["shim", "add", "codex"]), "publish codex");
+    let custom_dir = fixture.cwd.join("custom bin");
+    assert_success(
+        &fixture.run(&[
+            "shim",
+            "add",
+            "codex",
+            "--as",
+            "personal-codex",
+            "--dir",
+            custom_dir.to_str().unwrap(),
+        ]),
+        "publish a custom package command",
+    );
+    assert_success(
+        &fixture.run(&["shim", "add", "claude-code"]),
+        "publish another package",
+    );
+    let registry_before = fixture.registry();
+    let codex_files: Vec<_> = ["codex", "personal-codex"]
+        .into_iter()
+        .flat_map(|name| registry_before.get(name).unwrap().files.clone())
+        .collect();
+
+    // This unregistered legacy wrapper has the same command name. Its file
+    // shape alone must never authorize deletion by the new registry lifecycle.
+    let legacy_target = fixture.cwd.join("external-codex");
+    fs::write(&legacy_target, "unregistered executable").unwrap();
+    let legacy = shims::create_shim(&fixture.paths.shims_dir, "codex", &legacy_target).unwrap();
+    let legacy_contents = fs::read(&legacy.shim_path).unwrap();
+    let package_dir = fixture
+        .paths
+        .global_package_dir("npm", "@openai/codex", "1.2.3");
+
+    assert_success(
+        &fixture.run(&["pkg", "uninstall", "npm:@openai/codex", "--force"]),
+        "uninstall package and its registered command aliases",
+    );
+
+    let registry_after = fixture.registry();
+    assert!(!registry_after.contains("codex"));
+    assert!(!registry_after.contains("personal-codex"));
+    assert!(registry_after.get("claude").unwrap().is_complete());
+    assert!(codex_files.iter().all(|path| !path.exists()));
+    assert!(!package_dir.exists());
+    assert_eq!(fs::read(&legacy.shim_path).unwrap(), legacy_contents);
+    assert!(legacy_target.is_file());
+    let packages = PackageRegistry::load(&fixture.paths.packages_registry_file()).unwrap();
+    assert!(!packages.contains("npm", "@openai/codex"));
+    assert!(packages.contains("npm", "@anthropic-ai/claude-code"));
+    fixture.assert_preserved();
+}
+
+#[rstest]
+#[case(&["pkg", "install", "npm:@openai/codex"])]
+#[case(&["global", "shim-update"])]
+fn global_publication_cannot_replace_a_different_executable_from_the_same_package(
+    #[case] args: &[&str],
+) {
+    let fixture = Fixture::new();
+    assert_success(
+        &fixture.run(&[
+            "shim",
+            "add",
+            "npm:@openai/codex::alternate",
+            "--as",
+            "codex",
+        ]),
+        "publish an explicitly selected package executable",
+    );
+    let original = fixture.registry().get("codex").unwrap().clone();
+    let contents: Vec<_> = original
+        .files
+        .iter()
+        .map(|file| (file.clone(), fs::read(file).unwrap()))
+        .collect();
+
+    let output = fixture.run(args);
+
+    assert!(
+        !output.status.success(),
+        "{}",
+        common::combined_output(&output)
+    );
+    assert_eq!(fixture.registry().get("codex"), Some(&original));
+    for (file, expected) in contents {
+        assert_eq!(fs::read(file).unwrap(), expected);
+    }
+    fixture.assert_preserved();
+}
+
+#[test]
+fn explicit_pkg_install_preserves_a_registered_package_version_pin() {
+    let fixture = Fixture::new();
+    assert_success(
+        &fixture.run(&["shim", "add", "codex@1.2.3"]),
+        "publish a pinned package command",
+    );
+    let pinned = fixture.registry().get("codex").unwrap().clone();
+    assert!(pinned.runtime.contains("@1.2.3"));
+
+    assert_success(
+        &fixture.run(&["pkg", "install", "npm:@openai/codex"]),
+        "publish an installed package without discarding its command version pin",
+    );
+
+    let current = fixture.registry();
+    let entry = current.get("codex").unwrap();
+    assert_eq!(entry.runtime, pinned.runtime);
+    assert!(entry.is_complete());
+    fixture.assert_preserved();
 }

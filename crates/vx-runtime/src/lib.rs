@@ -94,7 +94,10 @@ pub use runtime::{
     VerificationResult,
 };
 pub use shim::{Shim, ShimBuilder, ShimType, VX_SHIM_MARKER, create_shim};
-pub use shim_registry::{CommandShim, ShimRegistry, create_command_shim};
+pub use shim_registry::{
+    CommandShim, ShimRegistry, create_command_shim, create_command_shim_in_home,
+    validate_command_shim_name,
+};
 pub use traits::{
     CommandExecutor, CorePathProvider, FileSystem, HttpClient, Installer, PathProvider,
 };

@@ -1,82 +1,84 @@
 # vx shim
 
-把任意 Runtime 暴露成可以直接输入的命令，之后输入 `jq --version` 即可，
-不必再写 `vx jq --version`。
-
-`vx shim` 会在 PATH 上的目录里生成一个小的包装脚本，把全部参数转发给
-`vx <runtime>`，runtime 在首次调用时按需安装。这与很多人手工写进
-`~/.local/bin` 的脚本是同一个东西，只不过由 vx 按平台生成并接管管理。
+将 Runtime 或包的可执行文件暴露为普通命令，并继续由 vx 准备运行环境。
 
 ```bash
-vx shim add jq
-jq --version          # -> jq-1.8.1
+vx codex --version          # 在隔离包环境中安装并运行
+vx shim add codex           # 显式创建 codex 命令入口
+codex --version             # 通过 vx 使用受管理的依赖
 ```
 
-> **RFC**：[RFC 0042 — 按平台生成的命令 shim](../../rfcs/0042-platform-command-shims.md)
+`vx codex` 不会创建全局命令 shim。`vx shim add` 生成的包装脚本绑定 vx
+可执行文件的绝对路径和创建时的 `VX_HOME`，因此从其他目录或 shell 调用时，
+仍使用同一套受管理的环境。
+
+公开接口是 `vx shim add/list/remove/sync/path`。创建入口必须使用 `add`；
+`vx shim codex` 和不带子命令的 `vx shim` 都不是创建命令。
 
 ## 子命令
 
 | 子命令 | 用途 |
 |---|---|
-| `add` | 为某个 runtime 创建 shim |
-| `list` | 列出 vx 创建的 shim（别名 `ls`） |
-| `remove` | 删除 vx 创建的 shim（别名 `rm`） |
-| `sync` | 按当前 `vx` 可执行文件重写全部 shim |
-| `path` | 显示目标目录及其是否在 PATH 上 |
+| `add` | 为 Runtime 或包命令创建 shim |
+| `list` | 列出已登记的 shim（别名 `ls`） |
+| `remove` | 移除已登记的 shim（别名 `rm`） |
+| `sync` | 按当前 vx 可执行文件刷新已登记的 shim |
+| `path` | 显示默认目标目录及其 PATH 状态 |
 
 ## add
 
 ```bash
-vx shim add jq                       # 创建 `jq` 命令
-vx shim add git@2.53.0               # 用 runtime 名承载固定版本
-vx shim add jq --as jqp              # 使用不同的命令名
-vx shim add jq --dir ~/.local/bin    # 指定目录（可重复）
-vx shim add git --force              # 允许覆盖系统自带的 git
+vx shim add jq
+vx shim add git@2.53.0
+vx shim add codex --as codex-vx
+vx shim add "npm:@openai/codex::codex" --as codex-vx
+vx shim add codex --dir "/absolute/path/to/shim-bin"
 ```
 
 | 参数 | 说明 |
 |---|---|
-| `--as <NAME>` | 要创建的命令名，默认为去掉 `@version` 的 runtime 名。 |
-| `--dir <DIR>` | 写入目录，可重复。默认为 vx 的 bin 目录与 `vx` 可执行文件所在目录。 |
-| `-f, --force` | 覆盖并非 vx 创建的同名命令。 |
+| `--as <NAME>` | 指定命令名，替代默认的可执行文件名。 |
+| `--dir <DIR>` | 目标目录，可重复；替代默认目录。相对路径在创建时转换为绝对路径并保存。 |
+| `-f, --force` | 允许创建会遮蔽 PATH 上其他同名命令的入口。 |
 
-### 覆盖保护
+默认写入 `$VX_HOME/bin` 和当前 vx 可执行文件所在目录，并去除重复目录。
+常规安装已将 vx 所在目录加入 PATH。自定义目录需要加入调用方的 PATH。
 
-如果名字已经解析到 PATH 上一个并非 vx 创建的二进制，`add` 会直接拒绝：
+`add` 本身不安装或运行目标，首次调用生成的命令时可以按需安装。
+`codex` 等 Provider 别名会解析为包执行请求；显式包语法可通过
+`::executable` 选择与包名不同的可执行文件。创建 shim 本身不会将已安装的包
+切换到另一个版本。
 
-```text
-$ vx shim add git
-✗ 'git' already resolves to C:\Program Files\Git\mingw64\bin\git.exe on PATH.
-  Re-run with --force to shadow it, or pick another name with --as.
-```
+### 冲突保护
 
-可以用 `--as` 换成别的名字，或在确实需要覆盖时使用 `--force`。
-vx 自己创建的 shim 永远可以直接覆盖。
+`add` 同时检查 PATH 上的同名命令和所有目标文件，包括 Windows 的两种包装
+文件。未修改的已登记 shim 可以刷新；无关文件、用户修改过的脚本和符号链接
+会被保留。发生文件冲突时，应改用其他 `--as` 名称或目标目录。
+
+`--force` 允许 PATH 命令遮蔽，不会绕过目标文件的归属检查，也不会覆盖系统
+二进制。
 
 ## list
 
 ```bash
 vx shim list
-vx shim list --json      # 机器可读
+vx shim list --json
 ```
 
-```text
-Command shims (2)
-  git              -> vx git                  [ok]
-    C:\Users\me\.vx\bin
-  jq               -> vx jq                   [ok]
-    C:\Users\me\.vx\bin
-```
-
-显示 `incomplete` 表示记录里的文件缺失，运行 `vx shim sync` 即可修复。
+文本输出检查已登记的文件是否与预期包装脚本一致。`incomplete` 表示文件缺失
+或内容已变化；`sync` 可重建缺失文件，但不会覆盖冲突文件。
+JSON 包含执行请求、launcher、`vx_home`、目录和文件路径。
+包装脚本完整不代表目标包已安装，也不代表它在 PATH 上优先被找到。
 
 ## remove
 
 ```bash
-vx shim remove jq
+vx shim remove codex
 ```
 
-只删除 vx 创建的文件。同名但由用户手写的包装脚本会被提示并保留。
+移除登记记录及其未修改、归属明确的包装文件。已修改的文件和无关替代文件会
+被提示并保留；`--force` 不会绕过归属检查。
+包仍然保持安装状态，之后运行 `vx codex` 也不会重新创建 shim。
 
 ## sync
 
@@ -84,8 +86,11 @@ vx shim remove jq
 vx shim sync
 ```
 
-生成的脚本里烘焙了 `vx` 的绝对路径。升级或移动 vx 之后，`sync` 会按新位置
-重写全部已注册的 shim，并补齐缺失的文件。
+在当前 `VX_HOME` 中，按正在运行的 vx 可执行文件刷新已登记的 shim，保留原有
+目标目录并重建缺失的文件。冲突文件会被保留并报错。旧记录若未绑定 home，
+会在刷新时补充绑定。
+
+`sync` 不安装或升级目标包，也不会为尚未登记 shim 的包创建全局命令。
 
 ## path
 
@@ -93,39 +98,42 @@ vx shim sync
 vx shim path
 ```
 
-打印每个目标目录、其是否在 PATH 上，以及补齐 PATH 的确切命令：
+显示默认目标目录及其是否在当前进程的 PATH 上。自定义 `--dir` 目录可通过
+`vx shim list --json` 查看。vx 会提示如何设置 PATH，但不会修改 shell
+配置、持久 PATH 或 Windows 注册表。
 
-```text
-Command shim directories
-  C:\Users\me\.vx\bin      not on PATH
-    Platform variants: <name>.cmd (cmd.exe, PowerShell), <name> (sh, Git Bash, MSYS2)
-💡 $env:PATH = "C:\Users\me\.vx\bin;$env:PATH"
-```
+## 显式包安装
 
-vx 不会修改你的 shell 配置或 Windows 注册表，是否加入 PATH 由你决定。
+为保持兼容，`vx install codex` 和 `vx pkg install npm:@openai/codex`
+会安装包并发布其可执行文件。这些入口与 `vx shim add` 共用登记记录和受管理的
+执行路径，可通过 `vx shim list/sync/remove` 管理。
+
+`vx pkg shim-update` 会显式发布已安装包的可执行文件，并保留无关的命令 shim
+和文件。仅需刷新现有登记入口时，使用 `vx shim sync`。卸载包会移除属于该包的
+已登记命令入口。
+
+旧版生成但未写入命令 shim 登记记录的包装文件会保持不变，可能在创建入口时
+触发冲突。可使用其他 `--as` 名称，必要时配合私有 `--dir`；vx 不会根据文件名
+或内容猜测其归属并自动接管。
 
 ## 平台行为
 
-一次 `add` 会生成当前平台需要的全部文件：
-
-| 平台 | 文件 | 可从何处调用 |
+| 平台 | 生成的文件 | 调用方 |
 |---|---|---|
-| Windows | `jq.cmd` | cmd.exe、PowerShell（`PATHEXT` 把 `jq` 解析到 `jq.cmd`） |
-| Windows | `jq` | Git Bash、MSYS2、Cygwin |
-| Linux / macOS | `jq` | 所有 POSIX shell |
+| Windows | `<name>.cmd` | cmd.exe、PowerShell |
+| Windows | `<name>` | Git Bash、MSYS2、Cygwin |
+| Linux / macOS | `<name>` | POSIX shell |
 
-Windows 需要两个文件：POSIX shell 脚本对 cmd.exe 和 PowerShell 不可见，
-而批处理脚本在 Git Bash 里又无法使用。Unix 终端都认 `/bin/sh`，一个脚本足够。
+Windows 会同时生成批处理和 POSIX 包装脚本，不生成 `.ps1` 文件。
+脚本转发参数和子进程退出码。无法执行脚本的原生进程启动器应直接调用 vx，
+并分别传递参数。
 
-生成的脚本带有 `vx-shim` 标记行，并会传播被包装命令的退出码。
-
-## 安全性
-
-- 未加 `--force` 时，`add` 绝不覆盖没有 vx 标记的文件。
-- `remove` 只删除 registry 里记录**且**带有 `vx-shim` 标记的文件。
-- registry 位于 `$VX_HOME/config/command-shims.json`，遵循 `VX_HOME`。
+登记文件位于 `$VX_HOME/config/command-shims.json`。读取失败或 JSON 格式错误
+会被报告，不会被当作空记录覆盖。
 
 ## 相关
 
-- [`vx global`](./global) — 全局包管理，使用同样的 shim 堆叠布局。
-- [隐式包执行](./implicit-package-execution) — 无需预先安装即可运行包。
+- [受管理的命令 shim（英文）](../../guide/managed-command-shims.md)
+- [RFC 0042 — 按平台生成的命令 shim](../../rfcs/0042-platform-command-shims.md)
+- [`vx global`](./global) — 隔离包管理
+- [隐式包执行](./implicit-package-execution)
