@@ -180,11 +180,25 @@ pub async fn handle(
         let (status_type, installed_version) = match status {
             ToolStatus::Installed => {
                 // Extract version from path if possible
-                let ver = detected_version
+                let detected = detected_version
                     .clone()
-                    .or_else(|| path.as_ref().and_then(|p| extract_version_from_path(p)))
-                    .unwrap_or_else(|| config_version.clone());
-                (RequirementStatusType::Installed, Some(ver))
+                    .or_else(|| path.as_ref().and_then(|p| extract_version_from_path(p)));
+
+                let ver = if is_rust_toolchain_runtime(name) {
+                    // A Rust runtime reports the toolchain that will actually run, not
+                    // a store directory that happens to carry the pin as its name:
+                    // vx keys its rust store by the version `vx.toml` asks for, while
+                    // what it installs there is rustup, so the directory name is not a
+                    // version report at all. Resolving the real toolchain also keeps
+                    // `installed` consistent with the pin comparison above, and it
+                    // never falls back to the declared pin — reporting `required` as
+                    // `installed` is exactly what makes a drifting pin look satisfied.
+                    effective_version.clone().or(detected)
+                } else {
+                    Some(detected.unwrap_or_else(|| config_version.clone()))
+                };
+
+                (RequirementStatusType::Installed, ver)
             }
             ToolStatus::SystemFallback => {
                 if let Some(owner) = &rust_owner {
