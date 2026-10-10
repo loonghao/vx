@@ -12,6 +12,7 @@ async-trait = { workspace = true }
 anyhow = { workspace = true }
 thiserror = { workspace = true }
 tracing = { workspace = true }
+vx-rez-adapter = { workspace = true, optional = true }
 
 # Async runtime (needs 'time' for tokio::time::timeout used in package_runtime)
 tokio = { workspace = true, features = ["time"] }
@@ -44,6 +45,8 @@ workspace-hack = { version = "0.1", path = "../workspace-hack" }
 
 [features]
 default = []
+# Optional Rez bundle activation through the public adapter crate.
+rez-bundles = ["dep:vx-rez-adapter"]
 # Testing utilities (mock implementations) - only needed in test builds
 testing = []
 

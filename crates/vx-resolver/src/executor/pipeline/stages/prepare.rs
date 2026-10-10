@@ -131,16 +131,17 @@ impl<'a> PrepareStage<'a> {
         which::which(executable_name).ok()
     }
 
-    /// Try proxy execution for bundled runtimes (RFC 0028)
+    /// Ask the runtime for execution-specific preparation (RFC 0028).
     ///
     /// For runtimes that are bundled with another runtime (e.g., msbuild with dotnet),
     /// the executable is not directly available. Instead, we call the runtime's
-    /// `prepare_execution()` method which returns the proxy executable and command prefix.
-    async fn try_proxy_execution(
+    /// `prepare_execution()` method which returns the proxy executable, extra
+    /// environment variables, and command prefix.
+    async fn try_execution_preparation(
         &self,
         plan: &ExecutionPlan,
         runtime_env: &HashMap<String, String>,
-    ) -> Result<Option<(PathBuf, Vec<String>)>, PrepareError> {
+    ) -> Result<Option<vx_runtime::ExecutionPrep>, PrepareError> {
         let registry = match self.registry {
             Some(r) => r,
             None => return Ok(None),
@@ -171,18 +172,18 @@ impl<'a> PrepareStage<'a> {
         };
 
         match runtime.prepare_execution(&version_str, &exec_ctx).await {
-            Ok(prep) => {
+            Ok(mut prep) => {
                 if let Some(ref msg) = prep.message {
                     info!("{}", msg);
                 }
 
-                if let Some(exe) = prep.executable_override {
+                if let Some(ref exe) = prep.executable_override {
                     debug!(
                         "[PrepareStage] Proxy resolved: executable={}, prefix={:?}",
                         exe.display(),
                         prep.command_prefix
                     );
-                    Ok(Some((exe, prep.command_prefix)))
+                    Ok(Some(prep))
                 } else if prep.use_system_path {
                     // Try system PATH using the runtime's actual executable name.
                     if let Some(system_exe) =
@@ -192,10 +193,17 @@ impl<'a> PrepareStage<'a> {
                             "[PrepareStage] Using system executable: {}",
                             system_exe.display()
                         );
-                        Ok(Some((system_exe, prep.command_prefix)))
+                        prep.executable_override = Some(system_exe);
+                        Ok(Some(prep))
                     } else {
                         Ok(None)
                     }
+                } else if prep.proxy_ready
+                    || !prep.env_vars.is_empty()
+                    || !prep.path_prepend.is_empty()
+                    || !prep.command_prefix.is_empty()
+                {
+                    Ok(Some(prep))
                 } else {
                     Ok(None)
                 }
@@ -238,7 +246,7 @@ impl<'a> Stage<ExecutionPlan, PreparedExecution> for PrepareStage<'a> {
         //
         // Passing an empty map is safe: the child inherits the parent environment
         // and only the entries we set explicitly are overridden.
-        let runtime_env = if matches!(
+        let mut runtime_env = if matches!(
             plan.primary.version,
             VersionResolution::SystemAvailable { .. }
         ) {
@@ -266,8 +274,34 @@ impl<'a> Stage<ExecutionPlan, PreparedExecution> for PrepareStage<'a> {
             runtime_env.len()
         );
 
-        // Step 2: Resolve executable — try direct path first, then proxy execution (RFC 0028)
-        let (executable, command_prefix) = if let Some(exe) = plan.primary.executable.clone() {
+        // Step 2: Allow the runtime to replace a direct executable and augment
+        // the environment before falling back to the resolved path. This is
+        // required by providers whose installed payload must be activated
+        // before its executable becomes meaningful (for example Rez bundles).
+        let execution_prep = self.try_execution_preparation(&plan, &runtime_env).await?;
+        let mut executable_override = None;
+        let mut prepared_command_prefix = None;
+        if let Some(prep) = execution_prep {
+            runtime_env.extend(prep.env_vars);
+            if !prep.path_prepend.is_empty() {
+                prepend_environment_path(&mut runtime_env, &prep.path_prepend).map_err(
+                    |reason| PrepareError::EnvironmentFailed {
+                        runtime: plan.primary.name.clone(),
+                        reason,
+                    },
+                )?;
+            }
+            executable_override = prep.executable_override;
+            prepared_command_prefix = Some(prep.command_prefix);
+        }
+
+        // Step 3: Resolve executable — direct path first, then proxy execution (RFC 0028)
+        let (executable, command_prefix) = if let Some(executable) = executable_override {
+            (
+                executable,
+                prepared_command_prefix.unwrap_or_else(|| plan.primary.command_prefix.clone()),
+            )
+        } else if let Some(exe) = plan.primary.executable.clone() {
             // Safety net: verify the executable filename matches the requested runtime.
             // This prevents silent misresolution where a bundled tool (npm) gets the
             // parent runtime's binary (node), which would execute `node ci` instead of `npm ci`.
@@ -323,27 +357,18 @@ impl<'a> Stage<ExecutionPlan, PreparedExecution> for PrepareStage<'a> {
             }
         } else {
             // No executable path — this is expected for bundled runtimes (e.g., msbuild).
-            // Try proxy execution: the runtime's prepare_execution() can provide
-            // an executable override (e.g., msbuild → dotnet msbuild).
-            debug!(
-                "[PrepareStage] No executable for {}, trying proxy execution (RFC 0028)",
-                plan.primary.name
-            );
-            self.try_proxy_execution(&plan, &runtime_env)
-                .await?
-                .ok_or_else(|| {
-                    // Distinguish between unknown runtime and known-but-no-executable
-                    if let Some(registry) = self.registry
-                        && registry.get_runtime(&plan.primary.name).is_none()
-                    {
-                        return PrepareError::UnknownRuntime {
-                            runtime: plan.primary.name.clone(),
-                        };
-                    }
-                    PrepareError::NoExecutable {
-                        runtime: plan.primary.name.clone(),
-                    }
-                })?
+            // Execution preparation already ran in step 2 and supplied an override
+            // when the runtime had one; distinguish the two failure modes here.
+            if let Some(registry) = self.registry
+                && registry.get_runtime(&plan.primary.name).is_none()
+            {
+                return Err(PrepareError::UnknownRuntime {
+                    runtime: plan.primary.name.clone(),
+                });
+            }
+            return Err(PrepareError::NoExecutable {
+                runtime: plan.primary.name.clone(),
+            });
         };
 
         // Step 3: Build vx tools PATH
@@ -370,6 +395,47 @@ impl<'a> Stage<ExecutionPlan, PreparedExecution> for PrepareStage<'a> {
             plan,
         })
     }
+}
+
+/// Prepend `entries` to the `PATH` variable of `environment`.
+///
+/// This mirrors how a Rez package prepends its payload directories, so an
+/// activated bundle wins over any earlier entry without discarding it.
+fn prepend_environment_path(
+    environment: &mut HashMap<String, String>,
+    entries: &[PathBuf],
+) -> Result<(), String> {
+    if entries.is_empty() {
+        return Ok(());
+    }
+
+    let key = environment
+        .keys()
+        .find(|key| key.eq_ignore_ascii_case("PATH"))
+        .cloned();
+    let separator = if cfg!(windows) { ";" } else { ":" };
+    let prepended = entries
+        .iter()
+        .map(|entry| {
+            entry
+                .to_str()
+                .map(str::to_string)
+                .ok_or_else(|| format!("non-UTF-8 PATH entry: {}", entry.display()))
+        })
+        .collect::<Result<Vec<_>, String>>()?
+        .join(separator);
+
+    let (key, value) = match key {
+        Some(ref key) => match environment.remove(key) {
+            Some(existing) if !existing.is_empty() => {
+                (key.clone(), format!("{prepended}{separator}{existing}"))
+            }
+            _ => (key.clone(), prepended),
+        },
+        None => ("PATH".to_string(), prepended),
+    };
+    environment.insert(key, value);
+    Ok(())
 }
 
 #[cfg(test)]
