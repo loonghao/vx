@@ -14,6 +14,7 @@ load("@vx//stdlib:provider.star",
 load("@vx//stdlib:github.star", "make_fetch_versions")
 load("@vx//stdlib:install.star", "set_permissions", "run_command")
 load("@vx//stdlib:env.star",    "env_set", "env_prepend")
+load("@vx//stdlib:rez.star",    "rez_bundle_source")
 
 # ---------------------------------------------------------------------------
 # Provider metadata
@@ -58,7 +59,48 @@ permissions = github_permissions(extra_hosts = ["static.rust-lang.org"])
 # fetch_versions — rustup GitHub releases
 # ---------------------------------------------------------------------------
 
-fetch_versions = make_fetch_versions("rust-lang", "rustup")
+_rustup_fetch_versions = make_fetch_versions("rust-lang", "rustup")
+
+# Immutable Rez bundle source for rustc/cargo/rustfmt. The primary `rust`
+# runtime keeps the existing rustup contract as a compatibility fallback.
+_REZ_BUNDLE_TARGETS = {
+    "windows/x64": "x86_64-pc-windows-msvc",
+    "windows/arm64": "aarch64-pc-windows-msvc",
+    "linux/x64": "x86_64-unknown-linux-gnu",
+    "linux/arm64": "aarch64-unknown-linux-gnu",
+    "macos/x64": "x86_64-apple-darwin",
+    "macos/arm64": "aarch64-apple-darwin",
+}
+_REZ_BUNDLE_UNSUPPORTED = {
+    "x86_64-pc-windows-gnu": "Windows GNU targets have no MSVC ABI Rez bundle.",
+}
+_REZ_BUNDLE_PROGRAMS = {
+    "rustc": "rustc",
+    "cargo": "cargo",
+    "rustfmt": "rustfmt",
+}
+
+_rez_bundle_source = rez_bundle_source(
+    "vx-org",
+    "vx-rez-packages",
+    "rust",
+    targets = _REZ_BUNDLE_TARGETS,
+    unsupported_targets = _REZ_BUNDLE_UNSUPPORTED,
+    programs = _REZ_BUNDLE_PROGRAMS,
+)
+
+rez_fetch_versions = _rez_bundle_source["fetch_versions"]
+rez_download_url = _rez_bundle_source["download_url"]
+rez_install_layout = _rez_bundle_source["install_layout"]
+rez_bundle = _rez_bundle_source["rez_bundle"]
+
+def _rez_enabled(ctx):
+    return rez_bundle(ctx, "0.0.0")["enabled"]
+
+def fetch_versions(ctx):
+    if _rez_enabled(ctx):
+        return rez_fetch_versions(ctx)
+    return _rustup_fetch_versions(ctx)
 
 # ---------------------------------------------------------------------------
 # Platform helpers
@@ -164,7 +206,9 @@ def version_info(_ctx, user_version):
 # download_url — rustup-init binary
 # ---------------------------------------------------------------------------
 
-def download_url(ctx, _version):
+def download_url(ctx, version):
+    if _rez_enabled(ctx):
+        return rez_download_url(ctx, version)
     # rustup-init is downloaded from the Rust CDN, not from versioned GitHub assets.
     # The CDN always serves the latest stable rustup-init for each platform triple;
     # the toolchain version is installed by running rustup-init with --default-toolchain.
@@ -180,7 +224,9 @@ def download_url(ctx, _version):
 # install_layout — single binary installer
 # ---------------------------------------------------------------------------
 
-def install_layout(ctx, _version):
+def install_layout(ctx, version):
+    if _rez_enabled(ctx):
+        return rez_install_layout(ctx, version)
     # The CDN asset is always named "rustup-init" (or "rustup-init.exe" on Windows).
     triple = _rustup_triple(ctx)
     if not triple:
