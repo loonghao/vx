@@ -3,29 +3,11 @@
 //! This test verifies that the sync and dev commands correctly pass
 //! tool@version format to the install command, not separate arguments.
 
-use std::env;
-use std::path::PathBuf;
+mod common;
+
 use std::process::Command;
 
-/// Get the path to the vx binary for testing
-fn vx_binary() -> PathBuf {
-    // First try CARGO_BIN_EXE_vx (set by cargo test)
-    if let Ok(path) = env::var("CARGO_BIN_EXE_vx") {
-        return PathBuf::from(path);
-    }
-
-    // Fallback: construct path from current exe location
-    let mut path = env::current_exe().unwrap();
-    path.pop();
-    if path.ends_with("deps") {
-        path.pop();
-    }
-    path.push("vx");
-    if cfg!(windows) {
-        path.set_extension("exe");
-    }
-    path
-}
+use common::vx_binary;
 
 /// Test that install command accepts tool@version format
 #[test]

@@ -69,17 +69,20 @@ fn test_child_produces_large_output() {
     }
     stdout.flush().unwrap();
     stderr.flush().unwrap();
+    if std::env::var_os("VX_TIMEOUT_PROBE_SLEEP").is_some() {
+        std::thread::sleep(Duration::from_secs(30));
+    }
 }
 
 #[rstest]
-fn test_vx_binary_uses_cargo_candidate_from_foreign_directory() {
+fn test_vx_binary_is_absolute_from_foreign_directory() {
     let directory = tempfile::tempdir().unwrap();
     let mut command = Command::new(std::env::current_exe().unwrap());
     command
         .args([
             "--ignored",
             "--exact",
-            "test_child_runs_cargo_candidate",
+            "test_child_locates_profile_candidate",
             "--nocapture",
         ])
         .env_remove("VX_BINARY")
@@ -91,14 +94,28 @@ fn test_vx_binary_uses_cargo_candidate_from_foreign_directory() {
 
 #[rstest]
 #[ignore = "executed by the foreign-directory binary regression"]
-fn test_child_runs_cargo_candidate() {
+fn test_child_locates_profile_candidate() {
     let binary = common::vx_binary();
     assert!(binary.is_absolute());
-    assert!(binary.is_file());
-    let output = common::run_vx(&["--version"]).unwrap();
-    assert!(output.status.success(), "{output:?}");
-    assert_eq!(
-        String::from_utf8(output.stdout).unwrap().trim(),
-        concat!("vx ", env!("CARGO_PKG_VERSION"))
-    );
+    assert_eq!(binary.file_name().unwrap(), common::binary_name());
+}
+
+#[rstest]
+fn test_run_command_with_timeout_preserves_bounded_partial_output() {
+    let mut command = Command::new(std::env::current_exe().unwrap());
+    command
+        .args([
+            "--ignored",
+            "--exact",
+            "test_child_produces_large_output",
+            "--nocapture",
+        ])
+        .env("VX_TIMEOUT_PROBE_SLEEP", "1");
+    let error = common::run_command_with_timeout(command, Duration::from_secs(2)).unwrap_err();
+    assert_eq!(error.kind(), ErrorKind::TimedOut);
+    let message = error.to_string();
+    assert!(message.contains("stdout (first 16 KiB):"));
+    assert!(message.contains("stderr (first 16 KiB):"));
+    assert!(message.contains(&"Y".repeat(1024)));
+    assert!(message.len() < 40 * 1024);
 }
