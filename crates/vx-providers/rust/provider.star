@@ -87,6 +87,11 @@ _rez_bundle_source = rez_bundle_source(
     targets = _REZ_BUNDLE_TARGETS,
     unsupported_targets = _REZ_BUNDLE_UNSUPPORTED,
     programs = _REZ_BUNDLE_PROGRAMS,
+    # No Rez bundle for Rust has been published yet, so the rustup path stays
+    # in charge. `_REZ_BUNDLE_PROGRAMS` still describes the intended activation
+    # for when one is; flip this once `vx-org/vx-rez-packages` publishes a
+    # `rust` release with downloadable index and bundle assets.
+    published = False,
 )
 
 rez_fetch_versions = _rez_bundle_source["fetch_versions"]

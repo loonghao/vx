@@ -1394,7 +1394,8 @@ def releases_to_versions(releases):
 
 # --- rez.star ---
 def rez_bundle_source(owner, repo, tool, targets, unsupported_targets = {{}},
-                      programs = {{}}, versions_url = None, bundle_schema_version = 1):
+                      programs = {{}}, versions_url = None, bundle_schema_version = 1,
+                      published = True):
     def fetch_versions(_ctx):
         return {{"__type": "fetch_json_versions", "tool": tool}}
 
@@ -1406,7 +1407,7 @@ def rez_bundle_source(owner, repo, tool, targets, unsupported_targets = {{}},
         return {{"type": "archive", "required_paths": []}}
 
     def rez_bundle(ctx, version):
-        return {{"__type": "rez_bundle_request", "enabled": False, "tool": tool,
+        return {{"__type": "rez_bundle_request", "enabled": published, "tool": tool,
                 "version": version}}
 
     return {{

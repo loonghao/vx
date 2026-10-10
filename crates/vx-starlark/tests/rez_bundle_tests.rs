@@ -202,12 +202,31 @@ fn rust_provider_exposes_bundle_metadata_without_replacing_rustup() {
         "rust-1.95.0-x86_64-pc-windows-msvc.rez.tar.zst"
     );
 
+    // No `rust` Rez bundle has been published, so activation stays with
+    // rustup. The metadata is still declared and correct — see
+    // `rust_provider_activates_its_bundle_once_published` for the request the
+    // runtime would receive after a release exists.
     let rustc_request = call_rust_provider("rez_bundle", &windows_x64(), "rustc");
-    assert_eq!(rustc_request["enabled"], true);
+    assert_eq!(rustc_request["enabled"], false);
     assert_eq!(rustc_request["program"], "rustc");
 
     let rustup_request = call_rust_provider("rez_bundle", &windows_x64(), "rust");
     assert_eq!(rustup_request["enabled"], false);
+}
+
+/// The metadata above is what activation will use once a `rust` bundle is
+/// published; this pins its exact shape so flipping the flag is a one-line
+/// change with a known outcome.
+#[test]
+fn rust_provider_activates_its_bundle_once_published() {
+    let request = call("rez_bundle", &windows_x64());
+    assert_eq!(request["enabled"], true);
+    assert_eq!(request["repository"], ".");
+    assert_eq!(
+        request["requirements"],
+        serde_json::json!(["rust-1.95.0", "platform-windows", "arch-x86_64"])
+    );
+    assert_eq!(request["program"], "rustc");
 }
 
 #[test]
