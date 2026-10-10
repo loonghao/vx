@@ -20,8 +20,15 @@ fetch_versions = make_fetch_versions("obsproject", "obs-studio")
 def download_url(ctx, version):
     if ctx.platform.os != "windows" or ctx.platform.arch not in ["x64", "arm64"]:
         return None
-    # Native Windows ARM64 archives first shipped in OBS 32.
-    if ctx.platform.arch == "arm64" and int(version.split(".")[0]) < 32:
+    # Architecture-suffixed Windows archives first shipped in OBS 31.1.0; older
+    # releases only publish an unsuffixed "-Windows.zip", which this provider
+    # does not install. Pre-release tags are refused as a whole because their
+    # asset sets vary per tag (31.1.0-beta1 ships no x64 archive).
+    parts = version.split("-")[0].split(".")
+    if "-" in version or len(parts) < 2 or not parts[0].isdigit() or not parts[1].isdigit():
+        return None
+    major, minor = int(parts[0]), int(parts[1])
+    if major < 31 or (major == 31 and minor < 1):
         return None
     asset = "OBS-Studio-{}-Windows-{}.zip".format(version, ctx.platform.arch)
     return github_asset_url("obsproject", "obs-studio", version, asset)
