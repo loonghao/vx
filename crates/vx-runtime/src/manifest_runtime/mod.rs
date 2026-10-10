@@ -1199,7 +1199,12 @@ impl Runtime for ManifestDrivenRuntime {
     }
 
     fn is_version_installable(&self, _version: &str) -> bool {
-        self.rez_bundle_fn.is_some() || self.bundled_with.is_none()
+        // A bundled runtime is installed through its parent, so direct
+        // installation is never attempted for it. A Rez bundle does not change
+        // that: the bridge is attached to every runtime built from a
+        // provider.star and most never opt in, so its mere presence says
+        // nothing about how this runtime is installed.
+        self.bundled_with.is_none()
     }
 
     async fn prepare_execution(
