@@ -2,7 +2,7 @@
 # on Linux. The NSIS installer runs silently into the selected vx store.
 load("@vx//stdlib:provider.star", "runtime_def", "github_permissions")
 load("@vx//stdlib:github.star", "make_fetch_versions", "github_asset_url")
-load("@vx//stdlib:install.star", "archive_install", "run_nsis_installer")
+load("@vx//stdlib:install.star", "archive_install", "run_nsis_installer", "run_command")
 load("@vx//stdlib:env.star", "env_prepend")
 
 name = "openscreen"
@@ -39,9 +39,9 @@ def install_layout(ctx, version):
     if url == None:
         return None
     if ctx.platform.os == "windows":
-        return {"type": "binary", "target_name": "openscreen-installer.exe", "target_dir": "", "executable_paths": ["openscreen-installer.exe"], "required_paths": ["Openscreen.exe"]}
+        return {"type": "binary", "target_name": "openscreen-installer.exe", "target_dir": "bin", "executable_paths": ["bin/openscreen-installer.exe"], "required_paths": ["Openscreen.exe"]}
     if ctx.platform.os == "linux":
-        return {"type": "binary", "target_name": "openscreen", "target_dir": "", "executable_paths": ["openscreen"]}
+        return {"type": "binary", "target_name": "openscreen", "target_dir": "bin", "executable_paths": ["bin/openscreen"], "required_paths": ["squashfs-root/AppRun"]}
     return archive_install(url, executable_paths = ["Openscreen.app/Contents/MacOS/Openscreen"])
 
 def store_root(ctx):
@@ -52,11 +52,14 @@ def get_execute_path(ctx, _version):
         return ctx.install_dir + "/Openscreen.exe"
     if ctx.platform.os == "macos":
         return ctx.install_dir + "/Openscreen.app/Contents/MacOS/Openscreen"
-    return ctx.install_dir + "/openscreen"
+    return ctx.install_dir + "/squashfs-root/AppRun"
 
 def post_extract(ctx, _version, install_dir):
     if ctx.platform.os == "windows":
-        return [run_nsis_installer(install_dir + "/openscreen-installer.exe", install_dir)]
+        return [run_nsis_installer(install_dir + "/bin/openscreen-installer.exe", install_dir)]
+    if ctx.platform.os == "linux":
+        # AppImage extraction needs no FUSE mount or running desktop session.
+        return [run_command(install_dir + "/bin/openscreen", ["--appimage-extract"], working_dir = install_dir, on_failure = "error")]
     return []
 
 def environment(ctx, _version):

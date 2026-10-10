@@ -26,6 +26,8 @@ runtimes = [
 ]
 permissions = github_permissions()
 fetch_versions = make_fetch_versions("Comfy-Org", "ComfyUI", include_prereleases = False)
+# Windows also writes a shell wrapper, so avoid the upstream ComfyUI directory.
+_launcher = "vx-comfyui"
 
 def _runtime(ctx):
     return ctx.runtime_name if ctx.runtime_name else "comfyui"
@@ -41,16 +43,16 @@ def download_url(ctx, version):
 def install_layout(ctx, _version):
     if ctx.platform.os != "windows" or ctx.platform.arch != "x64":
         return None
-    return {"type": "archive", "strip_prefix": "ComfyUI_windows_portable", "executable_paths": ["python_embeded/python.exe"], "required_paths": ["ComfyUI/main.py", "comfyui.cmd"]}
+    return {"type": "archive", "strip_prefix": "ComfyUI_windows_portable", "executable_paths": ["python_embeded/python.exe"], "required_paths": ["ComfyUI/main.py", _launcher + ".cmd"]}
 
 def store_root(ctx):
     return ctx.vx_home + "/store/" + _runtime(ctx)
 
 def get_execute_path(ctx, _version):
-    return ctx.install_dir + "/comfyui.cmd"
+    return ctx.install_dir + "/" + _launcher + ".cmd"
 
 def post_extract(_ctx, _version, install_dir):
-    return [create_shim("comfyui", install_dir + "/python_embeded/python.exe", args = [
+    return [create_shim(_launcher, install_dir + "/python_embeded/python.exe", args = [
         "-s", install_dir + "/ComfyUI/main.py", "--windows-standalone-build",
     ], shim_dir = install_dir)]
 

@@ -276,37 +276,45 @@ fn already_installed_result(
     ))
 }
 
-struct InstallLock {
+pub(crate) struct InstallLock {
     path: PathBuf,
     file: Option<File>,
 }
 
 impl InstallLock {
-    async fn acquire(install_path: &Path) -> Result<Self> {
+    pub(crate) async fn acquire(install_path: &Path) -> Result<Self> {
+        loop {
+            match Self::try_acquire(install_path)? {
+                Some(lock) => return Ok(lock),
+                None => {
+                    remove_stale_install_lock(&install_lock_path(install_path))?;
+                    tokio::time::sleep(INSTALL_LOCK_RETRY_DELAY).await;
+                }
+            }
+        }
+    }
+
+    /// Attempt to protect an installation check without waiting for a writer.
+    pub(crate) fn try_acquire(install_path: &Path) -> Result<Option<Self>> {
         let lock_path = install_lock_path(install_path);
         if let Some(parent) = lock_path.parent() {
             std::fs::create_dir_all(parent)?;
         }
 
-        loop {
-            match OpenOptions::new()
-                .write(true)
-                .create_new(true)
-                .open(&lock_path)
-            {
-                Ok(file) => {
-                    debug!("Acquired install lock: {}", lock_path.display());
-                    return Ok(Self {
-                        path: lock_path,
-                        file: Some(file),
-                    });
-                }
-                Err(err) if err.kind() == std::io::ErrorKind::AlreadyExists => {
-                    remove_stale_install_lock(&lock_path)?;
-                    tokio::time::sleep(INSTALL_LOCK_RETRY_DELAY).await;
-                }
-                Err(err) => return Err(err.into()),
+        match OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(&lock_path)
+        {
+            Ok(file) => {
+                debug!("Acquired install lock: {}", lock_path.display());
+                Ok(Some(Self {
+                    path: lock_path,
+                    file: Some(file),
+                }))
             }
+            Err(err) if err.kind() == std::io::ErrorKind::AlreadyExists => Ok(None),
+            Err(err) => Err(err.into()),
         }
     }
 }

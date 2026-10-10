@@ -7,7 +7,10 @@ homepage = "https://krita.org"
 repository = "https://invent.kde.org/graphics/krita"
 license = "GPL-3.0-or-later"
 ecosystem = "system"
-runtimes = [runtime_def("krita", version_pattern = "krita \\d+\\.\\d+", system_paths = [
+runtimes = [runtime_def("krita", test_commands = [
+    # Upstream constructs QApplication before processing --version.
+    {"command": "{executable}", "check_type": "check_file", "name": "installed_application_executable"},
+], system_paths = [
     "C:/Program Files/Krita (x64)/bin/krita.exe", "C:/Program Files/Krita/bin/krita.exe",
     "/Applications/krita.app/Contents/MacOS/krita", "/usr/bin/krita", "/usr/local/bin/krita", "/opt/homebrew/bin/krita",
 ])]

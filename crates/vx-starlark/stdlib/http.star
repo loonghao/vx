@@ -173,6 +173,29 @@ def fetch_json_versions(ctx, url, transform, headers = {}):
         "headers":   headers,
     }
 
+def fetch_html_versions(ctx, url, href_prefix, filename_prefix, filename_suffix):
+    """Describe dotted numeric versions linked on an official download page.
+
+    The Rust runtime matches literal anchor hrefs under href_prefix (an
+    absolute HTTP(S) directory ending in /) and extracts versions between
+    filename_prefix and filename_suffix in each linked basename. It accepts
+    quoted or unquoted href attributes, ignores comments and raw-text elements,
+    and does not interpret entities or encoded paths. Only published matching
+    asset links count; source tags and page text do not. No match or an HTTP
+    error fails instead of substituting a source-tag version list.
+
+    Select platform-specific filename literals using ctx.platform. Version
+    caches for this descriptor are isolated by OS and architecture. Optional
+    exclude_version_suffixes may be added to the returned descriptor.
+    """
+    return {
+        "__type": "fetch_html_versions",
+        "url": url,
+        "href_prefix": href_prefix,
+        "filename_prefix": filename_prefix,
+        "filename_suffix": filename_suffix,
+    }
+
 def releases_to_versions(releases, tag_key = "tag_name"):
     """Convert a GitHub releases descriptor (or list) to version info dicts.
 
