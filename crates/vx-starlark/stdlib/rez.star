@@ -31,7 +31,7 @@ def _unsupported_reason(ctx, tool, unsupported_targets):
 
 def rez_bundle_source(owner, repo, tool, targets, unsupported_targets = {},
                       programs = {}, versions_url = None,
-                      bundle_schema_version = 1):
+                      bundle_schema_version = 1, published = True):
     """Create provider functions for immutable Rez package bundle releases.
 
     `targets` maps either a vx `os/arch` pair or an exact target triple to the
@@ -39,6 +39,10 @@ def rez_bundle_source(owner, repo, tool, targets, unsupported_targets = {},
     user-facing reasons. The returned `rez_bundle` function is consumed by the
     vx runtime adapter bridge; the remaining functions work with the ordinary
     provider download/install pipeline.
+
+    Set `published = False` while no release exists yet. The runtime bridge
+    asks every provider for a bundle, so leaving it enabled would make vx try
+    to activate one from an ordinary installation and fail during prepare.
     """
     if versions_url == None:
         versions_url = "https://api.github.com/repos/{}/{}/releases?per_page=100".format(
@@ -105,7 +109,7 @@ def rez_bundle_source(owner, repo, tool, targets, unsupported_targets = {},
     def rez_bundle(ctx, version):
         runtime_name = ctx.runtime_name if ctx.runtime_name else tool
         program = programs.get(runtime_name, runtime_name)
-        enabled = len(programs) == 0 or runtime_name in programs
+        enabled = published and (len(programs) == 0 or runtime_name in programs)
         rez_platform = _rez_platform(ctx)
         rez_arch = _rez_arch(ctx)
         asset = download_url(ctx, version)
