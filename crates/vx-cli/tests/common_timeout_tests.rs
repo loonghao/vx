@@ -70,3 +70,35 @@ fn test_child_produces_large_output() {
     stdout.flush().unwrap();
     stderr.flush().unwrap();
 }
+
+#[rstest]
+fn test_vx_binary_uses_cargo_candidate_from_foreign_directory() {
+    let directory = tempfile::tempdir().unwrap();
+    let mut command = Command::new(std::env::current_exe().unwrap());
+    command
+        .args([
+            "--ignored",
+            "--exact",
+            "test_child_runs_cargo_candidate",
+            "--nocapture",
+        ])
+        .env_remove("VX_BINARY")
+        .env("CARGO_TARGET_DIR", "target")
+        .current_dir(directory.path());
+    let output = common::run_command_with_timeout(command, Duration::from_secs(15)).unwrap();
+    assert!(output.status.success(), "{output:?}");
+}
+
+#[rstest]
+#[ignore = "executed by the foreign-directory binary regression"]
+fn test_child_runs_cargo_candidate() {
+    let binary = common::vx_binary();
+    assert!(binary.is_absolute());
+    assert!(binary.is_file());
+    let output = common::run_vx(&["--version"]).unwrap();
+    assert!(output.status.success(), "{output:?}");
+    assert_eq!(
+        String::from_utf8(output.stdout).unwrap().trim(),
+        concat!("vx ", env!("CARGO_PKG_VERSION"))
+    );
+}

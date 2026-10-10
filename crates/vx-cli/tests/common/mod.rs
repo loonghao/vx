@@ -63,37 +63,18 @@ pub fn binary_name() -> &'static str {
 
 /// Get the vx binary path
 pub fn vx_binary() -> PathBuf {
-    // Check VX_BINARY environment variable first (for CI artifact-based testing)
-    if let Ok(path) = std::env::var("VX_BINARY") {
-        let p = PathBuf::from(&path);
-        if p.exists() {
-            return p;
-        }
+    if let Some(path) = std::env::var_os("VX_BINARY") {
+        let path = std::fs::canonicalize(path).expect("VX_BINARY must name an existing binary");
+        assert!(path.is_file(), "VX_BINARY must name a file");
+        return path;
     }
 
-    let cargo_target = std::env::var("CARGO_TARGET_DIR")
-        .map(PathBuf::from)
-        .unwrap_or_else(|_| PathBuf::from("target"));
-
-    // Check release build first (CI uses release)
-    let release_binary = cargo_target.join("release").join(binary_name());
-    if release_binary.exists() {
-        return release_binary;
-    }
-
-    // Check debug build
-    let debug_binary = cargo_target.join("debug").join(binary_name());
-    if debug_binary.exists() {
-        return debug_binary;
-    }
-
-    // Fall back to system PATH
-    PathBuf::from(binary_name())
+    PathBuf::from(env!("CARGO_BIN_EXE_vx"))
 }
 
-/// Check if vx binary is available
+/// Check if the selected vx binary is available
 pub fn vx_available() -> bool {
-    vx_binary().exists() || Command::new("vx").arg("--version").output().is_ok()
+    vx_binary().is_file()
 }
 
 // ============================================================================
