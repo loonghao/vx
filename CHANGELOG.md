@@ -6,6 +6,21 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [0.9.38](https://github.com/vx-org/vx/compare/v0.9.37...v0.9.38) (2026-10-10)
+
+
+### Bug Fixes
+
+* align install script test fixtures with vx-org migration ([91537dd](https://github.com/vx-org/vx/commit/91537ddee3a25e2c810dcc31896a009bee67814a))
+* bind CI artifacts and retain timeout output ([4a88934](https://github.com/vx-org/vx/commit/4a889349b8b7a7cee44b91837a7edfcd247aaf55))
+* bind integration tests to the Cargo candidate ([ac67a34](https://github.com/vx-org/vx/commit/ac67a343a1bdd03c4fb4b1c5098a71bb15d947f3))
+* isolate package execution from command shim lifecycle ([9727463](https://github.com/vx-org/vx/commit/9727463f056ecde9d4f97b8bcc9dbef31eaf7ccb))
+
+
+### Documentation
+
+* complete vx-org migration in badges, skills and LLM indexes ([cc95a93](https://github.com/vx-org/vx/commit/cc95a93912855648fd327f7f10c3de4b333cb896))
+
 ## [0.9.37](https://github.com/loonghao/vx/compare/v0.9.36...v0.9.37) (2026-10-09)
 
 
