@@ -54,7 +54,7 @@ vx analyze --json          # Project analysis as JSON
 - **Starlark DSL providers** (`provider.star`) — define custom tools declaratively without writing Rust code
 - Starlark stdlib with 4 provider templates: `github_rust_provider`, `github_go_provider`, `github_binary_provider`, `system_provider`
 - Shell integration with auto-completion (bash, zsh, fish)
-- GitHub Actions support via `loonghao/vx` action
+- GitHub Actions support via `vx-org/vx` action
 - Metrics and telemetry via `vx metrics`
 - Pre-commit hooks integration via prek
 - Package aliases: `vx vite` = `vx npm:vite`, `vx meson` = `vx uv:meson`

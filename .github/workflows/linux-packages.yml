@@ -316,7 +316,7 @@ jobs:
           	pkgdesc = Universal version manager for developer tools
           	pkgver = ${VERSION_SHORT}
           	pkgrel = 1
-              url = https://github.com/vx-org/vx
+          	url = https://github.com/vx-org/vx
           	arch = x86_64
           	arch = aarch64
           	license = MIT

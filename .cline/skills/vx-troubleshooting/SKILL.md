@@ -390,7 +390,7 @@ When a user reports a vx issue, follow this decision tree:
    → Run: vx check to validate syntax
 
 7. CI failing with vx
-   → Ensure the GitHub Action is used: loonghao/vx@main
+   → Ensure the GitHub Action is used: vx-org/vx@main
    → Add github-token for rate limit avoidance
    → Use cache: 'true' for faster CI runs
 
