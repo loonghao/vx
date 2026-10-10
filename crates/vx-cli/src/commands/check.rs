@@ -184,6 +184,20 @@ pub async fn handle(
                     .clone()
                     .or_else(|| path.as_ref().and_then(|p| extract_version_from_path(p)))
                     .unwrap_or_else(|| config_version.clone());
+
+                // A store directory alone is not proof of a working toolchain. The rust
+                // provider's `post_extract` runs `rustup-init`, and an interrupted or
+                // failed run still leaves `bin/rustup-init` (and sometimes a `cargo/bin`
+                // with no default toolchain) behind, so `check_tool_status` reports
+                // `Installed` while `rustc` in that store cannot actually resolve a
+                // version. `ver` is then just the vx.toml pin, and `installed` echoed
+                // the declaration back — which is what hid the drift on Windows and
+                // macOS. Prefer the version that will really run.
+                let ver = match effective_version.clone() {
+                    Some(actual) if is_rust_toolchain_runtime(name) => actual,
+                    _ => ver,
+                };
+
                 (RequirementStatusType::Installed, Some(ver))
             }
             ToolStatus::SystemFallback => {
