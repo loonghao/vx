@@ -165,6 +165,51 @@ async fn reports_the_declared_reason_for_an_unsupported_official_target() {
     );
 }
 
+#[tokio::test]
+async fn public_bridge_returns_the_bundle_url_for_a_supported_target() {
+    let provider = StarlarkProvider::from_content("rust-rez-test", PROVIDER_SOURCE)
+        .await
+        .expect("provider loads");
+
+    // The download path resolves URLs through this public entry point, so a
+    // supported bundle has to reach the installer as a URL even though the
+    // Starlark helper returns a descriptor object.
+    let url = provider
+        .download_url_for_runtime("1.95.0", Some("rust"), Some(&windows_x64()))
+        .await
+        .expect("supported targets resolve without an error")
+        .expect("a supported bundle exposes a download URL");
+
+    assert_eq!(
+        url,
+        "https://github.com/vx-org/vx-rez-packages/releases/download/rust-1.95.0/rust-1.95.0-x86_64-pc-windows-msvc.rez.tar.zst"
+    );
+}
+
+#[tokio::test]
+async fn public_bridge_uses_the_asset_url_not_a_checksum_or_index_url() {
+    let provider = StarlarkProvider::from_content("rust-rez-test", PROVIDER_SOURCE)
+        .await
+        .expect("provider loads");
+
+    let url = provider
+        .download_url_for_runtime("1.95.0", Some("rust"), Some(&windows_x64()))
+        .await
+        .expect("supported targets resolve without an error")
+        .expect("a supported bundle exposes a download URL");
+
+    // The descriptor carries several URLs; only the asset itself is installable.
+    assert!(url.ends_with(".rez.tar.zst"), "unexpected asset URL: {url}");
+    assert!(
+        !url.ends_with(".sha256"),
+        "checksum URL is not the asset: {url}"
+    );
+    assert!(
+        !url.ends_with("/index.json"),
+        "index URL is not the asset: {url}"
+    );
+}
+
 #[test]
 fn exact_unsupported_target_overrides_a_supported_os_arch_pair() {
     let source = PROVIDER_SOURCE.replace(

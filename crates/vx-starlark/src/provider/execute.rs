@@ -214,6 +214,19 @@ impl StarlarkProvider {
                             .to_string(),
                     ))
                 } else if let Some(type_str) = json.get("__type").and_then(|t| t.as_str())
+                    && type_str == "rez_bundle_asset"
+                {
+                    // A supported bundle carries its asset, checksum, and index
+                    // URLs, so return the installable asset rather than letting
+                    // the object fall through as "no URL".
+                    let url = json.get("url").and_then(|url| url.as_str());
+                    match url {
+                        Some(url) if !url.is_empty() => Ok(Some(url.to_string())),
+                        _ => Err(Error::EvalError(
+                            "rez_bundle_asset is missing a download url".to_string(),
+                        )),
+                    }
+                } else if let Some(type_str) = json.get("__type").and_then(|t| t.as_str())
                     && type_str == "github_smart_detect"
                 {
                     Box::pin(self.resolve_smart_detect_descriptor(ctx, &json)).await
