@@ -1,4 +1,4 @@
-//! # vx-core - Core abstractions and utilities
+//! # vx-runtime-core - Core abstractions and utilities
 //!
 //! This module provides essential types and utilities shared across the vx codebase.
 //!

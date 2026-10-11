@@ -2,7 +2,7 @@
 //!
 //! Common functions for parsing, sorting, and filtering versions.
 //!
-//! String-level parsing and comparison is delegated to `vx-core::version_utils`.
+//! String-level parsing and comparison is delegated to `vx-runtime-core::version_utils`.
 //! This module adds `VersionInfo`-level helpers (sorting, creation) and extended
 //! prerelease markers for ecosystem-specific tags like `canary` and `-snapshot`.
 
@@ -16,7 +16,7 @@ pub mod version_utils {
 
     /// Extended prerelease markers for ecosystem fetchers.
     ///
-    /// Superset of `vx-core`'s built-in markers, adding `canary` (Deno/Chrome)
+    /// Superset of `vx-runtime-core`'s built-in markers, adding `canary` (Deno/Chrome)
     /// and `-snapshot` (Maven/JVM ecosystem).
     pub const DEFAULT_PRERELEASE_MARKERS: &[&str] = &[
         "-alpha",
@@ -30,7 +30,7 @@ pub mod version_utils {
 
     /// Sort `VersionInfo` list descending (newest first).
     ///
-    /// Uses `vx-core`'s `ParsedVersion` for correct semver ordering.
+    /// Uses `vx-runtime-core`'s `ParsedVersion` for correct semver ordering.
     ///
     /// # Examples
     /// ```
@@ -90,7 +90,7 @@ pub mod version_utils {
 
     /// Validate that a string is a parseable semver (at least `major.minor`).
     ///
-    /// Delegates to `vx-core::version_utils::parse_version`.
+    /// Delegates to `vx-runtime-core::version_utils::parse_version`.
     ///
     /// # Examples
     /// ```
@@ -124,7 +124,7 @@ pub mod version_utils {
 
     /// Compare two version strings, returning semver ordering.
     ///
-    /// Delegates to `vx-core::version_utils::compare_versions_str`.
+    /// Delegates to `vx-runtime-core::version_utils::compare_versions_str`.
     /// Returns `Ordering::Equal` when either string cannot be parsed.
     ///
     /// # Examples
