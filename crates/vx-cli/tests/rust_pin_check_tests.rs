@@ -286,17 +286,18 @@ fn test_check_json_reports_declared_and_actual() {
 // assertion holds on any machine regardless of which version happens to be
 // installed.
 
-/// Run `vx check --json` against an isolated `VX_HOME`.
+/// Run `vx check --json` against an isolated `VX_HOME` base directory.
 ///
-/// An isolated store makes the machine's real `~/.vx` irrelevant, so the test
-/// controls which tools appear installed instead of depending on whatever the
-/// developer or CI runner happens to have.
-fn check_json_in_store(store: &Path, project: &Path) -> Output {
+/// `VxPaths` puts the store at `<VX_HOME>/store`, so the base is passed unmodified
+/// and the caller creates `<base>/store/...`. An isolated store makes the machine's
+/// real `~/.vx` irrelevant, so the test controls which tools appear installed
+/// instead of depending on whatever the developer or CI runner happens to have.
+fn check_json_in_home(home: &Path, project: &Path) -> Output {
     let mut cmd = Command::new(common::vx_binary());
     cmd.args(["check", "--json"])
         .current_dir(project)
         .env_remove("RUSTUP_TOOLCHAIN")
-        .env("VX_HOME", store)
+        .env("VX_HOME", home)
         .stdin(std::process::Stdio::null());
 
     cmd.output().expect("vx check should run")
@@ -324,30 +325,61 @@ stdout:
 
 /// `installed` reports the toolchain that will actually run, not the declared pin.
 ///
-/// The store directory for the pinned version exists but holds no toolchain, so
-/// the status is `Installed` while detection finds nothing — the state in which
-/// the branch fell through to the configured version and reported the declared
-/// pin as `installed`. A repository pinned to `1.0.0` while `1.99.0` ran then
-/// showed `installed = 1.0.0`, hiding the drift entirely.
+/// The pinned version's store directory exists but holds no toolchain, so `check`
+/// reports `Installed` with the pin as its detected version while the real
+/// toolchain is something else. That is the state in which the branch fell through
+/// to the configured version and reported the declared pin as `installed`: a
+/// repository pinned to `1.0.0` while `1.99.0` ran showed `installed = 1.0.0` and
+/// the drift was invisible.
+///
+/// The store is an independent `VX_HOME` base, so no machine's real `~/.vx`, no
+/// fake executable and no toolchain installation are involved.
 #[test]
 fn installed_reports_actual_toolchain_not_declared_pin() {
     let _guard = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     let dir = tempfile::tempdir().unwrap();
-    let store = dir.path().join("store");
-    project_with_pin(dir.path(), "1.0.0", "");
 
-    // Claim the pinned version is installed, without providing a toolchain.
-    std::fs::create_dir_all(store.join("rust").join("1.0.0").join("bin")).unwrap();
+    // Read the real toolchain first and fail loudly if it is unavailable: an
+    // oracle that cannot run must not be mistaken for a passing assertion.
+    let actual = actual_rustc_version(dir.path())
+        .unwrap_or_else(|| panic!("rustc must be available to resolve the actual toolchain"));
 
-    let Some(actual) = actual_rustc_version(dir.path()) else {
-        eprintln!("skipping: rustc not available");
-        return;
-    };
+    let pin = unequal_numeric_pin(&actual);
+    project_with_pin(dir.path(), &pin, "");
 
-    let output = check_json_in_store(&store, dir.path());
+    // `VxPaths` stores at <VX_HOME>/store, so the base is passed unmodified.
+    let home = dir.path().join("home");
+    let store_dir = home.join("store").join("rust").join(&pin);
+    std::fs::create_dir_all(store_dir.join("bin")).unwrap();
+
+    let output = check_json_in_home(&home, dir.path());
+
+    assert_eq!(
+        output.status.code(),
+        Some(0),
+        "a drifting pin warns by default, so check must still succeed. stderr:
+{}",
+        stderr_str(&output)
+    );
+
     let rust = rust_requirement(&output);
+    assert_eq!(rust["runtime"], "rust");
+    assert_eq!(rust["status"], "installed");
+    assert_eq!(rust["required"], pin);
 
-    assert_eq!(rust["required"], "1.0.0");
+    // The installed path is the isolated store directory, not the user's.
+    assert_eq!(
+        rust["path"].as_str().unwrap_or_default(),
+        store_dir.join("bin").display().to_string(),
+        "path must be the isolated store bin directory. stdout:
+{}",
+        stdout_str(&output)
+    );
+
+    assert_ne!(
+        pin, actual,
+        "the chosen pin must differ from the actual toolchain"
+    );
     assert_eq!(
         rust["installed"].as_str().unwrap_or_default(),
         actual,
@@ -355,6 +387,17 @@ fn installed_reports_actual_toolchain_not_declared_pin() {
 {}",
         stdout_str(&output)
     );
+}
+
+/// Pick a valid numeric pin that differs from `actual`.
+///
+/// Numeric keeps the pin comparable to a toolchain version, and unequal keeps the
+/// drift visible; both are required for the assertion above to mean anything.
+fn unequal_numeric_pin(actual: &str) -> String {
+    if actual == "1.0.0" {
+        return "1.0.1".to_string();
+    }
+    "1.0.0".to_string()
 }
 
 // =============================================================================
