@@ -238,7 +238,7 @@ fn test_downloader_config() {
     assert!(config.overwrite);
 }
 
-/// Test that the installer can be used with vx-core adapter
+/// Test that the installer can be used with vx-runtime-core adapter
 #[tokio::test]
 async fn test_vx_runtime_core_integration() {
     // This test verifies that the types are compatible

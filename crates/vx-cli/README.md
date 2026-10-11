@@ -433,7 +433,6 @@ Contributions are welcome! Please see the [contributing guidelines](../../CONTRI
 ## 🔗 Related Crates
 
 - [`vx-installer`](../vx-installer/README.md) - 🆕 Universal installation engine with progress tracking
-- [`vx-core`](../vx-core/README.md) - Core functionality and utilities
 - [`vx-config`](../vx-config/README.md) - Configuration management system
 - [`vx-plugin`](../vx-plugin/README.md) - Plugin system and trait definitions
 - [`vx-tool-node`](../vx-tools/vx-tool-node/README.md) - Node.js plugin with NPX support

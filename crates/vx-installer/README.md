@@ -422,7 +422,6 @@ This project is licensed under the MIT License - see the [LICENSE](../../LICENSE
 
 ## 🔗 Related Crates
 
-- [`vx-core`](../vx-core/README.md) - Core functionality and utilities
 - [`vx-cli`](../vx-cli/README.md) - Command-line interface
 - [`vx-config`](../vx-config/README.md) - Configuration management
 - [`vx-plugin`](../vx-plugin/README.md) - Plugin system
