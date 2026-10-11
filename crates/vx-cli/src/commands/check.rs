@@ -170,20 +170,38 @@ pub async fn handle(
         // branch was skipped, and a `rust = "1.93.1"` pin was silently ignored while the
         // build ran on stable. Falling back to the resolved toolchain gives the
         // comparison a real value in every case.
-        let effective_version = match rust_owner.as_ref().and_then(|owner| owner.channel()) {
-            Some(channel) => Some(channel.to_string()),
-            None if is_rust_toolchain_runtime(name) => effective_toolchain_version(project_root),
-            None => None,
+        //
+        // The fallback is gated on the runtime name rather than on `rust_owner`, because
+        // `rust_toolchain_owner` returns `None` precisely when no override names a
+        // toolchain: gating on it made this arm unreachable in the one case it exists to
+        // cover.
+        let effective_version = if is_rust_toolchain_runtime(name) {
+            rust_owner
+                .as_ref()
+                .and_then(|owner| owner.channel())
+                .map(str::to_string)
+                .or_else(|| effective_toolchain_version(project_root))
+        } else {
+            None
         };
 
         // Determine status type
         let (status_type, installed_version) = match status {
             ToolStatus::Installed => {
                 // Extract version from path if possible
-                let ver = detected_version
-                    .clone()
-                    .or_else(|| path.as_ref().and_then(|p| extract_version_from_path(p)))
-                    .unwrap_or_else(|| config_version.clone());
+                let ver = if is_rust_toolchain_runtime(name) {
+                    // A Rust "store version" is a rustup bootstrap directory named after
+                    // the requested version, not a toolchain: `store/rust/1.0.0/` can hold
+                    // a rustup whose `rustc` reports 1.98.0. Trusting the directory name
+                    // — or the pin it came from — reports the pin back as the installed
+                    // version, which is exactly what made a drifting pin invisible.
+                    effective_version.clone()
+                } else {
+                    None
+                }
+                .or_else(|| detected_version.clone())
+                .or_else(|| path.as_ref().and_then(|p| extract_version_from_path(p)))
+                .unwrap_or_else(|| config_version.clone());
                 (RequirementStatusType::Installed, Some(ver))
             }
             ToolStatus::SystemFallback => {
