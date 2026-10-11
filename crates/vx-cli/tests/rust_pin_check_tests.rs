@@ -276,6 +276,179 @@ fn test_check_json_reports_declared_and_actual() {
 }
 
 // =============================================================================
+// Installed-version reporting
+// =============================================================================
+//
+// The suites above use whatever `rustc` the machine exposes, so they cannot pin
+// the exact value `installed` reports. These assert the invariant that matters:
+// `installed` must be the toolchain that will actually run, never the declared
+// pin. The oracle asks `rustc` the same way the code under test does, so the
+// assertion holds on any machine regardless of which version happens to be
+// installed.
+
+/// Run `vx check --json` against an isolated `VX_HOME`.
+///
+/// An isolated store makes the machine's real `~/.vx` irrelevant, so the test
+/// controls which tools appear installed instead of depending on whatever the
+/// developer or CI runner happens to have.
+fn check_json_in_store(store: &Path, project: &Path) -> Output {
+    let mut cmd = Command::new(common::vx_binary());
+    cmd.args(["check", "--json"])
+        .current_dir(project)
+        .env_remove("RUSTUP_TOOLCHAIN")
+        .env("VX_HOME", store)
+        .stdin(std::process::Stdio::null());
+
+    cmd.output().expect("vx check should run")
+}
+
+/// The `rust` requirement from `vx check --json`, run the way production runs it.
+fn rust_requirement(output: &Output) -> serde_json::Value {
+    let stdout = stdout_str(output);
+    let parsed: serde_json::Value = serde_json::from_str(stdout.trim()).unwrap_or_else(|e| {
+        panic!(
+            "vx check --json must emit JSON. error: {e}
+stdout:
+{stdout}"
+        )
+    });
+
+    parsed["requirements"]
+        .as_array()
+        .expect("requirements array")
+        .iter()
+        .find(|r| r["runtime"] == "rust")
+        .unwrap_or_else(|| panic!("rust requirement missing from {parsed}"))
+        .clone()
+}
+
+/// `installed` reports the toolchain that will actually run, not the declared pin.
+///
+/// The store directory for the pinned version exists but holds no toolchain, so
+/// the status is `Installed` while detection finds nothing — the state in which
+/// the branch fell through to the configured version and reported the declared
+/// pin as `installed`. A repository pinned to `1.0.0` while `1.99.0` ran then
+/// showed `installed = 1.0.0`, hiding the drift entirely.
+#[test]
+fn installed_reports_actual_toolchain_not_declared_pin() {
+    let _guard = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    let dir = tempfile::tempdir().unwrap();
+    let store = dir.path().join("store");
+    project_with_pin(dir.path(), "1.0.0", "");
+
+    // Claim the pinned version is installed, without providing a toolchain.
+    std::fs::create_dir_all(store.join("rust").join("1.0.0").join("bin")).unwrap();
+
+    let Some(actual) = actual_rustc_version(dir.path()) else {
+        eprintln!("skipping: rustc not available");
+        return;
+    };
+
+    let output = check_json_in_store(&store, dir.path());
+    let rust = rust_requirement(&output);
+
+    assert_eq!(rust["required"], "1.0.0");
+    assert_eq!(
+        rust["installed"].as_str().unwrap_or_default(),
+        actual,
+        "installed must report the actual toolchain version, not the declared pin. stdout:
+{}",
+        stdout_str(&output)
+    );
+}
+
+// =============================================================================
+// Deterministic unit coverage for the installed-version choice
+// =============================================================================
+//
+// The checks above drive the real `vx check` binary, so they can only observe the
+// defect when the machine's store happens to hide the real toolchain. These pin
+// the rule itself: for Rust the resolved toolchain wins, for everything else the
+// previous behaviour is unchanged.
+
+/// Rust reports the resolved toolchain even when detection produced a value.
+#[test]
+fn installed_version_prefers_resolved_rust_toolchain() {
+    assert_eq!(
+        vx_cli::commands::check::installed_version_for(
+            "rust",
+            Some("1.0.0".to_string()),
+            Some("1.99.0")
+        ),
+        Some("1.99.0".to_string())
+    );
+    assert_eq!(
+        vx_cli::commands::check::installed_version_for(
+            "cargo",
+            Some("1.0.0".to_string()),
+            Some("1.99.0")
+        ),
+        Some("1.99.0".to_string())
+    );
+}
+
+/// Rust still reports the resolved toolchain when detection found nothing —
+/// the state that used to fall back to the declared pin.
+#[test]
+fn installed_version_prefers_resolved_rust_toolchain_without_detection() {
+    assert_eq!(
+        vx_cli::commands::check::installed_version_for("rust", None, Some("1.99.0")),
+        Some("1.99.0".to_string())
+    );
+}
+
+/// Without a resolved toolchain, Rust keeps the detected or configured value.
+#[test]
+fn installed_version_falls_back_to_detection_without_toolchain() {
+    assert_eq!(
+        vx_cli::commands::check::installed_version_for("rust", Some("1.0.0".to_string()), None),
+        Some("1.0.0".to_string())
+    );
+}
+
+/// Non-Rust tools are untouched: the resolved toolchain never overrides them.
+#[test]
+fn installed_version_leaves_non_rust_tools_alone() {
+    assert_eq!(
+        vx_cli::commands::check::installed_version_for(
+            "node",
+            Some("20.0.0".to_string()),
+            Some("1.99.0")
+        ),
+        Some("20.0.0".to_string())
+    );
+    assert_eq!(
+        vx_cli::commands::check::installed_version_for("node", None, Some("1.99.0")),
+        None
+    );
+}
+
+/// The same holds on the system-fallback path, where detection finds nothing.
+#[test]
+fn installed_reports_actual_toolchain_on_system_fallback() {
+    let _guard = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    let dir = tempfile::tempdir().unwrap();
+    project_with_pin(dir.path(), "rustup-managed", "");
+
+    let Some(actual) = actual_rustc_version(dir.path()) else {
+        eprintln!("skipping: rustc not available");
+        return;
+    };
+
+    let output = check_without_toolchain_env(dir.path(), &["check", "--json"]);
+    let rust = rust_requirement(&output);
+
+    assert_eq!(rust["required"], "rustup-managed");
+    assert_eq!(
+        rust["installed"].as_str().unwrap_or_default(),
+        actual,
+        "installed must report the actual toolchain version. stdout:
+{}",
+        stdout_str(&output)
+    );
+}
+
+// =============================================================================
 // Run path: the same severity must govern `vx cargo …`
 // =============================================================================
 //

@@ -184,7 +184,8 @@ pub async fn handle(
                     .clone()
                     .or_else(|| path.as_ref().and_then(|p| extract_version_from_path(p)))
                     .unwrap_or_else(|| config_version.clone());
-                (RequirementStatusType::Installed, Some(ver))
+                let ver = installed_version_for(name, Some(ver), effective_version.as_deref());
+                (RequirementStatusType::Installed, ver)
             }
             ToolStatus::SystemFallback => {
                 if let Some(owner) = &rust_owner {
@@ -220,10 +221,12 @@ pub async fn handle(
                 } else {
                     tool_warnings.push("Using system fallback version".to_string());
                     // Still report the detected version if available
-                    (
-                        RequirementStatusType::SystemFallback,
+                    let ver = installed_version_for(
+                        name,
                         detected_version.clone(),
-                    )
+                        effective_version.as_deref(),
+                    );
+                    (RequirementStatusType::SystemFallback, ver)
                 }
             }
             ToolStatus::NotInstalled => {
@@ -428,6 +431,28 @@ fn render_text_output(output: &CheckOutput, detailed: bool) -> Result<()> {
     }
 
     Ok(())
+}
+
+/// Pick the version to report as `installed` for one tool.
+///
+/// For Rust the store path or a detected value can describe the rustup wrapper
+/// rather than the toolchain that will actually run, so the resolved toolchain
+/// wins when it is known. Without it, falling back to the declared pin reported
+/// a pin as the installed version: a repository pinned to `1.0.0` while `1.99.0`
+/// ran showed `installed = 1.0.0` and the drift was invisible.
+///
+/// Non-Rust tools keep the previous behaviour exactly.
+pub fn installed_version_for(
+    name: &str,
+    detected: Option<String>,
+    effective_version: Option<&str>,
+) -> Option<String> {
+    if is_rust_toolchain_runtime(name)
+        && let Some(actual) = effective_version
+    {
+        return Some(actual.to_string());
+    }
+    detected
 }
 
 /// Extract version from executable path
