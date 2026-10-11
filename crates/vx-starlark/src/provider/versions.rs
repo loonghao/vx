@@ -298,6 +298,7 @@ impl StarlarkProvider {
     /// - `"vscode_releases"`    — VS Code update API
     /// - `"gcloud_manifest"`    — Google Cloud SDK manifest
     /// - `"dotnet_releases"`    — .NET releases index
+    /// - `"rez_bundle_versions"` — Rez bundle release index or GitHub releases for one tool
     async fn resolve_fetch_json_versions_descriptor(
         &self,
         descriptor: &serde_json::Value,
@@ -370,9 +371,17 @@ impl StarlarkProvider {
         let transform_owned = transform.to_string();
         let provider_name = self.meta.name.clone();
 
+        let rez_tool = descriptor
+            .get("tool")
+            .and_then(|tool| tool.as_str())
+            .map(str::to_string);
+
         let fetcher =
             VersionFetcherBuilder::custom_api(url_owned.clone(), move |raw: &serde_json::Value| {
                 let versions = match transform_owned.as_str() {
+                    "rez_bundle_versions" => {
+                        Self::transform_rez_bundle_versions(raw, rez_tool.as_deref())?
+                    }
                     "go_versions" => Self::transform_go_versions(raw)?,
                     "nodejs_org" => Self::transform_nodejs_org(raw)?,
                     "pypi" => Self::transform_pypi(raw)?,
@@ -1000,6 +1009,101 @@ impl StarlarkProvider {
             .collect();
 
         Ok(versions)
+    }
+
+    /// Transform a Rez bundle release index or a GitHub releases listing.
+    ///
+    /// An index is `{"schema_version": 1, "bundles": [{"tool": ..., "version": ...}]}`.
+    /// A GitHub listing is the usual releases array, where a release only counts
+    /// as complete when it carries both `index.json` and a bundle asset for the
+    /// requested tool. Entries for other tools are dropped either way.
+    fn transform_rez_bundle_versions(
+        raw: &serde_json::Value,
+        tool: Option<&str>,
+    ) -> Result<Vec<VersionInfo>> {
+        let bundles = raw.get("bundles").and_then(|bundles| bundles.as_array());
+        let mut published: std::collections::HashMap<String, String> =
+            std::collections::HashMap::new();
+        if let Some(releases) = raw.as_array() {
+            for release in releases {
+                if let (Some(tag), Some(date)) = (
+                    release.get("tag_name").and_then(|tag| tag.as_str()),
+                    release.get("published_at").and_then(|date| date.as_str()),
+                ) {
+                    published.insert(tag.to_string(), date.to_string());
+                }
+            }
+        }
+        let versions: Vec<(String, Option<String>)> = match bundles {
+            Some(bundles) => bundles
+                .iter()
+                .filter(|bundle| {
+                    tool.is_none_or(|tool| {
+                        bundle.get("tool").and_then(|name| name.as_str()) == Some(tool)
+                    })
+                })
+                .filter_map(|bundle| {
+                    let version = bundle
+                        .get("version")
+                        .and_then(|version| version.as_str())
+                        .filter(|version| !version.is_empty())?;
+                    let tag = format!("{}-{}", tool.unwrap_or_default(), version);
+                    Some((version.to_string(), published.get(&tag).cloned()))
+                })
+                .collect(),
+            None => {
+                let releases = raw
+                    .as_array()
+                    .ok_or_else(|| Error::EvalError("rez_bundle: expected JSON array".into()))?;
+                releases
+                    .iter()
+                    .filter(|release| {
+                        release
+                            .get("prerelease")
+                            .and_then(|prerelease| prerelease.as_bool())
+                            != Some(true)
+                    })
+                    .filter_map(|release| {
+                        let tag = release.get("tag_name")?.as_str()?;
+                        let prefix = format!("{}-", tool.unwrap_or_default());
+                        let version = tag.strip_prefix(&prefix)?;
+
+                        let assets = release.get("assets")?.as_array()?;
+                        let names: Vec<&str> = assets
+                            .iter()
+                            .filter_map(|asset| asset.get("name")?.as_str())
+                            .collect();
+                        let has_index = names.contains(&"index.json");
+                        let has_bundle = names
+                            .iter()
+                            .any(|name| name.starts_with(tag) && name.ends_with(".rez.tar.zst"));
+                        if !has_index || !has_bundle {
+                            return None;
+                        }
+                        Some((version.to_string(), published.get(tag).cloned()))
+                    })
+                    .collect()
+            }
+        };
+
+        // Preserve first-seen order while dropping duplicates, so an index that
+        // lists the same release twice still yields one entry.
+        let mut seen: Vec<(String, Option<String>)> = Vec::new();
+        for entry in versions {
+            if !seen.iter().any(|(version, _)| *version == entry.0) {
+                seen.push(entry);
+            }
+        }
+
+        Ok(seen
+            .into_iter()
+            .map(|(version, date)| VersionInfo {
+                version,
+                lts: false,
+                stable: true,
+                date,
+            })
+            .collect())
     }
 
     /// Transform VS Code update API: `["1.85.0", "1.84.2", ...]` (plain string array)

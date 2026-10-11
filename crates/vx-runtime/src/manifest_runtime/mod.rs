@@ -351,6 +351,116 @@ pub type PostExtractFn = Arc<
         + Sync,
 >;
 
+/// One resolved Rez bundle activation request supplied by a provider bridge.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RezBundleRequest {
+    /// Bundle schema understood by the adapter boundary.
+    pub bundle_schema_version: u64,
+    /// Absolute repository path, or a path relative to this runtime's store directory.
+    pub repository: PathBuf,
+    /// Rez requirements to solve from the unpacked bundle.
+    pub requirements: Vec<String>,
+    /// Rez platform name (`windows`, `linux`, or `osx`).
+    pub platform: String,
+    /// Rez architecture name (`x86_64` or `arm_64`).
+    pub architecture: String,
+    /// Program to resolve from the activated environment.
+    pub program: PathBuf,
+}
+
+impl RezBundleRequest {
+    /// Create a schema-v1 activation request.
+    pub fn new<P, I, S, T, A, E>(
+        repository: P,
+        requirements: I,
+        platform: T,
+        architecture: A,
+        program: E,
+    ) -> Self
+    where
+        P: Into<PathBuf>,
+        I: IntoIterator<Item = S>,
+        S: AsRef<str>,
+        T: Into<String>,
+        A: Into<String>,
+        E: Into<PathBuf>,
+    {
+        Self {
+            bundle_schema_version: 1,
+            repository: repository.into(),
+            requirements: requirements
+                .into_iter()
+                .map(|requirement| requirement.as_ref().to_string())
+                .collect(),
+            platform: platform.into(),
+            architecture: architecture.into(),
+            program: program.into(),
+        }
+    }
+}
+
+/// Async provider bridge for optional Rez bundle activation.
+pub type RezBundleFn = Arc<
+    dyn Fn(
+            String,
+        ) -> std::pin::Pin<
+            Box<dyn std::future::Future<Output = Result<Option<RezBundleRequest>>> + Send>,
+        > + Send
+        + Sync,
+>;
+
+/// Locate `program` on the `PATH` of an already resolved bundle environment.
+///
+/// The adapter resolves packages into an isolated environment, so the program
+/// must be found through that environment rather than the ambient process
+/// `PATH`. A program that is already absolute is accepted as-is after it is
+/// confirmed to exist, which keeps provider-declared payload paths working.
+#[cfg(feature = "rez-bundles")]
+fn resolve_on_environment_path(
+    program: &Path,
+    environment: &std::collections::BTreeMap<String, String>,
+) -> Option<PathBuf> {
+    if program.is_absolute() {
+        return program.is_file().then(|| program.to_path_buf());
+    }
+
+    let path = environment.get("PATH")?;
+    // `PATHEXT` holds already-dotted extensions separated by the same
+    // separator as `PATH` (`.COM;.EXE` on Windows); it is absent on Unix.
+    // A resolved bundle environment is deliberately isolated and normally
+    // carries no `PATHEXT`, so fall back to the host's own executable
+    // extensions rather than requiring a bare name to match a file exactly.
+    let extensions = environment
+        .get("PATHEXT")
+        .cloned()
+        .or_else(|| std::env::var("PATHEXT").ok())
+        .map(|extensions| {
+            std::env::split_paths(&extensions)
+                .filter(|extension| !extension.as_os_str().is_empty())
+                .map(|extension| extension.to_string_lossy().into_owned())
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_default();
+
+    for directory in std::env::split_paths(path) {
+        if directory.as_os_str().is_empty() {
+            continue;
+        }
+        let candidate = directory.join(program);
+        if candidate.is_file() {
+            return Some(candidate);
+        }
+        let stem = candidate.to_string_lossy().into_owned();
+        for extension in &extensions {
+            let with_extension = PathBuf::from(format!("{stem}{extension}"));
+            if with_extension.is_file() {
+                return Some(with_extension);
+            }
+        }
+    }
+    None
+}
+
 /// A runtime driven by manifest configuration (`provider.star`).
 ///
 /// For Starlark-driven providers, the `fetch_versions_fn`, `download_url_fn`, and
@@ -393,6 +503,10 @@ pub struct ManifestDrivenRuntime {
     /// Takes priority over the layout-derived path when it points at an existing
     /// file. See [`ExecutePathFn`].
     pub execute_path_fn: Option<ExecutePathFn>,
+    /// Optional Rez bundle activation bridge.
+    pub rez_bundle_fn: Option<RezBundleFn>,
+    /// Optional store override for alternate immutable distributions.
+    pub store_name_override: Option<String>,
     /// Optional pip package name for Python-based tools.
     pub pip_package: Option<String>,
 
@@ -459,6 +573,8 @@ impl ManifestDrivenRuntime {
             version_info_fn: None,
             post_extract_fn: None,
             execute_path_fn: None,
+            rez_bundle_fn: None,
+            store_name_override: None,
             pip_package: None,
 
             shells: Vec::new(),
@@ -511,6 +627,38 @@ impl ManifestDrivenRuntime {
     pub fn with_execute_path(mut self, f: ExecutePathFn) -> Self {
         self.execute_path_fn = Some(f);
         self
+    }
+
+    /// Activate this runtime from an immutable Rez bundle instead of a bare
+    /// executable path.
+    pub fn with_rez_bundle<F, Fut>(mut self, f: F) -> Self
+    where
+        F: Fn(String) -> Fut + Send + Sync + 'static,
+        Fut: std::future::Future<Output = Result<Option<RezBundleRequest>>> + Send + 'static,
+    {
+        self.rez_bundle_fn = Some(Arc::new(move |version| Box::pin(f(version))));
+        self
+    }
+
+    /// Install an already boxed Rez bundle activation bridge.
+    pub fn with_rez_bundle_fn(mut self, f: RezBundleFn) -> Self {
+        self.rez_bundle_fn = Some(f);
+        self
+    }
+
+    /// Store this runtime under a different directory than its own name, which
+    /// lets an immutable distribution replace the default one without a rename.
+    pub fn with_store_name(mut self, store_name: impl Into<String>) -> Self {
+        self.store_name_override = Some(store_name.into());
+        self
+    }
+
+    /// Expose the store directory this runtime occupies.
+    pub fn store_name(&self) -> &str {
+        self.store_name_override
+            .as_deref()
+            .or(self.bundled_with.as_deref())
+            .unwrap_or(&self.name)
     }
 
     pub fn with_executable(mut self, executable: impl Into<String>) -> Self {
@@ -1044,18 +1192,88 @@ impl Runtime for ManifestDrivenRuntime {
     }
 
     fn store_name(&self) -> &str {
-        self.bundled_with.as_deref().unwrap_or(&self.name)
+        self.store_name_override
+            .as_deref()
+            .or(self.bundled_with.as_deref())
+            .unwrap_or(&self.name)
     }
 
     fn is_version_installable(&self, _version: &str) -> bool {
+        // A bundled runtime is installed through its parent, so direct
+        // installation is never attempted for it. A Rez bundle does not change
+        // that: the bridge is attached to every runtime built from a
+        // provider.star and most never opt in, so its mere presence says
+        // nothing about how this runtime is installed.
         self.bundled_with.is_none()
     }
 
     async fn prepare_execution(
         &self,
         version: &str,
-        _ctx: &crate::ExecutionContext,
+        ctx: &crate::ExecutionContext,
     ) -> Result<crate::ExecutionPrep> {
+        if let Some(ref rez_bundle_fn) = self.rez_bundle_fn
+            && let Some(request) = rez_bundle_fn(version.to_string()).await?
+        {
+            #[cfg(not(feature = "rez-bundles"))]
+            {
+                let _ = (&request, ctx);
+                return Err(anyhow::anyhow!(
+                    "Rez bundle activation requires the vx-runtime `rez-bundles` feature"
+                ));
+            }
+
+            #[cfg(feature = "rez-bundles")]
+            {
+                if request.bundle_schema_version != 1 {
+                    return Err(anyhow::anyhow!(
+                        "unsupported Rez bundle schema version: {}",
+                        request.bundle_schema_version
+                    ));
+                }
+
+                let repository = if request.repository.is_absolute() {
+                    request.repository.clone()
+                } else {
+                    let paths = vx_paths::VxPaths::new()
+                        .map_err(|error| anyhow::anyhow!("failed to resolve vx paths: {error}"))?;
+                    paths
+                        .version_store_dir(self.store_name(), version)
+                        .join(&request.repository)
+                };
+                let resolve_request = vx_rez_adapter::ResolveRequest::new(
+                    request.requirements.iter().map(String::as_str),
+                )
+                .package_paths([repository])
+                .target(&request.platform, &request.architecture)
+                .parent_environment(ctx.env.clone());
+                let resolved = vx_rez_adapter::RezAdapter::new()
+                    .resolve_env_async(&resolve_request)
+                    .await
+                    .map_err(|error| anyhow::anyhow!("Rez bundle activation failed: {error}"))?;
+                let executable =
+                    resolve_on_environment_path(&request.program, &resolved.environment)
+                        .ok_or_else(|| {
+                            anyhow::anyhow!(
+                                "Rez bundle program was not found: {}",
+                                request.program.display()
+                            )
+                        })?;
+
+                return Ok(crate::ExecutionPrep {
+                    executable_override: Some(executable),
+                    env_vars: resolved.environment.into_iter().collect(),
+                    command_prefix: self.command_prefix.clone(),
+                    proxy_ready: true,
+                    message: Some(format!(
+                        "Using {} {} from an immutable Rez bundle",
+                        self.name, version
+                    )),
+                    ..Default::default()
+                });
+            }
+        }
+
         if let Some(ref parent) = self.bundled_with {
             debug!(
                 "Preparing bundled runtime {} (bundled with {}) at version {}",

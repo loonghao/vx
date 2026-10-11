@@ -522,7 +522,7 @@ impl<'a> InstallationManager<'a> {
                 let component_attempted = {
                     let store_dir = context
                         .paths
-                        .version_store_dir(runtime_name, &resolved_version);
+                        .version_store_dir(runtime.store_name(), &resolved_version);
                     store_dir.join(".component-install-attempted").exists()
                 };
 
@@ -531,9 +531,9 @@ impl<'a> InstallationManager<'a> {
                         "{} {} has install_options but component installation was already attempted, using fast path",
                         runtime_name, resolved_version
                     );
-                    let exe_path = self
-                        .resolver
-                        .find_executable(runtime_name, &resolved_version);
+                    let exe_path = runtime
+                        .get_executable_path_for_version(&resolved_version, context)
+                        .await?;
                     if exe_path.is_some() {
                         return Ok(Some(InstallResult::already_installed_with(
                             resolved_version,
@@ -550,10 +550,10 @@ impl<'a> InstallationManager<'a> {
                 // The runtime's install() method handles component checking internally
                 // (e.g., MSVC checks for missing Spectre libs and re-installs if needed)
             } else {
-                // Find the existing executable path via the resolver
-                let exe_path = self
-                    .resolver
-                    .find_executable(runtime_name, &resolved_version);
+                // Honor provider-specific layouts and store-name overrides.
+                let exe_path = runtime
+                    .get_executable_path_for_version(&resolved_version, context)
+                    .await?;
 
                 if exe_path.is_some() {
                     return Ok(Some(InstallResult::already_installed_with(

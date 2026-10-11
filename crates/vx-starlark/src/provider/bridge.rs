@@ -116,6 +116,33 @@ pub fn make_install_layout_fn(
     }
 }
 
+/// Build the Rez bundle activation bridge for one runtime of a provider.
+///
+/// Providers that do not define `rez_bundle()` yield `None`, which keeps the
+/// ordinary archive path untouched.
+pub fn make_rez_bundle_fn(
+    name: Arc<str>,
+    content: Arc<str>,
+    runtime_name: String,
+) -> vx_runtime::RezBundleFn {
+    let runtime_name: Arc<str> = Arc::from(runtime_name);
+    Arc::new(move |version: String| {
+        let name = Arc::clone(&name);
+        let content = Arc::clone(&content);
+        let runtime_name = Arc::clone(&runtime_name);
+        Box::pin(async move {
+            let provider = StarlarkProvider::from_content(&*name, &*content)
+                .await
+                .map_err(|e| anyhow::anyhow!("Failed to load {} provider.star: {e}", name))?;
+
+            provider
+                .rez_bundle_for_runtime(&version, &runtime_name)
+                .await
+                .map_err(|e| anyhow::anyhow!("{} rez_bundle failed: {e}", name))
+        })
+    })
+}
+
 // ---------------------------------------------------------------------------
 // Owned-string variants for multi-runtime providers (used by builder.rs)
 // ---------------------------------------------------------------------------
