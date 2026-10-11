@@ -56,7 +56,7 @@ EXAMPLES:
     $0                      # Run all tests
     $0 -t unit              # Run only unit tests
     $0 -t integration -v    # Run integration tests with verbose output
-    $0 -p vx-core           # Run tests for vx-core package only
+    $0 -p vx-runtime-core   # Run tests for vx-runtime-core package only
     $0 -c                   # Run all tests and generate coverage report
 
 EOF
