@@ -278,13 +278,25 @@ async fn test_sfx_rejects_paths_outside_destination(#[case] name: &str) {
     let dest = temp.path().join("output");
     std::fs::write(&archive, sfx_bytes(512, name, false)).unwrap();
 
+    // `extract` rejects every case above while resolving the entry path, before
+    // any file is created, so the failure never depends on being able to write
+    // outside `dest`.
     let error = RealInstaller::new()
         .extract(&archive, &dest)
         .await
-        .unwrap_err();
-    assert!(error.to_string().contains("Unsafe path"), "{name}: {error}");
-    assert!(!temp.path().join("escaped.exe").exists());
-    assert!(std::fs::read_dir(dest).unwrap().next().is_none());
+        .expect_err("malformed entry name must be rejected before extraction");
+    assert!(
+        error.to_string().contains("Unsafe path"),
+        "{name}: expected an unsafe-path rejection, got {error}"
+    );
+    assert!(
+        dest.is_dir(),
+        "{name}: destination should exist and stay empty"
+    );
+    assert!(
+        std::fs::read_dir(&dest).unwrap().next().is_none(),
+        "{name}: nothing may be written into the destination"
+    );
 }
 
 #[cfg(unix)]
