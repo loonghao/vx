@@ -3,6 +3,19 @@ if ($null -ne (Get-Variable -Name PSNativeCommandUseErrorActionPreference -Error
   $PSNativeCommandUseErrorActionPreference = $false
 }
 
+$generator = $env:CMAKE_GENERATOR
+$instancePath = $env:CMAKE_GENERATOR_INSTANCE
+if (-not $generator -or -not $instancePath) {
+  if ($generator -or $instancePath) {
+    throw "Set both CMAKE_GENERATOR and CMAKE_GENERATOR_INSTANCE, or leave both unset for discovery"
+  }
+  . (Join-Path $PSScriptRoot '../../scripts/ensure-msvc-spectre.ps1')
+  $vswhere = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio/Installer/vswhere.exe'
+  $instance = Get-MsvcInstallation -VsWherePath $vswhere
+  $generator = Get-MsvcCMakeGenerator -InstallationVersion $instance.installationVersion
+  $instancePath = $instance.installationPath
+}
+
 $repoUrl  = "https://github.com/fmtlib/fmt.git"
 $workRoot = Join-Path $PSScriptRoot "work"
 $repoDir  = Join-Path $workRoot "fmt"
@@ -50,7 +63,7 @@ try {
   }
 
   Invoke-LoggedNative "cmake configure" {
-    vx cmake -S . -B $buildDir -G "Visual Studio 17 2022" -A x64 -DFMT_TEST=OFF
+    vx cmake -S . -B $buildDir -G $generator -A x64 "-DCMAKE_GENERATOR_INSTANCE=$instancePath" -DFMT_TEST=OFF
   }
 
   Invoke-LoggedNative "cmake build" {
