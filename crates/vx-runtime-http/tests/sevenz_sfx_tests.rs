@@ -278,9 +278,8 @@ async fn test_sfx_rejects_paths_outside_destination(#[case] name: &str) {
     let dest = temp.path().join("output");
     std::fs::write(&archive, sfx_bytes(512, name, false)).unwrap();
 
-    // `extract` rejects every case above while resolving the entry path, before
-    // any file is created, so the failure never depends on being able to write
-    // outside `dest`.
+    // `extract` resolves the entry path before creating any file, so every case
+    // above is rejected without touching the filesystem outside `dest`.
     let error = RealInstaller::new()
         .extract(&archive, &dest)
         .await
