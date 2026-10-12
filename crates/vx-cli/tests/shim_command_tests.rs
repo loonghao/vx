@@ -489,6 +489,14 @@ fn test_shim_add_resolves_a_relative_dir() {
 
 /// Unix-only: `\` is a legal filename character there, so a directory named
 /// `a\b` is distinct from `a/b` and must not be folded into it.
+///
+/// Both directories are passed in one invocation on purpose. `normalize` only
+/// feeds `dedup`'s comparison key, and `dedup` pushes the original path, so a
+/// single `--dir` makes `dedup` the identity function: the shim lands in the
+/// literal directory whether or not `normalize` folds the backslash, and the
+/// test would pass on the pre-fix implementation too. Two directories that
+/// differ only by the separator make the fold visible -- the buggy `normalize`
+/// collapses them to one entry and drops the second directory.
 #[test]
 #[cfg(unix)]
 fn test_shim_add_keeps_a_literal_backslash_on_unix() {
@@ -499,9 +507,12 @@ fn test_shim_add_keeps_a_literal_backslash_on_unix() {
 
     let temp = TempDir::new().expect("failed to create temp dir");
     let vx_home = temp.path().join("vx-home");
-    // A single directory literally named `a\b`, not `a` containing `b`
+    // One directory literally named `a\b`, and a separate `a` containing `b`.
+    // Distinct under Unix path semantics; identical if `\` is folded.
     let backslash_dir = temp.path().join("a\\b");
+    let slash_dir = temp.path().join("a").join("b");
     std::fs::create_dir_all(&backslash_dir).expect("failed to create backslash dir");
+    std::fs::create_dir_all(&slash_dir).expect("failed to create slash dir");
     let name = unique_name();
 
     let output = run_vx(
@@ -514,27 +525,42 @@ fn test_shim_add_keeps_a_literal_backslash_on_unix() {
             &name,
             "--dir",
             &backslash_dir.display().to_string(),
+            "--dir",
+            &slash_dir.display().to_string(),
         ],
     )
     .expect("failed to run vx shim add");
     assert_success(
         &output,
         &format!(
-            "vx shim add {RUNTIME} --as {name} --dir {}",
-            backslash_dir.display()
+            "vx shim add {RUNTIME} --as {name} --dir {} --dir {}",
+            backslash_dir.display(),
+            slash_dir.display()
         ),
     );
 
-    let shim = backslash_dir.join(&name);
-    assert!(
-        shim.exists(),
-        "shim should be in {}: \n{}",
-        backslash_dir.display(),
-        combined_output(&output)
-    );
-    assert!(
-        !temp.path().join("a").join("b").join(&name).exists(),
-        "a literal backslash must not be folded into a separator"
+    // Both directories must survive -- folding the backslash would collapse
+    // them into one and leave the second without a shim.
+    for dir in [&backslash_dir, &slash_dir] {
+        let shim = dir.join(&name);
+        assert!(
+            shim.exists(),
+            "shim should be in {}: \n{}",
+            dir.display(),
+            combined_output(&output)
+        );
+    }
+
+    let registry = ShimRegistry::load(&vx_home.join("config").join("command-shims.json"))
+        .expect("failed to load registry");
+    let entry = registry
+        .get(&name)
+        .unwrap_or_else(|| panic!("{name} should be registered"));
+    assert_eq!(
+        entry.dirs.len(),
+        2,
+        "a literal backslash must not be folded into a separator, got: {:?}",
+        entry.dirs
     );
 }
 
