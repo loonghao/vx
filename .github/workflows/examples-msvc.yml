@@ -214,11 +214,19 @@ jobs:
           New-Item -ItemType Directory -Force examples/msvc/logs | Out-Null
           Start-Transcript -Path examples/msvc/logs/msvc-setup.log
           try {
+            # Initialize the existing VX MSVC Provider before selecting the one
+            # instance shared by every example. node-gyp 11.x cannot use VS18.
+            vx cl /?
+            if ($LASTEXITCODE -ne 0) { throw "VX MSVC preflight failed with exit code $LASTEXITCODE" }
             . ./scripts/ensure-msvc-spectre.ps1
-            $instance = Ensure-MsvcSpectre
+            $instance = Ensure-MsvcSpectre -MajorVersion 17
             $generator = Get-MsvcCMakeGenerator -InstallationVersion $instance.installationVersion
             "CMAKE_GENERATOR=$generator" >> $env:GITHUB_ENV
             "CMAKE_GENERATOR_INSTANCE=$($instance.installationPath)" >> $env:GITHUB_ENV
+            # node-gyp accepts an exact installation path, not only a year.
+            # Export both supported config forms for the examples' gyp versions.
+            "npm_config_msvs_version=$($instance.installationPath)" >> $env:GITHUB_ENV
+            "npm_package_config_node_gyp_msvs_version=$($instance.installationPath)" >> $env:GITHUB_ENV
             Write-Host "CMake generator: $generator"
           } finally {
             Stop-Transcript

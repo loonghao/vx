@@ -1,6 +1,9 @@
 BeforeAll {
   . (Join-Path $PSScriptRoot '../ensure-msvc-spectre.ps1')
-  function Invoke-FakeVsWhere {}
+  function Invoke-FakeVsWhere {
+    param([switch]$latest, [string]$products, [string]$version,
+      [string]$requires, [string]$format, [switch]$utf8)
+  }
 }
 
 Describe 'Visual Studio discovery' {
@@ -8,14 +11,36 @@ Describe 'Visual Studio discovery' {
     Mock Test-Path { $true }
     Mock Invoke-FakeVsWhere {
       $global:LASTEXITCODE = 0
-      '[{"installationPath":"C:\\Visual Studio\\18\\Enterprise","installationVersion":"18.10.12217.157","channelId":"VisualStudio.18.Release"}]'
+      '[{"installationPath":"C:\\Visual Studio\\2022\\Enterprise","installationVersion":"17.14.37710.0","channelId":"VisualStudio.17.Release"}]'
     }
   }
 
-  It 'reads the locator-selected instance without assuming a year or edition' {
+  It 'selects the common supported VS17 range without assuming an edition or path' {
     $instance = Get-MsvcInstallation -VsWherePath 'Invoke-FakeVsWhere'
-    $instance.installationPath | Should -Be 'C:\Visual Studio\18\Enterprise'
-    $instance.installationVersion | Should -Be '18.10.12217.157'
+    $instance.installationPath | Should -Be 'C:\Visual Studio\2022\Enterprise'
+    $instance.installationVersion | Should -Be '17.14.37710.0'
+    Should -Invoke Invoke-FakeVsWhere -Times 1 -ParameterFilter {
+      $latest -and $products -eq '*' -and $version -eq '[17.0,18.0)' -and
+      $requires -eq 'Microsoft.VisualStudio.Component.VC.Tools.x86.x64'
+    }
+  }
+
+  It 'rejects a locator result outside the required compatibility range' {
+    Mock Invoke-FakeVsWhere {
+      $global:LASTEXITCODE = 0
+      '[{"installationPath":"C:\\VS18","installationVersion":"18.10.1.0"}]'
+    }
+    { Get-MsvcInstallation -VsWherePath 'Invoke-FakeVsWhere' } | Should -Throw '*outside required range*'
+  }
+
+  It 'allows explicit VS18 selection when consumers support it' {
+    Mock Invoke-FakeVsWhere {
+      $global:LASTEXITCODE = 0
+      '[{"installationPath":"C:\\VS18","installationVersion":"18.10.1.0"}]'
+    }
+    (Get-MsvcInstallation -VsWherePath 'Invoke-FakeVsWhere' -MajorVersion 18).installationVersion |
+      Should -Be '18.10.1.0'
+    Should -Invoke Invoke-FakeVsWhere -Times 1 -ParameterFilter { $version -eq '[18.0,19.0)' }
   }
 
   It 'fails clearly when vswhere is missing' {
@@ -64,9 +89,9 @@ Describe 'Spectre setup' {
   BeforeEach {
     Mock Get-MsvcInstallation {
       [pscustomobject]@{
-        installationPath = 'C:\Visual Studio\18\Enterprise'
-        installationVersion = '18.10.12217.157'
-        channelId = 'VisualStudio.18.Release'
+        installationPath = 'C:\Visual Studio\2022\Enterprise'
+        installationVersion = '17.14.37710.0'
+        channelId = 'VisualStudio.17.Release'
       }
     }
     Mock Test-Path { $true }
@@ -76,10 +101,10 @@ Describe 'Spectre setup' {
 
   It 'reuses installed libraries without running the installer' {
     (Ensure-MsvcSpectre -InstallerDirectory 'C:\VS Installer').installationPath |
-      Should -Be 'C:\Visual Studio\18\Enterprise'
+      Should -Be 'C:\Visual Studio\2022\Enterprise'
     Should -Invoke Start-Process -Times 0
     Should -Invoke Test-MsvcSpectre -Times 1 -ParameterFilter {
-      $InstallationPath -eq 'C:\Visual Studio\18\Enterprise'
+      $InstallationPath -eq 'C:\Visual Studio\2022\Enterprise'
     }
   }
 
@@ -89,13 +114,13 @@ Describe 'Spectre setup' {
     Ensure-MsvcSpectre -InstallerDirectory 'C:\VS Installer' | Out-Null
     Should -Invoke Start-Process -Times 1 -ParameterFilter {
       $FilePath -eq 'C:\VS Installer\setup.exe' -and $Wait -and $PassThru -and
-      $ArgumentList -contains '"C:\Visual Studio\18\Enterprise"' -and
-      $ArgumentList -contains 'VisualStudio.18.Release' -and
+      $ArgumentList -contains '"C:\Visual Studio\2022\Enterprise"' -and
+      $ArgumentList -contains 'VisualStudio.17.Release' -and
       $ArgumentList -notcontains '--wait' -and
       $ArgumentList -contains 'Microsoft.VisualStudio.Component.VC.Runtimes.x86.x64.Spectre'
     }
     Should -Invoke Test-MsvcSpectre -Times 2 -ParameterFilter {
-      $InstallationPath -eq 'C:\Visual Studio\18\Enterprise'
+      $InstallationPath -eq 'C:\Visual Studio\2022\Enterprise'
     }
   }
 
@@ -155,5 +180,15 @@ Describe 'CMake generator selection' {
     $fmt | Should -Match '-G \$generator -A x64'
     $fmt | Should -Match '-DCMAKE_GENERATOR_INSTANCE=\$instancePath'
     $fmt | Should -Not -Match '-G "Visual Studio 17 2022"'
+  }
+}
+
+Describe 'Workflow consumer compatibility' {
+  It 'initializes VX before checking the common instance and binds CMake and node-gyp to it' {
+    $workflow = Get-Content (Join-Path $PSScriptRoot '../../.github/workflows/examples-msvc.yml') -Raw
+    $workflow | Should -Match '(?s)vx cl /\?.*Ensure-MsvcSpectre -MajorVersion 17'
+    $workflow | Should -Match 'CMAKE_GENERATOR_INSTANCE=\$\(\$instance.installationPath\)'
+    $workflow | Should -Match 'npm_config_msvs_version=\$\(\$instance.installationPath\)'
+    $workflow | Should -Match 'npm_package_config_node_gyp_msvs_version=\$\(\$instance.installationPath\)'
   }
 }

@@ -2,14 +2,20 @@
 # Dot-source this file to test the setup functions without changing the machine.
 
 function Get-MsvcInstallation {
-  param([string]$VsWherePath)
+  param(
+    [string]$VsWherePath,
+    # The current VX Provider and node-pty's node-gyp 11.x share VS2022 support.
+    # Callers may opt into a newer major when every consumer supports it.
+    [ValidateSet(17, 18)][int]$MajorVersion = 17
+  )
 
   $PSNativeCommandUseErrorActionPreference = $false
   if (-not (Test-Path -LiteralPath $VsWherePath -PathType Leaf)) {
     throw "Visual Studio locator not found at $VsWherePath"
   }
 
-  $json = (& $VsWherePath -latest -products '*' `
+  $versionRange = '[{0}.0,{1}.0)' -f $MajorVersion, ($MajorVersion + 1)
+  $json = (& $VsWherePath -latest -products '*' -version $versionRange `
     -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -format json -utf8) -join "`n"
   if ($LASTEXITCODE -ne 0) {
     throw "Visual Studio locator failed with exit code $LASTEXITCODE"
@@ -17,9 +23,12 @@ function Get-MsvcInstallation {
 
   $instances = @($json | ConvertFrom-Json)
   if ($instances.Count -ne 1 -or [string]::IsNullOrWhiteSpace($instances[0].installationPath)) {
-    throw "Expected one installed Visual Studio instance with x64 C++ tools"
+    throw "Expected one installed Visual Studio $MajorVersion instance with x64 C++ tools"
   }
   $instance = $instances[0]
+  if (([version]$instance.installationVersion).Major -ne $MajorVersion) {
+    throw "Discovered Visual Studio $($instance.installationVersion) outside required range $versionRange"
+  }
   $tools = Join-Path $instance.installationPath 'VC/Tools/MSVC'
   if (-not (Test-Path -LiteralPath $tools -PathType Container)) {
     throw "MSVC tools were not found in the selected instance: $tools"
@@ -54,10 +63,11 @@ function Get-MsvcCMakeGenerator {
 
 function Ensure-MsvcSpectre {
   param(
-    [string]$InstallerDirectory = (Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio/Installer')
+    [string]$InstallerDirectory = (Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio/Installer'),
+    [ValidateSet(17, 18)][int]$MajorVersion = 17
   )
 
-  $instance = Get-MsvcInstallation -VsWherePath (Join-Path $InstallerDirectory 'vswhere.exe')
+  $instance = Get-MsvcInstallation -VsWherePath (Join-Path $InstallerDirectory 'vswhere.exe') -MajorVersion $MajorVersion
   $vsRoot = $instance.installationPath
   Write-Host "Selected Visual Studio $($instance.installationVersion) at $vsRoot"
 
