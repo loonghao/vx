@@ -31,7 +31,7 @@ impl ManifestDrivenRuntime {
     /// 5. Script-based installation
     pub async fn install_impl(&self, version: &str, ctx: &RuntimeContext) -> Result<InstallResult> {
         let platform = Platform::current();
-        let store_name = self.bundled_with.as_deref().unwrap_or(&self.name);
+        let store_name = self.store_name();
         let base_path = ctx.paths.version_store_dir(store_name, version);
         // New layout: install directly to version dir (no platform subdirectory).
         // Old layout used base_path.join(platform.as_str()).

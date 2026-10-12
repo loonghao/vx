@@ -14,6 +14,7 @@
 //! Heavy implementations are in separate functional-domain crates:
 //! - `vx-runtime-http`: HTTP client, download manager, installer (~25-35s compile time)
 //! - `vx-runtime-archive`: Archive extraction utilities (~30-40s compile time)
+//! - `vx-rez-adapter`: optional Rez bundle activation (`rez-bundles` feature)
 //!
 //! Providers only need this crate. Only `vx-cli` needs `vx-runtime-http`.
 //!
@@ -136,8 +137,9 @@ pub use constraints::{
 // Manifest-driven runtimes (RFC 0021)
 pub use manifest_runtime::{
     DetectionConfig as ManifestDetectionConfig, ExecutePathFn, InstallStrategy,
-    ManifestDrivenRuntime, PostExtractFn, ProvidedTool, ProviderSource, ScriptType,
-    ShellDefinition, SystemDepType, SystemDependency, SystemDepsConfig,
+    ManifestDrivenRuntime, PostExtractFn, ProvidedTool, ProviderSource, RezBundleFn,
+    RezBundleRequest, ScriptType, ShellDefinition, SystemDepType, SystemDependency,
+    SystemDepsConfig,
 };
 pub use provider_loader::{
     LoadedProvider, ProviderLoader as ManifestProviderLoader, ProviderLoaderConfig,

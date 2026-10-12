@@ -1392,6 +1392,31 @@ def github_releases(ctx, owner = None, repo = None, include_prereleases = False)
 def releases_to_versions(releases):
     return []
 
+# --- rez.star ---
+def rez_bundle_source(owner, repo, tool, targets, unsupported_targets = {{}},
+                      programs = {{}}, versions_url = None, bundle_schema_version = 1,
+                      published = True):
+    def fetch_versions(_ctx):
+        return {{"__type": "fetch_json_versions", "tool": tool}}
+
+    def download_url(ctx, version):
+        return {{"__type": "rez_bundle_asset", "supported": True, "tool": tool,
+                "version": version, "owner": owner, "repo": repo}}
+
+    def install_layout(_ctx, _version):
+        return {{"type": "archive", "required_paths": []}}
+
+    def rez_bundle(ctx, version):
+        return {{"__type": "rez_bundle_request", "enabled": published, "tool": tool,
+                "version": version}}
+
+    return {{
+        "fetch_versions": fetch_versions,
+        "download_url": download_url,
+        "install_layout": install_layout,
+        "rez_bundle": rez_bundle,
+    }}
+
 {}
 "#,
         stripped
