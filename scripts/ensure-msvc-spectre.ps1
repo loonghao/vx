@@ -31,7 +31,13 @@ function Test-MsvcSpectre {
   param([string]$InstallationPath)
 
   # The examples build x64 targets. ARM64 libraries alone do not satisfy them.
-  return [bool](Test-Path -Path (Join-Path $InstallationPath 'VC/Tools/MSVC/*/lib/x64/spectre') -PathType Container)
+  # MSVC places the mitigation before the target architecture: lib/spectre/x64.
+  $libraryPath = Join-Path $InstallationPath 'VC/Tools/MSVC/*/lib/spectre/x64'
+  $present = Test-Path -Path $libraryPath -PathType Container
+  if ($present) {
+    Write-Host "Found x64 Spectre libraries matching $libraryPath"
+  }
+  return [bool]$present
 }
 
 function Get-MsvcCMakeGenerator {

@@ -43,13 +43,19 @@ Describe 'Visual Studio discovery' {
 Describe 'Spectre library detection' {
   It 'finds x64 libraries below the selected instance' {
     $root = Join-Path $TestDrive 'VS Enterprise'
-    New-Item -ItemType Directory -Force (Join-Path $root 'VC/Tools/MSVC/14.50/lib/x64/spectre') | Out-Null
+    New-Item -ItemType Directory -Force (Join-Path $root 'VC/Tools/MSVC/14.50/lib/spectre/x64') | Out-Null
     Test-MsvcSpectre -InstallationPath $root | Should -BeTrue
   }
 
   It 'does not treat ARM64-only libraries as x64 support' {
     $root = Join-Path $TestDrive 'VS ARM64'
-    New-Item -ItemType Directory -Force (Join-Path $root 'VC/Tools/MSVC/14.50/lib/arm64/spectre') | Out-Null
+    New-Item -ItemType Directory -Force (Join-Path $root 'VC/Tools/MSVC/14.50/lib/spectre/arm64') | Out-Null
+    Test-MsvcSpectre -InstallationPath $root | Should -BeFalse
+  }
+
+  It 'rejects the old inverted library directory layout' {
+    $root = Join-Path $TestDrive 'VS incorrect layout'
+    New-Item -ItemType Directory -Force (Join-Path $root 'VC/Tools/MSVC/14.50/lib/x64/spectre') | Out-Null
     Test-MsvcSpectre -InstallationPath $root | Should -BeFalse
   }
 }
