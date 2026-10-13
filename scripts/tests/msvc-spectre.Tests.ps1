@@ -192,3 +192,37 @@ Describe 'Workflow consumer compatibility' {
     $workflow | Should -Match 'npm_package_config_node_gyp_msvs_version=\$\(\$instance.installationPath\)'
   }
 }
+
+Describe 'Workflow Pester result gate' -Skip:(-not $IsWindows) {
+  It 'returns <ExpectedCode> for <Name>' -TestCases @(
+    @{ Name = 'passing tests'; ExpectedCode = 0; Content = "Describe 'fixture' { It 'passes' { 1 | Should -Be 1 } }" },
+    @{ Name = 'discovery failure'; ExpectedCode = 1; Content = "throw 'intentional discovery failure'" },
+    @{ Name = 'BeforeAll failure'; ExpectedCode = 1; Content = "Describe 'fixture' { BeforeAll { throw 'intentional setup failure' }; It 'cannot run' { 1 | Should -Be 1 } }" },
+    @{ Name = 'assertion failure'; ExpectedCode = 1; Content = "Describe 'fixture' { It 'fails' { 1 | Should -Be 2 } }" },
+    @{ Name = 'zero tests'; ExpectedCode = 1; Content = "Describe 'empty fixture' {}" },
+    @{ Name = 'only skipped tests'; ExpectedCode = 1; Content = "Describe 'fixture' { It 'is skipped' -Skip { 1 | Should -Be 1 } }" }
+  ) {
+    param($Name, $ExpectedCode, $Content)
+    $workflow = Get-Content (Join-Path $PSScriptRoot '../../.github/workflows/examples-msvc.yml') -Raw
+    $gate = [regex]::Match($workflow, '(?ms)^          Import-Module Pester\b.*?^          exit 0\r?$')
+    $gate.Success | Should -BeTrue
+    # Exercise the actual workflow gate in a child process, including discovery
+    # and container failures which are not represented by FailedCount alone.
+    $runnerContent = $gate.Value -replace '(?m)^          ', ''
+    $originalPaths = '-Path scripts/tests/msvc-spectre.Tests.ps1,scripts/tests/aionui-exit.Tests.ps1'
+    $runnerContent | Should -Match ([regex]::Escape($originalPaths))
+    $runnerContent = $runnerContent.Replace($originalPaths, '-Path $args[0]')
+    $fixture = Join-Path $TestDrive ([guid]::NewGuid().ToString())
+    New-Item -ItemType Directory -Path $fixture | Out-Null
+    $runner = Join-Path $fixture 'run-gate.ps1'
+    $testFile = Join-Path $fixture 'fixture.Tests.ps1'
+    $runnerContent | Set-Content $runner
+    $Content | Set-Content $testFile
+    $PSNativeCommandUseErrorActionPreference = $false
+
+    & (Join-Path $PSHOME 'pwsh.exe') -NoProfile -File $runner $testFile 2>&1 |
+      Set-Content (Join-Path $fixture 'gate.log')
+
+    $LASTEXITCODE | Should -Be $ExpectedCode
+  }
+}
