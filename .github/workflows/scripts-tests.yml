@@ -10,10 +10,12 @@ on:
     paths:
       - "scripts/**"
       - ".github/workflows/scripts-tests.yml"
+      - ".github/workflows/test-docker.yml"
   pull_request:
     paths:
       - "scripts/**"
       - ".github/workflows/scripts-tests.yml"
+      - ".github/workflows/test-docker.yml"
   workflow_dispatch:
 
 permissions:

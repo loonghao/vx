@@ -16,6 +16,8 @@ on:
       - "crates/**"
       - "Cargo.toml"
       - "Cargo.lock"
+      - "vx.toml"
+      - "vx.lock"
   pull_request:
     branches: [main]
   workflow_dispatch:
@@ -232,7 +234,8 @@ jobs:
             echo "::warning::No files detected as changed against '${BASE}'. Every downstream job will be skipped; this is only correct if the event really carries no file changes."
           fi
 
-          if echo "$CHANGED" | grep -qE '^(pkg/docker/|Dockerfile|\.github/workflows/test-docker\.yml|crates/|Cargo\.(toml|lock))'; then
+          # Runtime pins affect vx hadolint even when no Dockerfile changes.
+          if echo "$CHANGED" | grep -qE '^(pkg/docker/|Dockerfile|\.github/workflows/test-docker\.yml|crates/|Cargo\.(toml|lock)|vx\.(toml|lock)$)'; then
             echo "should_run=true" >> $GITHUB_OUTPUT
           else
             echo "should_run=false" >> $GITHUB_OUTPUT
