@@ -913,8 +913,13 @@ jobs:
           go-version: '1.27.1'
           cache: false
 
-      - name: Preinstall Node.js on Windows
-        if: runner.os == 'Windows'
+      # Node is preinstalled so the `node` / `cross_tool` e2e groups never race
+      # to download a toolchain. Every one of those tests spawns `vx node ...`
+      # with a 300s per-test timeout, so a stalled download on an unprimed
+      # runner fails the test instead of the product. Windows already did this;
+      # Linux did not, and on the run that motivated this change the Linux job
+      # logged 14 such timeouts while the Windows job logged none.
+      - name: Preinstall Node.js
         shell: bash
         run: vx node --version
 
