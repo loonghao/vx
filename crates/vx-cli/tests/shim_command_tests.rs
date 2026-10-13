@@ -15,7 +15,7 @@ mod common;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output};
 
-use common::{assert_success, init_test_env, vx_available, vx_binary};
+use common::{assert_success, combined_output, init_test_env, vx_available, vx_binary};
 use tempfile::TempDir;
 use vx_runtime::{ShimRegistry, VX_SHIM_MARKER};
 
@@ -433,6 +433,135 @@ fn test_shim_sync_restores_missing_shims_and_preserves_user_edits() {
     for (file, expected) in files.iter().skip(1) {
         assert_eq!(std::fs::read_to_string(file).unwrap(), *expected);
     }
+}
+
+/// A relative `--dir` is resolved against the current directory before it is
+/// stored, so the registry entry stays valid after the user changes directory.
+#[test]
+fn test_shim_add_resolves_a_relative_dir() {
+    init_test_env();
+    if !vx_available() {
+        return;
+    }
+
+    let temp = TempDir::new().expect("failed to create temp dir");
+    let vx_home = temp.path().join("vx-home");
+    let cwd = temp.path().join("cwd");
+    std::fs::create_dir_all(&cwd).expect("failed to create cwd");
+    let name = unique_name();
+
+    let output = Command::new(vx_binary())
+        .args(["shim", "add", RUNTIME, "--as", &name, "--dir", "shims"])
+        .env("VX_HOME", &vx_home)
+        .current_dir(&cwd)
+        .output()
+        .expect("failed to run vx shim add");
+    assert_success(&output, "vx shim add with a relative --dir");
+
+    // Resolved against the cwd the command ran in, not against wherever a
+    // later `sync` or `remove` happens to be run from.
+    let resolved = cwd.join("shims");
+    for file in expected_files(&resolved, &name) {
+        assert!(
+            file.exists(),
+            "expected {} to exist: \n{}",
+            file.display(),
+            combined_output(&output)
+        );
+    }
+
+    let registry = ShimRegistry::load(&vx_home.join("config").join("command-shims.json"))
+        .expect("failed to load registry");
+    let entry = registry
+        .get(&name)
+        .unwrap_or_else(|| panic!("{name} should be registered"));
+    assert!(
+        entry.dirs.iter().all(|dir| dir.is_absolute()),
+        "the registry must store absolute dirs, got: {:?}",
+        entry.dirs
+    );
+    assert!(
+        entry.files.iter().all(|file| file.is_absolute()),
+        "the registry must store absolute paths, got: {:?}",
+        entry.files
+    );
+}
+
+/// Unix-only: `\` is a legal filename character there, so a directory named
+/// `a\b` is distinct from `a/b` and must not be folded into it.
+///
+/// Both directories are passed in one invocation on purpose. `normalize` only
+/// feeds `dedup`'s comparison key, and `dedup` pushes the original path, so a
+/// single `--dir` makes `dedup` the identity function: the shim lands in the
+/// literal directory whether or not `normalize` folds the backslash, and the
+/// test would pass on the pre-fix implementation too. Two directories that
+/// differ only by the separator make the fold visible -- the buggy `normalize`
+/// collapses them to one entry and drops the second directory.
+#[test]
+#[cfg(unix)]
+fn test_shim_add_keeps_a_literal_backslash_on_unix() {
+    init_test_env();
+    if !vx_available() {
+        return;
+    }
+
+    let temp = TempDir::new().expect("failed to create temp dir");
+    let vx_home = temp.path().join("vx-home");
+    // One directory literally named `a\b`, and a separate `a` containing `b`.
+    // Distinct under Unix path semantics; identical if `\` is folded.
+    let backslash_dir = temp.path().join("a\\b");
+    let slash_dir = temp.path().join("a").join("b");
+    std::fs::create_dir_all(&backslash_dir).expect("failed to create backslash dir");
+    std::fs::create_dir_all(&slash_dir).expect("failed to create slash dir");
+    let name = unique_name();
+
+    let output = run_vx(
+        &vx_home,
+        &[
+            "shim",
+            "add",
+            RUNTIME,
+            "--as",
+            &name,
+            "--dir",
+            &backslash_dir.display().to_string(),
+            "--dir",
+            &slash_dir.display().to_string(),
+        ],
+    )
+    .expect("failed to run vx shim add");
+    assert_success(
+        &output,
+        &format!(
+            "vx shim add {RUNTIME} --as {name} --dir {} --dir {}",
+            backslash_dir.display(),
+            slash_dir.display()
+        ),
+    );
+
+    // Both directories must survive -- folding the backslash would collapse
+    // them into one and leave the second without a shim.
+    for dir in [&backslash_dir, &slash_dir] {
+        let shim = dir.join(&name);
+        assert!(
+            shim.exists(),
+            "shim should be in {}: \n{}",
+            dir.display(),
+            combined_output(&output)
+        );
+    }
+
+    let registry = ShimRegistry::load(&vx_home.join("config").join("command-shims.json"))
+        .expect("failed to load registry");
+    let entry = registry
+        .get(&name)
+        .unwrap_or_else(|| panic!("{name} should be registered"));
+    assert_eq!(
+        entry.dirs.len(),
+        2,
+        "a literal backslash must not be folded into a separator, got: {:?}",
+        entry.dirs
+    );
 }
 
 #[test]
