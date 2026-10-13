@@ -87,6 +87,9 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Validate installer CI contract
+        run: python3 -m unittest discover -s scripts/tests -p "test_installer_extended_formats_workflow.py" -v
+
       - name: Detect file changes
         id: filter
         shell: bash
@@ -941,6 +944,68 @@ jobs:
           if command -v python3 >/dev/null 2>&1; then PY=python3; else PY=python; fi
           "$PY" scripts/summarize_nextest_flaky.py --junit target/nextest/default/junit.xml
 
+  # The default workspace suite does not enable extended-formats. Keep the
+  # archive safety/functional regressions independent of the network-heavy CLI
+  # suite and coverage, so a timeout there cannot hide an untested installer.
+  test-installer-extended-formats:
+    name: Installer extended formats (${{ matrix.platform.name }})
+    runs-on: ${{ matrix.platform.os }}
+    needs: [detect-changes, build-vx]
+    if: needs.detect-changes.outputs.should_test == 'true'
+    timeout-minutes: 25
+    env:
+      RUSTC_WRAPPER: sccache
+      SCCACHE_DIR: ${{ github.workspace }}/.cache/sccache
+
+    strategy:
+      fail-fast: false
+      matrix:
+        platform:
+          - name: Linux
+            os: ubuntu-latest
+            artifact: vx-linux-x64
+            binary: vx
+          - name: Windows
+            os: windows-latest
+            artifact: vx-windows-x64
+            binary: vx.exe
+          - name: macOS
+            os: macos-latest
+            artifact: vx-macos-x64
+            binary: vx
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Download vx binary
+        uses: actions/download-artifact@v8
+        with:
+          name: ${{ matrix.platform.artifact }}
+          path: ./bin
+
+      - name: Setup vx
+        shell: bash
+        run: |
+          chmod +x ./bin/${{ matrix.platform.binary }} 2>/dev/null || true
+          echo "${{ github.workspace }}/bin" >> $GITHUB_PATH
+
+      - name: Setup Rust + sccache
+        uses: ./.github/actions/setup-rust-sccache
+        with:
+          shared-key: installer-extended-formats
+          install-nextest: "true"
+
+      - name: Run native 7z and SFX regressions
+        shell: bash
+        # This runs the real extractor against generated archives, including
+        # traversal rejection on all three OSes and symlink rejection on Unix.
+        # Fail if feature/configuration drift leaves zero tests selected, and do
+        # not turn a filesystem-safety regression into a pass through retries.
+        run: >-
+          vx cargo nextest run --locked -p vx-installer
+          --features extended-formats --test sevenz_sfx_tests
+          --no-fail-fast --no-tests fail --retries 0
+
   # ============================================================================
   # Stage 5: Cross-compilation (PR only, skip on main since release builds cover it)
   # ============================================================================
@@ -1168,6 +1233,7 @@ jobs:
       - code-quality
       - test-targeted
       - test-full
+      - test-installer-extended-formats
       - provider-static
       - cross-build
       - security-audit
@@ -1231,6 +1297,16 @@ jobs:
           check_job "build-vx" "${{ needs.build-vx.result }}"
           check_job "code-quality" "${{ needs.code-quality.result }}"
           check_job "test-targeted" "${{ needs.test-targeted.result }}"
+
+          # Once Rust/CI changes select installer regressions, skipped is not a
+          # pass either: all three native matrix legs must have actually run.
+          if [[ "${{ needs.detect-changes.outputs.should_test }}" == "true" &&
+                "${{ needs.test-installer-extended-formats.result }}" != "success" ]]; then
+            echo "- ❌ test-installer-extended-formats (required but not successful)" >> $GITHUB_STEP_SUMMARY
+            failed=1
+          else
+            check_job "test-installer-extended-formats" "${{ needs.test-installer-extended-formats.result }}"
+          fi
           check_job "provider-static" "${{ needs.provider-static.result }}"
           check_job "security-audit" "${{ needs.security-audit.result }}"
 
