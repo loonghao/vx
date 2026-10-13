@@ -1,7 +1,7 @@
 # MSVC Examples CI
 #
 # Runs all examples/msvc/*.build.ps1 scripts on a real Windows runner with
-# MSVC Build Tools pre-installed (windows-latest already ships with VS 2022).
+# MSVC tools pre-installed; discover the installed Visual Studio instance.
 #
 # Triggered when:
 #   - examples/msvc/** changes
@@ -17,10 +17,18 @@ on:
     paths:
       - "examples/msvc/**"
       - "crates/vx-providers/msvc/**"
+      - ".github/workflows/examples-msvc.yml"
+      - "scripts/ensure-msvc-spectre.ps1"
+      - "scripts/tests/msvc-spectre.Tests.ps1"
+      - "scripts/tests/aionui-exit.Tests.ps1"
   pull_request:
     paths:
       - "examples/msvc/**"
       - "crates/vx-providers/msvc/**"
+      - ".github/workflows/examples-msvc.yml"
+      - "scripts/ensure-msvc-spectre.ps1"
+      - "scripts/tests/msvc-spectre.Tests.ps1"
+      - "scripts/tests/aionui-exit.Tests.ps1"
   workflow_dispatch:
     inputs:
       script:
@@ -35,8 +43,23 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  test-msvc-setup:
+    name: Test MSVC setup contracts
+    runs-on: windows-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - name: Test MSVC setup and example failure handling
+        shell: pwsh
+        run: |
+          Import-Module Pester -MinimumVersion 5.0 -ErrorAction Stop
+          $result = Invoke-Pester -Path scripts/tests/msvc-spectre.Tests.ps1,scripts/tests/aionui-exit.Tests.ps1 -Output Detailed -PassThru
+          if ($result.Result -ne 'Passed' -or $result.PassedCount -eq 0) { exit 1 }
+          exit 0
+
   build-vx:
     name: Build VX (Windows)
+    needs: test-msvc-setup
     runs-on: windows-latest
     env:
       RUSTC_WRAPPER: sccache
@@ -187,55 +210,28 @@ jobs:
         shell: pwsh
         run: vx --version
 
-      - name: Verify MSVC is available (windows-latest ships VS 2022)
+      - name: Verify MSVC and Spectre libraries
         shell: pwsh
         run: |
-          $clPaths = @(
-            "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Tools\MSVC",
-            "C:\Program Files\Microsoft Visual Studio\2022\Professional\VC\Tools\MSVC",
-            "C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Tools\MSVC",
-            "C:\Program Files\Microsoft Visual Studio\2022\BuildTools\VC\Tools\MSVC"
-          )
-          $found = $false
-          foreach ($p in $clPaths) {
-            if (Test-Path $p) {
-              Write-Host "Found MSVC at: $p"
-              $found = $true
-              break
-            }
-          }
-          if (-not $found) {
-            Write-Warning "MSVC not found in standard paths — vx will attempt to install it"
-          }
-
-      - name: Ensure Spectre-mitigated VC libraries are installed
-        shell: pwsh
-        run: |
-          $vsRoot = "C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools"
-          $hasSpectre = @(
-            "$vsRoot\VC\Tools\MSVC\*\lib\x64\spectre",
-            "$vsRoot\VC\Tools\MSVC\*\lib\arm64\spectre"
-          ) | ForEach-Object { Test-Path $_ } | Where-Object { $_ } | Select-Object -First 1
-
-          if ($hasSpectre) {
-            Write-Host "Spectre libraries already installed"
-            exit 0
-          }
-
-          $installer = "C:\Program Files (x86)\Microsoft Visual Studio\Installer\vs_installer.exe"
-          if (-not (Test-Path $installer)) {
-            throw "Visual Studio Installer not found at $installer"
-          }
-
-          & $installer modify `
-            --installPath $vsRoot `
-            --add Microsoft.VisualStudio.Component.VC.ATL.Spectre `
-            --add Microsoft.VisualStudio.Component.VC.MFC.Spectre `
-            --add Microsoft.VisualStudio.Component.VC.Runtimes.x86.x64.Spectre `
-            --quiet --norestart
-
-          if ($LASTEXITCODE -ne 0) {
-            throw "Failed to install Spectre-mitigated VC libraries"
+          New-Item -ItemType Directory -Force examples/msvc/logs | Out-Null
+          Start-Transcript -Path examples/msvc/logs/msvc-setup.log
+          try {
+            # Initialize the existing VX MSVC Provider before selecting the one
+            # instance shared by every example. node-gyp 11.x cannot use VS18.
+            vx cl /?
+            if ($LASTEXITCODE -ne 0) { throw "VX MSVC preflight failed with exit code $LASTEXITCODE" }
+            . ./scripts/ensure-msvc-spectre.ps1
+            $instance = Ensure-MsvcSpectre -MajorVersion 17
+            $generator = Get-MsvcCMakeGenerator -InstallationVersion $instance.installationVersion
+            "CMAKE_GENERATOR=$generator" >> $env:GITHUB_ENV
+            "CMAKE_GENERATOR_INSTANCE=$($instance.installationPath)" >> $env:GITHUB_ENV
+            # node-gyp accepts an exact installation path, not only a year.
+            # Export both supported config forms for the examples' gyp versions.
+            "npm_config_msvs_version=$($instance.installationPath)" >> $env:GITHUB_ENV
+            "npm_package_config_node_gyp_msvs_version=$($instance.installationPath)" >> $env:GITHUB_ENV
+            Write-Host "CMake generator: $generator"
+          } finally {
+            Stop-Transcript
           }
 
       - name: Run example — fmt (cmake + MSVC)
