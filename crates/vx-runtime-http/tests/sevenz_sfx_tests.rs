@@ -266,25 +266,56 @@ async fn test_explicit_sevenz_rejects_truncated_header(#[case] bytes: &[u8]) {
 }
 
 #[rstest]
-#[case("../escaped.exe")]
-#[case("..\\escaped.exe")]
-#[case("/escaped.exe")]
-#[case("C:/escaped.exe")]
-#[case("C:\\escaped.exe")]
+#[case("parent-forward")]
+#[case("parent-backslash")]
+#[case("absolute-native")]
+#[case("absolute-windows-forward")]
+#[case("absolute-windows-backslash")]
 #[tokio::test]
-async fn test_sfx_rejects_paths_outside_destination(#[case] name: &str) {
+async fn test_sfx_rejects_paths_outside_destination(#[case] kind: &str) {
     let temp = tempdir().unwrap();
     let archive = temp.path().join("runtime.exe");
     let dest = temp.path().join("output");
-    std::fs::write(&archive, sfx_bytes(512, name, false)).unwrap();
+    let escaped = temp.path().join("escaped.exe");
+    let absolute = escaped.to_string_lossy().into_owned();
+    // Keep even a regressed absolute-path write inside this temporary root.
+    let windows_absolute = if cfg!(windows) {
+        absolute.clone()
+    } else {
+        format!("C:{absolute}")
+    };
+    let name = match kind {
+        "parent-forward" => "../escaped.exe".to_string(),
+        "parent-backslash" => "..\\escaped.exe".to_string(),
+        "absolute-native" => absolute,
+        "absolute-windows-forward" => windows_absolute.replace('\\', "/"),
+        "absolute-windows-backslash" => windows_absolute.replace('/', "\\"),
+        _ => panic!("unknown unsafe-path case: {kind}"),
+    };
+    std::fs::write(&archive, sfx_bytes(512, &name, false)).unwrap();
 
+    // `extract` resolves the entry path before creating any file, so every case
+    // above is rejected without touching the filesystem outside `dest`.
     let error = RealInstaller::new()
         .extract(&archive, &dest)
         .await
-        .unwrap_err();
-    assert!(error.to_string().contains("Unsafe path"), "{name}: {error}");
-    assert!(!temp.path().join("escaped.exe").exists());
-    assert!(std::fs::read_dir(dest).unwrap().next().is_none());
+        .expect_err("malformed entry name must be rejected before extraction");
+    assert!(
+        error.to_string().contains("Unsafe path"),
+        "{name}: expected an unsafe-path rejection, got {error}"
+    );
+    assert!(
+        !escaped.exists(),
+        "{name}: extraction must not write outside its destination"
+    );
+    assert!(
+        dest.is_dir(),
+        "{name}: destination should exist and stay empty"
+    );
+    assert!(
+        std::fs::read_dir(&dest).unwrap().next().is_none(),
+        "{name}: nothing may be written into the destination"
+    );
 }
 
 #[cfg(unix)]

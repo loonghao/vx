@@ -8,8 +8,12 @@ $logFile = Join-Path $logDir "aionui.log"
 New-Item -ItemType Directory -Force -Path $workRoot | Out-Null
 New-Item -ItemType Directory -Force -Path $logDir | Out-Null
 
+"== AionUi build test ==" | Tee-Object -FilePath $logFile
+"Working directory: $repoDir" | Tee-Object -FilePath $logFile -Append
+
 if (-not (Test-Path $repoDir)) {
-  git clone --depth 1 $repoUrl $repoDir
+  git clone --depth 1 $repoUrl $repoDir 2>&1 | Tee-Object -FilePath $logFile -Append
+  if ($LASTEXITCODE -ne 0) { throw "git clone failed with exit code $LASTEXITCODE" }
 }
 
 Push-Location $repoDir
@@ -29,19 +33,22 @@ try {
   # Workaround 2: npm EOVERRIDE — @codemirror/language is both a direct dependency
   # and in overrides/resolutions. npm 10+ rejects overrides on direct deps when
   # the version specs differ. Remove the redundant override/resolution entries.
-  vx npm pkg delete overrides.@codemirror/language resolutions.@codemirror/language 2>$null
-
-  "== AionUi build test ==" | Tee-Object -FilePath $logFile
-  "Working directory: $repoDir" | Tee-Object -FilePath $logFile -Append
+  vx npm pkg delete overrides.@codemirror/language resolutions.@codemirror/language 2>&1 | Tee-Object -FilePath $logFile -Append
+  if ($LASTEXITCODE -ne 0) { throw "npm pkg delete failed with exit code $LASTEXITCODE" }
 
   vx --version | Tee-Object -FilePath $logFile -Append
+  if ($LASTEXITCODE -ne 0) { throw "vx --version failed with exit code $LASTEXITCODE" }
   vx npm --version | Tee-Object -FilePath $logFile -Append
+  if ($LASTEXITCODE -ne 0) { throw "npm --version failed with exit code $LASTEXITCODE" }
 
   vx npm install 2>&1 | Tee-Object -FilePath $logFile -Append
+  if ($LASTEXITCODE -ne 0) { throw "npm install failed with exit code $LASTEXITCODE" }
 
   vx npm rebuild better-sqlite3 --build-from-source 2>&1 | Tee-Object -FilePath $logFile -Append
+  if ($LASTEXITCODE -ne 0) { throw "npm rebuild failed with exit code $LASTEXITCODE" }
 
   vx node -e "require('better-sqlite3');require('node-pty');console.log('AionUi native modules OK')" 2>&1 | Tee-Object -FilePath $logFile -Append
+  if ($LASTEXITCODE -ne 0) { throw "node module validation failed with exit code $LASTEXITCODE" }
 
   "AionUi test passed" | Tee-Object -FilePath $logFile -Append
 }

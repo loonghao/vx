@@ -20,6 +20,7 @@ on:
       - ".github/workflows/examples-msvc.yml"
       - "scripts/ensure-msvc-spectre.ps1"
       - "scripts/tests/msvc-spectre.Tests.ps1"
+      - "scripts/tests/aionui-exit.Tests.ps1"
   pull_request:
     paths:
       - "examples/msvc/**"
@@ -27,6 +28,7 @@ on:
       - ".github/workflows/examples-msvc.yml"
       - "scripts/ensure-msvc-spectre.ps1"
       - "scripts/tests/msvc-spectre.Tests.ps1"
+      - "scripts/tests/aionui-exit.Tests.ps1"
   workflow_dispatch:
     inputs:
       script:
@@ -47,11 +49,11 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v7
-      - name: Test discovery, Spectre fallback, and CMake selection
+      - name: Test MSVC setup and example failure handling
         shell: pwsh
         run: |
           Import-Module Pester -MinimumVersion 5.0 -ErrorAction Stop
-          $result = Invoke-Pester -Path scripts/tests/msvc-spectre.Tests.ps1 -Output Detailed -PassThru
+          $result = Invoke-Pester -Path scripts/tests/msvc-spectre.Tests.ps1,scripts/tests/aionui-exit.Tests.ps1 -Output Detailed -PassThru
           if ($result.FailedCount -gt 0) { exit 1 }
           exit 0
 

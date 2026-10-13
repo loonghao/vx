@@ -97,24 +97,39 @@ async fn test_sevenz_sfx_signature_scan_is_bounded() {
 async fn test_sevenz_sfx_rejects_paths_outside_target() {
     let temp = TempDir::new().unwrap();
     let handler = SevenZipHandler::new();
+    let escaped = temp.path().join("escaped.exe");
+    let absolute = escaped.to_string_lossy().into_owned();
+    // Use the temporary root even for absolute-path cases. A broken rejection
+    // must never target a real system-root file such as C:\escaped.exe.
+    let windows_absolute = if cfg!(windows) {
+        absolute.clone()
+    } else {
+        format!("C:{absolute}")
+    };
     for (index, name) in [
-        "../escaped.exe",
-        "..\\escaped.exe",
-        "/escaped.exe",
-        "C:/escaped.exe",
+        "../escaped.exe".to_string(),
+        "..\\escaped.exe".to_string(),
+        absolute,
+        windows_absolute.replace('\\', "/"),
+        windows_absolute.replace('/', "\\"),
     ]
     .into_iter()
     .enumerate()
     {
         let archive = temp.path().join(format!("unsafe-{index}.exe"));
         let target = temp.path().join(format!("extracted-{index}"));
-        write_archive(&archive, 512, name);
+        write_archive(&archive, 512, &name);
+        // `extract` resolves the entry path before creating any file, so every
+        // case above is rejected without touching the filesystem outside `target`.
         let error = handler
             .extract(&archive, &target, &ProgressContext::disabled())
             .await
             .unwrap_err();
         assert!(error.to_string().contains("Unsafe path"), "{name}: {error}");
-        assert!(!temp.path().join("escaped.exe").exists());
+        assert!(
+            !escaped.exists(),
+            "{name}: extraction must not write outside its target"
+        );
         assert!(std::fs::read_dir(target).unwrap().next().is_none());
     }
 }
