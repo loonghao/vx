@@ -46,7 +46,9 @@ try {
   if ($LASTEXITCODE -ne 0) { throw "bun install failed with exit code $LASTEXITCODE" }
 
   # Source-build AionUi's locked native SQLite package for the VX Node ABI.
-  vx npm rebuild better-sqlite3 --build-from-source 2>&1 | Tee-Object -FilePath $logFile -Append
+  # Bun workspace links can reference one build directory more than once;
+  # serialize npm lifecycle scripts so those builds cannot race on Windows.
+  vx npm rebuild better-sqlite3 --build-from-source --foreground-scripts 2>&1 | Tee-Object -FilePath $logFile -Append
   if ($LASTEXITCODE -ne 0) { throw "npm rebuild failed with exit code $LASTEXITCODE" }
 
   vx node -e "const Database = require('better-sqlite3'); const db = new Database(':memory:'); if (db.prepare('SELECT 1 AS value').get().value !== 1) { throw new Error('SQLite query failed'); } db.close(); console.log('AionUi native SQLite OK');" 2>&1 | Tee-Object -FilePath $logFile -Append

@@ -84,6 +84,7 @@ exit /b 0
     $calls = @(Get-Content $env:VX_AION_TEST_CALLS)
     $calls.Count | Should -Be 6
     $calls[3] | Should -BeExactly 'bun install --frozen-lockfile'
+    $calls[4] | Should -BeExactly 'npm rebuild better-sqlite3 --build-from-source --foreground-scripts'
     $calls[-1] | Should -BeLike 'node -e*'
     $calls[-1] | Should -Match 'new Database'
     $calls[-1] | Should -Not -Match 'node-pty'
