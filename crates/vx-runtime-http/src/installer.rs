@@ -1,7 +1,7 @@
 //! Real installer implementation
 
 use crate::http_client::RealHttpClient;
-use anyhow::Result;
+use anyhow::{Context, Result};
 use async_trait::async_trait;
 use backon::{ExponentialBuilder, Retryable};
 use std::path::Path;
@@ -325,11 +325,19 @@ impl Default for RealInstaller {
 #[async_trait]
 impl Installer for RealInstaller {
     async fn extract(&self, archive: &Path, dest: &Path) -> Result<()> {
-        std::fs::create_dir_all(dest)?;
+        std::fs::create_dir_all(dest).with_context(|| {
+            format!("failed to create extraction destination {}", dest.display())
+        })?;
 
         let archive_str = archive.to_string_lossy();
 
         // First try to determine format by extension
+
+        // Set when format detection already located the embedded 7z signature,
+        // so opening the payload does not scan the same prefix a second time.
+        #[cfg(feature = "extended-formats")]
+        let mut sevenz_offset = None;
+
         let format = if archive_str.ends_with(".tar.gz") || archive_str.ends_with(".tgz") {
             Some("tar.gz")
         } else if archive_str.ends_with(".tar.xz") {
@@ -356,11 +364,14 @@ impl Installer for RealInstaller {
 
             // Check if it's a .exe file - might be a 7z SFX
             if archive_str.ends_with(".exe") {
-                if sevenz_signature_offset(archive)?.is_some() {
-                    Some("7z")
-                } else {
-                    None
+                let offset = sevenz_signature_offset(archive).with_context(|| {
+                    format!("failed to scan {archive_str} for an embedded 7z signature")
+                })?;
+                #[cfg(feature = "extended-formats")]
+                {
+                    sevenz_offset = offset;
                 }
+                offset.map(|_| "7z")
             } else {
                 // Check magic bytes at start of file
                 let mut magic = [0u8; 6];
@@ -437,7 +448,10 @@ impl Installer for RealInstaller {
             Some("7z") => {
                 #[cfg(feature = "extended-formats")]
                 {
-                    let payload = open_sevenz_payload(archive)?;
+                    let payload =
+                        open_sevenz_payload(archive, sevenz_offset).with_context(|| {
+                            format!("failed to open the 7z payload in {archive_str}")
+                        })?;
                     sevenz_rust::decompress_with_extract_fn(payload, dest, |entry, reader, _| {
                         let path = safe_sevenz_entry_path(dest, entry.name())
                             .map_err(sevenz_rust::Error::io)?;
@@ -904,27 +918,100 @@ fn sevenz_signature_offset(path: &Path) -> std::io::Result<Option<u64>> {
     Ok(None)
 }
 
+/// A `Read + Seek` view of the 7z payload embedded at `start` in a larger file.
+///
+/// sevenz-rust seeks from byte zero, so an SFX stub (the PE executable in front
+/// of the archive) has to be hidden from it. Copying the payload into an unnamed
+/// temporary file does that, but it duplicates a whole installer - a
+/// Git-for-Windows SFX is hundreds of MiB - into the process-wide temp
+/// directory, which every other test in the workspace and the CI runner itself
+/// also write to. A bounded window over the file that is already open needs
+/// neither the copy nor that shared directory.
 #[cfg(feature = "extended-formats")]
-fn open_sevenz_payload(path: &Path) -> std::io::Result<std::fs::File> {
+struct SevenzPayloadWindow {
+    file: std::fs::File,
+    start: u64,
+    /// Payload length: the file length past the stub.
+    len: u64,
+    /// Read/seek position relative to `start`, so the stub is invisible.
+    pos: u64,
+}
+
+#[cfg(feature = "extended-formats")]
+impl std::io::Read for SevenzPayloadWindow {
+    fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
+        let remaining = self.len.saturating_sub(self.pos);
+        if remaining == 0 {
+            return Ok(0);
+        }
+        let limit = buf.len().min(remaining as usize);
+        // `self.file` is kept at `start + pos`, so a read needs no seek.
+        let bytes = self.file.read(&mut buf[..limit])?;
+        self.pos += bytes as u64;
+        Ok(bytes)
+    }
+}
+
+#[cfg(feature = "extended-formats")]
+impl std::io::Seek for SevenzPayloadWindow {
+    fn seek(&mut self, position: std::io::SeekFrom) -> std::io::Result<u64> {
+        let target = match position {
+            std::io::SeekFrom::Start(offset) => offset as i128,
+            std::io::SeekFrom::End(offset) => self.len as i128 + offset as i128,
+            std::io::SeekFrom::Current(offset) => self.pos as i128 + offset as i128,
+        };
+        if target < 0 {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::InvalidInput,
+                "cannot seek before byte 0 of the 7z payload",
+            ));
+        }
+        let target = u64::try_from(target).map_err(|_| {
+            std::io::Error::new(
+                std::io::ErrorKind::InvalidInput,
+                "7z payload seek offset does not fit in u64",
+            )
+        })?;
+        if target != self.pos {
+            self.file
+                .seek(std::io::SeekFrom::Start(self.start.saturating_add(target)))?;
+        }
+        self.pos = target;
+        Ok(target)
+    }
+}
+
+/// Open the 7z payload of `path`, skipping an SFX stub when one is present.
+///
+/// `known_offset` carries the signature offset format detection already found,
+/// so the prefix is scanned once per extraction instead of twice.
+#[cfg(feature = "extended-formats")]
+fn open_sevenz_payload(
+    path: &Path,
+    known_offset: Option<u64>,
+) -> std::io::Result<SevenzPayloadWindow> {
     use std::io::{Seek, SeekFrom};
 
-    let offset = sevenz_signature_offset(path)?.ok_or_else(|| {
-        std::io::Error::new(
-            std::io::ErrorKind::InvalidData,
-            "valid 7z signature header not found within the first 4 MiB",
-        )
-    })?;
+    let offset = match known_offset {
+        Some(offset) => offset,
+        None => sevenz_signature_offset(path)?.ok_or_else(|| {
+            std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                "valid 7z signature header not found within the first 4 MiB",
+            )
+        })?,
+    };
     let mut file = std::fs::File::open(path)?;
-    file.seek(SeekFrom::Start(offset))?;
-    if offset == 0 {
-        return Ok(file);
+    let len = file.metadata()?.len().saturating_sub(offset);
+    if offset > 0 {
+        file.seek(SeekFrom::Start(offset))?;
     }
-    // Native 7z seeks from byte zero. Stream only the payload into an unnamed
-    // temporary file, which is automatically cleaned up on success or failure.
-    let mut payload = tempfile::tempfile()?;
-    std::io::copy(&mut file, &mut payload)?;
-    payload.rewind()?;
-    Ok(payload)
+    Ok(SevenzPayloadWindow {
+        file,
+        start: offset,
+        len,
+        pos: 0,
+    })
 }
 
 #[cfg(feature = "extended-formats")]
