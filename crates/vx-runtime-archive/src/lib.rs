@@ -441,11 +441,21 @@ fn safe_sevenz_entry_path(root: &Path, name: &str) -> std::io::Result<std::path:
     // Recognize Windows separators and drive prefixes on every host platform.
     let normalized = name.replace('\\', "/");
     let relative = Path::new(&normalized);
+    let mut has_normal_component = false;
+    let invalid_component = relative.components().any(|part| match part {
+        Component::Normal(value) => {
+            has_normal_component = true;
+            // Win32 may trim trailing dots/spaces and reinterpret a seemingly
+            // normal component such as ".. ". Reject these on every platform.
+            value.to_string_lossy().ends_with(['.', ' '])
+        }
+        Component::CurDir => false,
+        _ => true,
+    });
     if normalized.is_empty()
-        || normalized.contains(':')
-        || relative
-            .components()
-            .any(|part| !matches!(part, Component::Normal(_) | Component::CurDir))
+        || normalized.contains([':', '\0'])
+        || !has_normal_component
+        || invalid_component
     {
         return Err(std::io::Error::new(
             std::io::ErrorKind::InvalidData,
@@ -455,6 +465,7 @@ fn safe_sevenz_entry_path(root: &Path, name: &str) -> std::io::Result<std::path:
     let path = root.join(relative);
     // Reuse the existing symlink/reparse-point guard before the default
     // extractor can open a file or create a directory through an alias.
+    // This is not atomic against concurrent filesystem link replacement.
     ensure_zip_output_path(root, &path)?;
     Ok(path)
 }
