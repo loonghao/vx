@@ -27,6 +27,7 @@ fn write_archive(path: &Path, name: &str) {
 #[rstest]
 #[case("runtime/bin/program")]
 #[case("runtime\\bin\\program")]
+#[case("./runtime/bin/program")]
 fn test_sevenz_extracts_nested_entries(#[case] name: &str) {
     let temp = tempdir().unwrap();
     let archive = temp.path().join("runtime.7z");
@@ -46,6 +47,9 @@ fn test_sevenz_extracts_nested_entries(#[case] name: &str) {
 #[case("..\\escaped")]
 #[case("nested/../../escaped")]
 #[case("nested\\..\\..\\escaped")]
+#[case(".. /escaped")]
+#[case(".../escaped")]
+#[case("nested/.. /../escaped")]
 fn test_sevenz_rejects_parent_traversal(#[case] name: &str) {
     let temp = tempdir().unwrap();
     let archive = temp.path().join("unsafe.7z");
@@ -60,6 +64,28 @@ fn test_sevenz_rejects_parent_traversal(#[case] name: &str) {
 }
 
 #[rstest]
+#[case("")]
+#[case(".")]
+#[case("nested. /program")]
+#[case("nested./program")]
+#[case("program.")]
+#[case("program ")]
+#[case("program:stream")]
+#[case(r"\\")]
+#[case(r"\\?\UNC\")]
+fn test_sevenz_rejects_ambiguous_windows_paths(#[case] name: &str) {
+    let temp = tempdir().unwrap();
+    let archive = temp.path().join("unsafe.7z");
+    let dest = temp.path().join("output");
+    write_archive(&archive, name);
+
+    let result = ArchiveExtractor::new().extract(&archive, &dest);
+
+    assert!(result.is_err(), "{name:?}: accepted ambiguous entry path");
+    assert!(std::fs::read_dir(dest).unwrap().next().is_none());
+}
+
+#[rstest]
 fn test_sevenz_rejects_absolute_paths() {
     let temp = tempdir().unwrap();
     let escaped = temp.path().join("escaped");
@@ -69,11 +95,20 @@ fn test_sevenz_rejects_absolute_paths() {
     } else {
         format!("C:{absolute}")
     };
+    let device_absolute = format!("\\\\?\\{}", windows_absolute.replace('/', "\\"));
+    let unc_absolute = if cfg!(windows) {
+        // Use the local extended-length path, never contact a UNC server.
+        device_absolute.clone()
+    } else {
+        format!("/{absolute}")
+    };
     // Even a broken implementation can only target this disposable directory.
     for (index, name) in [
         absolute,
         windows_absolute.replace('\\', "/"),
         windows_absolute.replace('/', "\\"),
+        device_absolute,
+        unc_absolute,
     ]
     .into_iter()
     .enumerate()
