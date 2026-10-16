@@ -529,7 +529,7 @@ fn test_where_alias_imagemagick() {
     // Use a fixed vx-managed install: system ImageMagick can be changed by
     // parallel install/uninstall tests even though each test has its own VX_HOME.
     let version = "0.0.0";
-    let install_dir = env.home_path().join("store/magick").join(version);
+    let install_dir = env.home_path().join("store").join("magick").join(version);
     std::fs::create_dir_all(&install_dir).unwrap();
     let executable = install_dir.join(if cfg!(windows) {
         "magick.exe"
