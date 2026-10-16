@@ -397,8 +397,16 @@ impl ArchiveExtractor {
 
     #[cfg(feature = "extended-formats")]
     fn extract_7z(&self, archive: &Path, dest: &Path) -> Result<()> {
-        sevenz_rust::decompress_file(archive, dest)
-            .map_err(|e| anyhow!("Failed to extract 7z archive: {}", e))?;
+        // The upstream default extractor joins untrusted entry names directly
+        // onto dest (RUSTSEC-2026-0245). Validate before any entry is written.
+        let file = std::fs::File::open(archive)?;
+        sevenz_rust::decompress_with_extract_fn(file, dest, |entry, reader, _| {
+            let path =
+                safe_sevenz_entry_path(dest, entry.name()).map_err(sevenz_rust::Error::io)?;
+            sevenz_rust::default_entry_extract_fn(entry, reader, &path)?;
+            Ok(true)
+        })
+        .map_err(|e| anyhow!("Failed to extract 7z archive: {}", e))?;
         Ok(())
     }
 
@@ -424,6 +432,31 @@ impl Default for ArchiveExtractor {
     fn default() -> Self {
         Self::new()
     }
+}
+
+#[cfg(feature = "extended-formats")]
+fn safe_sevenz_entry_path(root: &Path, name: &str) -> std::io::Result<std::path::PathBuf> {
+    use std::path::Component;
+
+    // Recognize Windows separators and drive prefixes on every host platform.
+    let normalized = name.replace('\\', "/");
+    let relative = Path::new(&normalized);
+    if normalized.is_empty()
+        || normalized.contains(':')
+        || relative
+            .components()
+            .any(|part| !matches!(part, Component::Normal(_) | Component::CurDir))
+    {
+        return Err(std::io::Error::new(
+            std::io::ErrorKind::InvalidData,
+            "Unsafe path in 7z archive",
+        ));
+    }
+    let path = root.join(relative);
+    // Reuse the existing symlink/reparse-point guard before the default
+    // extractor can open a file or create a directory through an alias.
+    ensure_zip_output_path(root, &path)?;
+    Ok(path)
 }
 
 /// Never follow an existing link while creating an archive entry.
