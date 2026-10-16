@@ -98,7 +98,7 @@ serde = { version = "1", features = ["alloc", "derive", "rc"] }
 serde_core = { version = "1", features = ["alloc", "rc"] }
 serde_json = { version = "1", features = ["alloc", "arbitrary_precision", "preserve_order", "raw_value"] }
 smallvec = { version = "1", default-features = false, features = ["const_generics"] }
-syn-7b89eefb6aaa9bf3 = { package = "syn", version = "3", features = ["full"] }
+syn-7b89eefb6aaa9bf3 = { package = "syn", version = "3", features = ["full", "visit-mut"] }
 syn-f595c2ba2a3f28df = { package = "syn", version = "2", features = ["extra-traits", "fold", "full", "visit", "visit-mut"] }
 time = { version = "0.3", default-features = false, features = ["formatting", "macros", "parsing"] }
 time-macros = { version = "0.2", default-features = false, features = ["formatting", "parsing"] }

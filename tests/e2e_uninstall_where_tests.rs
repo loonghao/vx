@@ -526,16 +526,37 @@ fn test_imagemagick_install_platform_handling() {
 fn test_where_alias_imagemagick() {
     let env = E2ETestEnv::new();
 
-    // "imagemagick" is an alias for "magick"
-    let output_alias = env.run(&["where", "imagemagick"]);
-    let output_primary = env.run(&["where", "magick"]);
+    // Use a fixed vx-managed install: system ImageMagick can be changed by
+    // parallel install/uninstall tests even though each test has its own VX_HOME.
+    let version = "0.0.0";
+    let install_dir = env.home_path().join("store/magick").join(version);
+    std::fs::create_dir_all(&install_dir).unwrap();
+    let executable = install_dir.join(if cfg!(windows) {
+        "magick.exe"
+    } else {
+        "magick"
+    });
+    // `where` resolves the path without executing the fixture.
+    std::fs::write(&executable, b"").unwrap();
 
-    // Both should give same result (or both fail)
-    assert_eq!(
-        output_alias.status.success(),
-        output_primary.status.success(),
-        "Alias 'imagemagick' should behave same as 'magick'"
-    );
+    for runtime in ["imagemagick", "magick"] {
+        // An explicit version avoids project configuration and system fallback.
+        let request = format!("{runtime}@{version}");
+        let stdout = env.run_success(&["--output-format", "json", "where", &request]);
+        let result: serde_json::Value = serde_json::from_str(&stdout)
+            .unwrap_or_else(|error| panic!("Invalid JSON for {request}: {error}\n{stdout}"));
+        assert_eq!(
+            result,
+            serde_json::json!({
+                "tool": request,
+                "version": version,
+                "path": executable,
+                "source": "vx",
+                "all_paths": [],
+            }),
+            "Alias and canonical runtime must resolve to the same managed fixture"
+        );
+    }
 }
 
 #[test]
