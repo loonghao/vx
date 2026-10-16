@@ -52,6 +52,18 @@ class InstallerExtendedFormatsWorkflowTests(unittest.TestCase):
         self.assertIn(f"      - {INSTALLER_JOB}\n", job_body("ci-success"))
         self.assertIn("if: always()", job_body("ci-success"))
 
+    def test_public_archive_regressions_are_feature_enabled_and_required(self) -> None:
+        job = job_body(INSTALLER_JOB)
+        step = job.split("      - name: Run public archive 7z path regressions\n", 1)[1]
+        command = " ".join(step.split("        run: >-\n", 1)[1].split())
+        self.assertTrue(command.startswith("vx cargo nextest run --locked -p vx-runtime-archive "))
+        for required in ("--features extended-formats", "--test sevenz_path_tests",
+                         "--no-fail-fast", "--no-tests fail", "--retries 0"):
+            self.assertIn(required, command)
+        for forbidden in ("--no-run", "--target", "--workspace", "|| true",
+                          "continue-on-error", "--run-ignored"):
+            self.assertNotIn(forbidden, command)
+
     def test_whole_workspace_coverage_is_preserved(self) -> None:
         coverage = job_body("coverage")
         self.assertIn("github.event.inputs.force_full_ci == 'true'", coverage)

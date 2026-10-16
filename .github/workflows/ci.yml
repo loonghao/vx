@@ -1006,6 +1006,13 @@ jobs:
           --features extended-formats --test sevenz_sfx_tests
           --no-fail-fast --no-tests fail --retries 0
 
+      - name: Run public archive 7z path regressions
+        shell: bash
+        run: >-
+          vx cargo nextest run --locked -p vx-runtime-archive
+          --features extended-formats --test sevenz_path_tests
+          --no-fail-fast --no-tests fail --retries 0
+
   # ============================================================================
   # Stage 5: Cross-compilation (PR only, skip on main since release builds cover it)
   # ============================================================================
