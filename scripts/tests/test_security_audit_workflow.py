@@ -42,10 +42,13 @@ class SecurityAuditWorkflowTests(unittest.TestCase):
         for workflow, name in ((CI, "security-audit"), (SCHEDULED, "cargo-audit")):
             with self.subTest(job=name):
                 job = job_body(workflow, name)
-                self.assertIn("run: vx just security-audit-ci", job)
+                self.assertRegex(job, r"(?m)^        run: vx just security-audit-ci$")
+                self.assertNotRegex(job, r"(?m)^        if:")
                 self.assertNotIn("continue-on-error", job)
                 self.assertNotIn("|| true", job)
                 self.assertNotIn("generate-lockfile", job)
+        # The weekly/manual audit must not be disabled at the job level either.
+        self.assertNotRegex(job_body(SCHEDULED, "cargo-audit"), r"(?m)^    if:")
 
     def test_contract_runs_when_audit_entrypoints_change(self) -> None:
         triggers = SCRIPT_TESTS.split("permissions:", 1)[0]
