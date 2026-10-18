@@ -4,13 +4,13 @@
 
 | Runtime | Windows | Linux | macOS |
 | --- | --- | --- | --- |
-| `openscreen` | Silent user installer into vx store, x64 | AppImage, x64 | App ZIP, x64 / ARM64 |
+| `openscreen` | Silent user installer into vx store, x64 / ARM64 | AppImage, x64 | App ZIP, x64 / ARM64 |
 
 ```bash
 vx openscreen --help
 ```
 
-Official distributions and the headless help command are supported from version 2.0. Windows uses a silent per-user installer scoped to the vx store.
+Official distributions and the headless help command are supported from version 2.0. Windows uses a silent per-user installer scoped to the vx store. Windows ARM64 installers are published from 2.1.0; the 2.0.x line ships a single x64 installer, so pinning `2.0.0` on ARM64 hosts is not supported.
 
 Linux extracts the AppImage into the managed store and launches its `AppRun`, so launching does not require a FUSE mount. Extraction failures stop installation.
 

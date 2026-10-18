@@ -18,14 +18,33 @@ runtimes = [runtime_def("openscreen", system_paths = [
 permissions = github_permissions()
 fetch_versions = make_fetch_versions("getopenscreen", "openscreen", include_prereleases = False)
 
+def _uses_arch_suffixed_installer(version):
+    """Windows NSIS assets carry an architecture suffix from 2.1.0 onward.
+
+    The 2.0.x line shipped a single arch-less x64 installer
+    (``Openscreen.Setup.<version>.exe``); starting with 2.1.0 upstream publishes
+    per-architecture installers (``Openscreen.Setup.<version>-<arch>.exe``) for
+    both x64 and arm64. Requesting the arch-less name on 2.1.0+ returns HTTP 404.
+    """
+    parts = version.split(".")
+    major = int(parts[0])
+    minor = int(parts[1]) if len(parts) > 1 and parts[1].isdigit() else 0
+    return major > 2 or (major == 2 and minor >= 1)
+
 def download_url(ctx, version):
     # The headless CLI and these package names are available from 2.0.0.
     if int(version.split(".")[0]) < 2:
         return None
     os = ctx.platform.os
     arch = ctx.platform.arch
-    if os == "windows" and arch == "x64":
-        asset = "Openscreen.Setup.{}.exe".format(version)
+    if os == "windows" and arch in ["x64", "arm64"]:
+        if _uses_arch_suffixed_installer(version):
+            asset = "Openscreen.Setup.{}-{}.exe".format(version, arch)
+        elif arch == "x64":
+            # 2.0.x only ever published the single arch-less x64 installer.
+            asset = "Openscreen.Setup.{}.exe".format(version)
+        else:
+            return None
     elif os == "macos" and arch in ["x64", "arm64"]:
         asset = "Openscreen-Mac-{}-{}.zip".format(arch, version)
     elif os == "linux" and arch == "x64":

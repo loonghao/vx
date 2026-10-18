@@ -27,20 +27,27 @@ fn call(name: &str, os: &str, arch: &str, function: &str, args: &[Value]) -> Val
 }
 
 #[rstest::rstest]
-#[case("windows", "x64", "Openscreen.Setup.2.0.0.exe")]
-#[case("macos", "x64", "Openscreen-Mac-x64-2.0.0.zip")]
-#[case("macos", "arm64", "Openscreen-Mac-arm64-2.0.0.zip")]
-#[case("linux", "x64", "Openscreen-Linux-2.0.0.AppImage")]
+// 2.0.x shipped a single arch-less x64 installer.
+#[case("windows", "x64", "2.0.0", "Openscreen.Setup.2.0.0.exe")]
+// From 2.1.0 the Windows installer carries an architecture suffix (x64 + arm64).
+#[case("windows", "x64", "2.1.0", "Openscreen.Setup.2.1.0-x64.exe")]
+#[case("windows", "arm64", "2.1.0", "Openscreen.Setup.2.1.0-arm64.exe")]
+#[case("windows", "x64", "2.1.1", "Openscreen.Setup.2.1.1-x64.exe")]
+#[case("windows", "arm64", "2.1.1", "Openscreen.Setup.2.1.1-arm64.exe")]
+#[case("macos", "x64", "2.0.0", "Openscreen-Mac-x64-2.0.0.zip")]
+#[case("macos", "arm64", "2.0.0", "Openscreen-Mac-arm64-2.0.0.zip")]
+#[case("linux", "x64", "2.0.0", "Openscreen-Linux-2.0.0.AppImage")]
 fn test_openscreen_selects_official_distributions(
     #[case] os: &str,
     #[case] arch: &str,
+    #[case] version: &str,
     #[case] asset: &str,
 ) {
-    let url = call("openscreen", os, arch, "download_url", &[json!("2.0.0")]);
+    let url = call("openscreen", os, arch, "download_url", &[json!(version)]);
     assert_eq!(
         url,
         json!(format!(
-            "https://github.com/getopenscreen/openscreen/releases/download/v2.0.0/{asset}"
+            "https://github.com/getopenscreen/openscreen/releases/download/v{version}/{asset}"
         ))
     );
 }
@@ -72,6 +79,8 @@ fn test_openscreen_windows_install_is_silent_and_store_scoped() {
 
 #[rstest::rstest]
 #[case("openscreen", "linux", "arm64")]
+// Windows arm64 only gained an installer in 2.1.0; on 2.0.0 there is no such
+// asset, so the provider must not fabricate a URL.
 #[case("openscreen", "windows", "arm64")]
 fn test_unsupported_distributions_are_not_fabricated(
     #[case] name: &str,

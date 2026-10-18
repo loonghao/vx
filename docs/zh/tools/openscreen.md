@@ -4,13 +4,13 @@
 
 | Runtime | Windows | Linux | macOS |
 | --- | --- | --- | --- |
-| `openscreen` | 静默用户安装到 vx store，x64 | AppImage, x64 | 应用 ZIP，x64 / ARM64 |
+| `openscreen` | 静默用户安装到 vx store，x64 / ARM64 | AppImage, x64 | 应用 ZIP，x64 / ARM64 |
 
 ```bash
 vx openscreen --help
 ```
 
-从 2.0 开始支持官方发行包与无界面的帮助命令。Windows 使用静默用户安装器，安装目录限制在 vx store 内。
+从 2.0 开始支持官方发行包与无界面的帮助命令。Windows 使用静默用户安装器，安装目录限制在 vx store 内。Windows ARM64 安装器自 2.1.0 起提供；2.0.x 系列仅提供 x64 安装器，因此在 ARM64 主机上固定 `2.0.0` 版本不受支持。
 
 Linux 将 AppImage 提取到托管目录，再通过 `AppRun` 启动，无需挂载 FUSE；提取失败时安装会报错停止。
 
