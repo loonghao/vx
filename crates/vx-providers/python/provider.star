@@ -80,11 +80,35 @@ _PBS_TRIPLES = {
 }
 
 _LEGACY_37_ASSETS = {
-    # python-build-standalone's 20200822 release predates the modern
-    # cpython-{version}+{build_tag}-{triple}-install_only_stripped naming.
-    "windows/x64": "cpython-3.7.9-x86_64-pc-windows-msvc-shared-pgo-20200823T0118.tar.zst",
-    "macos/x64":   "cpython-3.7.9-x86_64-apple-darwin-pgo-20200823T0123.tar.zst",
-    "linux/x64":   "cpython-3.7.9-x86_64-unknown-linux-gnu-pgo-20200823T0036.tar.zst",
+    # Fixed lifecycle catalog: release metadata must not select a different
+    # artifact after upstream stops publishing this Python line.
+    # Digests are VX intake pins of official HTTPS release assets; these old
+    # releases publish no checksums or signatures. They are not publisher hashes.
+    "windows/x64": {
+        "release": "20200822",
+        "asset": "cpython-3.7.9-x86_64-pc-windows-msvc-shared-pgo-20200823T0118.tar.zst",
+        "sha256": "8769a244cfe54c32c5253b78897a0fe82fe419dfde653b1afc3f5f20594cca89",
+        "asset_id": 24195911,
+        "size": 31429615,
+        "required_paths": ["Lib/site.py", "Lib/venv/__init__.py", "include/Python.h", "libs/python37.lib"],
+    },
+    "macos/x64": {
+        # The 20200822 build has an unwanted libintl.dylib dependency.
+        "release": "20200823",
+        "asset": "cpython-3.7.9-x86_64-apple-darwin-pgo-20200823T2228.tar.zst",
+        "sha256": "53657e7712cc7b24491fb1fc66dcc8f47a577fc77df137178746987ba4c5afb8",
+        "asset_id": 24211674,
+        "size": 26136896,
+        "required_paths": ["lib/python3.7/site.py", "lib/python3.7/venv/__init__.py", "include/python3.7m/Python.h", "lib/libpython3.7m.a", "lib/libpython3.7m.dylib"],
+    },
+    "linux/x64": {
+        "release": "20200822",
+        "asset": "cpython-3.7.9-x86_64-unknown-linux-gnu-pgo-20200823T0036.tar.zst",
+        "sha256": "c6d6256d13e929e77e7ee6e53470fe63ad19d173fee6d56bb1b2dbda67081543",
+        "asset_id": 24195897,
+        "size": 28357634,
+        "required_paths": ["lib/python3.7/site.py", "lib/python3.7/venv/__init__.py", "include/python3.7m/Python.h", "lib/libpython3.7m.a", "lib/libpython3.7m.so.1.0"],
+    },
 }
 
 _PYPY27_VERSION = "2.7.18"
@@ -102,11 +126,17 @@ def _pbs_triple(ctx):
 def _platform_key(ctx):
     return "{}/{}".format(ctx.platform.os, ctx.platform.arch)
 
-def _is_legacy_37(version, build_tag):
-    return version == "3.7.9" and build_tag == "20200822"
-
 def _is_pypy27(version):
     return version == _PYPY27_VERSION
+
+def _legacy37_artifact(ctx, version):
+    if version != "3.7.9":
+        fail("Python {} has no pinned portable build; request Python 3.7.9 explicitly".format(version))
+    platform = _platform_key(ctx)
+    artifact = _LEGACY_37_ASSETS.get(platform)
+    if artifact == None:
+        fail("Python 3.7.9 portable build unavailable for {}; supported platforms: Windows x64, Linux x64, macOS x64".format(platform))
+    return artifact
 
 # ---------------------------------------------------------------------------
 # download_url — python-build-standalone asset
@@ -119,17 +149,16 @@ def download_url(ctx, version):
             return None
         return "https://downloads.python.org/pypy/{}".format(asset)
 
+    if version.startswith("3.7."):
+        artifact = _legacy37_artifact(ctx, version)
+        return github_asset_url("astral-sh", "python-build-standalone", artifact["release"], artifact["asset"])
+
     triple = _pbs_triple(ctx)
     if not triple:
         return None
     build_tag = ctx.version_date
     if not build_tag:
         return None
-    if _is_legacy_37(version, build_tag):
-        asset = _LEGACY_37_ASSETS.get(_platform_key(ctx))
-        if not asset:
-            return None
-        return github_asset_url("astral-sh", "python-build-standalone", build_tag, asset)
     asset = "cpython-{}+{}-{}-install_only_stripped.tar.gz".format(version, build_tag, triple)
     return github_asset_url("astral-sh", "python-build-standalone", build_tag, asset)
 
@@ -157,9 +186,8 @@ def install_layout(ctx, version):
             "executable_paths": exe_paths,
         }
 
-    if version == "3.7.9":
-        if _LEGACY_37_ASSETS.get(_platform_key(ctx)) == None:
-            return None
+    if version.startswith("3.7."):
+        artifact = _legacy37_artifact(ctx, version)
         if ctx.platform.os == "windows":
             exe_paths = ["python.exe"]
         else:
@@ -168,6 +196,9 @@ def install_layout(ctx, version):
             "type":             "archive",
             "strip_prefix":     "python/install",
             "executable_paths": exe_paths,
+            "required_paths":   artifact["required_paths"],
+            "sha256":           artifact["sha256"],
+            "mirror_urls":      [],
         }
 
     # The python-build-standalone tarball has a top-level "python/" directory.

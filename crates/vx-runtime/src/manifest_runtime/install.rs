@@ -50,9 +50,8 @@ impl ManifestDrivenRuntime {
         let _install_lock = InstallLock::acquire(&install_path).await?;
 
         // Try Starlark-driven install_layout first (provides URL + strip_prefix + exe paths)
-        if let Some(ref layout_fn) = self.install_layout_fn
-            && let Some(layout) = layout_fn(version.to_string()).await?
-        {
+        let layout_hint = self.resolve_layout_hint(version).await?;
+        if let Some(ref layout) = layout_hint {
             let url = layout
                 .get("url")
                 .and_then(|u| u.as_str())
@@ -65,9 +64,9 @@ impl ManifestDrivenRuntime {
                 );
 
                 if ctx.fs.exists(&install_path)
-                    && self.layout_executable_exists(&install_path, &layout, ctx)
+                    && self.layout_executable_exists(&install_path, layout, ctx)
                 {
-                    let exe_path = self.resolve_exe_path_from_layout(&install_path, &layout);
+                    let exe_path = self.resolve_exe_path_from_layout(&install_path, layout);
                     return Ok(InstallResult::already_installed(
                         install_path,
                         exe_path,
@@ -78,16 +77,10 @@ impl ManifestDrivenRuntime {
                     ctx.fs.remove_dir_all(&install_path)?;
                 }
 
-                let mut layout_meta = HashMap::new();
-                if let Some(prefix) = layout.get("strip_prefix").and_then(|s| s.as_str()) {
-                    layout_meta.insert("strip_prefix".to_string(), prefix.to_string());
-                }
-
-                ctx.installer
-                    .download_with_layout(&url, &install_path, &layout_meta)
+                self.download_layout_sources(&url, &install_path, Some(layout), ctx)
                     .await?;
 
-                let exe_path = self.resolve_exe_path_from_layout(&install_path, &layout);
+                let exe_path = self.resolve_exe_path_from_layout(&install_path, layout);
                 return Ok(InstallResult::success(
                     install_path,
                     exe_path,
@@ -99,7 +92,13 @@ impl ManifestDrivenRuntime {
         // Try direct download URL
         if let Some(url) = self.download_url(version, &platform).await? {
             return self
-                .install_via_direct_download(version, &url, &install_path, ctx)
+                .install_via_direct_download(
+                    version,
+                    &url,
+                    &install_path,
+                    layout_hint.as_ref(),
+                    ctx,
+                )
                 .await;
         }
 
@@ -114,19 +113,16 @@ impl ManifestDrivenRuntime {
         version: &str,
         url: &str,
         install_path: &std::path::Path,
+        layout_hint: Option<&serde_json::Value>,
         ctx: &RuntimeContext,
     ) -> Result<InstallResult> {
         info!("Installing {} via direct download from {}", self.name, url);
 
-        // Resolve install_layout once for strip_prefix / executable_paths hints
-        let layout_hint = self.resolve_layout_hint(version).await;
-
         if ctx.fs.exists(install_path)
             && layout_hint
-                .as_ref()
                 .is_none_or(|layout| self.layout_executable_exists(install_path, layout, ctx))
         {
-            let exe_path = if let Some(ref layout) = layout_hint {
+            let exe_path = if let Some(layout) = layout_hint {
                 self.resolve_exe_path_from_layout(install_path, layout)
             } else {
                 install_path.join(vx_paths::with_executable_extension(&self.executable))
@@ -141,15 +137,10 @@ impl ManifestDrivenRuntime {
             ctx.fs.remove_dir_all(install_path)?;
         }
 
-        // Build layout metadata for download_with_layout
-        let layout_meta = build_layout_meta(layout_hint.as_ref());
-        debug!("layout_meta for download_with_layout: {:?}", layout_meta);
-
-        ctx.installer
-            .download_with_layout(url, install_path, &layout_meta)
+        self.download_layout_sources(url, install_path, layout_hint, ctx)
             .await?;
 
-        let exe_path = if let Some(ref layout) = layout_hint {
+        let exe_path = if let Some(layout) = layout_hint {
             self.resolve_exe_path_from_layout(install_path, layout)
         } else {
             install_path.join(vx_paths::with_executable_extension(&self.executable))
@@ -163,24 +154,77 @@ impl ManifestDrivenRuntime {
 
     /// Resolve the install_layout hint (strip_prefix, executable_paths) for a version.
     ///
-    /// Calls `install_layout_fn` once and caches the result. Returns `None` if
+    /// Calls `install_layout_fn` once. Returns `None` if
     /// no layout function is set or the function returns `None`.
-    async fn resolve_layout_hint(&self, version: &str) -> Option<serde_json::Value> {
-        let layout_fn = self.install_layout_fn.as_ref()?;
-        match layout_fn(version.to_string()).await {
-            Ok(Some(layout)) => {
-                debug!("install_layout_fn returned: {:?}", layout);
-                Some(layout)
+    async fn resolve_layout_hint(&self, version: &str) -> Result<Option<serde_json::Value>> {
+        let Some(layout_fn) = self.install_layout_fn.as_ref() else {
+            return Ok(None);
+        };
+        // A malformed integrity contract must never degrade to an unchecked download.
+        layout_fn(version.to_string()).await
+    }
+
+    async fn download_layout_sources(
+        &self,
+        origin: &str,
+        install_path: &std::path::Path,
+        layout: Option<&serde_json::Value>,
+        ctx: &RuntimeContext,
+    ) -> Result<()> {
+        let metadata = build_layout_meta(layout)?;
+        let mut sources = Vec::new();
+        if let Some(mirrors) = layout.and_then(|value| value.get("mirror_urls")) {
+            let mirrors = mirrors
+                .as_array()
+                .ok_or_else(|| anyhow::anyhow!("mirror_urls must be a list"))?;
+            if !mirrors.is_empty() && !metadata.contains_key("sha256") {
+                anyhow::bail!("Artifact mirrors require a fixed SHA256 digest");
             }
-            Ok(None) => {
-                debug!("install_layout_fn returned None");
-                None
-            }
-            Err(e) => {
-                warn!("install_layout_fn failed: {}", e);
-                None
+            for mirror in mirrors {
+                let mirror = mirror
+                    .as_str()
+                    .ok_or_else(|| anyhow::anyhow!("mirror_urls must contain strings"))?;
+                if !sources.iter().any(|source| source == mirror) {
+                    sources.push(mirror.to_string());
+                }
             }
         }
+        if !sources.iter().any(|source| source == origin) {
+            sources.push(origin.to_string());
+        }
+        let mut last_error = None;
+        for source in sources {
+            let result = ctx
+                .installer
+                .download_with_layout(&source, install_path, &metadata)
+                .await.and_then(|()| {
+                    if let Some(digest) = metadata.get("sha256") {
+                        let layout = layout.expect("a digest originates in a layout");
+                        if !self.layout_files_exist(install_path, layout, ctx) {
+                            anyhow::bail!("Verified artifact is missing its executable or required build files");
+                        }
+                        // Readers hold this same store lock. An interrupted write
+                        // leaves an invalid receipt and will force a fresh install.
+                        ctx.fs.write(&install_path.join(".vx-artifact.json"), &serde_json::json!({
+                            "schema_version": 1,
+                            "sha256": digest,
+                            "source": source,
+                        }).to_string())?;
+                    }
+                    Ok(())
+                });
+            match result {
+                Ok(()) => return Ok(()),
+                Err(error) => {
+                    warn!(%source, %error, "Artifact source failed; retaining the fixed digest for fallback");
+                    if ctx.fs.exists(install_path) {
+                        ctx.fs.remove_dir_all(install_path)?;
+                    }
+                    last_error = Some(error);
+                }
+            }
+        }
+        Err(last_error.expect("the origin always supplies one source"))
     }
 
     /// Install via system package managers and script strategies.
@@ -312,10 +356,10 @@ impl ManifestDrivenRuntime {
 }
 
 /// Build layout metadata HashMap from an optional Starlark layout descriptor.
-fn build_layout_meta(layout: Option<&serde_json::Value>) -> HashMap<String, String> {
+fn build_layout_meta(layout: Option<&serde_json::Value>) -> Result<HashMap<String, String>> {
     let mut meta = HashMap::new();
     let Some(layout) = layout else {
-        return meta;
+        return Ok(meta);
     };
 
     if let Some(prefix) = layout.get("strip_prefix").and_then(|s| s.as_str()) {
@@ -331,5 +375,14 @@ fn build_layout_meta(layout: Option<&serde_json::Value>) -> HashMap<String, Stri
     if let Some(dir) = layout.get("target_dir").and_then(|s| s.as_str()) {
         meta.insert("target_dir".to_string(), dir.to_string());
     }
-    meta
+    if let Some(digest) = layout.get("sha256") {
+        let digest = digest
+            .as_str()
+            .ok_or_else(|| anyhow::anyhow!("sha256 must be a string"))?;
+        if digest.len() != 64 || !digest.bytes().all(|byte| byte.is_ascii_hexdigit()) {
+            anyhow::bail!("Invalid artifact SHA256: expected exactly 64 hexadecimal characters");
+        }
+        meta.insert("sha256".to_string(), digest.to_string());
+    }
+    Ok(meta)
 }

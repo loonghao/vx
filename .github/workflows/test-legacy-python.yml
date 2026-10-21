@@ -1,0 +1,130 @@
+name: Legacy Python Acceptance
+
+on:
+  pull_request:
+    paths:
+      - "crates/vx-providers/python/**"
+      - "crates/vx-providers/uv/**"
+      - "crates/vx-runtime/**"
+      - "crates/vx-runtime-http/**"
+      - "crates/vx-runtime-archive/**"
+      - "crates/vx-cache/**"
+      - "crates/vx-paths/**"
+      - "crates/vx-cli/**"
+      - "crates/vx-resolver/**"
+      - "crates/vx-starlark/**"
+      - "scripts/test_legacy_python.py"
+      - "scripts/tests/test_legacy_python_harness.py"
+      - "tests/fixtures/legacy-python-build/**"
+      - ".github/workflows/test-legacy-python.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build legacy acceptance VX (${{ matrix.platform }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: linux-x64
+            os: ubuntu-24.04
+            binary: vx
+          - platform: windows-x64
+            os: windows-2025
+            binary: vx.exe
+    env:
+      CARGO_TERM_COLOR: always
+      RUSTC_WRAPPER: sccache
+      SCCACHE_DIR: ${{ github.workspace }}/.cache/sccache
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: ./.github/actions/setup-rust-sccache
+        with:
+          shared-key: legacy-python-build
+      - name: Bootstrap VX for build commands
+        uses: ./
+        with:
+          cache: "false"
+          setup: "false"
+      - name: Build this revision
+        run: vx cargo build --locked --profile dev-fast --bin vx
+      - uses: actions/upload-artifact@v7
+        with:
+          name: legacy-python-vx-${{ matrix.platform }}
+          path: target/dev-fast/${{ matrix.binary }}
+          if-no-files-found: error
+          retention-days: 3
+
+  acceptance:
+    name: Legacy Python 3.7 (${{ matrix.platform }})
+    needs: build
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: linux-x64
+            os: ubuntu-24.04
+            binary: vx
+          - platform: windows-x64
+            os: windows-2025
+            binary: vx.exe
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/download-artifact@v8
+        with:
+          name: legacy-python-vx-${{ matrix.platform }}
+          path: bin
+      - name: Make VX executable
+        if: runner.os != 'Windows'
+        run: chmod +x bin/vx
+      - name: Bootstrap modern harness interpreter
+        uses: ./
+        with:
+          tools: "python@3.12"
+          cache: "false"
+          setup: "false"
+      - name: Bind existing Windows compiler
+        if: runner.os == 'Windows'
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+      - name: Check acceptance guards
+        run: vx python@3.12 -m unittest discover -s scripts/tests -p test_legacy_python_harness.py
+      - name: Run isolated legacy acceptance
+        shell: bash
+        env:
+          VX_ACCEPTANCE_BINARY: ${{ github.workspace }}/bin/${{ matrix.binary }}
+          VX_ACCEPTANCE_ROOT: ${{ runner.temp }}/vx-legacy-python
+          VX_ACCEPTANCE_RECEIPT: ${{ github.workspace }}/legacy-python-receipt.json
+          VX_ACCEPTANCE_SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          vx python@3.12 scripts/test_legacy_python.py \
+            --vx-binary "$VX_ACCEPTANCE_BINARY" \
+            --work-root "$VX_ACCEPTANCE_ROOT" \
+            --receipt "$VX_ACCEPTANCE_RECEIPT" \
+            --source-revision "$VX_ACCEPTANCE_SOURCE_SHA"
+      - name: Upload acceptance evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: legacy-python-evidence-${{ matrix.platform }}
+          path: |
+            legacy-python-receipt.json
+            ${{ runner.temp }}/vx-legacy-python/run-*/logs
+          if-no-files-found: warn
+          retention-days: 14

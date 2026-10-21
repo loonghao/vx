@@ -221,6 +221,8 @@ pub trait Installer: Send + Sync {
     /// Download and install with layout configuration (RFC 0019)
     ///
     /// This method accepts layout metadata to handle file renaming, moving, and permissions.
+    /// Implementations accepting `sha256` must verify downloaded and cached bytes
+    /// before extraction. The default implementation rejects that contract.
     /// If not implemented, falls back to `download_and_extract`.
     async fn download_with_layout(
         &self,
@@ -228,6 +230,9 @@ pub trait Installer: Send + Sync {
         dest: &Path,
         metadata: &std::collections::HashMap<String, String>,
     ) -> Result<()> {
+        if metadata.contains_key("sha256") {
+            anyhow::bail!("This installer does not support fixed artifact SHA256 verification");
+        }
         // Default implementation - use metadata for post-processing
         self.download_and_extract(url, dest).await?;
 
