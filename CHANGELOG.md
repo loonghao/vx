@@ -6,6 +6,29 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [0.9.38](https://github.com/vx-org/vx/compare/v0.9.37...v0.9.38) (2026-10-21)
+
+
+### Bug Fixes
+
+* align install script test fixtures with vx-org migration ([91537dd](https://github.com/vx-org/vx/commit/91537ddee3a25e2c810dcc31896a009bee67814a))
+* **archive:** reject ambiguous Windows 7z path components ([f57791e](https://github.com/vx-org/vx/commit/f57791e7e99678cb2e8625f7da52fdcfa9bf9a12))
+* **archive:** validate 7z entry paths before extraction ([6daf091](https://github.com/vx-org/vx/commit/6daf091a1fcb23ceaa42223fe6e2ff377dc0343f))
+* bind CI artifacts and retain timeout output ([4a88934](https://github.com/vx-org/vx/commit/4a889349b8b7a7cee44b91837a7edfcd247aaf55))
+* bind integration tests to the Cargo candidate ([ac67a34](https://github.com/vx-org/vx/commit/ac67a343a1bdd03c4fb4b1c5098a71bb15d947f3))
+* **deps:** patch four compatible locked dependencies ([0388b75](https://github.com/vx-org/vx/commit/0388b75a24f28b376c5372c95a4d064ffdd581df))
+* harden 7z path-traversal test and preinstall Node on Linux CI ([#1216](https://github.com/vx-org/vx/issues/1216)) ([16c68c1](https://github.com/vx-org/vx/commit/16c68c1de126b0b6a1ba50f11aa4c199ac6965d5))
+* isolate package execution from command shim lifecycle ([9727463](https://github.com/vx-org/vx/commit/9727463f056ecde9d4f97b8bcc9dbef31eaf7ccb))
+* **openscreen:** resolve Windows installer asset name for 2.1.0+ ([e9387f4](https://github.com/vx-org/vx/commit/e9387f462f7b6f74be48f4749071be19c68878dc))
+* **rust:** report the real toolchain version in vx check --json installed ([#1214](https://github.com/vx-org/vx/issues/1214)) ([f8366d1](https://github.com/vx-org/vx/commit/f8366d17b455fc3fc0a55dad940f547012972a6e))
+
+
+### Documentation
+
+* complete vx-org migration in badges, skills and LLM indexes ([cc95a93](https://github.com/vx-org/vx/commit/cc95a93912855648fd327f7f10c3de4b333cb896))
+* fix stale vx-core example and align zh contributing tree comments ([a95008f](https://github.com/vx-org/vx/commit/a95008fec9e8e99b8bc99b99c60e1cb4753ca8d6))
+* rename stale vx-core references to vx-runtime-core ([#1218](https://github.com/vx-org/vx/issues/1218)) ([efbda1a](https://github.com/vx-org/vx/commit/efbda1aec2eed051058d951b7704c3d6f27c20d3))
+
 ## [0.9.37](https://github.com/loonghao/vx/compare/v0.9.36...v0.9.37) (2026-10-09)
 
 
