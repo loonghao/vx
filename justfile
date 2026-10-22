@@ -188,10 +188,9 @@ benchmark-run:
 benchmark-run-ci:
     vx cargo test --release --test e2e_benchmark_tests -- --nocapture
 
-# Security audit (CI)
+# Audit the committed lockfile; failures must reach the CI gate.
 security-audit-ci:
-    -vx cargo generate-lockfile
-    -vx cargo audit --deny warnings
+    vx cargo audit --deny warnings
 
 # Coverage (CI)
 coverage-ci:

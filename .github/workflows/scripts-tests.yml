@@ -9,11 +9,17 @@ on:
     branches: [main, develop]
     paths:
       - "scripts/**"
+      - "justfile"
+      - ".github/workflows/ci.yml"
+      - ".github/workflows/security-audit.yml"
       - ".github/workflows/scripts-tests.yml"
       - ".github/workflows/test-docker.yml"
   pull_request:
     paths:
       - "scripts/**"
+      - "justfile"
+      - ".github/workflows/ci.yml"
+      - ".github/workflows/security-audit.yml"
       - ".github/workflows/scripts-tests.yml"
       - ".github/workflows/test-docker.yml"
   workflow_dispatch:

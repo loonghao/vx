@@ -41,6 +41,4 @@ jobs:
           tool: cargo-audit
 
       - name: Run cargo audit
-        run: |
-          cargo generate-lockfile || true
-          cargo audit --deny warnings || true
+        run: vx just security-audit-ci
